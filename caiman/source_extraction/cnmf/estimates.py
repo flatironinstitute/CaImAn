@@ -24,6 +24,7 @@ from ...base.rois import (
         detect_duplicates_and_subsets, nf_match_neurons_in_binary_masks,
         nf_masks_to_neurof_dict)
 from .initialization import downscale
+from .deconvolution import constrained_foopsi
 
 
 class Estimates(object):
@@ -619,40 +620,65 @@ class Estimates(object):
 
         return self
 
-    def compute_residuals(self, Yr):
+    def compute_residuals(self, Yr, comp=None):
         """compute residual for each component (variable R)
 
          Args:
              Yr :    np.ndarray
                  movie in format pixels (d) x frames (T)
+            comp: list object
+                List that contains 4 elements [A, C, b, f]
+                When list is not None, the algorithm will only compute_residuals on these components
         """
-        if len(Yr.shape) > 2:
-            Yr = np.reshape(Yr.transpose(1,2,0), (-1, Yr.shape[0]), order='F')
-        if 'csc_matrix' not in str(type(self.A)):
-            self.A = scipy.sparse.csc_matrix(self.A)
-        if 'array' not in str(type(self.b)):
-            self.b = self.b.toarray()
-        if 'array' not in str(type(self.C)):
-            self.C = self.C.toarray()
-        if 'array' not in str(type(self.f)):
-            self.f = self.f.toarray()
+        if comp is None:
+            if len(Yr.shape) > 2:
+                Yr = np.reshape(Yr.transpose(1,2,0), (-1, Yr.shape[0]), order='F')
+            if 'csc_matrix' not in str(type(self.A)):
+                self.A = scipy.sparse.csc_matrix(self.A)
+            if 'array' not in str(type(self.b)):
+                self.b = self.b.toarray()
+            if 'array' not in str(type(self.C)):
+                self.C = self.C.toarray()
+            if 'array' not in str(type(self.f)):
+                self.f = self.f.toarray()
+    
+            Ab = scipy.sparse.hstack((self.A, self.b)).tocsc()
+            nA2 = np.ravel(Ab.power(2).sum(axis=0))
+            nA2_inv_mat = scipy.sparse.spdiags(
+                1. / nA2, 0, nA2.shape[0], nA2.shape[0])
+            Cf = np.vstack((self.C, self.f))
+            if 'numpy.ndarray' in str(type(Yr)):
+                YA = (Ab.T.dot(Yr)).T * nA2_inv_mat
+            else:
+                YA = caiman.mmapping.parallel_dot_product(Yr, Ab, dview=self.dview,
+                            block_size=2000, transpose=True, num_blocks_per_run=5) * nA2_inv_mat
+    
+            AA = Ab.T.dot(Ab) * nA2_inv_mat
+            self.R = (YA - (AA.T.dot(Cf)).T)[:, :self.A.shape[-1]].T
 
-        Ab = scipy.sparse.hstack((self.A, self.b)).tocsc()
-        nA2 = np.ravel(Ab.power(2).sum(axis=0))
-        nA2_inv_mat = scipy.sparse.spdiags(
-            1. / nA2, 0, nA2.shape[0], nA2.shape[0])
-        Cf = np.vstack((self.C, self.f))
-        if 'numpy.ndarray' in str(type(Yr)):
-            YA = (Ab.T.dot(Yr)).T * nA2_inv_mat
+            return self
+        
         else:
-            YA = caiman.mmapping.parallel_dot_product(Yr, Ab, dview=self.dview,
-                        block_size=2000, transpose=True, num_blocks_per_run=5) * nA2_inv_mat
-
-        AA = Ab.T.dot(Ab) * nA2_inv_mat
-        self.R = (YA - (AA.T.dot(Cf)).T)[:, :self.A.shape[-1]].T
-
-        return self
-
+            if len(Yr.shape) > 2:
+                Yr = np.reshape(Yr.transpose(1,2,0), (-1, Yr.shape[0]), order='F')
+            A = comp[0]
+            C = comp[1]
+            b = comp[2]
+            f = comp[3]
+            Ab = scipy.sparse.hstack((A, b)).tocsc()
+            nA2 = np.ravel(Ab.power(2).sum(axis=0))
+            nA2_inv_mat = scipy.sparse.spdiags(
+                1. / nA2, 0, nA2.shape[0], nA2.shape[0])
+            Cf = np.vstack((C, f))
+            YA = (Ab.T.dot(Yr)).T * nA2_inv_mat
+            AA = Ab.T.dot(Ab) * nA2_inv_mat
+            R = (YA - (AA.T.dot(Cf)).T)[:, :A.shape[-1]].T
+  
+            return R
+            
+            
+        
+        
     def detrend_df_f(self, quantileMin=8, frames_window=500,
                      flag_auto=True, use_fast=False, use_residuals=True,
                      detrend_only=False):
@@ -859,7 +885,7 @@ class Estimates(object):
         self.idx_components = np.where(self.cnn_preds >= min_cnn_thr)[0]
         return self
 
-    def evaluate_components(self, imgs, params, dview=None):
+    def evaluate_components(self, imgs, params, dview=None, comp=None):
         """Computes the quality metrics for each component and stores the
         indices of the components that pass user specified thresholds. The
         various thresholds and parameters can be passed as inputs. If left
@@ -884,6 +910,10 @@ class Estimates(object):
 
                 min_cnn_thr: float
                     CNN classifier threshold
+            comp: list object
+                List that contains 3 elements [A, C, YrA]
+                When list is not None, the algorithm will only evaluate result on these elements
+                
 
         Returns:
             self: esimates object
@@ -900,7 +930,8 @@ class Estimates(object):
         """
         dims = imgs.shape[1:]
         opts = params.get_group('quality')
-        idx_components, idx_components_bad, SNR_comp, r_values, cnn_preds = \
+        if comp is None:
+            idx_components, idx_components_bad, SNR_comp, r_values, cnn_preds = \
         estimate_components_quality_auto(imgs, self.A, self.C, self.b, self.f,
                                          self.YrA,
                                          params.get('data', 'fr'),
@@ -914,13 +945,40 @@ class Estimates(object):
                                          thresh_cnn_lowest=opts['cnn_lowest'],
                                          r_values_lowest=opts['rval_lowest'],
                                          min_SNR_reject=opts['SNR_lowest'])
-        self.idx_components = idx_components.astype(int)
-        self.idx_components_bad = idx_components_bad.astype(int)
-        self.SNR_comp = SNR_comp
-        self.r_values = r_values
-        self.cnn_preds = cnn_preds
+            
+            self.idx_components = idx_components.astype(int)
+            self.idx_components_bad = idx_components_bad.astype(int)
+            self.SNR_comp = SNR_comp
+            self.r_values = r_values
+            self.cnn_preds = cnn_preds    
+            
+            return self
+        
+        else:
+            dims = imgs.shape[:2]
+            A = comp[0]
+            C = comp[1]
+            R = comp[2]
+            idx_components, idx_components_bad, SNR_comp, r_values, cnn_preds = \
+        estimate_components_quality_auto(imgs, A, C, self.b, self.f, R,
+                                         params.get('data', 'fr'),
+                                         params.get('data', 'decay_time'),
+                                         params.get('init', 'gSig'),
+                                         dims, dview=dview,
+                                         min_SNR=opts['min_SNR'],
+                                         r_values_min=opts['rval_thr'],
+                                         use_cnn=opts['use_cnn'],
+                                         thresh_cnn_min=opts['min_cnn_thr'],
+                                         thresh_cnn_lowest=opts['cnn_lowest'],
+                                         r_values_lowest=opts['rval_lowest'],
+                                         min_SNR_reject=opts['SNR_lowest'])
+        
+            return idx_components, idx_components_bad, SNR_comp, r_values, cnn_preds
 
-        return self
+            
+            
+            
+        
 
     def filter_components(self, imgs, params, new_dict={}, dview=None, select_mode='All'):
         """Filters components based on given thresholds without re-computing
@@ -1088,7 +1146,7 @@ class Estimates(object):
                 self.S_dff = np.stack([results[1][i] for i in order])
             
 
-    def manual_merge(self, components, params):
+    def manual_merge(self, components, imgs, params):
         ''' merge a given list of components. The indices
         of components are not pythonic, i.e., they start from 1. Moreover,
         the indices refer to the absolute indices, i.e., the indices before
@@ -1111,7 +1169,6 @@ class Estimates(object):
         Returns:
             self: estimates object
         '''
-
         ln = np.sum(np.array([len(comp) for comp in components]))
         ids = set.union(*[set(comp) for comp in components])
         if ln != len(ids):
@@ -1140,16 +1197,15 @@ class Estimates(object):
             Acsc = self.A.tocsc()[:, merged_ROI]
             Ctmp = np.array(self.C[merged_ROI]) + np.array(self.YrA[merged_ROI])
 
-            C_to_norm = np.sqrt(np.ravel(Acsc.power(2).sum(
-                axis=0)) * np.sum(Ctmp ** 2, axis=1))
+            C_to_norm = np.sqrt(np.ravel(Acsc.power(2).sum(axis=0)) * np.sum(Ctmp ** 2, axis=1))
             indx = np.argmax(C_to_norm)
             g_idx = [merged_ROI[indx]]
             fast_merge = True
             bm, cm, computedA, computedC, gm, \
             sm, ss, yra = merge_iteration(Acsc, C_to_norm, Ctmp, fast_merge,
                                           None, g_idx, indx, params.temporal)
-
-            A_merged[:, i] = computedA
+            
+            A_merged[:, i] = computedA[:,np.newaxis]
             C_merged[i, :] = computedC
             R_merged[i, :] = yra
             S_merged[i, :] = ss[:T]
@@ -1159,8 +1215,8 @@ class Estimates(object):
             g_merged[i, :] = gm
 
         empty = np.ravel((C_merged.sum(1) == 0) + (A_merged.sum(0) == 0))
-        nbmrg -= len(empty)
         if np.any(empty):
+            nbmrg -= len(empty)
             A_merged = A_merged[:, ~empty]
             C_merged = C_merged[~empty]
             R_merged = R_merged[~empty]
@@ -1173,10 +1229,11 @@ class Estimates(object):
         neur_id = np.unique(np.hstack(merged_ROIs))
         nr = self.C.shape[0]
         good_neurons = np.setdiff1d(list(range(nr)), neur_id)
+        
+        good_merged, bad_merged, SNR_merged, r_merged, cnn_merged = self.evaluate_components(imgs.transpose([1,2,0]), params, 
+                                                                          dview=None,comp=[A_merged, C_merged, R_merged])        
+        
         if self.idx_components is not None:
-            new_indices = list(range(len(good_neurons),
-                                     len(good_neurons) + nbmrg))
-
             mapping_mat = np.zeros(nr)
             mapping_mat[good_neurons] = np.arange(len(good_neurons), dtype=int)
             gn_ = good_neurons.tolist()
@@ -1184,33 +1241,115 @@ class Estimates(object):
             new_idx_bad = [mapping_mat[i] for i in self.idx_components_bad if i in gn_]
             new_idx.sort()
             new_idx_bad.sort()
+            new_indices = list(range(len(good_neurons),
+                                     len(good_neurons) + len(good_merged)))
             self.idx_components = np.array(new_idx + new_indices, dtype=int)
-            self.idx_components_bad = np.array(new_idx_bad, dtype=int)
+            new_indices_bad = list(range(len(new_idx_bad),
+                                     len(new_idx_bad) + len(bad_merged)))
+            self.idx_components_bad = np.array(new_idx_bad + new_indices_bad, dtype=int)
 
         self.A = scipy.sparse.hstack((self.A.tocsc()[:, good_neurons],
-                                      A_merged.tocsc()))
-        self.C = np.vstack((self.C[good_neurons, :], C_merged))
+                                      A_merged[:,good_merged].tocsc()))
+        self.C = np.vstack((self.C[good_neurons, :], C_merged[good_merged]))
         # we continue for the variables
         if self.YrA is not None:
-            self.YrA = np.vstack((self.YrA[good_neurons, :], R_merged))
+            self.YrA = np.vstack((self.YrA[good_neurons, :], R_merged[good_merged,:]))
             self.R = self.YrA
         if self.S is not None:
-            self.S = np.vstack((self.S[good_neurons, :], S_merged))
+            self.S = np.vstack((self.S[good_neurons, :], S_merged[good_merged,:]))
         if self.bl is not None:
             self.bl = np.hstack((self.bl[good_neurons],
-                                 np.array(bl_merged).flatten()))
+                                 np.array(bl_merged[good_merged]).flatten()))
         if self.c1 is not None:
             self.c1 = np.hstack((self.c1[good_neurons],
-                                 np.array(c1_merged).flatten()))
+                                 np.array(c1_merged[good_merged]).flatten()))
         if self.sn is not None:
             self.sn = np.hstack((self.sn[good_neurons],
-                                 np.array(sn_merged).flatten()))
+                                 np.array(sn_merged[good_merged]).flatten()))
         if self.g is not None:
-            self.g = np.vstack((np.vstack(self.g)[good_neurons], g_merged))
-        self.nr = nr - len(neur_id) + len(C_merged)
+            self.g = np.vstack((np.vstack(self.g)[good_neurons], g_merged[good_merged]))
+        self.nr = nr - len(neur_id) + len(C_merged[good_merged])
         if self.coordinates is not None:
             self.coordinates = caiman.utils.visualization.get_contours(self.A,\
                                 self.dims, thr_method='max', thr='0.2')
+        self.SNR_comp = np.hstack((self.SNR_comp[good_neurons], SNR_merged[good_merged]))
+        self.r_values = np.hstack((self.r_values[good_neurons], r_merged[good_merged]))
+        self.cnn_preds = np.hstack((self.cnn_preds[good_neurons], cnn_merged[good_merged]))
+        
+                
+    def manual_add(self, imgs, params, comp):
+        ''' Manual add new neuron that is calculated from nmf.   
+        ```
+        components = [A_new, C_new, YrA_new]
+        ```
+
+        Args:
+            components: list 
+                components list is made of two elements. The first is the new spatial
+                component, the second is the new temporal component.
+            imgs: movie object
+                raw movie
+            imgs_residual: movie object
+                movie subtract from the signal and the background
+            params: params object
+                
+        Returns:
+            self: estimates object
+        '''
+        d = self.A.shape[0]
+        T = self.C.shape[1]
+        # we initialize the values
+        A_merged = scipy.sparse.lil_matrix((d, 1)).tocsc()
+        C_merged = np.zeros((1, T))
+        R_merged = np.zeros((1, T))
+        
+        A_merged[:,0] = comp[0]
+        C_merged[0,:] = comp[1]
+        R_merged[0,:] = comp[2]
+        
+        A_to_norm = np.sqrt(A_merged.T.dot(A_merged)).todense()[0,0]
+        A_merged /= A_to_norm
+        C_merged *= A_to_norm
+        
+        self.A = scipy.sparse.hstack((self.A.tocsc(), A_merged))
+        self.C = np.vstack((self.C, C_merged))
+        #self.compute_residuals(np.array(imgs))
+        self.R = np.vstack((self.R, R_merged))
+        self.YrA = self.R
+        #R_merged[0,:] = self.R[-1]
+        comp = [A_merged, C_merged, R_merged]
+        good_merged, bad_merged, SNR_merged, r_merged, cnn_merged = self.evaluate_components(imgs.transpose([1,2,0]), params, 
+                                                                                                 dview=None,comp=[A_merged, C_merged, R_merged])        
+        if len(good_merged)>0:
+            Acsc = self.A.tocsc()[:, -1]
+            Ctmp = np.array(self.C[-1]) + np.array(self.YrA[-1])
+            computedA = Acsc
+            computedC = Ctmp
+            #r = ((Acsc.T.dot(computedA)).todense() * Ctmp)/(computedA.T.dot(computedA)).todense() - computedC
+            #c_in =  np.array(computedC+r).squeeze()
+            c_in = computedC
+            deconvC, bm, cm, gm, sm, ss, lam_ = constrained_foopsi(
+                c_in, g=None, **params.temporal)        
+            self.C[-1] = deconvC
+            self.YrA[-1] = c_in-deconvC        
+            self.S = np.vstack((self.S, ss))
+            self.bl = np.hstack((self.bl,np.array(bm)))
+            self.c1 = np.hstack((self.c1,np.array(cm)))
+            self.sn = np.hstack((self.sn,np.array(sm))) 
+            self.g = np.vstack((np.vstack(self.g), gm))
+            self.nr = self.nr + 1
+            self.SNR_comp = np.hstack((self.SNR_comp, SNR_merged))
+            self.r_values = np.hstack((self.r_values, r_merged))
+            self.cnn_preds = np.hstack((self.cnn_preds, cnn_merged))
+            self.idx_components = np.arange(self.idx_components.shape[0]+1, dtype=int)
+        else:
+            self.A = self.A.tocsc()[:,:-1]
+            self.C = self.C[:-1,:]
+            self.R = self.R[:-1,:]
+        
+        
+        
+
 
     def threshold_spatial_components(self, maxthr=0.25, dview=None):
         ''' threshold spatial components. See parameters of
