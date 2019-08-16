@@ -69,24 +69,20 @@ Installation on Windows
 The Windows installation process differs more widely from installation
 on Linux or MacOSX and has different issues you may run into.
 
-
-Windows Build Process
--------
-
-   -  Increase the maximum size of your pagefile to 64G or more
-      (http://www.tomshardware.com/faq/id-2864547/manage-virtual-memory-pagefile-windows.html).
-      The Windows memmap interface is sensitive to the maximum setting
-      and leaving it at the default can cause errors when processing larger
-      datasets
-   -  Use Conda to install git (With “conda install git”) - use of
-      another commandline git is acceptable, but may lead to issues
-      depending on default settings
-   -  Install Microsoft Build Tools for Visual Studio 2017
-      https://www.visualstudio.com/downloads/#build-tools-for-visual-studio-2017.
-      Check the “Build Tools” box, and in the detailed view on the right
-      check the “C/C++ CLI Tools” component too. The specifics of this
-      occasionally change as Microsoft changes its products and website;
-      you may need to go off-script.
+-  Increase the maximum size of your pagefile to 64G or more
+   (http://www.tomshardware.com/faq/id-2864547/manage-virtual-memory-pagefile-windows.html).
+   The Windows memmap interface is sensitive to the maximum setting
+   and leaving it at the default can cause errors when processing larger
+   datasets
+-  Use Conda to install git (With “conda install git”) - use of
+   another commandline git is acceptable, but may lead to issues
+   depending on default settings
+-  Install Microsoft Build Tools for Visual Studio 2017
+   https://www.visualstudio.com/downloads/#build-tools-for-visual-studio-2017.
+   Check the “Build Tools” box, and in the detailed view on the right
+   check the “C/C++ CLI Tools” component too. The specifics of this
+   occasionally change as Microsoft changes its products and website;
+   you may need to go off-script.
 
 Use the following menu item to launch a anaconda-enabled command prompt:
 start>programs>anaconda3>anaconda prompt From that prompt. issue the
@@ -174,7 +170,7 @@ For **Linux (and OSX)** run these commands before launching Python:
      export MKL_NUM_THREADS=1
      export OPENBLAS_NUM_THREADS=1
 
-For **Windows** run the same command, replacing the word `export` with the word `set`. 
+For **Windows** run the same command, replacing the word ``export`` with the word ``set``. 
 
 The commands should be run *every time* before launching python. It is
 recommended that you save these values inside your environment so you
@@ -207,7 +203,8 @@ mode with ``pip install -e .``
 This will place that directory under your home directory in a directory
 called caiman_data. If you have, some of the demos or datafiles may have
 changed since your last install, to follow API changes. You can check to
-see if they have by doing ``caimanmanager.py check``. If they have not,
+see if they have by doing ``caimanmanager.py check``
+(or ``python caimanmanager.py check``). If they have not,
 you may keep using them. If they have, we recommend moving your old
 caiman data directory out of the way (or just remove them if you have no
 precious data) and doing a new data install as per above.
@@ -220,22 +217,18 @@ caimanmanager tool and other libraries will respect that.
 Upgrading
 =========
 
-Upgrading and caiman_data
--------------------------
-When you upgrade CaImAn, sometimes the underlying APIs change. When this happens and it impacts a demo (or otherwise requires changes to caiman_data), we
-update the demo and data. This means that upgrading CaImAn works best if you also replace the caiman_data directory with a new version. However, you may
-have made your own changes to the demos (e.g. to work with your data). If you have done this, you may need to massage your changes into the new versions of
-the demos. For this reason, we recommend:
-
-1. If you have not modified anything in caiman_data, remove it before upgrading and have caimanmanager make a new one after the upgrade.
-
-2. If you have modified things in caiman_data but your changes are trivial, remove and recreate as above.
-
-3. If you have extensively modified things in caiman_data, rename the caiman_manager directory, have caimanmanager make a new one after the upgrade, and then massage your changes back in.
+To upgrade CaImAn you will need to upgrade both the package and the ``caiman_data`` directory through the ``caimanmanager``.
 
 
-Upgrading and the conda-forge package
+Upgrading the conda-forge package
 -------------------------------------
+
+.. raw:: html
+
+   <details>
+
+From within your caiman environment type ```conda update caiman -c conda-forge```. In most cases this should be enough.
+If not, you may want to create a new environmrent from scratch and (optionally) remove your existing environment. To do that:
 
 1. Remove your conda environment: ``conda env remove -n caiman`` (or whatever you called the conda environment you used)
 
@@ -243,18 +236,25 @@ Upgrading and the conda-forge package
 
 3. Repeat the install instructions
 
+.. raw:: html
+
+   </details>
+
 
 Upgrading and source-based installations
 ----------------------------------------
 
-If you already have CaImAn installed with the pip installer (May 2018 or
-later), but want to upgrade, please follow the procedure below. If you
+.. raw:: html
+
+   <details>
+
+If you already have CaImAn installed with the pip installer (development mode),
+but want to upgrade, please follow the procedure below. If you
 reinstall CaImAn frequently, you can try skip deleting and recreating
 your Conda environment. In this case you can do only steps 1, 5, and 7
 below to update the code. However, if the environment file has changed
 since your last update this may lead to you not the latest version. None of this applies
-to the conda-forge route (where you should just delete your conda environment and repeat the
-install instructions).
+to the conda-forge route (for which instructions are given above).
 
 From the conda environment you used to install CaImAn: 
 
@@ -284,6 +284,28 @@ From the conda environment you used to install CaImAn:
    ``pip uninstall caiman`` followed by ``pip install .`` for your
    changes to take effect. Depending on the functions you’re changing so
    you might be able to skip this step.
+
+.. raw:: html
+
+   </details>
+
+
+Upgrading and caiman_data
+-------------------------
+
+When you upgrade CaImAn, sometimes the underlying APIs change. When this happens and it impacts a demo (or otherwise requires changes to caiman_data), we update the demo and data. This means that upgrading CaImAn works best if you also replace the caiman_data directory with a new version.
+
+However, you may have made your own changes to the demos (e.g. to work with your data). If you have done this, you may need to massage your changes into the new versions of the demos. For this reason, we recommend that if you modify the demos to operate
+on your own data to save them as a different file to avoid losing your work when updating the caiman_data directory.
+
+To update the caiman_data directory you can follow the following procedure:
+
+- If there are no new demos or files in the new CaImAn distribution, then you can leave it as is.
+
+- If you have not modified anything in caiman_data but there are upstream changes in the new CaImAn distribution, then remove caiman_data directory before upgrading and have caimanmanager make a new one after the upgrade. 
+
+- If you have extensively modified things in caiman_data, rename the caiman_manager directory, have caimanmanager make a new one after the upgrade, and then massage your changes back in.
+
 
 Installing additional packages
 ==============================
