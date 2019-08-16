@@ -8,24 +8,53 @@ Installation
 Download and install Anaconda or Miniconda (Python 3.x version)
 http://docs.continuum.io/anaconda/install
 
+CaImAn installation consists of two steps: Install the CaImAn package and installing
+the caimanmanager which will setup a directory with all the demos, test datasets etc.
+
+Installing CaImAn
+==================
+
+There are two ways to install CaImAn. A package based installation and a development
+mode installation. 
+
 Package-based Process
 ---------------------
-   -  This process is the same on every operating system
-   -  Follow this process if you won't need to work with the CaImAn sources
-      and instead wish to use it as a library (the demos still work this way, and
-      you can use/modify them).
-   -  You do not need a compiler for this route.
-   -  You should not download the sources (with git or otherwise) for this route.
-   -  This route also sets environment variables for you (skip that section below)
-   -  Download and install Anaconda (Python 3.x)
-      http://docs.continuum.io/anaconda/install. Allow the installer to
-      modify your PATH variable
-   -  Create a new environment with the caiman package from conda-forge:
+
+.. raw:: html
+
+   <details>
+
+-  This process is the same on every operating system
+-  Follow this process if you won't need to work with the CaImAn sources
+   and instead wish to use it as a library (the demos still work this way, and
+   you can use/modify them).
+-  You do not need a compiler for this route.
+-  You should not download the sources (with git or otherwise) for this route.
+-  This route also sets environment variables for you (skip that section below)
+-  Download and install Anaconda (Python 3.x)
+   http://docs.continuum.io/anaconda/install. Allow the installer to
+   modify your PATH variable
+-  Create a new environment with the caiman package from conda-forge:
+
 >>>
-conda create -n caiman caiman
+conda create -n caiman  # caiman here refers to the name of the environment (you can pick any name you want)
+conda install caiman -c conda-forge
 
-   -  Skip ahead to the section on setting up a data directory with caimanmanager
+-  Skip ahead to the section on setting up a data directory with caimanmanager
 
+Development mode Installation Process
+-------------------------------------
+
+.. raw:: html
+
+   <details>
+
+This will allow you to modify the source files of CaImAn and will make it easier
+to contribute to the CaImAn project, fix bugs etc.
+
+.. raw:: html
+
+   </details>
 
 Installation on Windows
 ------------
@@ -46,9 +75,6 @@ Windows Build Process
       The Windows memmap interface is sensitive to the maximum setting
       and leaving it at the default can cause errors when processing larger
       datasets
-   -  Download and install Anaconda (Python 3.x)
-      http://docs.continuum.io/anaconda/install. Allow the installer to
-      modify your PATH variable
    -  Use Conda to install git (With “conda install git”) - use of
       another commandline git is acceptable, but may lead to issues
       depending on default settings
@@ -83,55 +109,9 @@ You may then continue the installation.
 .. code:: bash
 
      conda activate caiman
-     pip install . (OR pip install -e . if you want to develop code)
+     pip install -e .  # OR `pip install .` if you don't want to develop code
      copy caimanmanager.py ..
-     conda install numba
      cd ..
-
-Setting up a data directory with caimanmanager
-----------------------------------------------
-
-Now that you have stepped out of the caiman source directory, you are
-ready to make a data directory with code samples and datasets. You will
-not use the source tree directory any more.
-
-::
-
-     caimanmanager.py install
-
-or ``python caimanmanager.py install --inplace`` if you used “pip
-install -e .”
-
-This will place that directory under your home directory in a directory
-called caiman_data. If you have, some of the demos or datafiles may have
-changed since your last install, to follow API changes. You can check to
-see if they have by doing ``caimanmanager.py check``. If they have not,
-you may keep using them. If they have, we recommend moving your old
-caiman data directory out of the way (or just remove them if you have no
-precious data) and doing a new data install as per above.
-
-If you prefer to manage this information somewhere else, the
-``CAIMAN_DATA`` environment variable can be set to customise it. The
-caimanmanager tool and other libraries will respect that.
-
-Setting up environment variables
---------------------------------
-
-To make the package work *efficiently* and eliminate “crosstalk” between
-different processes, run these commands before launching Python:
-
-.. code:: bash
-
-     set MKL_NUM_THREADS=1
-     set OPENBLAS_NUM_THREADS=1
-
-The commands should be run every time you enter the caiman conda
-environment. We recommend you save these values inside your environment
-so you do not have to repeat this process every time. You can do this by
-following the instructions
-`here <https://conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#saving-environment-variables>`__.
-
-If you installed using the conda-forge package, this is done automatically for you.
 
 .. raw:: html
 
@@ -150,10 +130,10 @@ Installation on MacOS and Linux
      cd CaImAn/
      conda env create -f environment.yml -n caiman
      source activate caiman
-     pip install .
+     pip install -e .
 
-If you want to develop code then replace the last command with
-``pip install -e .`` If any of these steps gives you errors do not
+If you don't want to develop code then replace the last command with
+``pip install .`` If any of these steps gives you errors do not
 proceed to the following step without resolving it
 
 Known issues
@@ -169,37 +149,55 @@ following steps before your first install:
 
 and install the package file you will find in the folder that pops up
 
+.. raw:: html
+
+   </details>
+
+
 .. _setting-up-environment-variables-1:
 
 Setting up environment variables
 --------------------------------
 
 To make the package work *efficiently* and eliminate “crosstalk” between
-different processes, run these commands before launching Python (this is
-for Linux and OSX):
+different processes, some multithreading operations need to be turned off
+This is for Linux and Windows and is not necessary is OSX. This process is
+not needed if you used the conda-forge installation process.
+
+For **Linux (and OSX)** run these commands before launching Python:
 
 .. code:: bash
 
      export MKL_NUM_THREADS=1
      export OPENBLAS_NUM_THREADS=1
 
-The commands should be run every time before launching python. It is
+For **Windows** run the same command, replacing the word `export` with the word `set`. 
+
+The commands should be run *every time* before launching python. It is
 recommended that you save these values inside your environment so you
 don’t have to repeat this process every time. You can do this by
 following the instructions
 `here <https://conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#saving-environment-variables>`__.
 
-If you installed using the conda-forge package, this is done automatically for you.
+**If you installed using the conda-forge package, this is done automatically for you.**
+
+.. raw:: html
+
+   </details>
+
 
 Setting up caimanmanager
-------------------------
+========================
 
 Once CaImAn is installed, you may want to get a working directory with
 code samples and datasets; pip installed a caimanmanager.py command that
 manages this. If you have not installed Caiman before, you can do
-``caimanmanager.py install`` or
-``python caimanmanager.py install --inplace`` if you used “pip install
--e .”
+
+``caimanmanager.py install`` 
+if you used the conda-forge package OR
+
+``python caimanmanager.py install --inplace`` if you used the developer
+mode with ``pip install -e .``
 
 This will place that directory under your home directory in a directory
 called caiman_data. If you have, some of the demos or datafiles may have
@@ -213,9 +211,6 @@ If you prefer to manage this information somewhere else, the
 ``CAIMAN_DATA`` environment variable can be set to customise it. The
 caimanmanager tool and other libraries will respect that.
 
-.. raw:: html
-
-   </details>
 
 Upgrading
 =========
