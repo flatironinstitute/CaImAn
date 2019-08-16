@@ -32,6 +32,8 @@ import os
 import psutil
 import scipy
 import sys
+import glob
+import pathlib
 
 from .estimates import Estimates
 from .initialization import initialize_components, compute_W
@@ -46,6 +48,8 @@ from ... import mmapping
 from ...components_evaluation import estimate_components_quality
 from ...motion_correction import MotionCorrect
 from ...utils.utils import save_dict_to_hdf5, load_dict_from_hdf5
+from caiman import summary_images
+from caiman import cluster
 
 try:
     cv2.setNumThreads(0)
@@ -112,7 +116,7 @@ class CNMF(object):
                 merging threshold, max correlation allowed
 
             dview: Direct View object
-                for parallelization pruposes when using ipyparallel
+                for parallelization purposes when using ipyparallel
 
             p: int
                 order of the autoregressive process used to estimate deconvolution
@@ -193,7 +197,7 @@ class CNMF(object):
             remove_very_bad_comps:Bool
                 whether to remove components with very low values of component quality directly on the patch.
                  This might create some minor imprecisions.
-                Howeverm benefits can be considerable if done because if many components (>2000) are created
+                However benefits can be considerable if done because if many components (>2000) are created
                 and joined together, operation that causes a bottleneck
 
             border_pix:int
@@ -302,24 +306,28 @@ class CNMF(object):
         self.estimates = Estimates(A=Ain, C=Cin, b=b_in, f=f_in,
                                    dims=self.params.data['dims'])
 
-    def fit_file(self, motion_correct=False, indices=[slice(None)]*2):
+    def fit_file(self, motion_correct=False, indices=None, include_eval=False):
         """
         This method packages the analysis pipeline (motion correction, memory
-        mapping, patch based CNMF processing) in a single method that can be
-        called on a specific (sequence of) file(s). It is assumed that the CNMF
-        object already contains a params object where the location of the files
-        and all the relevant parameters have been specified. The method does
-        not perform the quality evaluation step. Consult demo_pipeline for an
-        example.
+        mapping, patch based CNMF processing and component evaluation) in a
+        single method that can be called on a specific (sequence of) file(s).
+        It is assumed that the CNMF object already contains a params object
+        where the location of the files and all the relevant parameters have
+        been specified. The method will perform the last step, i.e. component
+        evaluation, if the flag "include_eval" is set to `True`.
 
         Args:
             motion_correct (bool)
                 flag for performing motion correction
             indices (list of slice objects)
                 perform analysis only on a part of the FOV
+            include_eval (bool)
+                flag for performing component evaluation
         Returns:
             cnmf object with the current estimates
         """
+        if indices is None:
+            indices = (slice(None), slice(None))
         fnames = self.params.get('data', 'fnames')
         if os.path.exists(fnames[0]):
             _, extension = os.path.splitext(fnames[0])[:2]
@@ -328,6 +336,7 @@ class CNMF(object):
             logging.warning("Error: File not found, with file list:\n" + fnames[0])
             raise Exception('File not found!')
 
+        base_name = pathlib.Path(fnames[0]).stem + "_memmap_"
         if extension == '.mmap':
             fname_new = fnames[0]
             Yr, dims, T = mmapping.load_memmap(fnames[0])
@@ -345,17 +354,45 @@ class CNMF(object):
                 else:
                     b0 = np.ceil(np.max(np.abs(mc.shifts_rig))).astype(np.int)
                     self.estimates.shifts = mc.shifts_rig
-                b0 = 0 if self.params.get('motion', 'border_nan') is 'copy' else 0
-                fname_new = mmapping.save_memmap(fname_mc, base_name='memmap_', order='C',
+                # TODO - b0 is currently direction inspecific, which can cause
+                # sub-optimal behavior. See
+                # https://github.com/flatironinstitute/CaImAn/pull/618#discussion_r313960370
+                # for further details.
+                # b0 = 0 if self.params.get('motion', 'border_nan') is 'copy' else 0
+                b0 = 0
+                fname_new = mmapping.save_memmap(fname_mc, base_name=base_name, order='C',
                                                  border_to_0=b0)
             else:
-                fname_new = mmapping.save_memmap(fnames, base_name='memmap_', order='C')
-                # now load the file
+                fname_new = mmapping.save_memmap(fnames, base_name=base_name, order='C')
             Yr, dims, T = mmapping.load_memmap(fname_new)
 
         images = np.reshape(Yr.T, [T] + list(dims), order='F')
         self.mmap_file = fname_new
-        return self.fit(images, indices=indices)
+        if not include_eval:
+            return self.fit(images, indices=indices)
+
+        fit_cnm = self.fit(images, indices=indices)
+        Cn = summary_images.local_correlations(images, swap_dim=False)
+        Cn[np.isnan(Cn)] = 0
+        fit_cnm.save(fname_new[:-5]+'_init.hdf5')
+        fit_cnm.params.change_params({'p': self.params.get('preprocess', 'p')})
+        # %% RE-RUN seeded CNMF on accepted patches to refine and perform deconvolution
+        cnm2 = fit_cnm.refit(images, dview=self.dview)
+        cnm2.estimates.evaluate_components(images, cnm2.params, dview=self.dview)
+        #%% update object with selected components
+        cnm2.estimates.select_components(use_object=True)
+        #%% Extract DF/F values
+        cnm2.estimates.detrend_df_f(quantileMin=8, frames_window=250)
+        cnm2.estimates.Cn = Cn
+        cnm2.save(cnm2.mmap_file[:-4] + 'hdf5')
+
+        cluster.stop_server(dview=self.dview)
+        log_files = glob.glob('*_LOG_*')
+        for log_file in log_files:
+            os.remove(log_file)
+
+        return cnm2
+
 
     def refit(self, images, dview=None):
         """
@@ -378,7 +415,7 @@ class CNMF(object):
         cnm.mmap_file = self.mmap_file
         return cnm.fit(images)
 
-    def fit(self, images, indices=[slice(None), slice(None)]):
+    def fit(self, images, indices=(slice(None), slice(None))):
         """
         This method uses the cnmf algorithm to find sources in data.
         it is calling every function from the cnmf folder
@@ -404,6 +441,8 @@ class CNMF(object):
         # Todo : to compartment
         if isinstance(indices, slice):
             indices = [indices]
+        if isinstance(indices, tuple):
+            indices = list(indices)
         indices = [slice(None)] + indices
         if len(indices) < len(images.shape):
             indices = indices + [slice(None)]*(len(images.shape) - len(indices))
@@ -958,41 +997,101 @@ def load_CNMF(filename, n_processes=1, dview=None):
 
     Args:
         filename: str
-            hdf5 file name containing the saved object
-        dview: multiprocessingor ipyparallel object
+            hdf5 (or nwb) file name containing the saved object
+        dview: multiprocessing or ipyparallel object
             useful to set up parllelization in the objects
     '''
     new_obj = CNMF(n_processes)
-    for key, val in load_dict_from_hdf5(filename).items():
-        if key == 'params':
-            prms = CNMFParams()
-            prms.spatial = val['spatial']
-            prms.temporal = val['temporal']
-            prms.patch = val['patch']
-            prms.preprocess = val['preprocess']
-            prms.init = val['init']
-            prms.merging = val['merging']
-            prms.quality = val['quality']
-            prms.data = val['data']
-            prms.online = val['online']
-            prms.motion = val['motion']
-            setattr(new_obj, key, prms)
-        elif key == 'dview':
-            setattr(new_obj, key, dview)
-        elif key == 'estimates':
-            estims = Estimates()
-            for kk, vv in val.items():
-                if kk == 'discarded_components':
-                    if vv is not None:
-                        discarded_components = Estimates()
-                        for kk__, vv__ in vv.items():
-                            setattr(discarded_components, kk__, vv__)
-                        setattr(estims, kk, discarded_components)
-                else:
-                    setattr(estims, kk, vv)
+    if os.path.splitext(filename)[1].lower() in ('.hdf5', '.h5'):
+        for key, val in load_dict_from_hdf5(filename).items():
+            if key == 'params':
+                prms = CNMFParams()
+                prms.spatial = val['spatial']
+                prms.temporal = val['temporal']
+                prms.patch = val['patch']
+                prms.preprocess = val['preprocess']
+                prms.init = val['init']
+                prms.merging = val['merging']
+                prms.quality = val['quality']
+                prms.data = val['data']
+                prms.online = val['online']
+                prms.motion = val['motion']
+                setattr(new_obj, key, prms)
+            elif key == 'dview':
+                setattr(new_obj, key, dview)
+            elif key == 'estimates':
+                estims = Estimates()
+                for kk, vv in val.items():
+                    if kk == 'discarded_components':
+                        if vv is not None:
+                            discarded_components = Estimates()
+                            for kk__, vv__ in vv.items():
+                                setattr(discarded_components, kk__, vv__)
+                            setattr(estims, kk, discarded_components)
+                    else:
+                        setattr(estims, kk, vv)
 
-            setattr(new_obj, key, estims)
-        else:
-            setattr(new_obj, key, val)
+                setattr(new_obj, key, estims)
+            else:
+                setattr(new_obj, key, val)
+    elif os.path.splitext(filename)[1].lower() == '.nwb':
+        from pynwb import NWBHDF5IO
+        with NWBHDF5IO(filename, 'r') as io:
+            nwb = io.read()
+            ophys = nwb.processing['ophys']
+            rrs_group = ophys.data_interfaces['Fluorescence'].roi_response_series
+            rrs = rrs_group['RoiResponseSeries']
+            C = rrs.data[:].T
+            rois = rrs.rois
+            roi_indices = rois.data
+            A = rois.table['image_mask'][roi_indices, ...]
+            dims = A.shape[1:]
+            A = A.reshape((A.shape[0], -1)).T
+            A = scipy.sparse.csc_matrix(A)
+            if 'Background_Fluorescence_Response' in rrs_group:
+                brs = rrs_group['Background_Fluorescence_Response']
+                f = brs.data[:].T
+                brois = brs.rois
+                broi_indices = brois.data
+                b = brois.table['image_mask'][broi_indices, ...]
+                b = b.reshape((b.shape[0], -1)).T
+            else:
+                b = None #np.zeros(mov.shape[1:])
+                f = None
+            estims = Estimates(A=A, b=b, C=C, f=f)
+            estims.YrA = ophys.data_interfaces['residuals'].data[:].T
+
+            frame_rate = ophys.data_interfaces['ImageSegmentation'].plane_segmentations['PlaneSegmentation']. \
+                imaging_plane.imaging_rate
+
+            if 'r' in rois.table:
+                estims.r_values = rois.table['r'][roi_indices]
+            if 'snr' in rois.table:
+                estims.SNR_comp = rois.table['snr'][roi_indices]
+            if 'cnn' in rois.table:
+                estims.cnn_preds = rois.table['cnn'][roi_indices]
+            if 'keep' in rois.table:
+                keep = rois.table['keep'][roi_indices]
+                estims.idx_components = np.where(keep)[0]
+            estims.nr = len(roi_indices)
+
+            if 'summary_images' in ophys.data_interfaces:
+                if 'Cn' in ophys.data_interfaces['summary_images']:
+                    estims.Cn = ophys.data_interfaces['summary_images']['Cn']
+            if hasattr(nwb.acquisition['TwoPhotonSeries'], 'external_file'):
+                setattr(new_obj, 'mmap_file', nwb.acquisition['TwoPhotonSeries'].external_file[0])
+            else:
+                setattr(new_obj, 'mmap_file', filename)
+
+            estims.dims = dims
+            prms = CNMFParams(dims=dims)
+            prms.set('data', {'fr': frame_rate})
+
+            setattr(new_obj, 'params', prms)
+            setattr(new_obj, 'dview', dview)
+            setattr(new_obj, 'estimates', estims)
+
+    else:
+        raise NotImplementedError('unsupported file extension')
 
     return new_obj

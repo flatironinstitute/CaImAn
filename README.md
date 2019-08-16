@@ -34,9 +34,16 @@ A paper explaining most of the implementation details and benchmarking can be fo
 
 All the results and figures of the paper can be regenerated using this package. For more information visit this [page](https://github.com/flatironinstitute/CaImAn/tree/master/use_cases/eLife_scripts).
 
+## Other docs in this repo
+* [Running CaImAn on a Cluster](docs/CLUSTER.md)
+* [More detailed install instructions for Windows](docs/INSTALL-windows.md)
+* [Install quirks on some Linux Distributions](docs/README-Distros.md)
+* [How CaImAn can use your GPUs](docs/README-GPU.md)
+* [The CaImAn GUI](docs/GUI.md)
+
 ## New: Exporting results, GUI and NWB support (July 2019)
 
-You can now use the `save` method included in both the `CNMF` and `OnACID` objects to export the results (and parameters used) of your analysis. The results are saved in an HDF5 file that you can then load in a graphical user interface for more inspection. The GUI will allow you to inspect the results and modify the selected components based on the various quality metrics. For more information click [here](GUI.md)
+You can now use the `save` method included in both the `CNMF` and `OnACID` objects to export the results (and parameters used) of your analysis. The results are saved in an HDF5 file that you can then load in a graphical user interface for more inspection. The GUI will allow you to inspect the results and modify the selected components based on the various quality metrics. For more information click [here](docs/GUI.md)
 
 The [Neurodata Without Borders (NWB)](https://www.nwb.org/) file format is now supported by CaImAn. You read and analyze NWB files and can save the results of the analysis (`Estimates` object) back to the original NWB file. Consult this [demo](use_cases/NWB/demo_pipeline_NWB.py) for an example on how to use this feature.
 
@@ -61,12 +68,13 @@ To see examples of how these methods are used, please consult the demos. While t
 
 ## Installation for calcium imaging data analysis
 
-### Installation Changes
-In May 2018, the way CaImAn is installed changed; we now register the package with Python's package management facilities rather than rely on people working out of the source tree. If you have an older install, these are things you should be aware of:
-* You should not set PYTHONPATH to the CaImAn source directory any more. If you did this before (in your dotfiles or elsewhere) you should remove that.
-* Unless you're installing with `pip install -e` (documented below), you should no longer work out of your checkout directory. The new install mode expects you to use caimanmanager (also documented below) to manage the demos and the place in which you'll be running code. An installed version of caimanmanager will be added to your path and should not be run out of the checkout directory.
+### Installing the binary package
 
-In July 2018, Python 2.x support was removed; Python 3.6 or higher is required for CaImAn.
+Beginning in August 2019 we have an experimental binary release of the software in the conda-forge package repos. This is intended for people who can use CaImAn as a library, interacting with it as the demos do. It also does not need a compiler. It is not suitable for people intending to change the CaImAn codebase. Comfort with conda is still required. If you wish to use the binary package, you do not need the sources (including this repo) at all. With a functional install of conda, you can do (on any platform):
+```bash
+conda create -c conda-forge caiman
+```
+You will still need to use caimanmanager.py afterwards to create a data directory. If you install this way, do not follow any of the other install instructions below.
 
 ### Upgrading CaImAn
 
@@ -79,7 +87,7 @@ Also, if you want to install new packages into your conda environment for CaImAn
 You will notice that any packages installed this way will mention, in their listing, that they're from conda-forge, with none of them having a blank origin. If you fail to do this, differences between how packages are built in conda-forge versus the default conda channels may mean that some packages (e.g. OpenCV) stop working despite showing as installed.
 
 ### Installation on Windows
-On Windows, please follow the install instructions [here](/INSTALL-windows.md) .
+On Windows, please follow the install instructions [here](docs/INSTALL-windows.md) .
 
 ### Installation on Mac or Linux
 
@@ -135,11 +143,6 @@ This will place that directory under your home directory in a directory called c
 
 If you prefer to manage this information somewhere else, the `CAIMAN_DATA` environment variable can be set to customise it. The caimanmanager tool and other libraries will respect that.
 
-
-Alternative environments:
-   * [Using GPU](/README-GPU.md)
-   * [Older Linux Distros](/README-Distros.md)
-   
 ### Known Issues
 
 A list of known issues can be found [here](https://github.com/flatironinstitute/CaImAn/wiki/Known-Issues). If you still encounter problems please open an issue.  

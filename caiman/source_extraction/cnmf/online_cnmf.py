@@ -33,6 +33,7 @@ from sklearn.preprocessing import normalize
 from time import time
 from typing import List, Tuple
 import tensorflow as tf
+import logging
 
 import caiman
 from .cnmf import CNMF
@@ -240,13 +241,12 @@ class OnACID(object):
             self.tf_out = None
         else:
             try:
-                import keras
-                from keras.models import model_from_json
-                #logging.debug('Using Keras')
+                from tensorflow.keras.models import model_from_json
+                logging.info('Using Keras')
                 use_keras = True
             except(ModuleNotFoundError):
                 use_keras = False
-                #logging.debug('Using Tensorflow')
+                logging.info('Using Tensorflow')
             if use_keras:
                 path = self.params.get('online', 'path_to_model').split(".")[:-1]
                 json_path = ".".join(path + ["json"])
@@ -256,9 +256,9 @@ class OnACID(object):
                 json_file.close()
                 loaded_model = model_from_json(loaded_model_json)
                 loaded_model.load_weights(model_path)
-                opt = keras.optimizers.rmsprop(lr=0.0001, decay=1e-6)
-                loaded_model.compile(loss=keras.losses.categorical_crossentropy,
-                                     optimizer=opt, metrics=['accuracy'])
+                #opt = tf.keras.optimizers.rmsprop(lr=0.0001, decay=1e-6)
+                #loaded_model.compile(loss=tf.keras.losses.categorical_crossentropy,
+                #                     optimizer=opt, metrics=['accuracy'])
                 self.tf_in = None
                 self.tf_out = None
             else:

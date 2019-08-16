@@ -1,18 +1,23 @@
-import pyqtgraph as pg
-from pyqtgraph import FileDialog
-from pyqtgraph.Qt import QtCore, QtGui
-from pyqtgraph.parametertree import Parameter, ParameterTree, ParameterItem, registerParameterType
+import cv2
 import numpy as np
+import pyqtgraph as pg
+import scipy
+from pyqtgraph import FileDialog
+from pyqtgraph.Qt import QtGui
+from pyqtgraph.parametertree import Parameter, ParameterTree
+
 import caiman as cm
 from caiman.source_extraction.cnmf.cnmf import load_CNMF
 from caiman.source_extraction.cnmf.online_cnmf import load_OnlineCNMF
 from caiman.source_extraction.cnmf.spatial import threshold_components
+from caiman.source_extraction.cnmf.params import CNMFParams
 from sklearn.decomposition import NMF
 import matplotlib.pyplot as plt
 import scipy.sparse
 import cv2
 import scipy
 import os
+
 # Always start by initializing Qt (only once per application)
 app = QtGui.QApplication([])
 
@@ -31,34 +36,54 @@ try:
 except NameError:
     print('Not launched under iPython')
 
+
 def make_color_img(img, gain=255, min_max=None,out_type=np.uint8):
     if min_max is None:
         min_ = img.min()
         max_ = img.max()
     else:
         min_, max_ = min_max    
-        
+
     img = (img-min_)/(max_-min_)*gain
     img = img.astype(out_type)
     img = np.dstack([img]*3)
     return img
 
+
 F = FileDialog()
 
 # load object saved by CNMF
-# cnm_obj = load_CNMF('/Users/agiovann/caiman_data/example_movies/memmap__d1_60_d2_80_d3_1_order_C_frames_2000_save.hdf5')
-cnm_obj = load_CNMF(F.getOpenFileName(caption='Load CNMF Object',filter='*.hdf5')[0])
-
+fpath = F.getOpenFileName(caption='Load CNMF Object', filter='HDF5 (*.h5 *.hdf5);;NWB (*.nwb)')[0]
+cnm_obj = load_CNMF(fpath)
 
 # movie
-# mov = cm.load('/Users/agiovann/caiman_data/example_movies/memmap__d1_60_d2_80_d3_1_order_C_frames_2000_.mmap')
-mov = cm.load(cnm_obj.mmap_file)
+if not os.path.exists(cnm_obj.mmap_file):
+    M = FileDialog()
+    cnm_obj.mmap_file = M.getOpenFileName(caption='Load memory mapped file', filter='*.mmap')[0]
+
+if fpath[-3:] == 'nwb':
+    mov = cm.load(cnm_obj.mmap_file, var_name_hdf5='acquisition/TwoPhotonSeries')
+else:
+    mov = cm.load(cnm_obj.mmap_file)
+
+estimates = cnm_obj.estimates
+params_obj = cnm_obj.params
+
 min_mov = np.min(mov)
 max_mov = np.max(mov)
 mode = 'reset'
-estimates = cnm_obj.estimates
-min_mov_denoise = np.min(estimates.A.dot(estimates.C))
-max_mov_denoise = np.max(estimates.A.dot(estimates.C))
+
+if not hasattr(estimates, 'Cn'):
+    estimates.Cn = cm.local_correlations(mov, swap_dim=False)
+Cn = estimates.Cn
+
+
+min_mov_denoise = np.min(estimates.A)*estimates.C.min()
+max_mov_denoise = np.max(estimates.A)*estimates.C.max()
+background_num = -1
+neuron_selected = False
+nr_index = 0
+
 min_background = np.min(estimates.b, axis=0)*np.min(estimates.f, axis=1)
 max_background = np.max(estimates.b, axis=0)*np.max(estimates.f, axis=1)
 
@@ -80,13 +105,13 @@ def init():
         #     estimates.restore_discarded_components()
     estimates.accepted_list = np.array([], dtype=np.int)
     estimates.rejected_list = np.array([], dtype=np.int)
-    estimates.img_components = estimates.A.toarray().reshape((estimates.dims[0], estimates.dims[1],-1), order='F').transpose([2,0,1])
+    estimates.img_components = estimates.A.toarray().reshape((estimates.dims[0], estimates.dims[1], -1), order='F').transpose([2,0,1])
     estimates.cms = np.array([scipy.ndimage.measurements.center_of_mass(comp) for comp in estimates.img_components])
     estimates.idx_components = np.arange(estimates.nr)
     estimates.idx_components_bad = np.array([])
-    estimates.background_image = make_color_img(Cn)
+    estimates.background_image = make_color_img(estimates.Cn)
     # Generate image data
-    estimates.img_components /= estimates.img_components.max(axis=(1,2))[:,None,None]
+    estimates.img_components /= estimates.img_components.max(axis=(1, 2))[:, None, None]
     estimates.img_components *= 255
     estimates.img_components = estimates.img_components.astype(np.uint8)
  
@@ -117,27 +142,26 @@ def draw_contours_overall(md):
 
 def draw_contours():
     global thrshcomp_line, estimates, cnm_obj, img, mode
+
     bkgr_contours = estimates.background_image.copy()
-    
+
     if len(estimates.idx_components) > 0:
         contours = [cv2.findContours(cv2.threshold(img, np.int(thrshcomp_line.value()), 255, 0)[1], cv2.RETR_TREE,
                                      cv2.CHAIN_APPROX_SIMPLE)[0] for img in estimates.img_components[estimates.idx_components]]
         SNRs = np.array(estimates.r_values)
         iidd = np.array(estimates.idx_components)
         
-        idx1 = np.where(SNRs[iidd]<0.1)[0]
-        idx2 = np.where((SNRs[iidd]>=0.1) & 
-                        (SNRs[iidd]<0.25))[0]
-        idx3 = np.where((SNRs[iidd]>=0.25) & 
-                        (SNRs[iidd]<0.5))[0]
-        idx4 = np.where((SNRs[iidd]>=0.5) & 
-                        (SNRs[iidd]<0.75))[0]
-        idx5 = np.where((SNRs[iidd]>=0.75) & 
-                        (SNRs[iidd]<0.9))[0]
-        idx6 = np.where(SNRs[iidd]>=0.9)[0]
-        
-        
-    
+        idx1 = np.where(SNRs[iidd] < 0.1)[0]
+        idx2 = np.where((SNRs[iidd] >= 0.1) &
+                        (SNRs[iidd] < 0.25))[0]
+        idx3 = np.where((SNRs[iidd] >= 0.25) &
+                        (SNRs[iidd] < 0.5))[0]
+        idx4 = np.where((SNRs[iidd] >= 0.5) &
+                        (SNRs[iidd] < 0.75))[0]
+        idx5 = np.where((SNRs[iidd] >= 0.75) &
+                        (SNRs[iidd] < 0.9))[0]
+        idx6 = np.where(SNRs[iidd] >= 0.9)[0]
+
         cv2.drawContours(bkgr_contours, sum([contours[jj] for jj in idx1], []), -1, (255, 0, 0), 1)
         cv2.drawContours(bkgr_contours, sum([contours[jj] for jj in idx2], []), -1, (0, 255, 0), 1)
         cv2.drawContours(bkgr_contours, sum([contours[jj] for jj in idx3], []), -1, (0, 0, 255), 1)
@@ -153,7 +177,7 @@ def draw_contours():
     
 
 def draw_contours_update(cf, im):
-    global thrshcomp_line, estimates, cnm_obj
+    global thrshcomp_line, estimates
     curFrame = cf.copy()
     
     if len(estimates.idx_components) > 0:
@@ -161,17 +185,17 @@ def draw_contours_update(cf, im):
                                      cv2.CHAIN_APPROX_SIMPLE)[0] for img in estimates.img_components[estimates.idx_components]]
         SNRs = np.array(estimates.r_values)
         iidd = np.array(estimates.idx_components)
-        
-        idx1 = np.where(SNRs[iidd]<0.1)[0]
-        idx2 = np.where((SNRs[iidd]>=0.1) & 
-                        (SNRs[iidd]<0.25))[0]
-        idx3 = np.where((SNRs[iidd]>=0.25) & 
-                        (SNRs[iidd]<0.5))[0]
-        idx4 = np.where((SNRs[iidd]>=0.5) & 
-                        (SNRs[iidd]<0.75))[0]
-        idx5 = np.where((SNRs[iidd]>=0.75) & 
-                        (SNRs[iidd]<0.9))[0]
-        idx6 = np.where(SNRs[iidd]>=0.9)[0]
+
+        idx1 = np.where(SNRs[iidd] < 0.1)[0]
+        idx2 = np.where((SNRs[iidd] >= 0.1) &
+                        (SNRs[iidd] < 0.25))[0]
+        idx3 = np.where((SNRs[iidd] >= 0.25) &
+                        (SNRs[iidd] < 0.5))[0]
+        idx4 = np.where((SNRs[iidd] >= 0.5) &
+                        (SNRs[iidd] < 0.75))[0]
+        idx5 = np.where((SNRs[iidd] >= 0.75) &
+                        (SNRs[iidd] < 0.9))[0]
+        idx6 = np.where(SNRs[iidd] >= 0.9)[0]
         
         if min_dist_comp in idx1:
             cv2.drawContours(curFrame, contours[min_dist_comp], -1, (255, 0, 0), 1)
@@ -427,8 +451,6 @@ pars.param('SHOW BACKGROUND').sigActivated.connect(show_background_button)
 
 
 
-
-
 def show_neurons_button():
     global mode, neuron_selected
     mode = "neurons"
@@ -437,7 +459,6 @@ def show_neurons_button():
     #clear the upper right image
     zeros = np.asarray([ [0] * 80 for _ in range(60)])
     img2.setImage(make_color_img(zeros), autoLevels=False)
-
 
 
 def show_neurons_clicked():
@@ -464,7 +485,7 @@ def show_neurons_clicked():
     elif mode == 'merge_neurons':
         draw_contours()
     # plot img2 (upper right component)
-    comp2 = np.multiply(Cn, contour_single>0)
+    comp2 = np.multiply(estimates.Cn, contour_single > 0)
     comp2_scaled = make_color_img(comp2, min_max=(np.min(comp2), np.max(comp2)))
     img2.setImage(comp2_scaled,autoLevels=False)
     draw_contours_update(comp2_scaled, img2)
@@ -474,7 +495,7 @@ def show_neurons_clicked():
     p1.setTitle("pos: (%0.1f, %0.1f)  component: %d  value: %g dist:%f" % (x, y, estimates.components_to_plot,
                                                                            val, distances[min_dist_comp]))
     # draw the infinite line
-    nr_vline = pg.InfiniteLine(angle = 90, movable = True)
+    nr_vline = pg.InfiniteLine(angle=90, movable=True)
     p2.addItem(nr_vline, ignoreBounds=True)
     nr_vline.setValue(0)
     nr_vline.sigPositionChanged.connect(show_neurons_update)
@@ -671,17 +692,20 @@ pars_action.sigTreeStateChanged.connect(action_pars_activated)
 
 ## If anything changes in the tree, print a message
 def change(param, changes):
-    global estimates, cnm_obj, pars, pars_action
-    params_obj = cnm_obj.params
+    global estimates, pars, pars_action
     set_par = pars.getValues()
     if pars_action.param('Filter components').value():
         for keyy in set_par.keys():
             params_obj.quality.update({keyy: set_par[keyy][0]})
     else:
-            params_obj.quality.update({'cnn_lowest': 0,'min_cnn_thr':0,'rval_thr':-1,'rval_lowest':-1,'min_SNR':0,'SNR_lowest':0})
-    
-    estimates.filter_components(mov, params_obj, dview=None, 
-                                    select_mode=pars_action.param('View components').value())
+            params_obj.quality.update({'cnn_lowest': .1,
+                                       'min_cnn_thr': 0.99,
+                                       'rval_thr': 0.85,
+                                       'rval_lowest': -1,
+                                       'min_SNR': 2,
+                                       'SNR_lowest': 0})
+    estimates.filter_components(mov, params_obj, dview=None,
+                                select_mode=pars_action.param('View components').value())
     if mode is "background":
         return
     else:

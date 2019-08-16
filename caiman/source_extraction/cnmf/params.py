@@ -518,7 +518,10 @@ class CNMFParams(object):
 
             gSig_filt: int or None, default: None
                 size of kernel for high pass spatial filtering in 1p data. If None no spatial filtering is performed
-
+            
+            is3D: bool, default: False
+                flag for 3D recordings for motion correction
+                
             max_deviation_rigid: int, default: 3
                 maximum deviation in pixels between rigid shifts and shifts of individual patches
 
@@ -572,7 +575,7 @@ class CNMFParams(object):
             'decay_time': decay_time,
             'dxy': dxy,
             'var_name_hdf5': var_name_hdf5,
-            'caiman_version': '1.5.2',
+            'caiman_version': '1.5.3',
             'last_commit': None,
             'mmap_F': None,
             'mmap_C': None
@@ -762,8 +765,9 @@ class CNMFParams(object):
         }
 
         self.motion = {
-            'border_nan': 'copy',                 # flag for allowing NaN in the boundaries
+            'border_nan': 'copy',               # flag for allowing NaN in the boundaries
             'gSig_filt': None,                  # size of kernel for high pass spatial filtering in 1p data
+            'is3D': False,                      # flag for 3D recordings for motion correction
             'max_deviation_rigid': 3,           # maximum deviation between rigid and non-rigid
             'max_shifts': (6, 6),               # maximum shifts per dimension (in pixels)
             'min_mov': None,                    # minimum value of movie
@@ -789,7 +793,10 @@ class CNMFParams(object):
         if self.data['fnames'] is not None:
             if isinstance(self.data['fnames'], str):
                 self.data['fnames'] = [self.data['fnames']]
-            T = get_file_size(self.data['fnames'], var_name_hdf5=self.data['var_name_hdf5'])[1]
+            if self.motion['is3D']:
+                T = get_file_size(self.data['fnames'], var_name_hdf5=self.data['var_name_hdf5'])[0][0]                
+            else:
+                T = get_file_size(self.data['fnames'], var_name_hdf5=self.data['var_name_hdf5'])[1]
             if len(self.data['fnames']) > 1:
                 T = T[0]
             num_splits = T//max(self.motion['num_frames_split'],10)
