@@ -8,8 +8,10 @@ Installation
 Download and install Anaconda or Miniconda (Python 3.x version)
 http://docs.continuum.io/anaconda/install
 
-CaImAn installation consists of two steps: Install the CaImAn package and installing
-the caimanmanager which will setup a directory with all the demos, test datasets etc.
+CaImAn installation consists of two steps: 
+
+1. Install the CaImAn package 
+2. Setting up the caimanmanager which will setup a directory with all the demos, test datasets etc.
 
 Installing CaImAn
 ==================
@@ -195,7 +197,9 @@ code samples and datasets; pip installed a caimanmanager.py command that
 manages this. If you have not installed Caiman before, you can do
 
 ``caimanmanager.py install`` 
-if you used the conda-forge package OR
+if you used the conda-forge package or the `pip install .` option
+
+OR
 
 ``python caimanmanager.py install --inplace`` if you used the developer
 mode with ``pip install -e .``
