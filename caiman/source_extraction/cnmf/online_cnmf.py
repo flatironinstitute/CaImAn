@@ -455,6 +455,8 @@ class OnACID(object):
                 t0 = 0 * self.params.get('online', 'init_batch')
                 w1 = (t - n0 + t0) * 1. / (t + t0)  # (1 - 1./t)#mbs*1. / t
                 w2 = 1. / (t + t0)  # 1.*mbs /t
+                ccf = np.ascontiguousarray(ccf)
+                y = np.asfortranarray(y)
                 for m in range(self.N):
                     self.estimates.CY[m + nb_, self.ind_A[m]] *= w1
                     self.estimates.CY[m + nb_, self.ind_A[m]] += w2 * \

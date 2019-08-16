@@ -16,8 +16,7 @@ def gaussian_noise(arr, sigma):
 def std_mad(a, loc=None, axis=None):
     if loc is None:
         loc = np.median(a, axis=axis, keepdims=True)
-    return np.median(np.abs(a - loc),
-                     axis=axis) / 0.6744897501960817
+    return np.median(np.abs(a - loc), axis=axis) / 0.6744897501960817
 
 
 def std_sn(a):
@@ -57,7 +56,7 @@ def half_sample_mode(x, sort=True, axis=None):
     smallest_range_idx = np.argmin(ranges)
 
     # Now repeat the procedure on the half that spans the smallest range
-    x_subset = sorted_x[smallest_range_idx: (smallest_range_idx+half_idx)]
+    x_subset = sorted_x[smallest_range_idx:(smallest_range_idx + half_idx)]
     return half_sample_mode(x_subset, sort=False)
 
 
@@ -90,5 +89,5 @@ def half_range_mode(x, sort=True):
     smallest_range_idx = np.argmin(ranges)
 
     # Now repeat the procedure on the half that spans the smallest range
-    x_subset = sorted_x[smallest_range_idx: (smallest_range_idx+half_idx)]
+    x_subset = sorted_x[smallest_range_idx:(smallest_range_idx + half_idx)]
     return half_sample_mode(x_subset, sort=False)
