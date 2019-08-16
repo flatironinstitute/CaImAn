@@ -208,6 +208,8 @@ class OnACID(object):
             min(self.params.get('online', 'init_batch'), self.params.get('online', 'minibatch_shape')) - 1), 0)
         self.estimates.groups = list(map(list, update_order(self.estimates.Ab)[0]))
         self.update_counter = 2**np.linspace(0, 1, self.N, dtype=np.float32)
+        self.estimates.CC = np.ascontiguousarray(self.estimates.CC)
+        self.estimates.CY = np.ascontiguousarray(self.estimates.CY)
         self.time_neuron_added:List = []
         for nneeuu in range(self.N):
             self.time_neuron_added.append((nneeuu, self.params.get('online', 'init_batch')))
@@ -437,6 +439,8 @@ class OnACID(object):
                 t0 = 0 * self.params.get('online', 'init_batch')
                 w1 = (t - n0 + t0) * 1. / (t + t0)  # (1 - 1./t)#mbs*1. / t
                 w2 = 1. / (t + t0)  # 1.*mbs /t
+                ccf = np.ascontiguousarray(ccf)
+                y = np.asfortranarray(y)
                 for m in range(self.N):
                     self.estimates.CY[m + nb_, self.ind_A[m]] *= w1
                     self.estimates.CY[m + nb_, self.ind_A[m]] += w2 * \
@@ -451,6 +455,8 @@ class OnACID(object):
                                       self.params.get('online', 'minibatch_suff_stat') + 1]
             y = self.estimates.Yr_buf.get_last_frames(self.params.get('online', 'minibatch_suff_stat') + 1)[:1]
             # much faster: exploit that we only access CY[m, ind_pixels], hence update only these
+            ccf = np.ascontiguousarray(ccf)
+            y = np.asfortranarray(y)
             for m in range(self.N):
                 self.estimates.CY[m + nb_, self.ind_A[m]] *= (1 - 1. / t)
                 self.estimates.CY[m + nb_, self.ind_A[m]] += ccf[m +
