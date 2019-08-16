@@ -1,5 +1,8 @@
+Getting Started with CaImAn
+===========================
+
 Demos
-=====
+-----
 
 -  Notebooks: The notebooks provide a simple and friendly way to get
    into CaImAn and understand its main characteristics. They are located
@@ -22,7 +25,7 @@ Demos
    still must be in the CaImAn directory.
 
 Basic Structure
-===============
+---------------
 
 We recently refactored the code to simplify the parameter setting and
 usage of the various algorithms. The code now is based revolves around
@@ -46,7 +49,7 @@ To see examples of how these methods are used, please consult the demos.
 
 
 Parameters
-==========
+-----------
 
 CaImAn gives you access to a lot of parameters and lets you adapt the analysis to your data. Parameters are stored in
 the ``params`` object in a set of dictionaries, sorted by the part of the analysis they are used in:
@@ -112,7 +115,7 @@ that manually registered ROIs already have a neuron-like shape.
 
 
 Result Interpretation
-=====================
+----------------------
 
 As mentioned above, the results of the analysis are stored within the
 ``estimates`` objects. The basic entries are the following:
