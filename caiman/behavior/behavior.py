@@ -9,27 +9,28 @@ Created on Wed Mar 16 16:31:55 2016
 @author: agiovann
 """
 
-#%%
 from builtins import zip
 from builtins import range
-import time
 from past.utils import old_div
-import caiman as cm
+
+import cv2
 import numpy as np
 import pylab as pl
 import scipy
 from scipy.sparse import coo_matrix
 from scipy.io import loadmat
-import cv2
 from sklearn.decomposition import NMF
+import time
+from typing import List
+
+import caiman as cm
 
 try:
     cv2.setNumThreads(0)
 except:
     pass
 
-#%% dense flow
-def select_roi(img, n_rois=1):
+def select_roi(img:np.ndarray, n_rois:int=1) -> List:
     """
     Create a mask from a the convex polygon enclosed between selected points
 
@@ -58,23 +59,16 @@ def select_roi(img, n_rois=1):
     return masks
 
 
-#%%
 def to_polar(x, y):
     mag, ang = cv2.cartToPolar(x, y)
     return mag, ang
-
-#%%
-
 
 def get_nonzero_subarray(arr, mask):
     x, y = mask.nonzero()
     return arr.toarray()[x.min():x.max() + 1, y.min():y.max() + 1]
 
-#%%
-
-
-def extract_motor_components_OF(m, n_components, mask=None, resize_fact=.5, only_magnitude=False, max_iter=1000,
-                                verbose=False, method_factorization='nmf', max_iter_DL=-30):
+def extract_motor_components_OF(m, n_components, mask=None, resize_fact:float=.5, only_magnitude:bool=False, max_iter:int=1000,
+                                verbose:bool=False, method_factorization:str='nmf', max_iter_DL=-30) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
         # todo todocument
     if mask is not None:
         mask = coo_matrix(np.array(mask).squeeze())
@@ -104,10 +98,8 @@ def extract_motor_components_OF(m, n_components, mask=None, resize_fact=.5, only
 
     return spatial_filter_, time_trace_, of_or
 
-
-#%%
 def extract_magnitude_and_angle_from_OF(spatial_filter_, time_trace_, of_or,
-                                        num_std_mag_for_angle=.6, sav_filter_size=3, only_magnitude=False):
+                                        num_std_mag_for_angle=.6, sav_filter_size=3, only_magnitude=False) -> Tuple[List, List, List, List]:
     # todo todocument
 
     mags = []
@@ -150,10 +142,8 @@ def extract_magnitude_and_angle_from_OF(spatial_filter_, time_trace_, of_or,
 
     return mags, dircts, dircts_thresh, spatial_masks_thr
 
-
-#%%
-def compute_optical_flow(m, mask=None, polar_coord=True, do_show=False, do_write=False, file_name=None, gain_of=None,
-                         frate=30, pyr_scale=.1, levels=3, winsize=25, iterations=3, poly_n=7, poly_sigma=1.5):
+def compute_optical_flow(m, mask=None, polar_coord:bool=True, do_show:bool=False, do_write:bool=False, file_name=None, gain_of=None,
+                         frate:float=30.0, pyr_scale:float=.1, levels:int=3, winsize:int=25, iterations:int=3, poly_n=7, poly_sigma=1.5):
     """
     This function compute the optical flow of behavioral movies using the opencv cv2.calcOpticalFlowFarneback function
 
@@ -264,7 +254,7 @@ def compute_optical_flow(m, mask=None, polar_coord=True, do_show=False, do_write
 
 
 #%% NMF
-def extract_components(mov_tot, n_components=6, normalize_std=True, max_iter_DL=-30, method_factorization='nmf', **kwargs):
+def extract_components(mov_tot, n_components:int=6, normalize_std:bool=True, max_iter_DL=-30, method_factorization:str='nmf', **kwargs) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
     From optical flow images can extract spatial and temporal components
 
@@ -286,7 +276,7 @@ def extract_components(mov_tot, n_components=6, normalize_std=True, max_iter_DL=
         spatial_filter: ndarray
             set of spatial inferred filters
 
-        time_trace:ndarray
+        time_trace: ndarray
             set of time components
 
         norm_fact: ndarray
@@ -336,7 +326,7 @@ def extract_components(mov_tot, n_components=6, normalize_std=True, max_iter_DL=
     print(el_t)
     return spatial_filter, time_trace, norm_fact
 
-def plot_components(sp_filt, t_trace):
+def plot_components(sp_filt, t_trace) -> None:
     # todo: todocument
     pl.figure()
     count = 0

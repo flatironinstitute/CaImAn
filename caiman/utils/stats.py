@@ -147,8 +147,9 @@ def mode_robust_kde(inputData, axis = None):
 
 def df_percentile(inputData, axis = None):
     """
-    Extracting the percentile of the data where the mode occurs and its value. 
-    Used to determine the filtering level for DF/F extraction
+    Extracting the percentile of the data where the mode occurs and its value.
+    Used to determine the filtering level for DF/F extraction. Note that
+    computation can be innacurate for short traces.
     """
     if axis is not None:
 
@@ -164,13 +165,25 @@ def df_percentile(inputData, axis = None):
                 bandwidth, mesh, density, cdf = kde(inputData)
                 err = False
             except:
-                logging.warning("There are no components for DF/F extraction!")
+                logging.warning('Percentile computation failed. Duplicating ' +
+                                'and trying again.')
                 if type(inputData) is not list:
                     inputData = inputData.tolist()
                 inputData += inputData
 
-        data_prct = cdf[np.argmax(density)]*100
-        val = mesh[np.argmax(density)]
+            data_prct = cdf[np.argmax(density)]*100
+            val = mesh[np.argmax(density)]
+            if data_prct >= 100 or data_prct < 0:
+                logging.warning('Invalid percentile computed possibly due ' +
+                                'short trace. Duplicating and recomuputing.')
+                if type(inputData) is not list:
+                    inputData = inputData.tolist()
+                inputData *= 2
+                err = True
+            if np.isnan(data_prct):
+                logging.warning('NaN percentile computed. Reverting to median.')
+                data_prct = 50
+                val = np.median(np.array(inputData))
 
     return data_prct, val
 
