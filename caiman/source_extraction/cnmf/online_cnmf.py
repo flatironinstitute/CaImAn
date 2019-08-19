@@ -352,7 +352,7 @@ class OnACID(object):
                 self.estimates.crosscorr, self.estimates.col_ind, self.estimates.row_ind,
                 self.estimates.num_neigbors, self.estimates.corrM, self.estimates.corr_img) = \
             summary_images.prepare_local_correlations(Yres, swap_dim=True, eight_neighbours=False)
-            # self.estimates.max_img = Yres.max(-1)
+            self.estimates.max_img = Yres.max(-1)
 
         return self
 
@@ -460,8 +460,8 @@ class OnACID(object):
 
             res_frame = np.reshape(res_frame, self.estimates.dims, order='F')
 
-            # if self.params.get('online', 'use_corr_img'):
-            #     self.estimates.max_img = np.max([self.estimates.max_img, res_frame], 0)
+            if self.params.get('online', 'use_corr_img'):
+                self.estimates.max_img = np.max([self.estimates.max_img, res_frame], 0)
 
             rho = imblur(np.maximum(res_frame,0), sig=self.params.get('init', 'gSig'),
                          siz=self.params.get('init', 'gSiz'), nDimBlur=len(self.params.get('data', 'dims')))**2
@@ -512,8 +512,8 @@ class OnACID(object):
                 row_ind=self.estimates.row_ind if use_corr else None,
                 corr_img_mode=corr_img_mode if use_corr else None,
                 downscale_matrix=self.estimates.downscale_matrix if
-                (self.is1p and ssub_B > 1) else None)  #,
-                # max_img=self.estimates.max_img if use_corr else None)
+                (self.is1p and ssub_B > 1) else None,
+                max_img=self.estimates.max_img if use_corr else None)
 
             num_added = len(self.ind_A) - self.N
 
@@ -2067,12 +2067,14 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
     sv += rho_buf.get_last_frames(1).squeeze()
     sv = np.maximum(sv, 0)
 
-    # if max_img is not None:
-    #     pnr_img = max_img.ravel(order='F') / np.sqrt(second_moment - first_moment**2)
-    #     pnr_img = max_img / np.sqrt(second_moment - first_moment**2).reshape(dims, order='F')
+    if max_img is not None:
+        # pnr_img = max_img.ravel(order='F') / np.sqrt(second_moment - first_moment**2)
+        # pnr_img = max_img / np.sqrt(second_moment - first_moment**2).reshape(dims, order='F')
+        pnr_img = max_img / sn.reshape(dims, order='F')
+        pnr_img[pnr_img<2] = 0
 
     Ains, Cins, Cins_res, inds, ijsig_all, cnn_pos, local_max = get_candidate_components(
-        sv if corr_img is None else corr_img, dims, Yres_buf=Yres_buf,
+        sv if corr_img is None else corr_img*pnr_img, dims, Yres_buf=Yres_buf,
         min_num_trial=min_num_trial, gSig=gSig, gHalf=gHalf,
         sniper_mode=sniper_mode, rval_thr=rval_thr, patch_size=50,
         loaded_model=loaded_model, thresh_CNN_noisy=thresh_CNN_noisy,
@@ -2297,7 +2299,7 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                     crosscorr += (Ain[row_ind] * Ain[col_ind] * cin.dot(cin) -
                                   cin.dot(Yres_buf[:, row_ind]) * Ain[col_ind] -
                                   cin.dot(Yres_buf[:, col_ind]) * Ain[row_ind]) / div
-                # max_img[Ain.reshape(dims, order='F') > 0] = 0
+                max_img[Ain.reshape(dims, order='F') > 0] = 0
                 # # max_img[[slice(*i) for i in ijSig]] = first_moment[indices].reshape(
                 # #     np.diff(ijSig).ravel(), order='F')
 
