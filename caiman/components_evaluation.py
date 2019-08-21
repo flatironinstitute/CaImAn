@@ -284,7 +284,7 @@ def evaluate_components_CNN(A, dims, gSig, model_name:str=os.path.join(caiman_da
 
             loaded_model = model_from_json(loaded_model_json)
             loaded_model.load_weights(model_name + '.h5')
-            loaded_model.compile('sgd', 'mse')
+            #loaded_model.compile('sgd', 'mse')
         else:
             if os.path.isfile(os.path.join(caiman_datadir(), model_name + ".h5.pb")):
                 model_file    = os.path.join(caiman_datadir(), model_name + ".h5.pb")
