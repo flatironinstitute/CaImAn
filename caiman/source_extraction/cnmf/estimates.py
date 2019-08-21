@@ -721,7 +721,7 @@ class Estimates(object):
 
         nA = np.sqrt(np.ravel(self.A.power(2).sum(axis=0)))
         nA_mat = scipy.sparse.spdiags(nA, 0, nA.shape[0], nA.shape[0])
-        nA_inv_mat = scipy.sparse.spdiags(1. / nA, 0, nA.shape[0], nA.shape[0])
+        nA_inv_mat = scipy.sparse.spdiags(1. / (nA + np.finfo(np.float32).eps), 0, nA.shape[0], nA.shape[0])
         self.A = self.A * nA_inv_mat
         self.C = nA_mat * self.C
         if self.YrA is not None:
