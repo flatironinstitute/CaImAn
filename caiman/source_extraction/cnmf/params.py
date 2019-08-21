@@ -812,7 +812,7 @@ class CNMFParams(object):
         if self.init['gSig'] is None:
             self.init['gSig'] = [-1, -1]
         if self.init['gSiz'] is None:
-            self.init['gSiz'] = [2*gs + 3 for gs in self.init['gSig']]
+            self.init['gSiz'] = [2*gs + 1 for gs in self.init['gSig']]
         self.init['gSiz'] = [gz if gz % 2 else gz + 1 for gz in self.init['gSiz']]
 
         if gnb <= 0:
