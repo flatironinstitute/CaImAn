@@ -1310,9 +1310,12 @@ class Estimates(object):
         else:
             components_to_keep = np.arange(self.A.shape[-1])
 
-
-
-        self.select_components(idx_components=components_to_keep)
+        if self.idx_components is None:
+            self.idx_components = np.arange(self.A.shape[-1])
+        self.idx_components = np.intersect1d(self.idx_components, components_to_keep)
+        self.idx_components_bad = np.setdiff1d(np.arange(self.A.shape[-1]), self.idx_components)
+        if select_comp:
+            self.select_components(use_object=True)
 
         return components_to_keep
 
