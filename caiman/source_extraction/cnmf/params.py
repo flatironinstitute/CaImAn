@@ -105,6 +105,9 @@ class CNMFParams(object):
             only_init: bool, default: True
                 whether to run only the initialization
 
+            p_patch: int, default: 0
+                order of AR dynamics when processing within a patch
+
             skip_refinement: bool, default: False
                 Whether to skip refinement of components (deprecated?)
 
@@ -575,7 +578,7 @@ class CNMFParams(object):
             'decay_time': decay_time,
             'dxy': dxy,
             'var_name_hdf5': var_name_hdf5,
-            'caiman_version': '1.6.1',
+            'caiman_version': '1.6.2',
             'last_commit': None,
             'mmap_F': None,
             'mmap_C': None
@@ -590,6 +593,7 @@ class CNMFParams(object):
             'n_processes': n_processes,
             'nb_patch': nb_patch,
             'only_init': only_init_patch,
+            'p_patch': 0,                 # AR order within patch
             'remove_very_bad_comps': remove_very_bad_comps,
             'rf': rf,
             'skip_refinement': False,

@@ -129,6 +129,8 @@ def cnmf_patches(args_in):
         opts.set('patch', {'n_processes': 1, 'rf': None, 'stride': None})
         for group in ('init', 'temporal', 'spatial'):
             opts.set(group, {'nb': params.get('patch', 'nb_patch')})
+        for group in ('preprocess', 'temporal'):
+            opts.set(group, {'p': params.get('patch', 'p_patch')})
 
         cnm = cnmf.CNMF(n_processes=1, params=opts)
 
