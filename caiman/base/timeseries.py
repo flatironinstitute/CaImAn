@@ -129,15 +129,14 @@ class timeseries(np.ndarray):
              var_name_hdf5='mov',
              sess_desc='some_description',
              identifier='some identifier',
-             exp_desc='experiment description',
              imaging_plane_description='some imaging plane description',
              emission_lambda=520.0,
              indicator='OGB-1',
              location='brain',
              starting_time=0.,
              experimenter='Dr Who',
-             lab_name='',
-             institution='',
+             lab_name=None,
+             institution=None,
              experiment_description='Experiment Description',
              session_id='Session ID'):
         """

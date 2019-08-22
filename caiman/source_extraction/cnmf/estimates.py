@@ -11,6 +11,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 import scipy.sparse
 from typing import List
+import time
 
 import caiman
 from .utilities import detrend_df_f
@@ -381,6 +382,55 @@ class Estimates(object):
                                                         thr=thr, denoised_color=denoised_color, cmap=cmap)
         return self
 
+    def hv_view_components(self, Yr=None, img=None, idx=None,
+                           denoised_color=None, cmap='viridis'):
+        """view spatial and temporal components interactively in a notebook
+
+        Args:
+            Yr :    np.ndarray
+                movie in format pixels (d) x frames (T)
+
+            img :   np.ndarray
+                background image for contour plotting. Default is the mean
+                image of all spatial components (d1 x d2)
+
+            idx :   list
+                list of components to be plotted
+
+            denoised_color: string or None
+                color name (e.g. 'red') or hex color code (e.g. '#F0027F')
+
+            cmap: string
+                name of colormap (e.g. 'viridis') used to plot image_neurons
+        """
+        if 'csc_matrix' not in str(type(self.A)):
+            self.A = scipy.sparse.csc_matrix(self.A)
+
+        plt.ion()
+        nr, T = self.C.shape
+        if self.R is None:
+            self.R = self.YrA
+        if self.R.shape != [nr, T]:
+            if self.YrA is None:
+                self.compute_residuals(Yr)
+            else:
+                self.R = self.YrA
+
+        if img is None:
+            img = np.reshape(np.array(self.A.mean(axis=1)), self.dims, order='F')
+
+        if idx is None:
+            hv_plot = caiman.utils.visualization.hv_view_patches(
+                Yr, self.A, self.C, self.b, self.f, self.dims[0], self.dims[1],
+                YrA=self.R, image_neurons=img, denoised_color=denoised_color,
+                cmap=cmap)
+        else:
+            hv_plot = caiman.utils.visualization.hv_view_patches(
+                Yr, self.A.tocsc()[:, idx], self.C[idx], self.b, self.f,
+                self.dims[0], self.dims[1], YrA=self.R[idx], image_neurons=img,
+                denoised_color=denoised_color, cmap=cmap)
+        return hv_plot
+
     def nb_view_components_3d(self, Yr=None, image_type='mean', dims=None,
                               max_projection=False, axis=0,
                               denoised_color=None, cmap='jet', thr=0.9):
@@ -678,7 +728,7 @@ class Estimates(object):
 
         nA = np.sqrt(np.ravel(self.A.power(2).sum(axis=0)))
         nA_mat = scipy.sparse.spdiags(nA, 0, nA.shape[0], nA.shape[0])
-        nA_inv_mat = scipy.sparse.spdiags(1. / nA, 0, nA.shape[0], nA.shape[0])
+        nA_inv_mat = scipy.sparse.spdiags(1. / (nA + np.finfo(np.float32).eps), 0, nA.shape[0], nA.shape[0])
         self.A = self.A * nA_inv_mat
         self.C = nA_mat * self.C
         if self.YrA is not None:
@@ -844,7 +894,7 @@ class Estimates(object):
                     CNN classifier threshold
 
         Returns:
-            self: esimates object
+            self: estimates object
                 self.idx_components: np.array
                     indices of accepted components
                 self.idx_components_bad: np.array
@@ -859,19 +909,18 @@ class Estimates(object):
         dims = imgs.shape[1:]
         opts = params.get_group('quality')
         idx_components, idx_components_bad, SNR_comp, r_values, cnn_preds = \
-        estimate_components_quality_auto(imgs, self.A, self.C, self.b, self.f,
-                                         self.YrA,
-                                         params.get('data', 'fr'),
-                                         params.get('data', 'decay_time'),
-                                         params.get('init', 'gSig'),
-                                         dims, dview=dview,
-                                         min_SNR=opts['min_SNR'],
-                                         r_values_min=opts['rval_thr'],
-                                         use_cnn=opts['use_cnn'],
-                                         thresh_cnn_min=opts['min_cnn_thr'],
-                                         thresh_cnn_lowest=opts['cnn_lowest'],
-                                         r_values_lowest=opts['rval_lowest'],
-                                         min_SNR_reject=opts['SNR_lowest'])
+            estimate_components_quality_auto(imgs, self.A, self.C, self.b, self.f, self.YrA,
+                                             params.get('data', 'fr'),
+                                             params.get('data', 'decay_time'),
+                                             params.get('init', 'gSig'),
+                                             dims, dview=dview,
+                                             min_SNR=opts['min_SNR'],
+                                             r_values_min=opts['rval_thr'],
+                                             use_cnn=opts['use_cnn'],
+                                             thresh_cnn_min=opts['min_cnn_thr'],
+                                             thresh_cnn_lowest=opts['cnn_lowest'],
+                                             r_values_lowest=opts['rval_lowest'],
+                                             min_SNR_reject=opts['SNR_lowest'])
         self.idx_components = idx_components.astype(int)
         self.idx_components_bad = idx_components_bad.astype(int)
         self.SNR_comp = SNR_comp
@@ -1107,7 +1156,7 @@ class Estimates(object):
             sm, ss, yra = merge_iteration(Acsc, C_to_norm, Ctmp, fast_merge,
                                           None, g_idx, indx, params.temporal)
 
-            A_merged[:, i] = computedA
+            A_merged[:, i] = computedA[:, np.newaxis]
             C_merged[i, :] = computedC
             R_merged[i, :] = yra
             S_merged[i, :] = ss[:T]
@@ -1246,7 +1295,7 @@ class Estimates(object):
         A_gt_thr_bin = (self.A_thr.toarray() > 0).reshape([self.dims[0], self.dims[1], -1], order='F').transpose([2, 0, 1]) * 1.
 
         duplicates_gt, indices_keep_gt, indices_remove_gt, D_gt, overlap_gt = detect_duplicates_and_subsets(
-            A_gt_thr_bin,predictions=predictions, r_values=r_values,dist_thr=dist_thr, min_dist=min_dist,
+            A_gt_thr_bin,predictions=predictions, r_values=r_values, dist_thr=dist_thr, min_dist=min_dist,
             thresh_subset=thresh_subset)
         print('Duplicates gt:' + str(len(duplicates_gt)))
         if len(duplicates_gt) > 0:
@@ -1268,9 +1317,12 @@ class Estimates(object):
         else:
             components_to_keep = np.arange(self.A.shape[-1])
 
-
-
-        self.select_components(idx_components=components_to_keep)
+        if self.idx_components is None:
+            self.idx_components = np.arange(self.A.shape[-1])
+        self.idx_components = np.intersect1d(self.idx_components, components_to_keep)
+        self.idx_components_bad = np.setdiff1d(np.arange(self.A.shape[-1]), self.idx_components)
+        if select_comp:
+            self.select_components(use_object=True)
 
         return components_to_keep
 
@@ -1287,103 +1339,186 @@ class Estimates(object):
                  imaging_series_name=None,
                  sess_desc='CaImAn Results',
                  exp_desc=None,
-                 imaging_rate=30,
-                 starting_time = 0.,
-                 location='somewhere in the brain',
-                 orig_file_format='tiff'):
-        """save object in hdf5 file format
+                 identifier=None,
+                 imaging_rate=30.,
+                 starting_time=0.,
+                 session_start_time=None,
+                 excitation_lambda=488.0,
+                 imaging_plane_description='some imaging plane description',
+                 emission_lambda=520.0,
+                 indicator='OGB-1',
+                 location='brain',
+                 raw_data_file=None):
+        """writes NWB file
 
         Args:
             filename: str
-                path to the hdf5 file containing the saved object
+
+            imaging_plane_name: str, optional
+
+            imaging_series_name: str, optional
+
+            sess_desc: str, optional
+
+            exp_desc: str, optional
+
+            identifier: str, optional
+
+            imaging_rate: float, optional
+                default: 30 (Hz)
+
+            starting_time: float, optional
+                default: 0.0 (seconds)
+
+            location: str, optional
+
+            session_start_time: datetime.datetime, optional
+                Only required for new files
+
+            excitation_lambda: float
+
+            imaging_plane_description: str
+
+            emission_lambda: float
+
+            indicator: str
+
+            location: str
         """
-        from pynwb import NWBHDF5IO
-        from pynwb.ophys import ImageSegmentation, Fluorescence, MotionCorrection
+
+        from pynwb import NWBHDF5IO, TimeSeries, NWBFile
+        from pynwb.base import Images
+        from pynwb.image import GrayscaleImage
+        from pynwb.ophys import ImageSegmentation, Fluorescence, OpticalChannel, ImageSeries
+        from pynwb.device import Device
         import os
+
+        if identifier is None:
+            import uuid
+            identifier = uuid.uuid1().hex
+
         if '.nwb' != os.path.splitext(filename)[-1].lower():
             raise Exception("Wrong filename")
 
-        if not os.path.isfile(filename): # if the file doesn't exist create new and add the orginal data path
-            raise Exception('filename should be an existing NWB file.\
-                            Consider using the cnmf.movie.save method to create one.')
-        
-        else: # if the file already exist in the .nwb format then just add the results to it
-            logging.info('Saving the results in the NWB file...')
-            with  NWBHDF5IO(filename, 'r+') as io:
-                nwbfile = io.read()
-                # Add processing results
+        if not os.path.isfile(filename):  # if the file doesn't exist create new and add the original data path
+            print('filename does not exist. Creating new NWB file with only estimates output')
 
-                # Create the module as 'ophys' unless it is taken and append 'ophysX' instead
-                ophysmodules = [s[5:] for s in list(nwbfile.modules) if s.startswith('ophys')]
-                if any('' in s for s in ophysmodules):
-                    if any([s for s in ophysmodules if s.isdigit()]):
-                        nummodules = max([int(s) for s in ophysmodules if s.isdigit()])+1
-                        print('ophys module previously created, writing to ophys'+str(nummodules)+' instead')
-                        mod = nwbfile.create_processing_module('ophys'+str(nummodules), 'contains caiman estimates for the main imaging plane')                        
-                    else:
-                        print('ophys module previously created, writing to ophys1 instead')
-                        mod = nwbfile.create_processing_module('ophys1', 'contains caiman estimates for the main imaging plane')                        
+            nwbfile = NWBFile(sess_desc, identifier, session_start_time, experiment_description=exp_desc)
+            device = Device('imaging_device')
+            nwbfile.add_device(device)
+            optical_channel = OpticalChannel('OpticalChannel',
+                                             'main optical channel',
+                                             emission_lambda=emission_lambda)
+            nwbfile.create_imaging_plane(name='ImagingPlane',
+                                         optical_channel=optical_channel,
+                                         description=imaging_plane_description,
+                                         device=device,
+                                         excitation_lambda=excitation_lambda,
+                                         imaging_rate=imaging_rate,
+                                         indicator=indicator,
+                                         location=location)
+            if raw_data_file:
+                nwbfile.add_acquisition(ImageSeries(name='TwoPhotonSeries',
+                                                    external_file=[raw_data_file],
+                                                    format='external',
+                                                    rate=imaging_rate,
+                                                    starting_frame=[0]))
+            with NWBHDF5IO(filename, 'w') as io:
+                io.write(nwbfile)
+
+        time.sleep(4)  # ensure the file is fully closed before opening again in append mode
+        logging.info('Saving the results in the NWB file...')
+
+        with NWBHDF5IO(filename, 'r+') as io:
+            nwbfile = io.read()
+            # Add processing results
+
+            # Create the module as 'ophys' unless it is taken and append 'ophysX' instead
+            ophysmodules = [s[5:] for s in list(nwbfile.modules) if s.startswith('ophys')]
+            if any('' in s for s in ophysmodules):
+                if any([s for s in ophysmodules if s.isdigit()]):
+                    nummodules = max([int(s) for s in ophysmodules if s.isdigit()])+1
+                    print('ophys module previously created, writing to ophys'+str(nummodules)+' instead')
+                    mod = nwbfile.create_processing_module('ophys'+str(nummodules), 'contains caiman estimates for '
+                                                                                    'the main imaging plane')
                 else:
-                    mod = nwbfile.create_processing_module('ophys', 'contains caiman estimates for the main imaging plane')
-                      
-                img_seg = ImageSegmentation()
-                mod.add_data_interface(img_seg)
-                fl = Fluorescence()
-                mod.add_data_interface(fl)
-    #            mot_crct = MotionCorrection()
-    #            mod.add_data_interface(mot_crct)
+                    print('ophys module previously created, writing to ophys1 instead')
+                    mod = nwbfile.create_processing_module('ophys1', 'contains caiman estimates for the main '
+                                                                     'imaging plane')
+            else:
+                mod = nwbfile.create_processing_module('ophys', 'contains caiman estimates for the main imaging plane')
 
-                # Add the ROI-related stuff
-                if imaging_plane_name is None:
-                    imaging_plane_name = [imp for imp in nwbfile.imaging_planes.keys()]
-                    if len(imaging_plane_name)>1:
-                        raise Exception('There is more than one imaging plane in the file, you need to specify the name via '
-                                        'the "imaging_plane_name" parameter')
-                    else:
-                        imaging_plane_name = imaging_plane_name[0]
+            img_seg = ImageSegmentation()
+            mod.add_data_interface(img_seg)
+            fl = Fluorescence()
+            mod.add_data_interface(fl)
+#            mot_crct = MotionCorrection()
+#            mod.add_data_interface(mot_crct)
 
-                if imaging_series_name is None:
-                    imaging_series_name = [imp for imp in nwbfile.acquisition.keys()]
-                    if len(imaging_series_name)>1:
-                        raise Exception('There is more than one imaging plane in the file, you need to specify the name via '
-                                        'the "imaging_series_name" parameter')
-                    else:
-                        imaging_series_name = imaging_series_name[0]
-
-
+            # Add the ROI-related stuff
+            if imaging_plane_name is not None:
                 imaging_plane = nwbfile.imaging_planes[imaging_plane_name]
+            else:
+                if len(nwbfile.imaging_planes) == 1:
+                    imaging_plane = list(nwbfile.imaging_planes.values())[0]
+                else:
+                    raise Exception('There is more than one imaging plane in the file, you need to specify the name'
+                                    ' via the "imaging_plane_name" parameter')
+
+            if imaging_series_name is not None:
                 image_series = nwbfile.acquisition[imaging_series_name]
+            else:
+                if not len(nwbfile.acquisition):
+                    image_series = None
+                elif len(nwbfile.acquisition) == 1:
+                    image_series = list(nwbfile.acquisition.values())[0]
+                else:
+                    raise Exception('There is more than one imaging plane in the file, you need to specify the name'
+                                    ' via the "imaging_series_name" parameter')
 
-                ps = img_seg.create_plane_segmentation('CNMF_ROIs',
-                                                       imaging_plane, 'planeseg', image_series)
+            ps = img_seg.create_plane_segmentation('CNMF_ROIs', imaging_plane, 'PlaneSegmentation', image_series)
 
-                # Add ROIs
-                for roi in self.A.T:  # Neurons
-                    ps.add_roi(image_mask=roi.T.toarray().reshape(self.dims))
-                for bg in self.b.T:  # Backgrounds
-                    ps.add_roi(image_mask=bg.reshape(self.dims))
-                # Add Traces
-                n_rois = self.A.shape[-1]
-                n_bg = len(self.f)
-                rt_region_roi = ps.create_roi_table_region('ROIs',
-                                                       region=list(range(n_rois)))
+            ps.add_column('r', 'description of r values')
+            ps.add_column('snr', 'signal to noise ratio')
+            ps.add_column('cnn', 'description of CNN')
+            ps.add_column('keep', 'in idx_components')
 
-                rt_region_bg = ps.create_roi_table_region('Background',
-                                                       region=list(range(n_rois,n_rois+n_bg)))
+            # Add ROIs
+            for i, (roi, snr, r, cnn) in enumerate(zip(self.A.T, self.SNR_comp, self.r_values, self.cnn_preds)):
+                ps.add_roi(image_mask=roi.T.toarray().reshape(self.dims), r=r, snr=snr, cnn=cnn,
+                           keep=i in self.idx_components)
+            for bg in self.b.T:  # Backgrounds
+                ps.add_roi(image_mask=bg.reshape(self.dims), r=np.nan, snr=np.nan, cnn=np.nan, keep=False)
+            # Add Traces
+            n_rois = self.A.shape[-1]
+            n_bg = len(self.f)
+            rt_region_roi = ps.create_roi_table_region(
+                'ROIs', region=list(range(n_rois)))
 
-                timestamps = np.arange(self.f.shape[1])/imaging_rate+starting_time
+            rt_region_bg = ps.create_roi_table_region(
+                'Background', region=list(range(n_rois, n_rois+n_bg)))
 
-                # Neurons
-                rrs1 = fl.create_roi_response_series('RoiResponseSeries', self.C.T, 'lumens', rt_region_roi, timestamps=timestamps)
-                # Background
-                rrs2 = fl.create_roi_response_series('Background_Fluorescence_Response', self.f.T, 'lumens', rt_region_bg, timestamps=timestamps)
+            timestamps = np.arange(self.f.shape[1]) / imaging_rate + starting_time
+
+            # Neurons
+            fl.create_roi_response_series('RoiResponseSeries', self.C.T, 'lumens', rt_region_roi, timestamps=timestamps)
+            # Background
+            fl.create_roi_response_series('Background_Fluorescence_Response', self.f.T, 'lumens', rt_region_bg,
+                                          timestamps=timestamps)
+
+            mod.add(TimeSeries(name='residuals', description='residuals', data=self.YrA.T, timestamps=timestamps,
+                               unit='NA'))
+            if hasattr(self, 'Cn'):
+                images = Images('summary_images')
+                images.add_image(GrayscaleImage(name='local_correlations', data=self.Cn))
 
                 # Add MotionCorreciton
     #            create_corrected_image_stack(corrected, original, xy_translation, name='CorrectedImageStack')
                 io.write(nwbfile)
 
 
-def compare_components(estimate_gt, estimate_cmp,  Cn=None, thresh_cost=.8, min_dist=10, print_assignment=False, labels=['GT', 'CMP'], plot_results=False):
+def compare_components(estimate_gt, estimate_cmp,  Cn=None, thresh_cost=.8, min_dist=10, print_assignment=False,
+                       labels=['GT', 'CMP'], plot_results=False):
     if estimate_gt.A_thr is None:
         raise Exception(
             'You need to compute thresolded components for first argument before calling remove_duplicates: use the threshold_components method')

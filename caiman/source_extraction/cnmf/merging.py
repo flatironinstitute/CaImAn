@@ -216,7 +216,7 @@ def merge_components(Y, A, b, C, R, f, S, sn_pix, temporal_params,
             #merge_res = list(dview.map(merge_iter, zip(Acsc_mats, C_to_norms, Ctmp_mats, fms, gs, g_idxs, indxs, tps)))
             bl_merged = np.array([res[0] for res in merge_res])
             c1_merged = np.array([res[1] for res in merge_res])
-            A_merged = scipy.sparse.vstack([csc_matrix(res[2]) for res in merge_res]).T
+            A_merged = csc_matrix(scipy.sparse.vstack([csc_matrix(res[2]) for res in merge_res]).T)
             C_merged = np.vstack([res[3] for res in merge_res])
             g_merged = np.vstack([res[4] for res in merge_res])
             sn_merged = np.array([res[5] for res in merge_res])
@@ -284,11 +284,11 @@ def merge_components(Y, A, b, C, R, f, S, sn_pix, temporal_params,
             if sn is not None:
                 sn = np.hstack((sn[good_neurons], np.array(sn_merged).flatten()))
             if g is not None:
-                g = np.vstack((np.vstack(g)[good_neurons], g_merged))
-#                g = np.vstack(g)[good_neurons]
-#                if g.shape[1] == 0:
-#                    g = np.zeros((len(good_neurons), 1))
-#                g = np.vstack((g, g_merged))
+#                g = np.vstack((np.vstack(g)[good_neurons], g_merged))
+                g = np.vstack(g)[good_neurons]
+                if g.shape[1] == 0:
+                    g = np.zeros((len(good_neurons), g_merged.shape[1]))
+                g = np.vstack((g, g_merged))
 
             nr = nr - len(neur_id) + len(C_merged)
 

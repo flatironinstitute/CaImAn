@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-
 """
 OPTICAL FLOW
 
@@ -30,7 +29,8 @@ try:
 except:
     pass
 
-def select_roi(img:np.ndarray, n_rois:int=1) -> List:
+
+def select_roi(img: np.ndarray, n_rois: int = 1) -> List:
     """
     Create a mask from a the convex polygon enclosed between selected points
 
@@ -63,13 +63,22 @@ def to_polar(x, y):
     mag, ang = cv2.cartToPolar(x, y)
     return mag, ang
 
+
 def get_nonzero_subarray(arr, mask):
     x, y = mask.nonzero()
     return arr.toarray()[x.min():x.max() + 1, y.min():y.max() + 1]
 
-def extract_motor_components_OF(m, n_components, mask=None, resize_fact:float=.5, only_magnitude:bool=False, max_iter:int=1000,
-                                verbose:bool=False, method_factorization:str='nmf', max_iter_DL=-30) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
-        # todo todocument
+
+def extract_motor_components_OF(m,
+                                n_components,
+                                mask=None,
+                                resize_fact: float = .5,
+                                only_magnitude: bool = False,
+                                max_iter: int = 1000,
+                                verbose: bool = False,
+                                method_factorization: str = 'nmf',
+                                max_iter_DL=-30) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    # todo todocument
     if mask is not None:
         mask = coo_matrix(np.array(mask).squeeze())
         ms = [get_nonzero_subarray(mask.multiply(fr), mask) for fr in m]
@@ -79,8 +88,11 @@ def extract_motor_components_OF(m, n_components, mask=None, resize_fact:float=.5
     else:
         ms = m
     of_or = compute_optical_flow(ms, do_show=False, polar_coord=False)
-    of_or = np.concatenate([cm.movie(of_or[0]).resize(resize_fact, resize_fact, 1)[np.newaxis, :, :, :],
-                            cm.movie(of_or[1]).resize(resize_fact, resize_fact, 1)[np.newaxis, :, :, :]], axis=0)
+    of_or = np.concatenate([
+        cm.movie(of_or[0]).resize(resize_fact, resize_fact, 1)[np.newaxis, :, :, :],
+        cm.movie(of_or[1]).resize(resize_fact, resize_fact, 1)[np.newaxis, :, :, :]
+    ],
+                           axis=0)
 
     if only_magnitude:
         of = np.sqrt(of[0]**2 + of[1]**2)
@@ -91,15 +103,23 @@ def extract_motor_components_OF(m, n_components, mask=None, resize_fact:float=.5
         else:
             of = of_or
 
-    spatial_filter_, time_trace_, _ = extract_components(of, n_components=n_components, verbose=verbose,
-                                                         normalize_std=False, max_iter=max_iter,
+    spatial_filter_, time_trace_, _ = extract_components(of,
+                                                         n_components=n_components,
+                                                         verbose=verbose,
+                                                         normalize_std=False,
+                                                         max_iter=max_iter,
                                                          method_factorization=method_factorization,
                                                          max_iter_DL=max_iter_DL)
 
     return spatial_filter_, time_trace_, of_or
 
-def extract_magnitude_and_angle_from_OF(spatial_filter_, time_trace_, of_or,
-                                        num_std_mag_for_angle=.6, sav_filter_size=3, only_magnitude=False) -> Tuple[List, List, List, List]:
+
+def extract_magnitude_and_angle_from_OF(spatial_filter_,
+                                        time_trace_,
+                                        of_or,
+                                        num_std_mag_for_angle=.6,
+                                        sav_filter_size=3,
+                                        only_magnitude=False) -> Tuple[List, List, List, List]:
     # todo todocument
 
     mags = []
@@ -124,11 +144,9 @@ def extract_magnitude_and_angle_from_OF(spatial_filter_, time_trace_, of_or,
 
         # normalize to pixel units
         spatial_mask = spatial_filter
-        spatial_mask[spatial_mask < (np.nanpercentile(
-            spatial_mask[0], 99.9) * .9)] = np.nan
+        spatial_mask[spatial_mask < (np.nanpercentile(spatial_mask[0], 99.9) * .9)] = np.nan
         ofmk = of_or * spatial_mask[None, None, :, :]
-        range_ = np.std(np.nanpercentile(
-            np.sqrt(ofmk[0]**2 + ofmk[1]**2), 95, (1, 2)))
+        range_ = np.std(np.nanpercentile(np.sqrt(ofmk[0]**2 + ofmk[1]**2), 95, (1, 2)))
         mag = (mag / np.std(mag)) * range_
         mag = scipy.signal.medfilt(mag.squeeze(), kernel_size=1)
         dirct_orig = dirct.copy()
@@ -142,8 +160,21 @@ def extract_magnitude_and_angle_from_OF(spatial_filter_, time_trace_, of_or,
 
     return mags, dircts, dircts_thresh, spatial_masks_thr
 
-def compute_optical_flow(m, mask=None, polar_coord:bool=True, do_show:bool=False, do_write:bool=False, file_name=None, gain_of=None,
-                         frate:float=30.0, pyr_scale:float=.1, levels:int=3, winsize:int=25, iterations:int=3, poly_n=7, poly_sigma=1.5):
+
+def compute_optical_flow(m,
+                         mask=None,
+                         polar_coord: bool = True,
+                         do_show: bool = False,
+                         do_write: bool = False,
+                         file_name=None,
+                         gain_of=None,
+                         frate: float = 30.0,
+                         pyr_scale: float = .1,
+                         levels: int = 3,
+                         winsize: int = 25,
+                         iterations: int = 3,
+                         poly_n=7,
+                         poly_sigma=1.5):
     """
     This function compute the optical flow of behavioral movies using the opencv cv2.calcOpticalFlowFarneback function
 
@@ -195,11 +226,9 @@ def compute_optical_flow(m, mask=None, polar_coord:bool=True, do_show:bool=False
 
     if do_write:
         if file_name is not None:
-            video = cv2.VideoWriter(file_name, cv2.VideoWriter_fourcc(
-                'M', 'J', 'P', 'G'), frate, (d2 * 2, d1), 1)
+            video = cv2.VideoWriter(file_name, cv2.VideoWriter_fourcc('M', 'J', 'P', 'G'), frate, (d2 * 2, d1), 1)
         else:
-            raise Exception(
-                'You need to provide file name (.avi) when saving video')
+            raise Exception('You need to provide file name (.avi) when saving video')
 
     for counter, next_ in enumerate(m):
         if counter % 100 == 0:
@@ -220,11 +249,9 @@ def compute_optical_flow(m, mask=None, polar_coord:bool=True, do_show:bool=False
             if polar_coord:
                 hsv[..., 0] = coord_2 * 180 / np.pi / 2
             else:
-                hsv[..., 0] = cv2.normalize(
-                    coord_2, None, 0, 255, cv2.NORM_MINMAX)
+                hsv[..., 0] = cv2.normalize(coord_2, None, 0, 255, cv2.NORM_MINMAX)
             if gain_of is None:
-                hsv[..., 2] = cv2.normalize(
-                    coord_1, None, 0, 255, cv2.NORM_MINMAX)
+                hsv[..., 2] = cv2.normalize(coord_1, None, 0, 255, cv2.NORM_MINMAX)
             else:
                 hsv[..., 2] = gain_of * coord_1
             rgb = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)
@@ -254,7 +281,12 @@ def compute_optical_flow(m, mask=None, polar_coord:bool=True, do_show:bool=False
 
 
 #%% NMF
-def extract_components(mov_tot, n_components:int=6, normalize_std:bool=True, max_iter_DL=-30, method_factorization:str='nmf', **kwargs) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+def extract_components(mov_tot,
+                       n_components: int = 6,
+                       normalize_std: bool = True,
+                       max_iter_DL=-30,
+                       method_factorization: str = 'nmf',
+                       **kwargs) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
     """
     From optical flow images can extract spatial and temporal components
 
@@ -286,8 +318,7 @@ def extract_components(mov_tot, n_components:int=6, normalize_std:bool=True, max
     if mov_tot.ndim == 4:
         if normalize_std:
             norm_fact = np.nanstd(mov_tot, axis=(1, 2, 3))
-            mov_tot = old_div(
-                mov_tot, norm_fact[:, np.newaxis, np.newaxis, np.newaxis])
+            mov_tot = old_div(mov_tot, norm_fact[:, np.newaxis, np.newaxis, np.newaxis])
         else:
             norm_fact = np.array([1., 1.])
         c, T, d1, d2 = np.shape(mov_tot)
@@ -305,26 +336,29 @@ def extract_components(mov_tot, n_components:int=6, normalize_std:bool=True, max
 
         time_trace = nmf.fit_transform(newm)
         spatial_filter = nmf.components_
-        spatial_filter = np.concatenate(
-            [np.reshape(sp, (d1, d2))[np.newaxis, :, :] for sp in spatial_filter], axis=0)
+        spatial_filter = np.concatenate([np.reshape(sp, (d1, d2))[np.newaxis, :, :] for sp in spatial_filter], axis=0)
 
     elif method_factorization == 'dict_learn':
         import spams
         newm = np.asfortranarray(newm, dtype=np.float32)
-        time_trace = spams.trainDL(
-            newm, K=n_components, mode=0, lambda1=1, posAlpha=True, iter=max_iter_DL)
+        time_trace = spams.trainDL(newm, K=n_components, mode=0, lambda1=1, posAlpha=True, iter=max_iter_DL)
 
-        spatial_filter = spams.lasso(newm, D=time_trace, return_reg_path=False, lambda1=0.01,
-                                     mode=spams.spams_wrap.PENALTY, pos=True)
+        spatial_filter = spams.lasso(newm,
+                                     D=time_trace,
+                                     return_reg_path=False,
+                                     lambda1=0.01,
+                                     mode=spams.spams_wrap.PENALTY,
+                                     pos=True)
 
-        spatial_filter = np.concatenate([np.reshape(
-            sp, (d1, d2))[np.newaxis, :, :] for sp in spatial_filter.toarray()], axis=0)
+        spatial_filter = np.concatenate([np.reshape(sp, (d1, d2))[np.newaxis, :, :] for sp in spatial_filter.toarray()],
+                                        axis=0)
 
     time_trace = [np.reshape(ttr, (c, T)).T for ttr in time_trace.T]
 
     el_t = time.time() - tt
     print(el_t)
     return spatial_filter, time_trace, norm_fact
+
 
 def plot_components(sp_filt, t_trace) -> None:
     # todo: todocument

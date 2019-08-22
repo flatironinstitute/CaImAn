@@ -985,13 +985,13 @@ def get_file_size(file_name, var_name_hdf5='mov'):
                 dims = [0, 0]
                 try:
                     T = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-                    dims[0] = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-                    dims[1] = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+                    dims[1] = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+                    dims[0] = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
                 except():
                     print('Roll back to opencv 2')
                     T = int(cap.get(cv2.cv.CV_CAP_PROP_FRAME_COUNT))
-                    dims[0] = int(cap.get(cv2.cv.CV_CAP_PROP_FRAME_WIDTH))
-                    dims[1] = int(cap.get(cv2.cv.CV_CAP_PROP_FRAME_HEIGHT))
+                    dims[1] = int(cap.get(cv2.cv.CV_CAP_PROP_FRAME_WIDTH))
+                    dims[0] = int(cap.get(cv2.cv.CV_CAP_PROP_FRAME_HEIGHT))
             elif extension == '.mmap':
                 filename = os.path.split(file_name)[-1]
                 Yr, dims, T = load_memmap(os.path.join(

@@ -195,7 +195,7 @@ def update_temporal_components(Y, A, b, Cin, fin, bl=None, c1=None, g=None, sn=N
     A = scipy.sparse.hstack((A, b)).tocsc()
     S = np.zeros(np.shape(Cin))
     Cin = np.vstack((Cin, fin))
-    #C = Cin.copy()
+    C = Cin.copy()
     nA = np.ravel(A.power(2).sum(axis=0))
 
     logging.info('Generating residuals')
@@ -213,7 +213,7 @@ def update_temporal_components(Y, A, b, Cin, fin, bl=None, c1=None, g=None, sn=N
     # creating the patch of components to be computed in parrallel
     parrllcomp, len_parrllcomp = update_order_greedy(AA[:nr, :][:, :nr])
     logging.info("entering the deconvolution ")
-    C, S, bl, YrA, c1, sn, g, lam = update_iteration(parrllcomp, len_parrllcomp, nb, Cin, S, bl, nr,
+    C, S, bl, YrA, c1, sn, g, lam = update_iteration(parrllcomp, len_parrllcomp, nb, C, S, bl, nr,
                                                      ITER, YrA, c1, sn, g, Cin, T, nA, dview, debug, AA, kwargs)
     ff = np.where(np.sum(C, axis=1) == 0)  # remove empty components
     if np.size(ff) > 0:  # Eliminating empty temporal components
