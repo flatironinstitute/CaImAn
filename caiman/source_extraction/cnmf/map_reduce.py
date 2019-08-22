@@ -408,7 +408,7 @@ def run_CNMF_patches(file_name, shape, params, gnb=1, dview=None,
     logging.info("Constructing background")
 
     Im = scipy.sparse.csr_matrix(
-        (1. / mask, (np.arange(d), np.arange(d))), dtype=np.float32)
+        (1. / (mask + np.finfo(np.float32).eps), (np.arange(d), np.arange(d))), dtype=np.float32)
 
     if not del_duplicates:
         A_tot = Im.dot(A_tot)

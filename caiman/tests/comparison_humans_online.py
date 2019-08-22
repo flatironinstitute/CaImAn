@@ -82,8 +82,8 @@ global_params = {
     'p': 1,                    # order of indicator dynamics
     'gnb': 2,                  # number of background components
     'epochs': 2,               # number of passes over the data
-    'rval_thr': 0.75,          # spatial correlation threshold
-    'max_thr': 0.15,           # parameter for thresholding components when cleaning up shapes
+    'rval_thr': 0.80,          # spatial correlation threshold
+    'max_thr': 0.25,           # parameter for thresholding components when cleaning up shapes
     'mot_corr': False,         # flag for motion correction (set to False to compare directly on the same FOV)
     'min_num_trial': 10,       # maximum number of candidate components per frame
     'use_peak_max': True,
@@ -129,7 +129,7 @@ params_movie[2] = {
 # % YST
 params_movie[3] = {
     'folder_name': 'YST/',
-    'epochs': 2,
+    'epochs': 3,
     'ds_factor': 1,
     'fr': 10,
     'decay_time': .75,
@@ -140,7 +140,7 @@ params_movie[3] = {
 # % neurofinder.04.00.test
 params_movie[4] = {
     'folder_name': 'N.04.00.t/',
-    'epochs': 2,
+    'epochs': 3,
     'ds_factor': 1,
     'fr': 8,
     'gSig': [7, 7],  # expected half size of neurons

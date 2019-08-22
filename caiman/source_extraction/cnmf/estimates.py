@@ -721,7 +721,7 @@ class Estimates(object):
 
         nA = np.sqrt(np.ravel(self.A.power(2).sum(axis=0)))
         nA_mat = scipy.sparse.spdiags(nA, 0, nA.shape[0], nA.shape[0])
-        nA_inv_mat = scipy.sparse.spdiags(1. / nA, 0, nA.shape[0], nA.shape[0])
+        nA_inv_mat = scipy.sparse.spdiags(1. / (nA + np.finfo(np.float32).eps), 0, nA.shape[0], nA.shape[0])
         self.A = self.A * nA_inv_mat
         self.C = nA_mat * self.C
         if self.YrA is not None:
@@ -1310,9 +1310,12 @@ class Estimates(object):
         else:
             components_to_keep = np.arange(self.A.shape[-1])
 
-
-
-        self.select_components(idx_components=components_to_keep)
+        if self.idx_components is None:
+            self.idx_components = np.arange(self.A.shape[-1])
+        self.idx_components = np.intersect1d(self.idx_components, components_to_keep)
+        self.idx_components_bad = np.setdiff1d(np.arange(self.A.shape[-1]), self.idx_components)
+        if select_comp:
+            self.select_components(use_object=True)
 
         return components_to_keep
 
