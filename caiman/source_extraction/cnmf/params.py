@@ -826,15 +826,17 @@ class CNMFParams(object):
             self.init['gSiz'] = [2*gs + 1 for gs in self.init['gSig']]
 #        if self.motion['gSig_filt'] is None:
 #            self.motion['gSig_filt'] = self.init['gSig']
-        if self.init['nb'] <= 0:
+        if self.init['nb'] <= 0 and (self.patch['nb_patch'] != self.init['nb'] or
+                                     self.patch['low_rank_background'] is not None):
             logging.warning("gnb={0}, hence setting keys nb_patch ".format(self.init['nb']) +
                             "and low_rank_background in group patch automatically.")
             self.set('patch', {'nb_patch': self.init['nb'], 'low_rank_background': None})
-        if self.init['nb'] == -1:
+        if self.init['nb'] == -1 and self.spatial['update_background_components']:
             logging.warning("gnb=-1, hence setting key update_background_components " +
                             "in group spatial automatically to False.")
             self.set('spatial', {'update_background_components': False})
-        if self.init['method_init']=='corr_pnr' and self.init['ring_size_factor'] is not None:
+        if self.init['method_init'] == 'corr_pnr' and self.init['ring_size_factor'] is not None \
+            and self.init['normalize_init']:
             logging.warning("using CNMF-E's ringmodel for background hence setting key " +
                             "normalize_init in group init automatically to False.")
             self.set('init', {'normalize_init': False})
