@@ -1032,6 +1032,7 @@ def get_file_size(file_name, var_name_hdf5='mov'):
                 
             else:
                 raise Exception('Unknown file type')
+            dims = tuple(dims)
         else:
             raise Exception('File not found!')
     elif isinstance(file_name, list):
