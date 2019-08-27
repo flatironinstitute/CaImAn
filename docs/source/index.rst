@@ -14,6 +14,7 @@ Contents:
    Overview
    Installation
    Getting_Started
+   Handling_Movies
    CaImAn_Tips
    On_file_types_and_sizes
    CaImAn_features_and_references

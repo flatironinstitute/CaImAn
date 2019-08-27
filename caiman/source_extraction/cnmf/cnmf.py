@@ -376,12 +376,12 @@ class CNMF(object):
         Cn[np.isnan(Cn)] = 0
         fit_cnm.save(fname_new[:-5]+'_init.hdf5')
         fit_cnm.params.change_params({'p': self.params.get('preprocess', 'p')})
-        # %% RE-RUN seeded CNMF on accepted patches to refine and perform deconvolution
+        # RE-RUN seeded CNMF on accepted patches to refine and perform deconvolution
         cnm2 = fit_cnm.refit(images, dview=self.dview)
         cnm2.estimates.evaluate_components(images, cnm2.params, dview=self.dview)
-        #%% update object with selected components
+        # update object with selected components
         cnm2.estimates.select_components(use_object=True)
-        #%% Extract DF/F values
+        # Extract DF/F values
         cnm2.estimates.detrend_df_f(quantileMin=8, frames_window=250)
         cnm2.estimates.Cn = Cn
         cnm2.save(cnm2.mmap_file[:-4] + 'hdf5')
