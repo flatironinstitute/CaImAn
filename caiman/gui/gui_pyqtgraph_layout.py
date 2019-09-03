@@ -2,6 +2,7 @@ import cv2
 import numpy as np
 import pyqtgraph as pg
 import scipy
+import os
 from pyqtgraph import FileDialog
 from pyqtgraph.Qt import QtGui
 from pyqtgraph.parametertree import Parameter, ParameterTree
@@ -29,12 +30,12 @@ except NameError:
     print('Not launched under iPython')
 
 
-def make_color_img(img, gain=255, min_max=None,out_type=np.uint8):
+def make_color_img(img, gain=255, min_max=None, out_type=np.uint8):
     if min_max is None:
         min_ = img.min()
         max_ = img.max()
     else:
-        min_, max_ = min_max    
+        min_, max_ = min_max
 
     img = (img-min_)/(max_-min_)*gain
     img = img.astype(out_type)
@@ -45,16 +46,19 @@ def make_color_img(img, gain=255, min_max=None,out_type=np.uint8):
 F = FileDialog()
 
 # load object saved by CNMF
-fpath = F.getOpenFileName(caption='Load CNMF Object', filter='HDF5 (*.h5 *.hdf5);;NWB (*.nwb)')[0]
+fpath = F.getOpenFileName(caption='Load CNMF Object',
+                          filter='HDF5 (*.h5 *.hdf5);;NWB (*.nwb)')[0]
 cnm_obj = load_CNMF(fpath)
 
 # movie
 if not os.path.exists(cnm_obj.mmap_file):
     M = FileDialog()
-    cnm_obj.mmap_file = M.getOpenFileName(caption='Load memory mapped file', filter='*.mmap')[0]
+    cnm_obj.mmap_file = M.getOpenFileName(caption='Load memory mapped file',
+                                          filter='*.mmap')[0]
 
 if fpath[-3:] == 'nwb':
-    mov = cm.load(cnm_obj.mmap_file, var_name_hdf5='acquisition/TwoPhotonSeries')
+    mov = cm.load(cnm_obj.mmap_file,
+                  var_name_hdf5='acquisition/TwoPhotonSeries')
 else:
     mov = cm.load(cnm_obj.mmap_file)
 
@@ -67,7 +71,7 @@ max_mov = np.max(mov)
 
 if not hasattr(estimates, 'Cn'):
     estimates.Cn = cm.local_correlations(mov, swap_dim=False)
-Cn = estimates.Cn
+#Cn = estimates.Cn
 
 
 min_mov_denoise = np.min(estimates.A)*estimates.C.min()
@@ -85,6 +89,7 @@ if not hasattr(estimates, 'accepted_list'):
     #     estimates.restore_discarded_components()
     estimates.accepted_list = np.array([], dtype=np.int)
     estimates.rejected_list = np.array([], dtype=np.int)
+
     estimates.img_components = estimates.A.toarray().reshape((estimates.dims[0], estimates.dims[1], -1), order='F').transpose([2,0,1])
     estimates.cms = np.array([scipy.ndimage.measurements.center_of_mass(comp) for comp in estimates.img_components])
     estimates.idx_components = np.arange(estimates.nr)
@@ -94,28 +99,29 @@ if not hasattr(estimates, 'accepted_list'):
     estimates.img_components /= estimates.img_components.max(axis=(1, 2))[:, None, None]
     estimates.img_components *= 255
     estimates.img_components = estimates.img_components.astype(np.uint8)
- 
+
 
 def draw_contours_overall(md):
-    if md is "reset":
+    if md == "reset":
         draw_contours()
-    elif md is "neurons":
+    elif md == "neurons":
         if neuron_selected is True:
-            #if a specific neuron has been selected, only one contour should be changed while thrshcomp_line is changing
-            if nr_index is 0:
-                #if user does not start to move through the frames
+            #  if a specific neuron has been selected, only one contour
+            #  should be changed while thrshcomp_line is changing
+            if nr_index == 0:
+                #  if user does not start to move through the frames
                 draw_contours_update(estimates.background_image, img)
                 draw_contours_update(comp2_scaled, img2)
             else:
                 draw_contours_update(raw_mov_scaled, img)
                 draw_contours_update(frame_denoise_scaled, img2)
-        else: 
-            #if no specific neuron has been selected, all the contours are changing
-            draw_contours() 
+        else:
+            #  if no specific neuron has been selected, redraw all the contours
+            draw_contours()
     else:
-        #md is "background":
+        #  md is "background":
         return
-        
+
 
 def draw_contours():
     global thrshcomp_line, estimates, img
@@ -126,7 +132,7 @@ def draw_contours():
                                      cv2.CHAIN_APPROX_SIMPLE)[0] for img in estimates.img_components[estimates.idx_components]]
         SNRs = np.array(estimates.r_values)
         iidd = np.array(estimates.idx_components)
-        
+
         idx1 = np.where(SNRs[iidd] < 0.1)[0]
         idx2 = np.where((SNRs[iidd] >= 0.1) &
                         (SNRs[iidd] < 0.25))[0]
@@ -147,14 +153,14 @@ def draw_contours():
     
     img.setImage(bkgr_contours, autoLevels=False)
 # pg.setConfigOptions(imageAxisOrder='row-major')
-    
+
 
 def draw_contours_update(cf, im):
     global thrshcomp_line, estimates
     curFrame = cf.copy()
-    
+
     if len(estimates.idx_components) > 0:
-        contours = [cv2.findContours(cv2.threshold(img, np.int(thrshcomp_line.value()), 255, 0)[1], cv2.RETR_TREE,
+        contours = [cv2.findContours(cv2.threshold(img.T, np.int(thrshcomp_line.value()), 255, 0)[1], cv2.RETR_TREE,
                                      cv2.CHAIN_APPROX_SIMPLE)[0] for img in estimates.img_components[estimates.idx_components]]
         SNRs = np.array(estimates.r_values)
         iidd = np.array(estimates.idx_components)
@@ -169,7 +175,7 @@ def draw_contours_update(cf, im):
         idx5 = np.where((SNRs[iidd] >= 0.75) &
                         (SNRs[iidd] < 0.9))[0]
         idx6 = np.where(SNRs[iidd] >= 0.9)[0]
-        
+
         if min_dist_comp in idx1:
             cv2.drawContours(curFrame, contours[min_dist_comp], -1, (255, 0, 0), 1)
         if min_dist_comp in idx2:
@@ -182,19 +188,16 @@ def draw_contours_update(cf, im):
             cv2.drawContours(curFrame, contours[min_dist_comp], -1, (255, 0, 255), 1)
         if min_dist_comp in idx6:
             cv2.drawContours(curFrame, contours[min_dist_comp], -1, (0, 255, 255), 1)
-    
+
     im.setImage(curFrame, autoLevels=False)
-
-
 
 
 #%%
 
-
-## Define a top-level widget to hold everything
+#  Define a top-level widget to hold everything
 w = QtGui.QWidget()
 
-## Create some widgets to be placed inside
+#  Create some widgets to be placed inside
 btn = QtGui.QPushButton('press me')
 text = QtGui.QLineEdit('enter text')
 win = pg.GraphicsLayoutWidget()
@@ -275,8 +278,8 @@ thrshcomp_line.sigDragged.connect(lambda: draw_contours_overall(mode))
 
 
 def imageHoverEvent(event):
-    #Show the position, pixel, and value under the mouse cursor.
-    global x,y,i,j,val
+    #  Show the position, pixel, and value under the mouse cursor.
+    global x, y, i, j, val
     pos = event.pos()
     i, j = pos.y(), pos.x()
     i = int(np.clip(i, 0, estimates.background_image.shape[0] - 1))
@@ -285,37 +288,37 @@ def imageHoverEvent(event):
     ppos = img.mapToParent(pos)
     x, y = ppos.x(), ppos.y()
 
+
 # Monkey-patch the image to use our custom hover function.
 # This is generally discouraged (you should subclass ImageItem instead),
 # but it works for a very simple use like this.
 img.hoverEvent = imageHoverEvent
 
 
-
 def mouseClickEvent(event):
     global mode
-    global x,y,i,j,val
+    global x, y, i, j, val
 
     pos = img.mapFromScene(event.pos())
     x = int(pos.x())
     y = int(pos.y())
-    
+
     if x < 0 or x > mov.shape[1] or y < 0 or y > mov.shape[2]:
-        # if the user click outside of the movie, do nothing and jump out of the function
+        #  if the user click outside of the movie, jump out of the function
         return
 
     i, j = pos.y(), pos.x()
     i = int(np.clip(i, 0, estimates.background_image.shape[0] - 1))
     j = int(np.clip(j, 0, estimates.background_image.shape[1] - 1))
     val = estimates.background_image[i, j, 0]
-    
-    if mode is "neurons":
+
+    if mode == "neurons":
         show_neurons_clicked()
-    
+
 p1.mousePressEvent = mouseClickEvent
 
 
-#A general rule in Qt is that if you override one mouse event handler, you must override all of them.
+#  A general rule in Qt is that if you override one mouse event handler, you must override all of them.
 def release(event):
     pass
 
@@ -357,7 +360,7 @@ params_action = [{'name': 'Filter components', 'type': 'bool', 'value': True, 't
 
 
 pars_action = Parameter.create(name='params_action', type='group', children=params_action) 
-   
+
 t_action.setParameters(pars_action, showTop=False)
 t_action.setWindowTitle('Parameter Action')
 
@@ -366,11 +369,11 @@ def reset_button():
     global mode
     mode = "reset"
     p2.setTitle("mode: %s" % (mode))
-    #clear the upper right image
-    zeros = np.asarray([ [0] * 80 for _ in range(60)])
+    #  clear the upper right image
+    zeros = np.zeros(estimates.dims, order='F')
     img2.setImage(make_color_img(zeros), autoLevels=False)
     draw_contours()
-    
+
 
 pars.param('RESET').sigActivated.connect(reset_button)
 
@@ -378,29 +381,30 @@ pars.param('RESET').sigActivated.connect(reset_button)
 def show_background_button():
     global bg_vline, min_background, max_background, background_num
     global mode, background_first_frame_scaled
-    #clear thhe upper right image
-    zeros = np.asarray([ [0] * 80 for _ in range(60)])
+    #  clear thhe upper right image
+    zeros = np.zeros(estimates.dims, order='F')
     img2.setImage(make_color_img(zeros), autoLevels=False)
-    
+
     background_num = (background_num + 1) % estimates.f.shape[0]
     mode = "background"
     p2.setTitle("mode: %s %d" % (mode,background_num))
 
     # display the first frame of the background
-    background_first_frame = estimates.b[:,background_num].reshape(estimates.dims, order='F')
+    background_first_frame = estimates.b[:, background_num].reshape(estimates.dims, order='F')
     min_background_first_frame = np.min(background_first_frame)
     max_background_first_frame = np.max(background_first_frame)
-    background_first_frame_scaled = make_color_img(background_first_frame, min_max=(min_background_first_frame, max_background_first_frame))
+    background_first_frame_scaled = make_color_img(background_first_frame,
+                                                   min_max=(min_background_first_frame, max_background_first_frame))
     img.setImage(background_first_frame_scaled,autoLevels=False)
-    
+
     # draw the trace and the infinite line
     trace_background = estimates.f[background_num]
     p2.plot(trace_background, clear=True)
-    bg_vline = pg.InfiniteLine(angle = 90, movable = True)
+    bg_vline = pg.InfiniteLine(angle=90, movable=True)
     p2.addItem(bg_vline, ignoreBounds=True)
     bg_vline.setValue(0)
     bg_vline.sigPositionChanged.connect(show_background_update)
-    
+
 
 def show_background_update():
     global bg_index, min_background, max_background, background_scaled
@@ -408,13 +412,11 @@ def show_background_update():
     if bg_index > -1 and bg_index < estimates.f.shape[-1]:
         # upper left component scrolls through the frames of the background
         background = estimates.b[:,background_num].dot(estimates.f[background_num,bg_index]).reshape(estimates.dims, order='F')
-        background_scaled = make_color_img(background, min_max=(min_background[background_num], max_background[background_num]))
-        img.setImage(background_scaled,autoLevels=False)
+        background_scaled=make_color_img(background, min_max=(min_background[background_num], max_background[background_num]))
+        img.setImage(background_scaled, autoLevels=False)
+
 
 pars.param('SHOW BACKGROUND').sigActivated.connect(show_background_button)
-
-
-
 
 
 def show_neurons_button():
@@ -422,10 +424,9 @@ def show_neurons_button():
     mode = "neurons"
     neuron_selected = False
     p2.setTitle("mode: %s" % (mode))
-    #clear the upper right image
-    zeros = np.asarray([ [0] * 80 for _ in range(60)])
+    #  clear the upper right image
+    zeros = np.zeros(estimates.dims, order='F')
     img2.setImage(make_color_img(zeros), autoLevels=False)
-
 
 
 def show_neurons_clicked():
@@ -436,11 +437,11 @@ def show_neurons_clicked():
     min_dist_comp = np.argmin(distances)
     contour_all =[cv2.threshold(img, np.int(thrshcomp_line.value()), 255, 0)[1] for img in estimates.img_components[estimates.idx_components]]
     contour_single = contour_all[min_dist_comp] 
-    
+
     # draw the traces (lower left component)
     estimates.components_to_plot = estimates.idx_components[min_dist_comp]
     p2.plot(estimates.C[estimates.components_to_plot] + estimates.YrA[estimates.components_to_plot], clear=True)   
-    
+
     # plot img (upper left component)
     img.setImage(estimates.background_image, autoLevels=False)
     draw_contours_update(estimates.background_image, img)
@@ -484,11 +485,6 @@ def show_neurons_update():
 pars.param('SHOW NEURONS').sigActivated.connect(show_neurons_button)
 
 
-
-
-
-
-
 def add_group():
     estimates.accepted_list = np.union1d(estimates.accepted_list,estimates.idx_components)
     estimates.rejected_list = np.setdiff1d(estimates.rejected_list,estimates.idx_components)
@@ -503,6 +499,7 @@ def remove_group():
     
 pars_action.param('REMOVE GROUP').sigActivated.connect(remove_group)
 
+
 def add_single():
     estimates.accepted_list = np.union1d(estimates.accepted_list,estimates.components_to_plot)
     estimates.rejected_list = np.setdiff1d(estimates.rejected_list,estimates.components_to_plot)
@@ -510,12 +507,14 @@ def add_single():
     
 pars_action.param('ADD SINGLE').sigActivated.connect(add_single)
 
+
 def remove_single():
     estimates.rejected_list = np.union1d(estimates.rejected_list,estimates.components_to_plot)
     estimates.accepted_list = np.setdiff1d(estimates.accepted_list,estimates.components_to_plot)
     change(None, None)
     
 pars_action.param('REMOVE SINGLE').sigActivated.connect(remove_single)
+
 
 def save_object():
     print('Saving')
@@ -527,14 +526,14 @@ def save_object():
 
 pars_action.param('SAVE OBJECT').sigActivated.connect(save_object)
 
-    
+
 def action_pars_activated(param, changes):  
     change(None, None)
     
 pars_action.sigTreeStateChanged.connect(action_pars_activated)
 
 
-## If anything changes in the tree, print a message
+#  If anything changes in the tree, print a message
 def change(param, changes):
     global estimates, pars, pars_action
     set_par = pars.getValues()
@@ -550,7 +549,7 @@ def change(param, changes):
                                        'SNR_lowest': 0})
     estimates.filter_components(mov, params_obj, dview=None,
                                 select_mode=pars_action.param('View components').value())
-    if mode is "background":
+    if mode == "background":
         return
     else:
         draw_contours()                
@@ -561,11 +560,10 @@ change(None, None) # set params to default
 t.setParameters(pars, showTop=False)
 t.setWindowTitle('Parameter Quality')
 
-## END PARAMS    
+#  END PARAMS
 
-## Display the widget as a new window
+#  Display the widget as a new window
 w.show()
 
-## Start the Qt event loop
+#  Start the Qt event loop
 app.exec_()
-
