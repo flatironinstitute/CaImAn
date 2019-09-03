@@ -2319,23 +2319,21 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
             CC = np.vstack([CC1, CC2])
             Cf = np.vstack([Cf, cin_circ])
 
-            if W is not None:  # 1p data, subtract background TODO: restrict to region where component is located
+            if W is not None:  # 1p data, subtract background
                 if ssub_B == 1:
                     x = (y - Ab.dot(Cf).T - b0).T
-                    y -= W.dot(x).T
+                    y = y[:, indices] - W[indices].dot(x).T - b0[indices]
                 else:
                     d1, d2 = dims
-                    # x = (downscale((y.T - Ab.dot(Cf) - b0[:, None])
-                    #                .reshape(dims + (-1,), order='F'), (ssub_B, ssub_B, 1))
-                    #      .reshape((-1, len(y)), order='F'))
                     x = downscale_matrix.dot(y.T - Ab.dot(Cf) - b0[:, None])
+                    # restrict to region where component is located already at this step?
                     y -= np.repeat(np.repeat(
                         W.dot(x).T.reshape((-1, (d1 - 1) // ssub_B + 1,
                                             (d2 - 1) // ssub_B + 1), order='F'),
                         ssub_B, 1), ssub_B, 2)[:, :d1, :d2].reshape((len(y), -1), order='F')
-                y -= b0
+                    y = y[:, indices] - b0[indices]
 
-            CY[M, indices] = cin_circ_.dot(y[:, indices]) / tt
+            CY[M, indices] = cin_circ_.dot(y) / tt
 
             N = N + 1
             M = M + 1
