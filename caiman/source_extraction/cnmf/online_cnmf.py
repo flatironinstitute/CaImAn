@@ -357,19 +357,20 @@ class OnACID(object):
                     tmp[index, p] = True
                 self.estimates.XXt_ind = list([np.where(t)[0] for t in tmp])
 
+        if self.params.get('online', 'use_corr_img'):
             Yres = Yr[:, :init_batch] - self.estimates.Ab.dot(
                 self.estimates.C_on[:self.M, :init_batch])
-            Yres -= self.estimates.b0[:, None]
-            if ssub_B == 1:
-                Yres -= self.estimates.W.dot(Yres)
-            else:
-                Yres -= np.repeat(np.repeat(self.estimates.W.dot(
-                    estim.downscale_matrix.dot(Yres))
-                    .reshape(((d1 - 1) // ssub_B + 1, (d2 - 1) // ssub_B + 1, -1), order='F'),
-                    ssub_B, 0), ssub_B, 1)[:d1, :d2].reshape(-1, init_batch, order='F')                
+            if self.is1p:
+                Yres -= self.estimates.b0[:, None]
+                if ssub_B == 1:
+                    Yres -= self.estimates.W.dot(Yres)
+                else:
+                    Yres -= np.repeat(np.repeat(self.estimates.W.dot(
+                        estim.downscale_matrix.dot(Yres))
+                        .reshape(((d1 - 1) // ssub_B + 1, (d2 - 1) // ssub_B + 1, -1), order='F'),
+                        ssub_B, 0), ssub_B, 1)[:d1, :d2].reshape(-1, init_batch, order='F')                
             Yres = Yres.reshape((d1, d2, -1), order='F')
 
-        if self.params.get('online', 'use_corr_img'):
             (self.estimates.first_moment, self.estimates.second_moment,
                 self.estimates.crosscorr, self.estimates.col_ind, self.estimates.row_ind,
                 self.estimates.num_neigbors, self.estimates.corrM, self.estimates.corr_img) = \
@@ -661,6 +662,7 @@ class OnACID(object):
                 idx_overlap = self.estimates.AtA[nb_:-num_added, -num_added:].nonzero()[0]
                 self.update_counter[idx_overlap] = 0
         self.t_detect.append(time() - t_new)
+        t_stat = time()
         if self.params.get('online', 'batch_update_suff_stat'):
         # faster update using minibatch of frames
             min_batch = min(self.params.get('online', 'update_freq'), mbs)
@@ -752,6 +754,7 @@ class OnACID(object):
                                                        nb_].dot(y[:, self.ind_A[m]]) / t
             self.estimates.CY[:nb_] = self.estimates.CY[:nb_] * (1 - 1. / t) + ccf[:nb_].dot(y / t)
             self.estimates.CC = self.estimates.CC * (1 - 1. / t) + ccf.dot(ccf.T / t)
+        self.t_stat.append(time() - t_stat)
 
         # update shapes
         t_sh = time()
@@ -1096,6 +1099,7 @@ class OnACID(object):
         self.t_shapes:List = []
         self.t_detect:List = []
         self.t_motion:List = []
+        self.t_stat:List = []
         ssub_B = self.params.get('init', 'ssub_B') * self.params.get('init', 'ssub')
         d1, d2 = self.params.get('data', 'dims')
         max_shifts_online = self.params.get('online', 'max_shifts_online')
