@@ -269,18 +269,21 @@ class OnACID(object):
         self.estimates.mn = self.estimates.Yres_buf.mean(0)
         self.estimates.mean_buff = self.estimates.Yres_buf.mean(0)
         self.estimates.ind_new = []
-        self.estimates.rho_buf = imblur(np.maximum(self.estimates.Yres_buf.T, 0).reshape(
-            self.estimates.dims + (-1,), order='F'), sig=self.params.get('init', 'gSig'),
-            siz=self.params.get('init', 'gSiz'), nDimBlur=len(self.estimates.dims))**2
-        self.estimates.rho_buf = np.reshape(
-            self.estimates.rho_buf, (np.prod(self.estimates.dims), -1)).T
-           # self.estimates.rho_buf, (np.prod(self.params.get('data', 'dims')), -1)).T
-        self.estimates.rho_buf = np.ascontiguousarray(self.estimates.rho_buf)
-        self.estimates.rho_buf = RingBuffer(self.estimates.rho_buf, self.params.get('online', 'minibatch_shape'))
+        if self.params.get('online', 'use_corr_img'):
+            self.estimates.rho_buf = None
+            self.estimates.sv = None
+        else:
+            self.estimates.rho_buf = imblur(np.maximum(self.estimates.Yres_buf.T, 0).reshape(
+                self.estimates.dims + (-1,), order='F'), sig=self.params.get('init', 'gSig'),
+                siz=self.params.get('init', 'gSiz'), nDimBlur=len(self.estimates.dims))**2
+            self.estimates.rho_buf = np.reshape(
+                self.estimates.rho_buf, (np.prod(self.estimates.dims), -1)).T
+            self.estimates.rho_buf = np.ascontiguousarray(self.estimates.rho_buf)
+            self.estimates.rho_buf = RingBuffer(self.estimates.rho_buf, self.params.get('online', 'minibatch_shape'))
+            self.estimates.sv = np.sum(self.estimates.rho_buf.get_last_frames(
+                min(self.params.get('online', 'init_batch'), self.params.get('online', 'minibatch_shape')) - 1), 0)
         self.estimates.AtA = (self.estimates.Ab.T.dot(self.estimates.Ab)).toarray()
         self.estimates.AtY_buf = self.estimates.Ab.T.dot(self.estimates.Yr_buf.T)
-        self.estimates.sv = np.sum(self.estimates.rho_buf.get_last_frames(
-            min(self.params.get('online', 'init_batch'), self.params.get('online', 'minibatch_shape')) - 1), 0)
         self.estimates.groups = list(map(list, update_order(self.estimates.Ab)[0]))
         self.update_counter = 2**np.linspace(0, 1, self.N, dtype=np.float32)
         self.estimates.CC = np.ascontiguousarray(self.estimates.CC)
@@ -485,12 +488,12 @@ class OnACID(object):
 
             if self.params.get('online', 'use_corr_img'):
                 self.estimates.max_img = np.max([self.estimates.max_img, res_frame], 0)
-
-            rho = imblur(np.maximum(res_frame,0), sig=self.params.get('init', 'gSig'),
-                         siz=self.params.get('init', 'gSiz'), nDimBlur=len(self.params.get('data', 'dims')))**2
-
-            rho = np.reshape(rho, np.prod(self.params.get('data', 'dims')))
-            self.estimates.rho_buf.append(rho)
+            else:
+                rho = imblur(np.maximum(res_frame,0), sig=self.params.get('init', 'gSig'),
+                             siz=self.params.get('init', 'gSiz'),
+                             nDimBlur=len(self.params.get('data', 'dims')))**2
+                rho = np.reshape(rho, np.prod(self.params.get('data', 'dims')))
+                self.estimates.rho_buf.append(rho)
 
             # old_max_img = self.estimates.max_img.copy()
             if self.params.get('preprocess', 'p') == 1:
@@ -2129,10 +2132,11 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
     M = np.shape(Ab)[-1]
     N = M - gnb                 # number of coponents (without background)
 
-    sv -= rho_buf.get_first()
-    # update variance of residual buffer
-    sv += rho_buf.get_last_frames(1).squeeze()
-    sv = np.maximum(sv, 0)
+    if corr_img is None:
+        sv -= rho_buf.get_first()
+        # update variance of residual buffer
+        sv += rho_buf.get_last_frames(1).squeeze()
+        sv = np.maximum(sv, 0)
 
     if max_img is not None:
         # pnr_img = max_img.ravel(order='F') / np.sqrt(second_moment - first_moment**2)
@@ -2371,52 +2375,54 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                 
             Yres_buf[:, indices] -= np.outer(cin, ain)
 
-            # restrict blurring to region where component is located
-            # update bigger region than neural patch to avoid boundary effects
-            slices_update = tuple(slice(max(0, ijs[0] - sg // 2), min(d, ijs[1] + sg // 2))
-                                  for ijs, sg, d in zip(ijSig, gSiz, dims))
-            # filter even bigger region to avoid boundary effects
-            slices_filter = tuple(slice(max(0, ijs[0] - sg), min(d, ijs[1] + sg))
-                                  for ijs, sg, d in zip(ijSig, gSiz, dims))
+            
+            if corr_img is None:
+                # restrict blurring to region where component is located
+                # update bigger region than neural patch to avoid boundary effects
+                slices_update = tuple(slice(max(0, ijs[0] - sg // 2), min(d, ijs[1] + sg // 2))
+                                      for ijs, sg, d in zip(ijSig, gSiz, dims))
+                # filter even bigger region to avoid boundary effects
+                slices_filter = tuple(slice(max(0, ijs[0] - sg), min(d, ijs[1] + sg))
+                                      for ijs, sg, d in zip(ijSig, gSiz, dims))
 
-            ind_vb = np.ravel_multi_index(
-                np.ix_(*[np.arange(sl.start, sl.stop)
-                         for sl in slices_update]), dims, order='C').ravel()
+                ind_vb = np.ravel_multi_index(
+                    np.ix_(*[np.arange(sl.start, sl.stop)
+                             for sl in slices_update]), dims, order='C').ravel()
 
-            if len(dims) == 3:
-                rho_buf[:, ind_vb] = np.stack([imblur(
-                    vb.reshape(dims, order='F')[slices_filter], sig=gSig, siz=gSiz,
-                    nDimBlur=len(dims))[tuple([slice(
-                        slices_update[i].start - slices_filter[i].start,
-                        slices_update[i].stop - slices_filter[i].start)
-                        for i in range(len(dims))])].ravel() for vb in Yres_buf])**2
-            else:
-                # faster than looping over frames:
-                # transform all frames into one, blur all simultaneously, transform back
-                Y_filter = Yres_buf.reshape((-1,) + dims, order='F'
-                                            )[:, slices_filter[0], slices_filter[1]]
-                T, d0, d1 = Y_filter.shape
-                tmp = np.concatenate((Y_filter, np.zeros((T, gHalf[0], d1), dtype=np.float32)),
-                                     axis=1).reshape(-1, d1)
-                cv2.GaussianBlur(tmp, tuple(gSiz), gSig[0], tmp, gSig[1], cv2.BORDER_CONSTANT)
-                slices = tuple([slice(slices_update[i].start - slices_filter[i].start,
-                                      slices_update[i].stop - slices_filter[i].start)
-                                for i in range(len(dims))])
-                rho_buf[:, ind_vb] = tmp.reshape(T, -1, d1)[
-                    (slice(None),) + slices].reshape(T, -1)**2
+                if len(dims) == 3:
+                    rho_buf[:, ind_vb] = np.stack([imblur(
+                        vb.reshape(dims, order='F')[slices_filter], sig=gSig, siz=gSiz,
+                        nDimBlur=len(dims))[tuple([slice(
+                            slices_update[i].start - slices_filter[i].start,
+                            slices_update[i].stop - slices_filter[i].start)
+                            for i in range(len(dims))])].ravel() for vb in Yres_buf])**2
+                else:
+                    # faster than looping over frames:
+                    # transform all frames into one, blur all simultaneously, transform back
+                    Y_filter = Yres_buf.reshape((-1,) + dims, order='F'
+                                                )[:, slices_filter[0], slices_filter[1]]
+                    T, d0, d1 = Y_filter.shape
+                    tmp = np.concatenate((Y_filter, np.zeros((T, gHalf[0], d1), dtype=np.float32)),
+                                         axis=1).reshape(-1, d1)
+                    cv2.GaussianBlur(tmp, tuple(gSiz), gSig[0], tmp, gSig[1], cv2.BORDER_CONSTANT)
+                    slices = tuple([slice(slices_update[i].start - slices_filter[i].start,
+                                          slices_update[i].stop - slices_filter[i].start)
+                                    for i in range(len(dims))])
+                    rho_buf[:, ind_vb] = tmp.reshape(T, -1, d1)[
+                        (slice(None),) + slices].reshape(T, -1)**2
 
-            # import matplotlib.pyplot as plt
-            # plt.figure(figsize=(15, 10))
-            # plt.subplot(231)
-            # plt.colorbar(plt.imshow(pnr_img))
-            # plt.subplot(232)
-            # plt.colorbar(plt.imshow(corr_img))
-            # plt.subplot(233)
-            # plt.colorbar(plt.imshow(pnr_img*corr_img))
-            # plt.subplot(234)
-            # plt.colorbar(plt.imshow(sv.reshape(dims)))
+                # import matplotlib.pyplot as plt
+                # plt.figure(figsize=(15, 10))
+                # plt.subplot(231)
+                # plt.colorbar(plt.imshow(pnr_img))
+                # plt.subplot(232)
+                # plt.colorbar(plt.imshow(corr_img))
+                # plt.subplot(233)
+                # plt.colorbar(plt.imshow(pnr_img*corr_img))
+                # plt.subplot(234)
+                # plt.colorbar(plt.imshow(sv.reshape(dims)))
 
-            sv[ind_vb] = np.sum(rho_buf[:, ind_vb], 0)
+                sv[ind_vb] = np.sum(rho_buf[:, ind_vb], 0)
 
     return Ab, Cf, Yres_buf, rho_buf, CC, CY, ind_A, sv, groups, ind_new, ind_new_all, sv, cnn_pos
 
