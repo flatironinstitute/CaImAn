@@ -29,6 +29,7 @@ from scipy.ndimage import percentile_filter
 from scipy.ndimage.filters import gaussian_filter
 from scipy.sparse import coo_matrix, csc_matrix, spdiags, hstack
 from scipy.stats import norm
+from skimage.external.tifffile import TiffFile
 from sklearn.decomposition import NMF
 from sklearn.preprocessing import normalize
 from time import time
@@ -1129,11 +1130,17 @@ class OnACID(object):
         #     Go through all files
             for file_count, ffll in enumerate(process_files):
                 logging.info('Now processing file {}'.format(ffll))
-                Y_ = caiman.load(ffll, var_name_hdf5=self.params.get('data', 'var_name_hdf5'), 
-                                 subindices=slice(init_batc_iter[file_count], None, None))
+                tif = os.path.splitext(ffll)[1].lower() in ('.tif', '.tiff')
+                if tif:
+                    Y_= TiffFile(ffll).pages[init_batc_iter[file_count]:]
+                else:
+                    Y_ = caiman.load(ffll, var_name_hdf5=self.params.get('data', 'var_name_hdf5'), 
+                                     subindices=slice(init_batc_iter[file_count], None, None))
 
                 old_comps = self.N     # number of existing components
                 for frame_count, frame in enumerate(Y_):   # process each file
+                    if tif:
+                        frame = frame.asarray()
                     t_frame_start = time()
                     if np.isnan(np.sum(frame)):
                         raise Exception('Frame ' + str(frame_count) +
