@@ -150,9 +150,11 @@ def draw_contours():
         cv2.drawContours(bkgr_contours, sum([contours[jj] for jj in idx4], []), -1, (255, 255, 0), 1)
         cv2.drawContours(bkgr_contours, sum([contours[jj] for jj in idx5], []), -1, (255, 0, 255), 1)
         cv2.drawContours(bkgr_contours, sum([contours[jj] for jj in idx6], []), -1, (0, 255, 255), 1)
-    
+
     img.setImage(bkgr_contours, autoLevels=False)
-# pg.setConfigOptions(imageAxisOrder='row-major')
+
+
+pg.setConfigOptions(imageAxisOrder='row-major')
 
 
 def draw_contours_update(cf, im):
@@ -192,7 +194,7 @@ def draw_contours_update(cf, im):
     im.setImage(curFrame, autoLevels=False)
 
 
-#%%
+# %%
 
 #  Define a top-level widget to hold everything
 w = QtGui.QWidget()
@@ -203,22 +205,21 @@ text = QtGui.QLineEdit('enter text')
 win = pg.GraphicsLayoutWidget()
 win.setMaximumWidth(300)
 win.setMinimumWidth(200)
-hist = pg.HistogramLUTItem() # Contrast/color control
+hist = pg.HistogramLUTItem()  # Contrast/color control
 win.addItem(hist)
-p1 =  pg.PlotWidget()
-p2 =  pg.PlotWidget()
-p3 =  pg.PlotWidget()
+p1 = pg.PlotWidget()
+p2 = pg.PlotWidget()
+p3 = pg.PlotWidget()
 t = ParameterTree()
 t_action = ParameterTree()
 action_layout = QtGui.QGridLayout()
 
-
-## Create a grid layout to manage the widgets size and position
+#  Create a grid layout to manage the widgets size and position
 layout = QtGui.QGridLayout()
 w.setLayout(layout)
 
 # A plot area (ViewBox + axes) for displaying the image
-#p1 = win.addPlot(title="Image here")
+# p1 = win.addPlot(title="Image here")
 # Item for displaying image data
 img = pg.ImageItem()
 p1.addItem(img)
@@ -496,7 +497,7 @@ def remove_group():
     estimates.rejected_list = np.union1d(estimates.rejected_list,estimates.idx_components)
     estimates.accepted_list = np.setdiff1d(estimates.accepted_list,estimates.idx_components)
     change(None, None)
-    
+
 pars_action.param('REMOVE GROUP').sigActivated.connect(remove_group)
 
 
@@ -504,7 +505,7 @@ def add_single():
     estimates.accepted_list = np.union1d(estimates.accepted_list,estimates.components_to_plot)
     estimates.rejected_list = np.setdiff1d(estimates.rejected_list,estimates.components_to_plot)
     change(None, None)
-    
+
 pars_action.param('ADD SINGLE').sigActivated.connect(add_single)
 
 
@@ -512,13 +513,12 @@ def remove_single():
     estimates.rejected_list = np.union1d(estimates.rejected_list,estimates.components_to_plot)
     estimates.accepted_list = np.setdiff1d(estimates.accepted_list,estimates.components_to_plot)
     change(None, None)
-    
+
 pars_action.param('REMOVE SINGLE').sigActivated.connect(remove_single)
 
 
 def save_object():
     print('Saving')
-    
     ffll = F.getSaveFileName(filter='*.hdf5')
     print(ffll[0])
     cnm_obj.estimates = estimates
