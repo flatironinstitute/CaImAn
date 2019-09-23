@@ -72,10 +72,14 @@ def com(A: np.ndarray, d1: int, d2: int, d3: Optional[int] = None) -> np.array:
                          dtype=A.dtype)
     else:
         Coor = np.matrix([
-            np.outer(np.ones(d3), np.outer(np.ones(d2), np.arange(d1)).ravel()).ravel(),
-            np.outer(np.ones(d3), np.outer(np.arange(d2), np.ones(d1)).ravel()).ravel(),
-            np.outer(np.arange(d3), np.outer(np.ones(d2), np.ones(d1)).ravel()).ravel()],
-            dtype=A.dtype)
+            np.outer(np.ones(d3),
+                     np.outer(np.ones(d2), np.arange(d1)).ravel()).ravel(),
+            np.outer(np.ones(d3),
+                     np.outer(np.arange(d2), np.ones(d1)).ravel()).ravel(),
+            np.outer(np.arange(d3),
+                     np.outer(np.ones(d2), np.ones(d1)).ravel()).ravel()
+        ],
+                         dtype=A.dtype)
 
     cm = (Coor * A / A.sum(axis=0)).T
     return np.array(cm)
