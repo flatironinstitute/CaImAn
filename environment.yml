@@ -4,6 +4,7 @@ dependencies:
 - python=3.7
 - tensorflow # Must list before keras to preempt default keras backend
 - bokeh
+- coverage
 - cython
 - future
 - h5py
