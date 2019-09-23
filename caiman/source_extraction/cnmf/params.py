@@ -865,7 +865,6 @@ class CNMFParams(object):
                     logging.warning(
                         "Changing key {0} in group {1} from {2} to {3}".format(k, group, d[k], v))
                 d[k] = v
-        self.check_consistency()
 
     def get(self, group, key):
         """ Get a value for a given group and key. Raises an exception if no such group/key combination exists.
