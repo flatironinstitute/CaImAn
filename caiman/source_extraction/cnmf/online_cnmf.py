@@ -2313,21 +2313,9 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
             ind_A.append(Ab.indices[Ab.indptr[M]:Ab.indptr[M + 1]])
 
             tt = t * 1.
-            y = Y_buf.get_ordered()
-            cin_ = cin
-            Cf_ = Cf
-            cin_circ_ = cin_circ
-
-            CY[M, indices] = cin_.dot(Y_buf[:, indices]) / tt
-
-            # preallocate memory for speed up?
-            CC1 = np.hstack([CC, Cf_.dot(cin_circ_ / tt)[:, None]])
-            CC2 = np.hstack(
-                [(Cf_.dot(cin_circ_)).T, cin_circ_.dot(cin_circ_)]) / tt
-            CC = np.vstack([CC1, CC2])
-            Cf = np.vstack([Cf, cin_circ])
 
             if W is not None:  # 1p data, subtract background
+                y = Y_buf.get_ordered()
                 if ssub_B == 1:
                     x = (y - Ab.dot(Cf).T - b0).T
                     y = y[:, indices] - W[indices].dot(x).T - b0[indices]
@@ -2340,8 +2328,16 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                                             (d2 - 1) // ssub_B + 1), order='F'),
                         ssub_B, 1), ssub_B, 2)[:, :d1, :d2].reshape((len(y), -1), order='F')
                     y = y[:, indices] - b0[indices]
+                CY[M, indices] = cin_circ.dot(y) / tt
+            else:
+                CY[M, indices] = cin.dot(Y_buf[:, indices]) / tt
 
-            CY[M, indices] = cin_circ_.dot(y) / tt
+            # preallocate memory for speed up?
+            CC1 = np.hstack([CC, Cf.dot(cin_circ / tt)[:, None]])
+            CC2 = np.hstack(
+                [(Cf.dot(cin_circ)).T, cin_circ.dot(cin_circ)]) / tt
+            CC = np.vstack([CC1, CC2])
+            Cf = np.vstack([Cf, cin_circ])
 
             N = N + 1
             M = M + 1
