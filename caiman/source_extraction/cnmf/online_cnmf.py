@@ -1221,8 +1221,8 @@ class OnACID(object):
             self.Ab_epoch.append(self.estimates.Ab.copy())
 
         if self.params.get('online', 'normalize'):
-            self.estimates.Ab *= self.img_norm.reshape(-1, order='F')[:,np.newaxis]
-            self.estimates.Ab = csc_matrix(self.estimates.Ab)
+            self.estimates.Ab = csc_matrix(self.estimates.Ab.multiply(
+                self.img_norm.reshape(-1, order='F')[:, np.newaxis]))
         self.estimates.A, self.estimates.b = self.estimates.Ab[:, self.params.get('init', 'nb'):], self.estimates.Ab[:, :self.params.get('init', 'nb')].toarray()
         self.estimates.C, self.estimates.f = self.estimates.C_on[self.params.get('init', 'nb'):self.M, t - t //
                          epochs:t], self.estimates.C_on[:self.params.get('init', 'nb'), t - t // epochs:t]
@@ -2314,6 +2314,13 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
 
             tt = t * 1.
 
+            # preallocate memory for speed up?
+            CC1 = np.hstack([CC, Cf.dot(cin_circ / tt)[:, None]])
+            CC2 = np.hstack(
+                [(Cf.dot(cin_circ)).T, cin_circ.dot(cin_circ)]) / tt
+            CC = np.vstack([CC1, CC2])
+            Cf = np.vstack([Cf, cin_circ])
+
             if W is not None:  # 1p data, subtract background
                 y = Y_buf.get_ordered()
                 if ssub_B == 1:
@@ -2331,13 +2338,6 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                 CY[M, indices] = cin_circ.dot(y) / tt
             else:
                 CY[M, indices] = cin.dot(Y_buf[:, indices]) / tt
-
-            # preallocate memory for speed up?
-            CC1 = np.hstack([CC, Cf.dot(cin_circ / tt)[:, None]])
-            CC2 = np.hstack(
-                [(Cf.dot(cin_circ)).T, cin_circ.dot(cin_circ)]) / tt
-            CC = np.vstack([CC1, CC2])
-            Cf = np.vstack([Cf, cin_circ])
 
             N = N + 1
             M = M + 1
