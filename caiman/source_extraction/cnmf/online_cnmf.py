@@ -1129,94 +1129,101 @@ class OnACID(object):
         #     Go through all files
             for file_count, ffll in enumerate(process_files):
                 logging.info('Now processing file {}'.format(ffll))
-                Y_ = caiman.load(ffll, var_name_hdf5=self.params.get('data', 'var_name_hdf5'), 
-                                 subindices=slice(init_batc_iter[file_count], None, None))
+                Y_ = caiman.base.movies.load_iter(
+                    ffll, var_name_hdf5=self.params.get('data', 'var_name_hdf5'),
+                    subindices=slice(init_batc_iter[file_count], None, None))
 
                 old_comps = self.N     # number of existing components
-                for frame_count, frame in enumerate(Y_):   # process each file
-                    t_frame_start = time()
-                    if np.isnan(np.sum(frame)):
-                        raise Exception('Frame ' + str(frame_count) +
-                                        ' contains NaN')
-                    if t % 100 == 0:
-                        logging.info('Epoch: ' + str(iter + 1) + '. ' + str(t) +
-                                     ' frames have beeen processed in total. ' +
-                                     str(self.N - old_comps) +
-                                     ' new components were added. Total # of components is '
-                                     + str(self.estimates.Ab.shape[-1] - self.params.get('init', 'nb')))
-                        old_comps = self.N
+                frame_count = -1
+                while True:   # process each file
+                    try:
+                        frame = next(Y_)
+                        frame_count += 1
+                        t_frame_start = time()
+                        if np.isnan(np.sum(frame)):
+                            raise Exception('Frame ' + str(frame_count) +
+                                            ' contains NaN')
+                        if t % 100 == 0:
+                            logging.info('Epoch: ' + str(iter + 1) + '. ' + str(t) +
+                                         ' frames have beeen processed in total. ' +
+                                         str(self.N - old_comps) +
+                                         ' new components were added. Total # of components is '
+                                         + str(self.estimates.Ab.shape[-1] - self.params.get('init', 'nb')))
+                            old_comps = self.N
 
-                    # Downsample and normalize
-                    frame_ = frame.copy().astype(np.float32)
-                    if self.params.get('online', 'ds_factor') > 1:
-                        frame_ = cv2.resize(frame_, self.img_norm.shape[::-1])
+                        # Downsample and normalize
+                        frame_ = frame.copy().astype(np.float32)
+                        if self.params.get('online', 'ds_factor') > 1:
+                            frame_ = cv2.resize(frame_, self.img_norm.shape[::-1])
 
-                    if self.params.get('online', 'normalize'):
-                        frame_ -= self.img_min     # make data non-negative
-                    t_mot = time()
-
-                    # Motion Correction
-                    if self.params.get('online', 'motion_correct'):    # motion correct
-                        templ = self.estimates.Ab.dot(
-                                self.estimates.C_on[:self.M, t-1]).reshape(self.params.get('data', 'dims'), order='F')#*self.img_norm
-                        if self.is1p and self.estimates.W is not None:
-                            if ssub_B == 1:
-                                B = self.estimates.W.dot((frame_ - templ).flatten(order='F') - self.estimates.b0) + self.estimates.b0
-                                B = B.reshape(self.params.get('data', 'dims'), order='F')
-                            else:
-                                b0 = self.estimates.b0.reshape((d1, d2), order='F')#*self.img_norm
-                                bc2 = downscale(frame_ - templ - b0, (ssub_B, ssub_B)).flatten(order='F')
-                                Wb = self.estimates.W.dot(bc2).reshape(((d1 - 1) // ssub_B + 1, (d2 - 1) // ssub_B + 1), order='F')
-                                B = b0 + np.repeat(np.repeat(Wb, ssub_B, 0), ssub_B, 1)[:d1, :d2]
-                            templ += B
                         if self.params.get('online', 'normalize'):
-                            templ *= self.img_norm
-                        if self.is1p:
-                            templ = high_pass_filter_space(templ, self.params.motion['gSig_filt'])
-                        if self.params.get('motion', 'pw_rigid'):
-                            frame_cor, shift, _, xy_grid = tile_and_correct(frame_, templ, self.params.motion['strides'], self.params.motion['overlaps'],
-                                                                            self.params.motion['max_shifts'], newoverlaps=None, newstrides=None, upsample_factor_grid=4,
-                                                                            upsample_factor_fft=10, show_movie=False, max_deviation_rigid=self.params.motion['max_deviation_rigid'],
-                                                                            add_to_movie=0, shifts_opencv=True, gSig_filt=None,
-                                                                            use_cuda=False, border_nan='copy')
+                            frame_ -= self.img_min     # make data non-negative
+                        t_mot = time()
+
+                        # Motion Correction
+                        if self.params.get('online', 'motion_correct'):    # motion correct
+                            templ = self.estimates.Ab.dot(
+                                    self.estimates.C_on[:self.M, t-1]).reshape(self.params.get('data', 'dims'), order='F')#*self.img_norm
+                            if self.is1p and self.estimates.W is not None:
+                                if ssub_B == 1:
+                                    B = self.estimates.W.dot((frame_ - templ).flatten(order='F') - self.estimates.b0) + self.estimates.b0
+                                    B = B.reshape(self.params.get('data', 'dims'), order='F')
+                                else:
+                                    b0 = self.estimates.b0.reshape((d1, d2), order='F')#*self.img_norm
+                                    bc2 = downscale(frame_ - templ - b0, (ssub_B, ssub_B)).flatten(order='F')
+                                    Wb = self.estimates.W.dot(bc2).reshape(((d1 - 1) // ssub_B + 1, (d2 - 1) // ssub_B + 1), order='F')
+                                    B = b0 + np.repeat(np.repeat(Wb, ssub_B, 0), ssub_B, 1)[:d1, :d2]
+                                templ += B
+                            if self.params.get('online', 'normalize'):
+                                templ *= self.img_norm
+                            if self.is1p:
+                                templ = high_pass_filter_space(templ, self.params.motion['gSig_filt'])
+                            if self.params.get('motion', 'pw_rigid'):
+                                frame_cor, shift, _, xy_grid = tile_and_correct(frame_, templ, self.params.motion['strides'], self.params.motion['overlaps'],
+                                                                                self.params.motion['max_shifts'], newoverlaps=None, newstrides=None, upsample_factor_grid=4,
+                                                                                upsample_factor_fft=10, show_movie=False, max_deviation_rigid=self.params.motion['max_deviation_rigid'],
+                                                                                add_to_movie=0, shifts_opencv=True, gSig_filt=None,
+                                                                                use_cuda=False, border_nan='copy')
+                            else:
+                                if self.is1p:
+                                    frame_orig = frame_.copy()
+                                    frame_ = high_pass_filter_space(frame_, self.params.motion['gSig_filt'])
+                                frame_cor, shift = motion_correct_iteration_fast(
+                                        frame_, templ, max_shifts_online, max_shifts_online)
+                                if self.is1p:
+                                    M = np.float32([[1, 0, shift[1]], [0, 1, shift[0]]])
+                                    frame_cor = cv2.warpAffine(
+                                        frame_orig, M, frame_.shape[::-1], flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REFLECT)
+
+                            self.estimates.shifts.append(shift)
                         else:
-                            if self.is1p:
-                                frame_orig = frame_.copy()
-                                frame_ = high_pass_filter_space(frame_, self.params.motion['gSig_filt'])
-                            frame_cor, shift = motion_correct_iteration_fast(
-                                    frame_, templ, max_shifts_online, max_shifts_online)
-                            if self.is1p:
-                                M = np.float32([[1, 0, shift[1]], [0, 1, shift[0]]])
-                                frame_cor = cv2.warpAffine(
-                                    frame_orig, M, frame_.shape[::-1], flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REFLECT)
+                            templ = None
+                            frame_cor = frame_
 
-                        self.estimates.shifts.append(shift)
-                    else:
-                        templ = None
-                        frame_cor = frame_
-
-                    self.t_motion.append(time() - t_mot)
-                    
-                    if self.params.get('online', 'normalize'):
-                        frame_cor = frame_cor/self.img_norm
-                    # Fit next frame
-                    self.fit_next(t, frame_cor.reshape(-1, order='F'))
-                    # Show
-                    if self.params.get('online', 'show_movie'):
-                        self.t = t
-                        vid_frame = self.create_frame(frame_cor, resize_fact=resize_fact)
-                        if self.params.get('online', 'save_online_movie'):
-                            out.write(vid_frame)
-                            for rp in range(len(self.estimates.ind_new)*2):
+                        self.t_motion.append(time() - t_mot)
+                        
+                        if self.params.get('online', 'normalize'):
+                            frame_cor = frame_cor/self.img_norm
+                        # Fit next frame
+                        self.fit_next(t, frame_cor.reshape(-1, order='F'))
+                        # Show
+                        if self.params.get('online', 'show_movie'):
+                            self.t = t
+                            vid_frame = self.create_frame(frame_cor, resize_fact=resize_fact)
+                            if self.params.get('online', 'save_online_movie'):
                                 out.write(vid_frame)
+                                for rp in range(len(self.estimates.ind_new)*2):
+                                    out.write(vid_frame)
 
-                        cv2.imshow('frame', vid_frame)
-                        for rp in range(len(self.estimates.ind_new)*2):
                             cv2.imshow('frame', vid_frame)
-                        if cv2.waitKey(1) & 0xFF == ord('q'):
-                            break
-                    t += 1
-                    t_online.append(time() - t_frame_start)
+                            for rp in range(len(self.estimates.ind_new)*2):
+                                cv2.imshow('frame', vid_frame)
+                            if cv2.waitKey(1) & 0xFF == ord('q'):
+                                break
+                        t += 1
+                        t_online.append(time() - t_frame_start)
+                    except StopIteration:
+                        break
         
             self.Ab_epoch.append(self.estimates.Ab.copy())
 

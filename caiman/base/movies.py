@@ -1889,3 +1889,83 @@ def from_zipfiles_to_movie_lists(zipfile_name:str, max_frames_per_movie:int=3000
 
     return movie_list
 
+
+def load_iter(file_name, subindices=None, var_name_hdf5: str = 'mov'):
+    """
+    load iterator over movie from file. Supports a variety of formats. tif, hdf5, avi.
+
+    Args:
+        file_name: string
+            name of file. Possible extensions are tif, avi and hdf5
+
+        subindices: iterable indexes
+            for loading only portion of the movie
+
+    Returns:
+        iter: iterator over movie
+
+    Raises:
+        Exception 'Subindices not implemented'
+
+        Exception 'sima module unavailable'
+
+        Exception 'Unknown file type'
+
+        Exception 'File not found!'
+    """
+    if os.path.exists(file_name):
+        extension = os.path.splitext(file_name)[1].lower()
+        if extension in ('.tif', '.tiff'):
+            Y = tifffile.TiffFile(file_name).pages
+            if subindices is not None:
+                if type(subindices) is range:
+                    subindices = slice(subindices.start, subindices.stop, subindices.step)
+                Y = Y[subindices]
+            for y in Y:
+                yield y.asarray()
+        elif extension == '.avi':
+            cap = cv2.VideoCapture(file_name)
+            if subindices is None:
+                while True:
+                    ret, frame = cap.read()
+                    if ret:
+                        yield frame[..., 0]
+                    else:
+                        cap.release()
+                        raise StopIteration
+            else:
+                if type(subindices) is slice:
+                    subindices = range(subindices.start,
+                                       int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+                                       if subindices.stop is None else subindices.stop,
+                                       1 if subindices.step is None else subindices.step)
+                t = 0
+                for ind in subindices:
+                    while t <= ind:
+                        ret, frame = cap.read()
+                        t += 1
+                    if ret:
+                        yield frame[..., 0]
+                    else:
+                        raise StopIteration
+                cap.release()
+                raise StopIteration
+        elif extension in ('.hdf5', '.h5'):
+            with h5py.File(file_name, "r") as f:
+                Y = f.get(var_name_hdf5)
+                if subindices is None:
+                    for y in Y:
+                        yield y
+                else:
+                    if type(subindices) is slice:
+                        subindices = range(subindices.start,
+                                           len(Y) if subindices.stop is None else subindices.stop,
+                                           1 if subindices.step is None else subindices.step)
+                    for ind in subindices:
+                        yield Y[ind]
+        else:  # fall back to memory inefficient version
+            for y in load(file_name, subindices=subindices):
+                yield y
+    else:
+        logging.error('File request:[' + str(file_name) + "] not found!")
+        raise Exception('File not found!')
