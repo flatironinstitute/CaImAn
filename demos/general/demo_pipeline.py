@@ -170,6 +170,7 @@ def main():
 
     # parameters for component evaluation
     opts_dict = {'fnames': fnames,
+                 'p': p,
                  'fr': fr,
                  'nb': gnb,
                  'rf': rf,
@@ -187,9 +188,11 @@ def main():
     opts.change_params(params_dict=opts_dict);
 # %% RUN CNMF ON PATCHES
     # First extract spatial and temporal components on patches and combine them
-    # for this step deconvolution is turned off (p=0)
+    # for this step deconvolution is turned off (p=0). If you want to have
+    # deconvolution within each patch change params.patch['p_patch'] to a
+    # nonzero value
 
-    opts.change_params({'p': 0})
+    #opts.change_params({'p': 0})
     cnm = cnmf.CNMF(n_processes, params=opts, dview=dview)
     cnm = cnm.fit(images)
 
@@ -209,7 +212,6 @@ def main():
     cnm.save(fname_new[:-5]+'_init.hdf5')
 
 # %% RE-RUN seeded CNMF on accepted patches to refine and perform deconvolution
-    cnm.params.change_params({'p': p})
     cnm2 = cnm.refit(images, dview=dview)
     # %% COMPONENT EVALUATION
     # the components are evaluated in three ways:

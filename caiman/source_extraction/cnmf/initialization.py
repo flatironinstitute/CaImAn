@@ -161,9 +161,21 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
                           SC_kernel='heat', SC_sigma=1, SC_thr=0, SC_normalize=True, SC_use_NN=False,
                           SC_nnn=20, lambda_gnmf=1):
     """
-    Initalize components
+    Initalize components. This function initializes the spatial footprints, temporal components,
+    and background which are then further refined by the CNMF iterations. There are four
+    different initialization methods depending on the data you're processing:
+        'greedy_roi': GreedyROI method used in standard 2p processing (default)
+        'corr_pnr': GreedyCorr method used for processing 1p data
+        'sparse_nmf': Sparse NMF method suitable for dendritic/axonal imaging
+        'graph_nmf': Graph NMF method also suitable for dendritic/axonal imaging
 
-    This method uses a greedy approach followed by hierarchical alternative least squares (HALS) NMF.
+    The GreedyROI method by default is not using the RollingGreedyROI method. This can
+    be changed through the binary flag 'rolling_sum'.
+
+    All the methods can be used for volumetric data except 'corr_pnr' which is only
+    available for 2D data.
+
+    It is also by default followed by hierarchical alternative least squares (HALS) NMF.
     Optional use of spatio-temporal downsampling to boost speed.
 
     Args:
@@ -204,8 +216,8 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
         img: optional [np 2d array]
             Image with which to normalize. If not present use the mean + offset
 
-        method_init: str
-            Initialization method 'greedy_roi', 'corr_pnr'. The latter can only be used for 2D data and it is compulsory for endoscopic one-photon data.
+        method_init: {'greedy_roi', 'corr_pnr', 'sparse_nmf', 'graph_nmf', 'pca_ica'}
+            Initialization method (default: 'greedy_roi')
 
         max_iter_snmf: int
             Maximum number of sparse NMF iterations
@@ -214,7 +226,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
             Sparsity penalty
 
         rolling_sum: boolean
-            Detect new components based on a rolling sum of pixel activity (default: True)
+            Detect new components based on a rolling sum of pixel activity (default: False)
 
         rolling_length: int
             Length of rolling window (default: 100)
@@ -338,7 +350,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
         Ain, Cin, _, b_in, f_in = sparseNMF(
             Y_ds, nr=K, nb=nb, max_iter_snmf=max_iter_snmf, alpha=alpha_snmf,
             sigma_smooth=sigma_smooth_snmf, remove_baseline=remove_baseline, perc_baseline=perc_baseline_snmf)
-    
+
     elif method == 'graph_nmf':
         Ain, Cin, _, b_in, f_in = graphNMF(
             Y_ds, nr=K, nb=nb, max_iter_snmf=max_iter_snmf, lambda_gnmf=lambda_gnmf,
@@ -584,7 +596,7 @@ def graphNMF(Y_ds, nr, max_iter_snmf=500, lambda_gnmf=1,
              perc_baseline=20, nb=1, truncate=2, tol=1e-3, SC_kernel='heat',
              SC_normalize=True, SC_thr=0, SC_sigma=1, SC_use_NN=False,
              SC_nnn=20):
-    
+
     m = scipy.ndimage.gaussian_filter(np.transpose(
     Y_ds, np.roll(np.arange(Y_ds.ndim), 1)), sigma=sigma_smooth,
     mode='nearest', truncate=truncate)
@@ -772,10 +784,10 @@ def finetune(Y, cin, nIter=5):
 
     Args:
         Y:  D1*d2*T*K patches
-    
+
         c: array T*K
             the inital calcium traces
-    
+
         nIter: int
             True indicates that time is listed in the last axis of Y (matlab format)
             and moves it in the front

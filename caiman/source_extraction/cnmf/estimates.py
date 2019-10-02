@@ -28,6 +28,10 @@ from .initialization import downscale
 
 
 class Estimates(object):
+    """
+    Class for storing and reusing the analysis results and performing basic
+    processing and plotting operations.
+    """
     def __init__(self, A=None, b=None, C=None, f=None, R=None, dims=None):
         """Class for storing the variables related to the estimates of spatial footprints, temporal traces,
         deconvolved neural activity, and background. Quality metrics are also stored. The class has methods
@@ -185,7 +189,7 @@ class Estimates(object):
             img = np.reshape(np.array(self.A.mean(1)), self.dims, order='F')
         if self.coordinates is None:  # not hasattr(self, 'coordinates'):
             self.coordinates = caiman.utils.visualization.get_contours(self.A, img.shape, thr=thr, thr_method=thr_method)
-        plt.figure()   
+        plt.figure()
         if params is not None:
             plt.suptitle('min_SNR=%1.2f, rval_thr=%1.2f, use_cnn=%i'
                          %(params.quality['SNR_lowest'],
@@ -576,7 +580,7 @@ class Estimates(object):
 
         mov = caiman.concatenate((imgs[frame_range] - (not include_bck) * B,
                                   Y_rec + include_bck * B, Y_res * gain_res), axis=2)
-        
+
 
         if thr > 0:
             if save_movie:
@@ -817,8 +821,6 @@ class Estimates(object):
 
     def restore_discarded_components(self):
         ''' Recover components that are filtered out with the select_components method
-        @param: None
-        @return: None
         '''
         if self.discarded_components is not None:
             for field in ['C', 'S', 'YrA', 'R', 'F_dff', 'g', 'bl', 'c1', 'neurons_sn', 'lam', 'cnn_preds','SNR_comp','r_values','coordinates']:
@@ -1026,7 +1028,7 @@ class Estimates(object):
         specified in params. Deconvolution on detrended and normalized (DF/F)
         traces can be performed by setting dff_flag=True. In this case the
         results of the deconvolution are stored in F_dff_dec and S_dff
-        
+
         Args:
             params: params object
                 Parameters of the algorithm
@@ -1070,7 +1072,7 @@ class Estimates(object):
         self.neurons_sn = [results[5][i] for i in order]
         self.lam = [results[8][i] for i in order]
         self.YrA = F - self.C
-        
+
         if dff_flag:
             if self.F_dff is None:
                 logging.warning('The F_dff field is empty. Run the method' +
@@ -1079,7 +1081,7 @@ class Estimates(object):
             else:
                 args_in = [(self.F_dff[jj], None, jj, 0, 0, self.g[jj], None,
                         args) for jj in range(F.shape[0])]
-    
+
                 if 'multiprocessing' in str(type(dview)):
                     results = dview.map_async(
                         constrained_foopsi_parallel, args_in).get(4294967)
@@ -1088,12 +1090,12 @@ class Estimates(object):
                                              args_in)
                 else:
                     results = list(map(constrained_foopsi_parallel, args_in))
-        
+
                 results = list(zip(*results))
                 order = list(results[7])
                 self.F_dff_dec = np.stack([results[0][i] for i in order])
                 self.S_dff = np.stack([results[1][i] for i in order])
-            
+
 
     def manual_merge(self, components, params):
         ''' merge a given list of components. The indices
@@ -1114,7 +1116,7 @@ class Estimates(object):
                 set) of components, then use a list with a single (list)
                 element
             params: params object
-                
+
         Returns:
             self: estimates object
         '''
@@ -1327,6 +1329,8 @@ class Estimates(object):
         return components_to_keep
 
     def masks_2_neurofinder(self, dataset_name):
+        """Return masks to neurofinder format
+        """
         if self.A_thr is None:
             raise Exception(
                 'You need to compute thresolded components before calling this method: use the threshold_components method')

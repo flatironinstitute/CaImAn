@@ -222,8 +222,8 @@ class OnACID(object):
         self.estimates.CY = self.estimates.CY * 1. / self.params.get('online', 'init_batch')
         self.estimates.CC = 1 * self.estimates.CC / self.params.get('online', 'init_batch')
 
-        logging.info('Expecting ' + str(expected_comps) + ' components')
-        self.estimates.CY.resize([expected_comps + self.params.get('init', 'nb'), self.estimates.CY.shape[-1]])
+        print('Expecting ' + str(expected_comps) + ' components')
+        self.estimates.CY.resize([expected_comps + self.params.get('init', 'nb'), self.estimates.CY.shape[-1]], refcheck=False)
         if self.params.get('online', 'use_dense'):
             self.estimates.Ab_dense = np.zeros((self.estimates.CY.shape[-1], expected_comps + self.params.get('init', 'nb')),
                                      dtype=np.float32)
@@ -585,7 +585,7 @@ class OnACID(object):
                         self.estimates.Ab_dense[:, :Ab_.shape[1]] = Ab_.toarray()
                     logging.info('Increasing number of expected components to:' +
                           str(expected_comps))
-                self.update_counter.resize(self.N)
+                self.update_counter.resize(self.N, refcheck=False)
 
                 self.estimates.noisyC[self.M - num_added:self.M, t - mbs +
                             1:t + 1] = Cf_temp[self.M - num_added:self.M]
