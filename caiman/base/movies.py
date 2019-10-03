@@ -2009,7 +2009,6 @@ def from_zipfiles_to_movie_lists(zipfile_name: str, max_frames_per_movie: int = 
 
     return movie_list
 
-
 def load_iter(file_name, subindices=None, var_name_hdf5: str = 'mov'):
     """
     load iterator over movie from file. Supports a variety of formats. tif, hdf5, avi.
@@ -2089,3 +2088,4 @@ def load_iter(file_name, subindices=None, var_name_hdf5: str = 'mov'):
     else:
         logging.error('File request:[' + str(file_name) + "] not found!")
         raise Exception('File not found!')
+
