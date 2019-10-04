@@ -36,7 +36,8 @@ class CNMFParams(object):
                  sniper_mode=False, test_both=False, thresh_CNN_noisy=0.5,
                  thresh_fitness_delta=-50, thresh_fitness_raw=None, thresh_overlap=0.5,
                  update_freq=200, update_num_comps=True, use_dense=True, use_peak_max=True,
-                 only_init_patch=True, var_name_hdf5='mov', max_merge_area=None, params_dict={},
+                 only_init_patch=True, var_name_hdf5='mov', max_merge_area=None, 
+                 use_corr_img=False, params_dict={},
                  ):
         """Class for setting the processing parameters. All parameters for CNMF, online-CNMF, quality testing,
         and motion correction can be set here and then used in the various processing pipeline steps.
@@ -424,6 +425,10 @@ class CNMFParams(object):
             expected_comps: int, default: 500
                 number of expected components (for memory allocation purposes)
 
+            full_XXt: bool, default: False
+                save the full residual sufficient statistic matrix for updating W in 1p.
+                If set to False, a list of submatrices is saved (typically faster).
+            
             init_batch: int, default: 200,
                 length of mini batch used for initialization
 
@@ -735,6 +740,7 @@ class CNMFParams(object):
             'ds_factor': 1,                    # spatial downsampling for faster processing
             'epochs': 1,                       # number of epochs
             'expected_comps': expected_comps,  # number of expected components
+            'full_XXt': False,                 # store entire XXt matrix (as opposed to a list of sub-matrices) 
             'init_batch': 200,                 # length of mini batch for initialization
             'init_method': 'bare',             # initialization method for first batch,
             'iters_shape': iters_shape,        # number of block-CD iterations
@@ -746,7 +752,7 @@ class CNMFParams(object):
             'minibatch_shape': minibatch_shape,  # number of frames in each minibatch
             'minibatch_suff_stat': minibatch_suff_stat,
             'motion_correct': True,            # flag for motion correction
-            'movie_name_online': 'online_movie.avi',  # filename of saved movie (appended to directory where data is located)
+            'movie_name_online': 'online_movie.mp4',  # filename of saved movie (appended to directory where data is located)
             'normalize': False,                # normalize frame
             'n_refit': n_refit,                # Additional iterations to simultaneously refit
             # path to CNN model for testing new comps
@@ -765,8 +771,10 @@ class CNMFParams(object):
             'thresh_overlap': thresh_overlap,
             'update_freq': update_freq,            # update every shape at least once every update_freq steps
             'update_num_comps': update_num_comps,  # flag for searching for new components
+            'use_corr_img': use_corr_img,      # flag for using correlation image to detect new components
             'use_dense': use_dense,            # flag for representation and storing of A and b
             'use_peak_max': use_peak_max,      # flag for finding candidate centroids
+            'W_update_factor': 1,              # update W less often than shapes by a given factor 
         }
 
         self.motion = {
@@ -792,6 +800,9 @@ class CNMFParams(object):
         }
 
         self.change_params(params_dict)
+
+
+    def check_consistency(self):
         self.data['last_commit'] = '-'.join(caiman.utils.utils.get_caiman_version())
         if self.data['dims'] is None and self.data['fnames'] is not None:
             self.data['dims'] = get_file_size(self.data['fnames'], var_name_hdf5=self.data['var_name_hdf5'])[0]
@@ -818,17 +829,19 @@ class CNMFParams(object):
             self.init['gSig'] = [-1, -1]
         if self.init['gSiz'] is None:
             self.init['gSiz'] = [2*gs + 1 for gs in self.init['gSig']]
-        self.init['gSiz'] = [gz if gz % 2 else gz + 1 for gz in self.init['gSiz']]
-
-        if gnb <= 0:
-            logging.warning("gnb={0}, hence setting keys nb_patch and low_rank_background ".format(gnb) +
-                            "in group patch automatically.")
-            self.set('patch', {'nb_patch': gnb, 'low_rank_background': None})
-        if gnb == -1:
+#        if self.motion['gSig_filt'] is None:
+#            self.motion['gSig_filt'] = self.init['gSig']
+        if self.init['nb'] <= 0 and (self.patch['nb_patch'] != self.init['nb'] or
+                                     self.patch['low_rank_background'] is not None):
+            logging.warning("gnb={0}, hence setting keys nb_patch ".format(self.init['nb']) +
+                            "and low_rank_background in group patch automatically.")
+            self.set('patch', {'nb_patch': self.init['nb'], 'low_rank_background': None})
+        if self.init['nb'] == -1 and self.spatial['update_background_components']:
             logging.warning("gnb=-1, hence setting key update_background_components " +
                             "in group spatial automatically to False.")
             self.set('spatial', {'update_background_components': False})
-        if method_init=='corr_pnr' and ring_size_factor is not None:
+        if self.init['method_init'] == 'corr_pnr' and self.init['ring_size_factor'] is not None \
+            and self.init['normalize_init']:
             logging.warning("using CNMF-E's ringmodel for background hence setting key " +
                             "normalize_init in group init automatically to False.")
             self.set('init', {'normalize_init': False})
@@ -946,4 +959,5 @@ class CNMFParams(object):
                     flag = False
             if flag:
                 logging.warning('No parameter {0} found!'.format(k))
+        self.check_consistency()
         return self

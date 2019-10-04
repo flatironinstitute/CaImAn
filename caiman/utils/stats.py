@@ -18,6 +18,8 @@ try:
 except:
     pass
 
+from scipy.linalg.lapack import dpotrf, dpotrs
+
 #%%
 
 
@@ -294,3 +296,12 @@ def csc_column_remove(A, ind):
     indices_final = [item for sublist in indices_list for item in sublist]
     A = scipy.sparse.csc_matrix((data_final, indices_final, indptr_final), shape=[d1, d2 - len(ind)])
     return A
+
+
+def pd_solve(a, b):
+    """ Fast matrix solve for positive definite matrix a"""
+    L, info = dpotrf(a)
+    if info == 0:
+        return dpotrs(L, b)[0]
+    else:
+        return np.linalg.solve(a, b)

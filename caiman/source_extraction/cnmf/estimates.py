@@ -491,12 +491,14 @@ class Estimates(object):
 
         return self
 
+
     def play_movie(self, imgs, q_max=99.75, q_min=2, gain_res=1,
                    magnification=1, include_bck=True,
                    frame_range=slice(None, None, None),
                    bpx=0, thr=0., save_movie=False,
                    movie_name='results_movie.avi'):
-        """Displays a movie with three panels (original data (left panel),
+        """
+        Displays a movie with three panels (original data (left panel),
         reconstructed data (middle panel), residual (right panel))
 
         Args:
@@ -539,24 +541,28 @@ class Estimates(object):
         dims = imgs.shape[1:]
         if 'movie' not in str(type(imgs)):
             imgs = caiman.movie(imgs)
-        Y_rec = self.A.dot(self.C[:, frame_range])
-        Y_rec = Y_rec.reshape(dims + (-1,), order='F')
+        AC = self.A.dot(self.C[:, frame_range])
+        Y_rec = AC.reshape(dims + (-1,), order='F')
         Y_rec = Y_rec.transpose([2, 0, 1])
-
         if self.W is not None:
             ssub_B = int(round(np.sqrt(np.prod(dims) / self.W.shape[0])))
-            B = imgs[frame_range].reshape((-1, np.prod(dims)), order='F').T - \
-                self.A.dot(self.C[:, frame_range])
+            B = imgs[frame_range].reshape((-1, np.prod(dims)), order='F').T - AC
             if ssub_B == 1:
                 B = self.b0[:, None] + self.W.dot(B - self.b0[:, None])
             else:
-                B = self.b0[:, None] + (np.repeat(np.repeat(self.W.dot(
-                    downscale(B.reshape(dims + (B.shape[-1],), order='F'),
-                              (ssub_B, ssub_B, 1)).reshape((-1, B.shape[-1]), order='F') -
-                    downscale(self.b0.reshape(dims, order='F'),
+#                B = self.b0[:, None] + (np.repeat(np.repeat(self.W.dot(
+#                    downscale(B.reshape(dims + (B.shape[-1],), order='F'),
+#                              (ssub_B, ssub_B, 1)).reshape((-1, B.shape[-1]), order='F') -
+#                    downscale(self.b0.reshape(dims, order='F'),
+#                              (ssub_B, ssub_B)).reshape((-1, 1), order='F'))
+#                    .reshape(((dims[0] - 1) // ssub_B + 1, (dims[1] - 1) // ssub_B + 1, -1), order='F'),
+#                    ssub_B, 0), ssub_B, 1)[:dims[0], :dims[1]].reshape((-1, B.shape[-1]), order='F'))
+                WB = self.W.dot(downscale(B.reshape(dims + (B.shape[-1],), order='F'),
+                              (ssub_B, ssub_B, 1)).reshape((-1, B.shape[-1]), order='F'))
+                Wb0 = self.W.dot(downscale(self.b0.reshape(dims, order='F'),
                               (ssub_B, ssub_B)).reshape((-1, 1), order='F'))
-                    .reshape(((dims[0] - 1) // ssub_B + 1, (dims[1] - 1) // ssub_B + 1, -1), order='F'),
-                    ssub_B, 0), ssub_B, 1)[:dims[0], :dims[1]].reshape((-1, B.shape[-1]), order='F'))
+                B = self.b0.flatten('F')[:, None] + (np.repeat(np.repeat((WB - Wb0).reshape(((dims[0] - 1) // ssub_B + 1, (dims[1] - 1) // ssub_B + 1, -1), order='F'),
+                                     ssub_B, 0), ssub_B, 1)[:dims[0], :dims[1]].reshape((-1, B.shape[-1]), order='F'))
             B = B.reshape(dims + (-1,), order='F').transpose([2, 0, 1])
         elif self.b is not None and self.f is not None:
             B = self.b.dot(self.f[:, frame_range])
@@ -589,6 +595,7 @@ class Estimates(object):
                 a = a.reshape(dims, order='F')
                 if bpx > 0:
                     a = a[bpx:-bpx, bpx:-bpx]
+                # a = cv2.GaussianBlur(a, (9, 9), .5)
                 if magnification != 1:
                     a = cv2.resize(a, None, fx=magnification, fy=magnification,
                                    interpolation=cv2.INTER_LINEAR)
@@ -601,7 +608,7 @@ class Estimates(object):
 
             maxmov = np.nanpercentile(mov[0:10], q_max) if q_max < 100 else np.nanmax(mov)
             minmov = np.nanpercentile(mov[0:10], q_min) if q_min > 0 else np.nanmin(mov)
-            for frame in mov:
+            for iddxx, frame in enumerate(mov):
                 if magnification != 1:
                     frame = cv2.resize(frame, None, fx=magnification, fy=magnification,
                                        interpolation=cv2.INTER_LINEAR)
@@ -617,7 +624,7 @@ class Estimates(object):
             if save_movie:
                 out.release()
             cv2.destroyAllWindows()
-
+            
         else:
             mov.play(q_min=q_min, q_max=q_max, magnification=magnification,
                      save_movie=save_movie, movie_name=movie_name)
