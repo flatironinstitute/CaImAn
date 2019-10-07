@@ -372,15 +372,15 @@ class CNMF(object):
             return self.fit(images, indices=indices)
 
         fit_cnm = self.fit(images, indices=indices)
-        Cn = summary_images.local_correlations(images, swap_dim=False)
+        Cn = summary_images.local_correlations(images[::max(T//1000, 1)], swap_dim=False)
         Cn[np.isnan(Cn)] = 0
         fit_cnm.save(fname_new[:-5]+'_init.hdf5')
-        fit_cnm.params.change_params({'p': self.params.get('preprocess', 'p')})
+        #fit_cnm.params.change_params({'p': self.params.get('preprocess', 'p')})
         # RE-RUN seeded CNMF on accepted patches to refine and perform deconvolution
         cnm2 = fit_cnm.refit(images, dview=self.dview)
         cnm2.estimates.evaluate_components(images, cnm2.params, dview=self.dview)
         # update object with selected components
-        cnm2.estimates.select_components(use_object=True)
+        #cnm2.estimates.select_components(use_object=True)
         # Extract DF/F values
         cnm2.estimates.detrend_df_f(quantileMin=8, frames_window=250)
         cnm2.estimates.Cn = Cn
