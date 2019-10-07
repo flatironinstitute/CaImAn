@@ -1243,7 +1243,7 @@ class OnACID(object):
             self.estimates.bl = [0] * self.estimates.C.shape[0]
             self.estimates.S = np.zeros_like(self.estimates.C)
         if self.params.get('online', 'ds_factor') > 1:
-            dims = Y_.shape[1:]
+            dims = frame.shape
             self.estimates.A = hstack([coo_matrix(cv2.resize(self.estimates.A[:, i].reshape(self.estimates.dims, order='F').toarray(),
                                                             dims[::-1]).reshape(-1, order='F')[:,None]) for i in range(self.N)], format='csc')
             if self.estimates.b.shape[-1] > 0:
