@@ -1281,7 +1281,7 @@ class Estimates(object):
     def remove_duplicates(self, predictions=None, r_values=None, dist_thr=0.1,
                           min_dist=10, thresh_subset=0.6, plot_duplicates=False,
                           select_comp=False):
-        ''' remove neurons that heavily overlapand might be duplicates
+        ''' remove neurons that heavily overlap and might be duplicates. 
 
         Args:
             predictions
@@ -1299,7 +1299,7 @@ class Estimates(object):
         duplicates_gt, indices_keep_gt, indices_remove_gt, D_gt, overlap_gt = detect_duplicates_and_subsets(
             A_gt_thr_bin,predictions=predictions, r_values=r_values, dist_thr=dist_thr, min_dist=min_dist,
             thresh_subset=thresh_subset)
-        print('Duplicates gt:' + str(len(duplicates_gt)))
+        logging.info('Number of duplicates: {}'.format(len(duplicates_gt)))
         if len(duplicates_gt) > 0:
             if plot_duplicates:
                 plt.figure()
