@@ -33,7 +33,18 @@ from caiman.motion_correction import MotionCorrect
 from caiman.utils.utils import download_demo
 from caiman.source_extraction.volpy.Volparams import volparams
 from caiman.source_extraction.volpy.volpy import VOLPY
-import matplotlib.pyplot as plt
+from memory_profiler import memory_usage
+
+use_maskrcnn = True
+if use_maskrcnn:
+    from caiman.paths import caiman_datadir
+    model_dir = caiman_datadir()+'/model'
+    sys.path.append(model_dir) 
+    import mrcnn.model as modellib
+    from mrcnn import visualize
+    from mrcnn import neurons
+    import tensorflow as tf
+
 
 # %%
 # Set up the logger (optional); change this if you like.
@@ -48,7 +59,7 @@ logging.basicConfig(format=
 # %%
 def main():
     pass  # For compatibility between running under Spyder and the CLI
-
+    """
     # %% Please download the .npz file manually to your file path. 
     url = 'https://www.dropbox.com/s/tuv1bx9w6wdywnm/demo_voltage_imaging.npz?dl=0'  
     
@@ -62,15 +73,29 @@ def main():
     fnames = '/home/nel/Code/Voltage_imaging/exampledata/403106_3min/demomovie_voltage_imaging.hdf5'
     mv.save(fnames)                                 # neglect the warning
 
+    # %%
+    fnames = '/home/nel/Code/Voltage_imaging/exampledata/403106_3min/datasetblock1.hdf5'
+    
+    rois_path = '/home/nel/Code/Voltage_imaging/exampledata/ROIs/ROI/403106_3min_rois.mat'
+    f = scipy.io.loadmat(rois_path)
+    ROIs = f['roi'].T  # all ROIs that are given
+    """
+    #m = cm.load(fnames)
+    
+    # %%
+    fnames = '/home/nel/Code/Voltage_imaging/exampledata/403106_3min/datasetblock1.hdf5'
+    fnames = '/home/nel/Code/VolPy/Mask_RCNN/videos & imgs/test/10192017Fish2-1.hdf5'
+    n_processes = 16
     # %% Setup some parameters for data and motion correction
     # dataset parameters
     fr = 400                                        # sample rate of the movie
-    index = list(range(ROIs.shape[0]))              # index of neurons
+    ROIs = None
+    index = [1,2]#list(range(ROIs.shape[0]))              # index of neurons
     weights = None                                  # reuse spatial weights by 
                                                     # opts.change_params(params_dict={'weights':vpy.estimates['weights']})
     # motion correction parameters
     motion_correct = True                           # flag for motion correction
-    pw_rigid = True                                 # flag for pw-rigid motion correction
+    pw_rigid = True                                # flag for pw-rigid motion correction
     gSig_filt = (3, 3)                              # size of filter, in general gSig (see below),
                                                     # change this one if algorithm does not work
     max_shifts = (5, 5)                             # maximum allowed rigid shift
@@ -99,7 +124,7 @@ def main():
     # %% play the movie (optional)
     # playing the movie using opencv. It requires loading the movie in memory.
     # To close the video press q
-    display_images = True
+    display_images = False
 
     if display_images:
         m_orig = cm.load(fnames)
@@ -107,24 +132,28 @@ def main():
         moviehandle = m_orig.resize(1, 1, ds_ratio)
         moviehandle.play(q_max=99.5, fr=60, magnification=2)
 
+    # %%
+    from time import time
+    t0 = time()
+    
     # %% start a cluster for parallel processing
     c, dview, n_processes = cm.cluster.setup_cluster(
-        backend='local', n_processes=12, single_thread=False)
+        backend='local', n_processes=n_processes, single_thread=False)
 
     # %%% MOTION CORRECTION
     # Create a motion correction object with the specified parameters
-    mc_pw = MotionCorrect(fnames, dview=dview, **opts.get_group('motion'))
+    mc = MotionCorrect(fnames, dview=dview, **opts.get_group('motion'))
     # Run piecewise rigid motion correction 
-    mc_pw.motion_correct(save_movie=True)
+    mc.motion_correct(save_movie=True)
 
     # %% motion correction compared with original movie
-    display_images = True
+    display_images = False
 
     if display_images:
         m_orig = cm.load(fnames)
-        m_rig = cm.load(mc_pw.mmap_file)
+        m_rig = cm.load(mc.mmap_file)
         ds_ratio = 0.2
-        moviehandle = cm.concatenate([m_orig.resize(1, 1, ds_ratio) - mc_pw.min_mov * mc_pw.nonneg_movie,
+        moviehandle = cm.concatenate([m_orig.resize(1, 1, ds_ratio) - mc.min_mov * mc.nonneg_movie,
                                       m_rig.resize(1, 1, ds_ratio)], axis=2)
         moviehandle.play(fr=60, q_max=99.5, magnification=2)  # press q to exit
 
@@ -135,22 +164,113 @@ def main():
                                        m_rig2.resize(1, 1, ds_ratio)], axis=2)
         moviehandle1.play(fr=60, q_max=99.5, magnification=2) 
 
+    # %%
+    t1 = time()
+    print('motion correction time:')
+    print(t1-t0)
+    
+
+   # %%
+    border_to_0 = 0 if mc.border_nan is 'copy' else mc.border_to_0
+    fname_new = cm.save_memmap(mc.mmap_file, base_name='memmap_', order='C',
+                               border_to_0=border_to_0)
+
+    fname_new = '/home/nel/Code/Voltage_imaging/exampledata/403106_3min/memmap__d1_512_d2_128_d3_1_order_C_frames_30000_.mmap'
+    #fname_new = '/home/nel/Code/VolPy/Mask_RCNN/videos & imgs/neurons_mc/FOV4_50um_d1_128_d2_512_d3_1_order_C_frames_20000_.mmap'
    # %% change fnames to the new motion corrected one
-    fname_new = mc_pw.mmap_file[0]  # memory map file name
     opts.change_params(params_dict={'fnames':fname_new})
 
     # %% restart cluster to clean up memory
-    cm.stop_server(dview=dview)
-    c, dview, n_processes = cm.cluster.setup_cluster(
-        backend='local', n_processes=12, single_thread=False)
+    dview.terminate()
+    
+    t2 = time()
+    print('memory map time:')
+    print(t2-t1)
+
+    
+    # %% use mask-rcnn to find ROIs
+    use_maskrcnn = True
+    if use_maskrcnn:
+        import skimage
+        img = cm.load(fname_new).mean(axis=0)
+        img = (img-np.mean(img))/np.std(img)
+        summary_image = skimage.color.gray2rgb(np.array(img))
+        
+        
+        config = neurons.NeuronsConfig()
+        class InferenceConfig(config.__class__):
+            # Run detection on one image at a time
+            GPU_COUNT = 1
+            IMAGES_PER_GPU = 1
+            DETECTION_MIN_CONFIDENCE = 0.05
+            IMAGE_RESIZE_MODE = "pad64"
+            IMAGE_MAX_DIM=512
+        config = InferenceConfig()
+        config.display()
+        
+        DEVICE = "/cpu:0"  # /cpu:0 or /gpu:0
+        with tf.device(DEVICE):
+            model = modellib.MaskRCNN(mode="inference", model_dir=model_dir,
+                                      config=config)
+        #weights_path = model_dir + '/mrcnn/mask_rcnn_neurons_0200.h5'
+        weights_path = '/home/nel/Code/VolPy/Mask_RCNN/logs/neurons20190918T2052/mask_rcnn_neurons_0200.h5'
+        model.load_weights(weights_path, by_name=True)
+        
+        
+        results = model.detect([summary_image], verbose=1)
+        r = results[0]
+        ROIs_mrcnn = r['masks'].transpose([2,0,1])
+        
+    # %% visualize the result
+        display_result = False
+        
+        if display_result:  
+            _, ax = plt.subplots(1,1, figsize=(16,16))
+            visualize.display_instances(summary_image, r['rois'], r['masks'], r['class_ids'], 
+                                    ['BG', 'neurons'], r['scores'], ax=ax,
+                                    title="Predictions")
+            plt.savefig('/home/nel/Code/VolPy/Paper/pipeline' +'FOV4_35um'+'_pipeline.pdf')
+    
+    
+    # %% set to rois
+        opts.change_params(params_dict={'ROIs':ROIs_mrcnn,
+                                        'index':list(range(ROIs_mrcnn.shape[0]))})  #
+    
+    t3 = time()
+    print('init time:')
+    print(t3-t2)
+    
 
     # %% process cells using volspike function
+    c, dview, n_processes = cm.cluster.setup_cluster(
+            backend='local', n_processes=n_processes, single_thread=False)
     vpy = VOLPY(n_processes=n_processes, dview=dview, params=opts)
-    vpy.fit()
+    vpy.fit(dview=dview)
+   
+    t4 = time()
+    print('spike pursuit time:')
+    print(t4-t3)
+    
+    dview.terminate()
+
+    
+    #%%
+    print('motion correction time:')
+    print(t1-t0)
+    print('memory map time:')
+    print(t2-t1)
+    print('init time:')
+    print(t3-t2)
+    print('spike pursuit time:')
+    print(t4-t3)
+    
+
+
 
     # %% some visualization
+"""
     vpy.estimates['cellN']
-    n = 0  # cell you are interested in
+    n = 5  # cell you are interested in
 
     plt.figure()
     plt.plot(vpy.estimates['trace'][n])
@@ -164,15 +284,17 @@ def main():
     plt.colorbar()
     plt.title('spatial filter')
     plt.show()
-
+"""
     # %% STOP CLUSTER and clean up log files
+"""
     cm.stop_server(dview=dview)
     log_files = glob.glob('*_LOG_*')
     for log_file in log_files:
         os.remove(log_file)
-
+"""
 # %%
 # This is to mask the differences between running this demo in Spyder
 # versus from the CLI
 if __name__ == "__main__":
     main()
+    

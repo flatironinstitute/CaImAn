@@ -144,14 +144,15 @@ def volspike(pars):
     data = data - np.mean(data, 0)
 
     # remove low frequency components
-    data_hp = highpassVideo(data.T, 1 / tau_lp, sampleRate).T
-    data_lp = data - data_hp
+    data_hp = highpassVideo(data.T, 1 / tau_lp, sampleRate).T    
+    #data_lp = data - data_hp
+    """
     data_pred = np.empty_like(data_hp)
     if highPassRegression:
         data_pred[:] = highpassVideo(data, 1 / tau_pred, sampleRate)
     else:
         data_pred[:] = data_hp
-
+    """
     # initial trace
     if weights_init is None:
         t = np.nanmean(data_hp[:, bw.ravel()], 1)
@@ -185,9 +186,9 @@ def volspike(pars):
 
     # prebuild the regression matrix
     # generate a predictor for ridge regression
-    pred = np.empty_like(data_pred)
-    pred[:] = data_pred
-    pred = np.hstack((np.ones((data_pred.shape[0], 1), dtype=np.single), np.reshape
+    pred = np.empty_like(data_hp)
+    pred[:] = data_hp
+    pred = np.hstack((np.ones((data_hp.shape[0], 1), dtype=np.single), np.reshape
     (movie.gaussian_blur_2D(np.reshape(pred,
                                        (data_hp.shape[0], ref.shape[0], ref.shape[1])),
                             kernel_size_x=7, kernel_size_y=7, kernel_std_x=1.5,
@@ -215,6 +216,7 @@ def volspike(pars):
         selectPred[-1 - np.int16(sampleRate / 2):] = 0
     sigma = sigmas[s_max]
 
+    """
     pred = np.empty_like(data_pred)
     pred[:] = data_pred
     pred = np.hstack((np.ones((data_pred.shape[0], 1), dtype=np.single), np.reshape
@@ -224,7 +226,7 @@ def volspike(pars):
                             kernel_size_y=np.int(2 * np.ceil(2 * sigma) + 1),
                             kernel_std_x=sigma, kernel_std_y=sigma,
                             borderType=cv2.BORDER_REPLICATE), data_pred.shape)))
-
+    """
     recon = np.empty_like(data_hp)
     recon[:] = data_hp
     recon = np.hstack((np.ones((data_hp.shape[0], 1), dtype=np.single), np.reshape
@@ -239,7 +241,7 @@ def volspike(pars):
     for iteration in range(nIter):
         doPlot = False
         if iteration == nIter - 1:
-            doPlot = True
+            doPlot = False
 
         # print('Identifying spatial filters')
         # print(iteration)
@@ -323,9 +325,9 @@ def volspike(pars):
     output['detectionRate'] = detectionRate
     output['templates'] = templates
     output['spikeTimes'] = spikeTimes
-    output['F0'] = np.nanmean(data_lp[:, bw.flatten()] + output['meanIM'][bw][np.newaxis, :], 1)
-    output['dFF'] = X / output['F0']
-    output['rawROI']['dFF'] = output['rawROI']['X'] / output['F0']
+    #output['F0'] = np.nanmean(data_lp[:, bw.flatten()] + output['meanIM'][bw][np.newaxis, :], 1)
+    #output['dFF'] = X / output['F0']
+    #output['rawROI']['dFF'] = output['rawROI']['X'] / output['F0']
     output['bg_pc'] = Ub  # background components
     output['low_spk'] = low_spk
     output['weights'] = weights

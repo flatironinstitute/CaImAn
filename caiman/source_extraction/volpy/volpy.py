@@ -77,7 +77,6 @@ class VOLPY(object):
                 whether to regress on a high-passed version of the data. Slightly improves detection of spikes,
                 but makes subthreshold unreliable"""
 
-        self.dview = dview
         if params is None:
             self.params =volparams(doCrossVal=doCrossVal, doGlobalSubtract=doGlobalSubtract,
             contextSize=contextSize, censorSize=censorSize, nPC_bg=nPC_bg, tau_lp=tau_lp, tau_pred=tau_pred, sigmas=sigmas,
@@ -87,7 +86,7 @@ class VOLPY(object):
             #params.set('patch', {'n_processes': n_processes})
         self.estimates = {}
 
-    def fit(self):
+    def fit(self, dview=None):
         """Run the volspike function to detect spikes and save the result 
         into self.estimate        
         """
@@ -116,10 +115,10 @@ class VOLPY(object):
                 weights = self.params.data['weights'][i]
             args_in.append([fnames, fr, i, ROIs, weights, args])
 
-        if 'multiprocessing' in str(type(self.dview)):
-            results = self.dview.map_async(volspike, args_in).get(4294967)
-        elif self.dview is not None:
-            results = self.dview.map_sync(volspike,args_in)
+        if 'multiprocessing' in str(type(dview)):
+            results = dview.map_async(volspike, args_in).get(4294967)
+        elif dview is not None:
+            results = dview.map_sync(volspike,args_in)
         else:
             results = list(map(volspike, args_in))
 
