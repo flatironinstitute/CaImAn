@@ -79,8 +79,8 @@ def downscale(Y, ds, opencv=False):
             Y = Y[..., None]
             ds = tuple(ds) + (1,)
         else:
-            Y_ds = movie(Y).resize(fx=1. / ds[0], fy=1. / ds[1], fz=1. / ds[2],
-                                   interpolation=cv2.INTER_AREA)
+            Y_ds = movie(Y.transpose(2, 0, 1)).resize(fx=1. / ds[0], fy=1. / ds[1], fz=1. / ds[2],
+                                                      interpolation=cv2.INTER_AREA).transpose(1, 2, 0)
         logging.info('Downscaling using OpenCV')
     else:
         if d > 3:
@@ -298,15 +298,15 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
     if ssub != 1 or tsub != 1:
 
         if method == 'corr_pnr':
-            logging.info("Spatial downsampling 1-photon")
+            logging.info("Spatial/Temporal downsampling 1-photon")
             # this icrements the performance against ground truth and solves border problems
             Y_ds = downscale(Y, tuple([ssub] * len(d) + [tsub]), opencv=False)
         else:
-            logging.info("Spatial downsampling 2-photon")
+            logging.info("Spatial/Temporal downsampling 2-photon")
             # this icrements the performance against ground truth and solves border problems
             Y_ds = downscale(Y, tuple([ssub] * len(d) + [tsub]), opencv=True)
 #            mean_val = np.mean(Y)
-#            Y_ds = downscale_local_mean(Y, tuple([ssub] * len(d) + [tsub]), cval=mean_val) # this gives better results against ground truth for 2-photon datasets
+#            Y_ds = downscale_local_mean(Y, tuple([ssub] * len(d) + [tsub]), cval=mean_val)
     else:
         Y_ds = Y
 
@@ -416,7 +416,6 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
 
     if Ain.size > 0:
         Cin = resize(Cin, [K, T])
-
         center = np.asarray(
             [center_of_mass(a.reshape(d, order='F')) for a in Ain.T])
     else:
