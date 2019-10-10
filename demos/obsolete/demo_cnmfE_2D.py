@@ -40,10 +40,10 @@ min_corr = .8
 min_pnr = 10
 fname = '/opt/local/Data/1photon/3168_PAG_TIFF.tif'
 #fname = '/opt/local/Data/1photon/Yr_d1_190_d2_198_d3_1_order_F_frames_35992_.mmap'
-    gSig = 3   # gaussian width of a 2D gaussian kernel, which approximates a neuron
-    gSiz = 16  # average diameter of a neuron
-    min_corr = .6
-    min_pnr = 10
+gSig = 3   # gaussian width of a 2D gaussian kernel, which approximates a neuron
+gSiz = 16  # average diameter of a neuron
+min_corr = .6
+min_pnr = 10
 
 # If True, the background can be roughly removed. This is useful when the background is strong.
 center_psf = True
