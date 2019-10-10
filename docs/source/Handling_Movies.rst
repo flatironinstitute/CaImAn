@@ -121,7 +121,7 @@ the opencv library. Below an example putting it all together:
    movies_chained = cm.concatenate([movie1, movie2] , axis = 1).resize(1,1,.5).play(magnification=2, fr=50)
 
 This command will concatenate `movie1` and `movie2` along axis `x`, then it will
-downsample the resulting movie along the axis y by a factor of 2, and finally it
+downsample the resulting movie along the temporal axis by a factor of 2, and finally it
 will play the resulting movie magnified by a factor of 2.
 
 Noe that unlike `cm.concatenate`, for `movie.resize` the axis ordering is

@@ -984,7 +984,25 @@ class movie(ts.timeseries):
         return traces
 
     def resize(self, fx=1, fy=1, fz=1, interpolation=cv2.INTER_AREA):
-        # todo: todocument
+        """
+        Resizing caiman movie into a new one. Note that the temporal
+        dimension is controlled by fz and fx, fy, fz correspond to
+        magnification factors. For example to downsample in time by
+        a factor of 2, you need to set fz = 0.5.
+
+        Args:
+            fx (float):
+                Magnification factor along x-dimension
+
+            fy (float):
+                Magnification factor along y-dimension
+
+            fz (float):
+                Magnification factor along temporal dimension
+
+        Returns:
+            self (caiman movie)
+        """
         T, d1, d2 = self.shape
         d = d1 * d2
         elm = d * T
