@@ -584,7 +584,7 @@ class CNMFParams(object):
             'decay_time': decay_time,
             'dxy': dxy,
             'var_name_hdf5': var_name_hdf5,
-            'caiman_version': '1.6.3',
+            'caiman_version': '1.7',
             'last_commit': None,
             'mmap_F': None,
             'mmap_C': None
@@ -803,6 +803,9 @@ class CNMFParams(object):
 
 
     def check_consistency(self):
+        """ Populates the params object with some dataset dependent values
+        and ensures that certain constraints are satisfied.
+        """
         self.data['last_commit'] = '-'.join(caiman.utils.utils.get_caiman_version())
         if self.data['dims'] is None and self.data['fnames'] is not None:
             self.data['dims'] = get_file_size(self.data['fnames'], var_name_hdf5=self.data['var_name_hdf5'])[0]
@@ -829,6 +832,11 @@ class CNMFParams(object):
             self.init['gSig'] = [-1, -1]
         if self.init['gSiz'] is None:
             self.init['gSiz'] = [2*gs + 1 for gs in self.init['gSig']]
+        self.init['gSiz'] = [gs + 1 if gs % 2 == 0 else gs for gs in self.init['gSiz']]
+        if self.patch['rf'] is not None:
+            if self.patch['rf'] <= self.init['gSiz'][0]:
+                logging.warning("Changing rf from {0} to {1} ".format(self.patch['rf'], 2*self.init['gSiz'][0]) +
+                                "because the constraint rf > gSiz was not satisfied.")
 #        if self.motion['gSig_filt'] is None:
 #            self.motion['gSig_filt'] = self.init['gSig']
         if self.init['nb'] <= 0 and (self.patch['nb_patch'] != self.init['nb'] or
