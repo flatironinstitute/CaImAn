@@ -1486,13 +1486,21 @@ class Estimates(object):
             ps.add_column('snr', 'signal to noise ratio')
             ps.add_column('cnn', 'description of CNN')
             ps.add_column('keep', 'in idx_components')
+            ps.add_column('accepted', 'in accepted list')
+            ps.add_column('rejected', 'in rejected list')
 
             # Add ROIs
-            for i, (roi, snr, r, cnn) in enumerate(zip(self.A.T, self.SNR_comp, self.r_values, self.cnn_preds)):
-                ps.add_roi(image_mask=roi.T.toarray().reshape(self.dims), r=r, snr=snr, cnn=cnn,
-                           keep=i in self.idx_components)
+            if not hasattr(self, 'accepted_list'):
+                for i, (roi, snr, r, cnn) in enumerate(zip(self.A.T, self.SNR_comp, self.r_values, self.cnn_preds)):
+                    ps.add_roi(image_mask=roi.T.toarray().reshape(self.dims), r=r, snr=snr, cnn=cnn,
+                               keep=i in self.idx_components, accepted=False, rejected=False)
+            else:
+                for i, (roi, snr, r, cnn) in enumerate(zip(self.A.T, self.SNR_comp, self.r_values, self.cnn_preds)):
+                    ps.add_roi(image_mask=roi.T.toarray().reshape(self.dims), r=r, snr=snr, cnn=cnn,
+                               keep=i in self.idx_components, accepted=i in self.accepted_list, rejected=i in self.rejected_list)
+            
             for bg in self.b.T:  # Backgrounds
-                ps.add_roi(image_mask=bg.reshape(self.dims), r=np.nan, snr=np.nan, cnn=np.nan, keep=False)
+                ps.add_roi(image_mask=bg.reshape(self.dims), r=np.nan, snr=np.nan, cnn=np.nan, keep=False, accepted=False, rejected=False)
             # Add Traces
             n_rois = self.A.shape[-1]
             n_bg = len(self.f)
@@ -1505,9 +1513,9 @@ class Estimates(object):
             timestamps = np.arange(self.f.shape[1]) / imaging_rate + starting_time
 
             # Neurons
-            fl.create_roi_response_series('RoiResponseSeries', self.C.T, 'lumens', rt_region_roi, timestamps=timestamps)
+            fl.create_roi_response_series(name='RoiResponseSeries', data=self.C.T, rois=rt_region_roi, unit='lumens', timestamps=timestamps)
             # Background
-            fl.create_roi_response_series('Background_Fluorescence_Response', self.f.T, 'lumens', rt_region_bg,
+            fl.create_roi_response_series(name='Background_Fluorescence_Response', data=self.f.T, rois=rt_region_bg, unit='lumens', 
                                           timestamps=timestamps)
 
             mod.add(TimeSeries(name='residuals', description='residuals', data=self.YrA.T, timestamps=timestamps,
