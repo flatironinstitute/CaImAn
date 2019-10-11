@@ -78,53 +78,35 @@ if not hasattr(estimates, 'Cn'):
 #Cn = estimates.Cn
 
 # We rotate our components 90 degrees right because of incompatiability of pyqtgraph and pyplot
-def rotate90right(img, vector=None, sparse=False):
-    # rotate the img 90 degrees to the right
-    # we first transpose the img then flip x axis
+def rotate90(img, right=None, vector=None, sparse=False):
+    # rotate the img 90 degrees
+    # we first transpose the img then flip axis
+    # If right is ture, then rotate 90 degrees right, otherwise, rotate left
     # If vector is True, then we first reshape the spatial 1D vector to 2D then rotate
     # If vector is False, then we directly rotate the matrix
     global dims
+    a = int(right)
     if vector == False:
         img = img.transpose([1,0])
-        img = np.flip(img, axis=1)
+        img = np.flip(img, axis=a)
     elif vector == True:
         if sparse == False:
-            img = img.reshape((dims[0], dims[1], img.shape[1]), order='F')
+            img = img.reshape((dims[1-a], dims[a], img.shape[1]), order='F')
             img = img.transpose([1,0,2])
-            img = np.flip(img, axis=1)
+            img = np.flip(img, axis=a)
             img = img.reshape((dims[0]*dims[1], img.shape[2]), order='F')
         else:
             img = img.toarray()
-            img = img.reshape((dims[0], dims[1], img.shape[1]), order='F')
+            img = img.reshape((dims[1-a], dims[a], img.shape[1]), order='F')
             img = img.transpose([1,0,2])
-            img = np.flip(img, axis=1)
+            img = np.flip(img, axis=a)
             img = img.reshape((dims[0]*dims[1], img.shape[2]), order='F')
             img = csc_matrix(img)
     return img
 
-def rotate90left(img, vector=None, sparse=False):
-    global dims
-    if vector == False:
-        img = img.transpose([1,0])
-        img = np.flip(img, axis=0)
-    elif vector == True:
-        if sparse == False:
-            img = img.reshape((dims[1], dims[0], img.shape[1]), order='F')
-            img = img.transpose([1,0,2])
-            img = np.flip(img, axis=0)
-            img = img.reshape((dims[0]*dims[1], img.shape[2]), order='F')
-        else:
-            img = img.toarray()
-            img = img.reshape((dims[1], dims[0], img.shape[1]), order='F')
-            img = img.transpose([1,0,2])
-            img = np.flip(img, axis=0)
-            img = img.reshape((dims[0]*dims[1], img.shape[2]), order='F')
-            img = csc_matrix(img)
-    return img
-
-estimates.Cn = rotate90right(estimates.Cn, vector=False)  
-estimates.A = rotate90right(estimates.A, vector=True, sparse=True)
-estimates.b = rotate90right(estimates.b, vector=True)
+estimates.Cn = rotate90(estimates.Cn, right=True, vector=False)  
+estimates.A = rotate90(estimates.A, right=True, vector=True, sparse=True)
+estimates.b = rotate90(estimates.b, right=True, vector=True)
 estimates.dims = (estimates.dims[1], estimates.dims[0])
 estimates.rotation = True               # rotation flag becomes true after rotation
 
@@ -579,9 +561,9 @@ def save_object():
     print(ffll[0])
     # rotate back
     if estimates.rotation == True:
-        estimates.Cn = rotate90left(estimates.Cn, vector=False)  
-        estimates.A = rotate90left(estimates.A, vector=True, sparse=True)
-        estimates.b = rotate90left(estimates.b, vector=True)
+        estimates.Cn = rotate90(estimates.Cn, right=False, vector=False)  
+        estimates.A = rotate90(estimates.A, right=False, vector=True, sparse=True)
+        estimates.b = rotate90(estimates.b, right=False, vector=True)
         estimates.dims = (estimates.dims[1], estimates.dims[0])
         estimates.rotation = False
     cnm_obj.estimates = estimates
@@ -642,9 +624,9 @@ app.exec_()
 
 # Rotate back
 if estimates.rotation == True:
-    estimates.Cn = rotate90left(estimates.Cn, vector=False)  
-    estimates.A = rotate90left(estimates.A, vector=True, sparse=True)
-    estimates.b = rotate90left(estimates.b, vector=True)
+    estimates.Cn = rotate90(estimates.Cn, right=False, vector=False)  
+    estimates.A = rotate90(estimates.A, right=False, vector=True, sparse=True)
+    estimates.b = rotate90(estimates.b, right=False, vector=True)
     estimates.dims = (estimates.dims[1], estimates.dims[0])
     cnm_obj.estimates = estimates
     estimates.rotation = False
