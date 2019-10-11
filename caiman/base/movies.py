@@ -1006,7 +1006,7 @@ class movie(ts.timeseries):
         T, d1, d2 = self.shape
         d = d1 * d2
         elm = d * T
-        max_els = 2**31 - 1
+        max_els = 2**61 - 1  # the bug for sizes >= 2**31 is appears to be fixed now
         if elm > max_els:
             chunk_size = old_div((max_els), d)
             new_m: List = []
