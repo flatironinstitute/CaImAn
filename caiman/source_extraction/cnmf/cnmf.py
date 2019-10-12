@@ -1073,6 +1073,13 @@ def load_CNMF(filename, n_processes=1, dview=None):
             if 'keep' in rois.table:
                 keep = rois.table['keep'][roi_indices]
                 estims.idx_components = np.where(keep)[0]
+            if 'accepted' in rois.table:
+                accepted = rois.table['accepted'][roi_indices]
+                estims.accepted_list = np.where(accepted==True)[0]
+            if 'rejected' in rois.table:
+                rejected = rois.table['rejected'][roi_indices]
+                estims.rejected_list = np.where(rejected==True)[0]                
+                print(estims.rejected_list)
             estims.nr = len(roi_indices)
 
             if 'summary_images' in ophys.data_interfaces:
