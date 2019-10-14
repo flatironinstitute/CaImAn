@@ -1040,8 +1040,8 @@ class OnACID(object):
         if opts['show_movie']:
             self.bnd_AC = np.percentile(self.estimates.A.dot(self.estimates.C),
                                         (0.001, 100-0.005))
-            self.bnd_BG = np.percentile(self.estimates.b.dot(self.estimates.f),
-                                        (0.001, 100-0.001))
+            #self.bnd_BG = np.percentile(self.estimates.b.dot(self.estimates.f),
+            #                            (0.001, 100-0.001))
         return self
 
     def save(self,filename):
@@ -1113,7 +1113,7 @@ class OnACID(object):
             process_files = fls[:init_files + extra_files]   # additional files
             # where to start reading at each file
             init_batc_iter = [init_batch] + [0]*extra_files
-        if self.params.get('online', 'save_online_movie'):
+        if self.params.get('online', 'save_online_movie') + self.params.get('online', 'show_movie'):
             resize_fact = 2
             fourcc = cv2.VideoWriter_fourcc(*'H264')
             out = cv2.VideoWriter(self.params.get('online', 'movie_name_online'),
