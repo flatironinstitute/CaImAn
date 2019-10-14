@@ -222,7 +222,7 @@ class OnACID(object):
         self.estimates.CY = self.estimates.CY * 1. / self.params.get('online', 'init_batch')
         self.estimates.CC = 1 * self.estimates.CC / self.params.get('online', 'init_batch')
 
-        print('Expecting ' + str(expected_comps) + ' components')
+        logging.info('Expecting {0} components'.format(str(expected_comps)))
         self.estimates.CY.resize([expected_comps + self.params.get('init', 'nb'), self.estimates.CY.shape[-1]], refcheck=False)
         if self.params.get('online', 'use_dense'):
             self.estimates.Ab_dense = np.zeros((self.estimates.CY.shape[-1], expected_comps + self.params.get('init', 'nb')),
@@ -1128,7 +1128,7 @@ class OnACID(object):
 
         #     Go through all files
             for file_count, ffll in enumerate(process_files):
-                logging.info('Now processing file {}'.format(ffll))
+                logging.warning('Now processing file {}'.format(ffll))
                 Y_ = caiman.base.movies.load_iter(
                     ffll, var_name_hdf5=self.params.get('data', 'var_name_hdf5'),
                     subindices=slice(init_batc_iter[file_count], None, None))

@@ -832,7 +832,7 @@ class CNMFParams(object):
             self.init['gSig'] = [-1, -1]
         if self.init['gSiz'] is None:
             self.init['gSiz'] = [2*gs + 1 for gs in self.init['gSig']]
-        self.init['gSiz'] = [gs + 1 if gs % 2 == 0 else gs for gs in self.init['gSiz']]
+        self.init['gSiz'] = tuple([gs + 1 if gs % 2 == 0 else gs for gs in self.init['gSiz']])
         if self.patch['rf'] is not None:
             if self.patch['rf'] <= self.init['gSiz'][0]:
                 logging.warning("Changing rf from {0} to {1} ".format(self.patch['rf'], 2*self.init['gSiz'][0]) +
