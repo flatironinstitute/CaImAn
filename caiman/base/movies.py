@@ -100,7 +100,8 @@ class movie(ts.timeseries):
            (type(input_arr) is h5py._hl.dataset.Dataset) or\
            ('mmap' in str(type(input_arr))) or\
            ('tifffile' in str(type(input_arr))):
-            return super(movie, cls).__new__(cls, input_arr, **kwargs)
+            return super().__new__(cls, input_arr, **kwargs)  
+            #return super(movie, cls).__new__(cls, input_arr, **kwargs)
         else:
             raise Exception('Input must be an ndarray, use load instead!')
 
@@ -2078,6 +2079,12 @@ def load_iter(file_name, subindices=None, var_name_hdf5: str = 'mov'):
                                        1 if subindices.step is None else subindices.step)
                 t = 0
                 for ind in subindices:
+#                    cap.set(1, ind)
+#                    ret, frame = cap.read()
+#                    if ret:
+#                        yield frame[..., 0]
+#                    else:
+#                        raise StopIteration
                     while t <= ind:
                         ret, frame = cap.read()
                         t += 1
