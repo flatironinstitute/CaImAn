@@ -578,7 +578,7 @@ def update_local_correlations(t,
                 first_moment -= del_frames.sum(0) / t
                 second_moment -= (del_frames**2).sum(0) / t
                 crosscorr -= np.sum(del_frames[:, row_ind] * del_frames[:, col_ind], 0) / t
-            else:  # loop is faster
+            else:      # loop is faster
                 for f in del_frames:
                     f = f.ravel(order='F')
                     first_moment -= f / t
@@ -589,12 +589,14 @@ def update_local_correlations(t,
             first_moment += frames.sum(0) / t
             second_moment += (frames**2).sum(0) / t
             crosscorr += np.sum(frames[:, row_ind] * frames[:, col_ind], 0) / t
-        else:  # loop is faster
+        else:          # loop is faster
             for f in frames:
                 f = f.ravel(order='F')
                 first_moment += f / t
                 second_moment += (f**2) / t
                 crosscorr += (f[row_ind] * f[col_ind]) / t
+
+
 #=======
 #            del_frames = del_frames.reshape((stride, -1), order='F')
 #            first_moment -= del_frames.sum(0) / t
