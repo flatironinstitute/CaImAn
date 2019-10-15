@@ -221,9 +221,9 @@ def nf_match_neurons_in_binary_masks(masks_gt, masks_comp, thresh_cost=.7, min_d
         # find the distance between each masks
         D = distance_masks([A_ben, A_cnmf], [cm_ben, cm_cnmf],
                            min_dist, enclosed_thr=enclosed_thr)
-        level = 0.98
+        level = .999999
     else:
-        level = .98
+        level = .999999
 
     matches, costs = find_matches(D, print_assignment=print_assignment)
     matches = matches[0]

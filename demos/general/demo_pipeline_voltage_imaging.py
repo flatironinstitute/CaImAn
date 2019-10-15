@@ -85,6 +85,7 @@ def main():
     # %%
     fnames = '/home/nel/Code/Voltage_imaging/exampledata/403106_3min/datasetblock1.hdf5'
     fnames = '/home/nel/Code/VolPy/Mask_RCNN/videos & imgs/test/10192017Fish2-1.hdf5'
+    fnames = '/home/nel/Code/VolPy/Paper/data/FOV3_35um.hdf5'
     n_processes = 16
     # %% Setup some parameters for data and motion correction
     # dataset parameters
@@ -95,7 +96,7 @@ def main():
                                                     # opts.change_params(params_dict={'weights':vpy.estimates['weights']})
     # motion correction parameters
     motion_correct = True                           # flag for motion correction
-    pw_rigid = True                                # flag for pw-rigid motion correction
+    pw_rigid = False                                # flag for pw-rigid motion correction
     gSig_filt = (3, 3)                              # size of filter, in general gSig (see below),
                                                     # change this one if algorithm does not work
     max_shifts = (5, 5)                             # maximum allowed rigid shift
@@ -175,8 +176,13 @@ def main():
     fname_new = cm.save_memmap(mc.mmap_file, base_name='memmap_', order='C',
                                border_to_0=border_to_0)
 
-    fname_new = '/home/nel/Code/Voltage_imaging/exampledata/403106_3min/memmap__d1_512_d2_128_d3_1_order_C_frames_30000_.mmap'
-    #fname_new = '/home/nel/Code/VolPy/Mask_RCNN/videos & imgs/neurons_mc/FOV4_50um_d1_128_d2_512_d3_1_order_C_frames_20000_.mmap'
+    #fname_new = '/home/nel/Code/Voltage_imaging/exampledata/403106_3min/memmap__d1_512_d2_128_d3_1_order_C_frames_30000_.mmap'
+    fname_new = '/home/nel/Code/VolPy/Mask_RCNN/videos & imgs/neurons_mc/FOV3_35um_d1_128_d2_512_d3_1_order_C_frames_20000_.mmap'
+    fname_new = '/home/nel/Code/VolPy/Mask_RCNN/videos & imgs/neurons_mc/FOV4_50um_d1_128_d2_512_d3_1_order_C_frames_20000_.mmap'
+    
+    fname_new = '/home/nel/Code/VolPy/Mask_RCNN/videos & imgs/FOV3_35um_test.mmap'
+    fname_new = '/home/nel/Code/VolPy/Mask_RCNN/videos & imgs/FOV4_50um_test_d1_512_d2_128_d3_1_order_F_frames_20000_.mmap'
+    fname_new = '/home/nel/Code/VolPy/Paper/data/FOV3_35um_transpose_d1_512_d2_128_d3_1_order_F_frames_36000_.mmap'
    # %% change fnames to the new motion corrected one
     opts.change_params(params_dict={'fnames':fname_new})
 
@@ -191,10 +197,14 @@ def main():
     # %% use mask-rcnn to find ROIs
     use_maskrcnn = True
     if use_maskrcnn:
+        """
         import skimage
         img = cm.load(fname_new).mean(axis=0)
         img = (img-np.mean(img))/np.std(img)
         summary_image = skimage.color.gray2rgb(np.array(img))
+        """
+        summary_image = np.load('/home/nel/Code/VolPy/Mask_RCNN/datasets/neurons/val/FOV3_35um.npz')['arr_0']
+        summary_image = np.load('/home/nel/Code/VolPy/Mask_RCNN/datasets/neurons/val/FOV4_50um.npz')['arr_0']
         
         
         config = neurons.NeuronsConfig()
@@ -202,9 +212,12 @@ def main():
             # Run detection on one image at a time
             GPU_COUNT = 1
             IMAGES_PER_GPU = 1
-            DETECTION_MIN_CONFIDENCE = 0.05
+            DETECTION_MIN_CONFIDENCE = 0.33
             IMAGE_RESIZE_MODE = "pad64"
             IMAGE_MAX_DIM=512
+            CLASS_THRESHOLD = 0.33
+            RPN_NMS_THRESHOLD = 0.7
+            DETECTION_NMS_THRESHOLD = 0.3
         config = InferenceConfig()
         config.display()
         
@@ -212,8 +225,8 @@ def main():
         with tf.device(DEVICE):
             model = modellib.MaskRCNN(mode="inference", model_dir=model_dir,
                                       config=config)
-        #weights_path = model_dir + '/mrcnn/mask_rcnn_neurons_0200.h5'
-        weights_path = '/home/nel/Code/VolPy/Mask_RCNN/logs/neurons20190918T2052/mask_rcnn_neurons_0200.h5'
+        weights_path = model_dir + '/mrcnn/mask_rcnn_neurons_0080.h5'
+        #weights_path = '/home/nel/Code/VolPy/Mask_RCNN/logs/neurons20190918T2052/mask_rcnn_neurons_0200.h5'
         model.load_weights(weights_path, by_name=True)
         
         
@@ -243,8 +256,8 @@ def main():
 
     # %% process cells using volspike function
     c, dview, n_processes = cm.cluster.setup_cluster(
-            backend='local', n_processes=n_processes, single_thread=False)
-    vpy = VOLPY(n_processes=n_processes, dview=dview, params=opts)
+            backend='local', n_processes=6, single_thread=False)
+    vpy = VOLPY(n_processes=6, dview=dview, params=opts)
     vpy.fit(dview=dview)
    
     t4 = time()
