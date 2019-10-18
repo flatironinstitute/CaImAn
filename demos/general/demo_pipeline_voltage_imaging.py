@@ -33,7 +33,6 @@ from caiman.motion_correction import MotionCorrect
 from caiman.utils.utils import download_demo
 from caiman.source_extraction.volpy.Volparams import volparams
 from caiman.source_extraction.volpy.volpy import VOLPY
-from memory_profiler import memory_usage
 
 use_maskrcnn = True
 if use_maskrcnn:
@@ -44,7 +43,6 @@ if use_maskrcnn:
     from mrcnn import visualize
     from mrcnn import neurons
     import tensorflow as tf
-
 
 # %%
 # Set up the logger (optional); change this if you like.
@@ -59,39 +57,26 @@ logging.basicConfig(format=
 # %%
 def main():
     pass  # For compatibility between running under Spyder and the CLI
-    """
+    
     # %% Please download the .npz file manually to your file path. 
-    url = 'https://www.dropbox.com/s/tuv1bx9w6wdywnm/demo_voltage_imaging.npz?dl=0'  
+    url = 'https://www.dropbox.com/s/tuv1bx9w6wdywnm/demo_voltage_imaging.npz?dl=0'
+    n_processes = 8
     
     # %% Load demo movie and ROIs
     file_path = '/home/nel/Code/Voltage_imaging/exampledata/403106_3min/demo_voltage_imaging.npz'
     m = np.load(file_path)
     mv = cm.movie(m.f.arr_0)
     ROIs = m.f.arr_1
-    
-    # %% Save the movie  
-    fnames = '/home/nel/Code/Voltage_imaging/exampledata/403106_3min/demomovie_voltage_imaging.hdf5'
-    mv.save(fnames)                                 # neglect the warning
 
     # %%
-    fnames = '/home/nel/Code/Voltage_imaging/exampledata/403106_3min/datasetblock1.hdf5'
+    fnames = '/home/nel/Code/Voltage_imaging/exampledata/403106_3min/demomovie_voltage_imaging.hdf5'
+    mv.save(fnames)                                 # neglect the warning
     
-    rois_path = '/home/nel/Code/Voltage_imaging/exampledata/ROIs/ROI/403106_3min_rois.mat'
-    f = scipy.io.loadmat(rois_path)
-    ROIs = f['roi'].T  # all ROIs that are given
-    """
-    #m = cm.load(fnames)
-    
-    # %%
-    fnames = '/home/nel/Code/Voltage_imaging/exampledata/403106_3min/datasetblock1.hdf5'
-    fnames = '/home/nel/Code/VolPy/Mask_RCNN/videos & imgs/test/10192017Fish2-1.hdf5'
-    fnames = '/home/nel/Code/VolPy/Paper/data/FOV3_35um.hdf5'
-    n_processes = 16
     # %% Setup some parameters for data and motion correction
     # dataset parameters
     fr = 400                                        # sample rate of the movie
-    ROIs = None
-    index = [1,2]#list(range(ROIs.shape[0]))              # index of neurons
+    ROIs = ROIs
+    index = list(range(ROIs.shape[0]))              # index of neurons
     weights = None                                  # reuse spatial weights by 
                                                     # opts.change_params(params_dict={'weights':vpy.estimates['weights']})
     # motion correction parameters
@@ -132,11 +117,7 @@ def main():
         ds_ratio = 0.2
         moviehandle = m_orig.resize(1, 1, ds_ratio)
         moviehandle.play(q_max=99.5, fr=60, magnification=2)
-
-    # %%
-    from time import time
-    t0 = time()
-    
+   
     # %% start a cluster for parallel processing
     c, dview, n_processes = cm.cluster.setup_cluster(
         backend='local', n_processes=n_processes, single_thread=False)
@@ -165,46 +146,30 @@ def main():
                                        m_rig2.resize(1, 1, ds_ratio)], axis=2)
         moviehandle1.play(fr=60, q_max=99.5, magnification=2) 
 
-    # %%
-    t1 = time()
-    print('motion correction time:')
-    print(t1-t0)
-    
-
    # %%
     border_to_0 = 0 if mc.border_nan is 'copy' else mc.border_to_0
     fname_new = cm.save_memmap(mc.mmap_file, base_name='memmap_', order='C',
                                border_to_0=border_to_0)
 
-    #fname_new = '/home/nel/Code/Voltage_imaging/exampledata/403106_3min/memmap__d1_512_d2_128_d3_1_order_C_frames_30000_.mmap'
-    fname_new = '/home/nel/Code/VolPy/Mask_RCNN/videos & imgs/neurons_mc/FOV3_35um_d1_128_d2_512_d3_1_order_C_frames_20000_.mmap'
-    fname_new = '/home/nel/Code/VolPy/Mask_RCNN/videos & imgs/neurons_mc/FOV4_50um_d1_128_d2_512_d3_1_order_C_frames_20000_.mmap'
-    
-    fname_new = '/home/nel/Code/VolPy/Mask_RCNN/videos & imgs/FOV3_35um_test.mmap'
-    fname_new = '/home/nel/Code/VolPy/Mask_RCNN/videos & imgs/FOV4_50um_test_d1_512_d2_128_d3_1_order_F_frames_20000_.mmap'
-    fname_new = '/home/nel/Code/VolPy/Paper/data/FOV3_35um_transpose_d1_512_d2_128_d3_1_order_F_frames_36000_.mmap'
    # %% change fnames to the new motion corrected one
     opts.change_params(params_dict={'fnames':fname_new})
-
-    # %% restart cluster to clean up memory
-    dview.terminate()
-    
-    t2 = time()
-    print('memory map time:')
-    print(t2-t1)
-
     
     # %% use mask-rcnn to find ROIs
     use_maskrcnn = True
     if use_maskrcnn:
-        """
+        
         import skimage
+        m = cm.load(fname_new)
         img = cm.load(fname_new).mean(axis=0)
         img = (img-np.mean(img))/np.std(img)
-        summary_image = skimage.color.gray2rgb(np.array(img))
-        """
-        summary_image = np.load('/home/nel/Code/VolPy/Mask_RCNN/datasets/neurons/val/FOV3_35um.npz')['arr_0']
-        summary_image = np.load('/home/nel/Code/VolPy/Mask_RCNN/datasets/neurons/val/FOV4_50um.npz')['arr_0']
+        #summary_image = skimage.color.gray2rgb(np.array(img))
+        ma = m.computeDFF(secsWindow=1)[0]
+        from caiman.summary_images import local_correlations_movie
+        Cn = ma.local_correlations(swap_dim=False, eight_neighbours=True, frames_per_chunk=1000000000)
+        img_corr = (Cn-np.mean(Cn))/np.std(Cn)
+        summary_image = np.stack([img,img,img_corr],axis=2).astype(np.float32)
+        #summary_image = np.load('/home/nel/Code/VolPy/Mask_RCNN/datasets/neurons/val/FOV3_35um.npz')['arr_0']
+        #summary_image = np.load('/home/nel/Code/VolPy/Mask_RCNN/datasets/neurons/val/FOV4_50um.npz')['arr_0']
         
         
         config = neurons.NeuronsConfig()
@@ -249,20 +214,11 @@ def main():
         opts.change_params(params_dict={'ROIs':ROIs_mrcnn,
                                         'index':list(range(ROIs_mrcnn.shape[0]))})  #
     
-    t3 = time()
-    print('init time:')
-    print(t3-t2)
-    
-
     # %% process cells using volspike function
     c, dview, n_processes = cm.cluster.setup_cluster(
             backend='local', n_processes=6, single_thread=False)
     vpy = VOLPY(n_processes=6, dview=dview, params=opts)
     vpy.fit(dview=dview)
-   
-    t4 = time()
-    print('spike pursuit time:')
-    print(t4-t3)
     
     dview.terminate()
 
