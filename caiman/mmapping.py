@@ -35,7 +35,6 @@ def prepare_shape(mytuple: Tuple) -> Tuple:
     return tuple(map(lambda x: np.uint64(x), mytuple))
 
 
-    
 #%%
 def load_memmap(filename: str, mode: str = 'r') -> Tuple[Any, Tuple, int]:
     """ Load a memory mapped file created by the function save_memmap
@@ -68,7 +67,7 @@ def load_memmap(filename: str, mode: str = 'r') -> Tuple[Any, Tuple, int]:
     # TODO: Eventually get the code to save these in a different dir
     file_to_load = filename
     filename = os.path.split(filename)[-1]
-    fpart = filename.split('_')[1:-1]      # The filename encodes the structure of the map
+    fpart = filename.split('_')[1:-1]  # The filename encodes the structure of the map
     d1, d2, d3, T, order = int(fpart[-9]), int(fpart[-7]), int(fpart[-5]), int(fpart[-1]), fpart[-3]
     Yr = np.memmap(file_to_load, mode=mode, shape=prepare_shape((d1 * d2 * d3, T)), dtype=np.float32, order=order)
     if d3 == 1:
