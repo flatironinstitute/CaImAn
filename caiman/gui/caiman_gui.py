@@ -27,7 +27,7 @@ class FileOpen(QWidget):
             self.name = None
             self.type = None
             self.fr = 10.0
-            self.pixel_size = [1]
+            self.pixel_size = [1.0]
         else:
             self.file_name = pars.file_name
             if directory != '.':
