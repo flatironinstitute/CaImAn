@@ -162,15 +162,11 @@ def main():
         m = cm.load(fname_new)
         img = cm.load(fname_new).mean(axis=0)
         img = (img-np.mean(img))/np.std(img)
-        #summary_image = skimage.color.gray2rgb(np.array(img))
         ma = m.computeDFF(secsWindow=1)[0]
         from caiman.summary_images import local_correlations_movie
         Cn = ma.local_correlations(swap_dim=False, eight_neighbours=True, frames_per_chunk=1000000000)
         img_corr = (Cn-np.mean(Cn))/np.std(Cn)
         summary_image = np.stack([img,img,img_corr],axis=2).astype(np.float32)
-        #summary_image = np.load('/home/nel/Code/VolPy/Mask_RCNN/datasets/neurons/val/FOV3_35um.npz')['arr_0']
-        #summary_image = np.load('/home/nel/Code/VolPy/Mask_RCNN/datasets/neurons/val/FOV4_50um.npz')['arr_0']
-        
         
         config = neurons.NeuronsConfig()
         class InferenceConfig(config.__class__):
@@ -191,7 +187,6 @@ def main():
             model = modellib.MaskRCNN(mode="inference", model_dir=model_dir,
                                       config=config)
         weights_path = model_dir + '/mrcnn/mask_rcnn_neurons_0080.h5'
-        #weights_path = '/home/nel/Code/VolPy/Mask_RCNN/logs/neurons20190918T2052/mask_rcnn_neurons_0200.h5'
         model.load_weights(weights_path, by_name=True)
         
         
@@ -207,37 +202,19 @@ def main():
             visualize.display_instances(summary_image, r['rois'], r['masks'], r['class_ids'], 
                                     ['BG', 'neurons'], r['scores'], ax=ax,
                                     title="Predictions")
-            plt.savefig('/home/nel/Code/VolPy/Paper/pipeline' +'FOV4_35um'+'_pipeline.pdf')
-    
     
     # %% set to rois
         opts.change_params(params_dict={'ROIs':ROIs_mrcnn,
                                         'index':list(range(ROIs_mrcnn.shape[0]))})  #
     
     # %% process cells using volspike function
+    dview.terminate()
     c, dview, n_processes = cm.cluster.setup_cluster(
             backend='local', n_processes=6, single_thread=False)
     vpy = VOLPY(n_processes=6, dview=dview, params=opts)
     vpy.fit(dview=dview)
     
-    dview.terminate()
-
-    
-    #%%
-    print('motion correction time:')
-    print(t1-t0)
-    print('memory map time:')
-    print(t2-t1)
-    print('init time:')
-    print(t3-t2)
-    print('spike pursuit time:')
-    print(t4-t3)
-    
-
-
-
     # %% some visualization
-"""
     vpy.estimates['cellN']
     n = 5  # cell you are interested in
 
@@ -253,14 +230,13 @@ def main():
     plt.colorbar()
     plt.title('spatial filter')
     plt.show()
-"""
+
     # %% STOP CLUSTER and clean up log files
-"""
     cm.stop_server(dview=dview)
     log_files = glob.glob('*_LOG_*')
     for log_file in log_files:
         os.remove(log_file)
-"""
+
 # %%
 # This is to mask the differences between running this demo in Spyder
 # versus from the CLI
