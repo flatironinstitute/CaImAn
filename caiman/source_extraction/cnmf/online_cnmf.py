@@ -1163,7 +1163,7 @@ class OnACID(object):
                         # Motion Correction
                         if self.params.get('online', 'motion_correct'):    # motion correct
                             templ = self.estimates.Ab.dot(
-                                    self.estimates.C_on[:self.M, t-1]).reshape(self.params.get('data', 'dims'), order='F')#*self.img_norm
+                                    np.median(self.estimates.C_on[:self.M, t-51:t-1], 1)).reshape(self.params.get('data', 'dims'), order='F')#*self.img_norm
                             if self.is1p and self.estimates.W is not None:
                                 if ssub_B == 1:
                                     B = self.estimates.W.dot((frame_ - templ).flatten(order='F') - self.estimates.b0) + self.estimates.b0
