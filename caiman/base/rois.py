@@ -32,7 +32,7 @@ from skimage.morphology import watershed
 from skimage.draw import polygon
 import tempfile
 import time
-from typing import Any, Dict, List, Optional, Tuple
+from typing import List
 import zipfile
 
 from ..motion_correction import tile_and_correct
@@ -42,7 +42,7 @@ try:
 except:
     pass
 
-def com(A:np.ndarray, d1:int, d2:int, d3:Optional[int]=None) -> np.array:
+def com(A, d1, d2, d3=None):
     """Calculation of the center of mass for spatial components
 
      Args:
@@ -78,7 +78,7 @@ def com(A:np.ndarray, d1:int, d2:int, d3:Optional[int]=None) -> np.array:
     cm = (Coor * A / A.sum(axis=0)).T
     return np.array(cm)
 
-def extract_binary_masks_from_structural_channel(Y, min_area_size:int=30, min_hole_size:int=15, gSig:int=5, expand_method:str='closing', selem:np.array=np.ones((3, 3))) -> Tuple[np.ndarray, np.array]:
+def extract_binary_masks_from_structural_channel(Y, min_area_size=30, min_hole_size=15, gSig=5, expand_method='closing', selem=np.ones((3, 3))):
     """Extract binary masks by using adaptive thresholding on a structural channel
 
     Args:
@@ -142,7 +142,7 @@ def mask_to_2d(mask):
         dims = np.shape(mask)
         return scipy.sparse.coo_matrix(np.reshape(mask, (np.prod(dims), -1,), order='F'))
 
-def get_distance_from_A(masks_gt, masks_comp, min_dist=10) -> List:
+def get_distance_from_A(masks_gt, masks_comp, min_dist=10):
     # todo todocument
 
     _, d1, d2 = np.shape(masks_gt)
@@ -221,14 +221,13 @@ def nf_match_neurons_in_binary_masks(masks_gt, masks_comp, thresh_cost=.7, min_d
         # find the distance between each masks
         D = distance_masks([A_ben, A_cnmf], [cm_ben, cm_cnmf],
                            min_dist, enclosed_thr=enclosed_thr)
-        level = .999999
+        level = 0.98
     else:
-        level = .999999
+        level = .98
 
     matches, costs = find_matches(D, print_assignment=print_assignment)
     matches = matches[0]
     costs = costs[0]
-    print(costs)
 
     #%% compute precision and recall
     TP = np.sum(np.array(costs) < thresh_cost) * 1.
@@ -264,34 +263,34 @@ def nf_match_neurons_in_binary_masks(masks_gt, masks_comp, thresh_cost=.7, min_d
                     'weight': 'regular',
                     'size': 10}
             pl.rc('font', **font)
-            lp, hp = np.nanpercentile(Cn, [5, 99])
+            lp, hp = np.nanpercentile(Cn, [5, 95])
             ses_1 = mpatches.Patch(color='red', label=labels[0])
-            ses_2 = mpatches.Patch(color='yellow', label=labels[1])
+            ses_2 = mpatches.Patch(color='white', label=labels[1])
             pl.subplot(1, 2, 1)
             pl.imshow(Cn, vmin=lp, vmax=hp, cmap=cmap)
-            [pl.contour(norm_nrg(mm), levels=[level], colors='y', linewidths=1)
+            [pl.contour(norm_nrg(mm), levels=[level], colors='w', linewidths=1)
              for mm in masks_comp[idx_tp_comp]]
             [pl.contour(norm_nrg(mm), levels=[level], colors='r',
                         linewidths=1) for mm in masks_gt[idx_tp_gt]]
-            if labels is not None:
+            if labels is None:
                 pl.title('MATCHES')
             else:
-                pl.title('MATCHES: ' + labels[1] + '(y), ' + labels[0] + '(r)')
+                pl.title('MATCHES: ' + labels[1] + '(w), ' + labels[0] + '(r)')
             pl.legend(handles=[ses_1, ses_2])
-            #pl.show()
+            pl.show()
             pl.axis('off')
             pl.subplot(1, 2, 2)
             pl.imshow(Cn, vmin=lp, vmax=hp, cmap=cmap)
-            [pl.contour(norm_nrg(mm), levels=[level], colors='y', linewidths=1)
+            [pl.contour(norm_nrg(mm), levels=[level], colors='w', linewidths=1)
              for mm in masks_comp[idx_fp_comp]]
             [pl.contour(norm_nrg(mm), levels=[level], colors='r',
                         linewidths=1) for mm in masks_gt[idx_fn_gt]]
-            if labels is not None:
-                pl.title('FALSE POSITIVE (y), FALSE NEGATIVE (r)')
+            if labels is None:
+                pl.title('FALSE POSITIVE (w), FALSE NEGATIVE (r)')
             else:
-                pl.title(labels[1] + '(y), ' + labels[0] + '(r)')
+                pl.title(labels[1] + '(w), ' + labels[0] + '(r)')
             pl.legend(handles=[ses_1, ses_2])
-            #pl.show()
+            pl.show()
             pl.axis('off')
         except Exception as e:
             logging.warning("not able to plot precision recall: graphics failure")
@@ -651,17 +650,18 @@ def extract_active_components(assignments, indices, only = True):
     return components
 
 def norm_nrg(a_):
+
     a = a_.copy()
     dims = a.shape
     a = a.reshape(-1, order='F')
     indx = np.argsort(a, axis=None)[::-1]
     cumEn = np.cumsum(a.flatten()[indx]**2)
-    cumEn = cumEn/cumEn[-1]
+    cumEn /= cumEn[-1]
     a = np.zeros(np.prod(dims))
     a[indx] = cumEn
     return a.reshape(dims, order='F')
 
-def distance_masks(M_s:List, cm_s:List[List], max_dist:float, enclosed_thr:Optional[float]=None) -> List:
+def distance_masks(M_s, cm_s, max_dist, enclosed_thr=None):
     """
     Compute distance matrix based on an intersection over union metric. Matrix are compared in order,
     with matrix i compared with matrix i+1
@@ -745,7 +745,7 @@ def distance_masks(M_s:List, cm_s:List[List], max_dist:float, enclosed_thr:Optio
         D_s.append(D)
     return D_s
 
-def find_matches(D_s, print_assignment:bool=False) -> Tuple[List, List]:
+def find_matches(D_s, print_assignment=False):
     # todo todocument
 
     matches = []
@@ -777,7 +777,7 @@ def find_matches(D_s, print_assignment:bool=False) -> Tuple[List, List]:
         # send back the results in the format we want
     return matches, costs
 
-def link_neurons(matches:List[List[Tuple]], costs:List[List], max_cost:float=0.6, min_FOV_present:Optional[int]=None):
+def link_neurons(matches, costs, max_cost=0.6, min_FOV_present=None):
     """
     Link neurons from different FOVs given matches and costs obtained from the hungarian algorithm
 
@@ -826,7 +826,7 @@ def link_neurons(matches:List[List[Tuple]], costs:List[List], max_cost:float=0.6
     logging.info(('num_neurons:' + str(num_neurons)))
     return neurons
 
-def nf_load_masks(file_name:str, dims:Tuple[int, ...]) -> np.array:
+def nf_load_masks(file_name, dims):
     # todo todocument
 
     # load the regions (training data only)
@@ -841,7 +841,7 @@ def nf_load_masks(file_name:str, dims:Tuple[int, ...]) -> np.array:
     masks = np.array([tomask(s['coordinates']) for s in regions])
     return masks
 
-def nf_masks_to_json(binary_masks:np.ndarray, json_filename:str) -> List[Dict]:
+def nf_masks_to_json(binary_masks, json_filename):
     """
     Take as input a tensor of binary mask and produces json format for neurofinder
 
@@ -865,7 +865,8 @@ def nf_masks_to_json(binary_masks:np.ndarray, json_filename:str) -> List[Dict]:
 
     return regions
 
-def nf_masks_to_neurof_dict(binary_masks:np.ndarray, dataset_name:str) -> Dict[str, Any]:
+#%%
+def nf_masks_to_neurof_dict(binary_masks, dataset_name):
     """
     Take as input a tensor of binary mask and produces dict format for neurofinder
 
@@ -887,7 +888,11 @@ def nf_masks_to_neurof_dict(binary_masks:np.ndarray, dataset_name:str) -> Dict[s
 
     return dset
 
-def nf_read_roi(fileobj) -> np.ndarray:
+#%%
+
+
+
+def nf_read_roi(fileobj):
     '''
     points = read_roi(fileobj)
     Read ImageJ's ROI format
@@ -990,7 +995,7 @@ def nf_read_roi(fileobj) -> np.ndarray:
 
     return points
 
-def nf_read_roi_zip(fname:str, dims:Tuple[int, ...], return_names=False) -> np.array:
+def nf_read_roi_zip(fname, dims, return_names=False):
     # todo todocument
 
     with zipfile.ZipFile(fname) as zf:
@@ -1012,7 +1017,7 @@ def nf_read_roi_zip(fname:str, dims:Tuple[int, ...], return_names=False) -> np.a
     else:
         return masks
 
-def nf_merge_roi_zip(fnames:List[str], idx_to_keep:List[List], new_fold:str):
+def nf_merge_roi_zip(fnames, idx_to_keep, new_fold):
     """
     Create a zip file containing ROIs for ImageJ by combining elements from a list of ROI zip files
 
@@ -1049,13 +1054,13 @@ def nf_merge_roi_zip(fnames:List[str], idx_to_keep:List[List], new_fold:str):
     shutil.make_archive(new_fold, 'zip', new_fold)
     shutil.rmtree(new_fold)
 
-def extract_binary_masks_blob(A, neuron_radius:float, dims:Tuple[int, ...], num_std_threshold:int=1, minCircularity:float=0.5,
-                              minInertiaRatio:float=0.2, minConvexity:float=.8) -> Tuple[np.array, np.array, np.array]:
+def extract_binary_masks_blob(A, neuron_radius, dims, num_std_threshold=1, minCircularity=0.5,
+                              minInertiaRatio=0.2, minConvexity=.8):
     """
     Function to extract masks from data. It will also perform a preliminary selectino of good masks based on criteria like shape and size
 
     Args:
-        A: scipy.sparse matrix
+        A: scipy.sparse matris
             contains the components as outputed from the CNMF algorithm
 
         neuron_radius: float
@@ -1148,7 +1153,7 @@ def extract_binary_masks_blob(A, neuron_radius:float, dims:Tuple[int, ...], num_
 
 
 def extract_binary_masks_blob_parallel(A, neuron_radius, dims, num_std_threshold=1, minCircularity=0.5,
-                                       minInertiaRatio=0.2, minConvexity=.8, dview=None) -> Tuple[List, List, List]:
+                                       minInertiaRatio=0.2, minConvexity=.8, dview=None):
     # todo todocument
 
     pars = []
@@ -1173,7 +1178,7 @@ def extract_binary_masks_blob_parallel(A, neuron_radius, dims, num_std_threshold
     return masks, is_pos, is_neg
 
 
-def extract_binary_masks_blob_parallel_place_holder(pars:Tuple) -> Tuple[Any, Any, Any]:
+def extract_binary_masks_blob_parallel_place_holder(pars):
     A, neuron_radius, dims, num_std_threshold, _, minInertiaRatio, minConvexity = pars
     masks_ws, pos_examples, neg_examples = extract_binary_masks_blob(A, neuron_radius,
                                                                      dims, num_std_threshold=num_std_threshold, minCircularity=0.5,
@@ -1182,14 +1187,14 @@ def extract_binary_masks_blob_parallel_place_holder(pars:Tuple) -> Tuple[Any, An
 
 
 
-def extractROIsFromPCAICA(spcomps, numSTD=4, gaussiansigmax=2, gaussiansigmay=2, thresh=None) -> Tuple[List[np.array], List]:
+def extractROIsFromPCAICA(spcomps, numSTD=4, gaussiansigmax=2, gaussiansigmay=2, thresh=None):
     """
     Given the spatial components output of the IPCA_stICA function extract possible regions of interest
 
     The algorithm estimates the significance of a components by thresholding the components after gaussian smoothing
 
     Args:
-        spcomps: 3d array containing the spatial components
+        spcompomps, 3d array containing the spatial components
 
         numSTD: number of standard deviation above the mean of the spatial component to be considered signiificant
     """
@@ -1222,8 +1227,8 @@ def extractROIsFromPCAICA(spcomps, numSTD=4, gaussiansigmax=2, gaussiansigmay=2,
 
     return allMasks, maskgrouped
 
-def detect_duplicates_and_subsets(binary_masks, predictions=None, r_values=None, dist_thr:float=0.1, min_dist=10,
-                                  thresh_subset:float=0.8):
+def detect_duplicates_and_subsets(binary_masks, predictions=None, r_values=None, dist_thr=0.1, min_dist=10,
+                                  thresh_subset=0.8):
 
     cm = [scipy.ndimage.center_of_mass(mm) for mm in binary_masks]
     sp_rois = scipy.sparse.csc_matrix(
@@ -1314,7 +1319,7 @@ def detect_duplicates_and_subsets(binary_masks, predictions=None, r_values=None,
 
     return indices_orig, indices_to_keep, indices_to_remove, D, overlap
 
-def detect_duplicates(file_name:str, dist_thr:float=0.1, FOV:Tuple[int, ...]=(512, 512)) -> Tuple[List, List]:
+def detect_duplicates(file_name, dist_thr=0.1, FOV=(512, 512)):
     """
     Removes duplicate ROIs from file file_name
 

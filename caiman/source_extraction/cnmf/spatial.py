@@ -195,7 +195,6 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
         A_in = csc_column_remove(A_in, list(ff))
         C = np.delete(C, list(ff), 0)
 
-    print(C.shape)
 
     if normalize_yyt_one and C is not None:
         C = np.array(C)

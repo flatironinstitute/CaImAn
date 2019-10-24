@@ -424,7 +424,7 @@ def setup_cluster(backend:str='multiprocessing', n_processes:int=None, single_th
                     pass
             c = None
 
-            dview = Pool(n_processes, maxtasksperchild=1)
+            dview = Pool(n_processes)
         else:
             raise Exception('Unknown Backend')
 
