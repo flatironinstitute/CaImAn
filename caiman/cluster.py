@@ -386,7 +386,7 @@ def setup_cluster(backend: str = 'multiprocessing',
             n_processes = np.int(os.environ.get('SLURM_NPROCS'))
         else:
             # roughly number of cores on your machine minus 1
-            n_processes = np.maximum(np.int(psutil.cpu_count()), 1)
+            n_processes = np.maximum(np.int(psutil.cpu_count() - 1), 1)
 
     if single_thread:
         dview = None
