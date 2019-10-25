@@ -12,7 +12,8 @@ import os
 import psutil
 import scipy
 import sys
-from .spikePursuit import volspike
+from . import atm
+from . import spikePursuit
 from .Volparams import volparams
 
 try:
@@ -115,6 +116,10 @@ class VOLPY(object):
                 weights = self.params.data['weights'][i]
             args_in.append([fnames, fr, i, ROIs, weights, args])
 
+        if self.params.volspike['method'] == 'SpikePursuit':
+            volspike = spikePursuit.volspike
+        else:
+            volspike = atm.volspike
         if 'multiprocessing' in str(type(dview)):
             results = dview.map_async(volspike, args_in).get(4294967)
         elif dview is not None:

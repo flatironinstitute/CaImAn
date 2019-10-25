@@ -36,7 +36,8 @@ class volparams(object):
             'nIter': nIter, # number of iterations alternating between estimating temporal and spatial filters
             'localAlign': localAlign,
             'globalAlign': globalAlign,
-            'highPassRegression': highPassRegression # regress on a high-passed version of the data. Slightly improves detection of spikes, but makes subthreshold unreliable
+            'highPassRegression': highPassRegression, # regress on a high-passed version of the data. Slightly improves detection of spikes, but makes subthreshold unreliable
+            'method': 'SpikePursuit'
         }
 
         self.motion = {
