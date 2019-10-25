@@ -20,7 +20,7 @@ from scipy.sparse import coo_matrix
 from scipy.io import loadmat
 from sklearn.decomposition import NMF
 import time
-from typing import List
+from typing import List, Tuple
 
 import caiman as cm
 

@@ -292,7 +292,7 @@ class movie(ts.timeseries):
         if remove_blanks:
             max_z, max_h, max_w = np.max(shifts, axis=0)
             min_z, min_h, min_w = np.min(shifts, axis=0)
-            self = self.crop(
+            self.crop(
                 crop_top=max_z,
                 crop_bottom=min_z,             # NOTE: edge boundaries for z dimension need to be tested
                 crop_left=max_h,

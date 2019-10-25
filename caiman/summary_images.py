@@ -678,7 +678,7 @@ def local_correlations_movie(file_name,
         for tt in range((T - window) // stride):
             corr_movie[tt + 1] = update_local_correlations(window, Y[tt * stride + window:(tt + 1) * stride + window],
                                                            first_moment, second_moment, crosscorr, col_ind, row_ind,
-                                                           num_neigbors, M, cn, Y[tt * stride:(tt + 1) * stride])
+                                                           num_neigbors, M, cn, Y[tt * stride:(tt + 1) * stride]) # FIXME all params after M are invalid
     elif mode == 'exponential':
         for tt, frames in enumerate(Y[window:window + (T - window) // stride * stride].reshape((-1, stride) + dims)):
             corr_movie[tt + 1] = update_local_correlations(window, frames, first_moment, second_moment, crosscorr,

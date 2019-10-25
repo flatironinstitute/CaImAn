@@ -19,11 +19,11 @@ from builtins import range
 from builtins import str
 from builtins import zip
 import cv2
-from multiprocessing import current_process, cpu_count
 import logging
-import os
 from math import sqrt
+from multiprocessing import current_process, cpu_count
 import numpy as np
+import os
 from past.utils import old_div
 from scipy.ndimage import percentile_filter
 from scipy.ndimage.filters import gaussian_filter
@@ -31,10 +31,9 @@ from scipy.sparse import coo_matrix, csc_matrix, spdiags, hstack
 from scipy.stats import norm
 from sklearn.decomposition import NMF
 from sklearn.preprocessing import normalize
+import tensorflow as tf
 from time import time
 from typing import List, Tuple
-import tensorflow as tf
-import logging
 
 import caiman
 from .cnmf import CNMF
@@ -2580,7 +2579,7 @@ def initialize_movie_online(Y, K, gSig, rf, stride, base_name,
     print((len(traces)))
     print((len(idx_components)))
     #%
-    cnm_refine.sn = sn
+    cnm_refine.sn = sn # FIXME: There is no sn in scope here
     cnm_refine.idx_components = idx_components
     cnm_refine.idx_components_bad = idx_components_bad
     cnm_refine.r_values = r_values
