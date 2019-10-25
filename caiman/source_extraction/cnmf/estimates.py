@@ -496,7 +496,8 @@ class Estimates(object):
                    magnification=1, include_bck=True,
                    frame_range=slice(None, None, None),
                    bpx=0, thr=0., save_movie=False,
-                   movie_name='results_movie.avi'):
+                   movie_name='results_movie.avi',
+                   display=True, opencv_codec='H264'):
         """
         Displays a movie with three panels (original data (left panel),
         reconstructed data (middle panel), residual (right panel))
@@ -534,6 +535,12 @@ class Estimates(object):
 
             movie_name: str
                 name of saved file
+
+            display: bool
+                flag for playing the movie
+
+            opencv_codec: str
+                FourCC video codec for saving movie. Check http://www.fourcc.org/codecs.php
 
         Returns:
             self (to stop the movie press 'q')
@@ -580,14 +587,13 @@ class Estimates(object):
 
         mov = caiman.concatenate((imgs[frame_range] - (not include_bck) * B,
                                   Y_rec + include_bck * B, Y_res * gain_res), axis=2)
-
+        if not display:
+            return mov
 
         if thr > 0:
             if save_movie:
                 import cv2
-                #fourcc = cv2.VideoWriter_fourcc('8', 'B', 'P', 'S')
-                #fourcc = cv2.VideoWriter_fourcc(*'XVID')
-                fourcc = cv2.VideoWriter_fourcc(*'MP4V')
+                fourcc = cv2.VideoWriter_fourcc(*opencv_codec)
                 out = cv2.VideoWriter(movie_name, fourcc, 30.0,
                                       tuple([int(magnification*s) for s in mov.shape[1:][::-1]]))
             contours = []
@@ -629,7 +635,7 @@ class Estimates(object):
             mov.play(q_min=q_min, q_max=q_max, magnification=magnification,
                      save_movie=save_movie, movie_name=movie_name)
 
-        return self
+        return mov
 
     def compute_residuals(self, Yr):
         """compute residual for each component (variable R)

@@ -1169,6 +1169,7 @@ class movie(ts.timeseries):
              q_min=0,
              plot_text: bool = False,
              save_movie: bool = False,
+             opencv_codec: str = 'H264',
              movie_name: str = 'movie.avi') -> None:
         """
         Play the movie using opencv
@@ -1200,6 +1201,9 @@ class movie(ts.timeseries):
 
             save_movie: bool
                 flag to save an avi file of the movie
+
+            opencv_codec: str
+                FourCC video codec for saving movie. Check http://www.fourcc.org/codecs.php
 
             movie_name: str
                 name of saved file
@@ -1258,11 +1262,7 @@ class movie(ts.timeseries):
         looping = True
         terminated = False
         if save_movie:
-            #fourcc = cv2.VideoWriter_fourcc('8', 'B', 'P', 'S')
-            #fourcc = cv2.VideoWriter_fourcc(*'XVID')
-            #fourcc = cv2.VideoWriter_fourcc(*'DIVX')
-            #fourcc = cv2.VideoWriter_fourcc(*'X264')
-            fourcc = cv2.VideoWriter_fourcc(*'MP4V')
+            fourcc = cv2.VideoWriter_fourcc(*opencv_codec)
             frame_in = self[0]
             if bord_px is not None and np.sum(bord_px) > 0:
                 frame_in = frame_in[bord_px:-bord_px, bord_px:-bord_px]
@@ -1294,7 +1294,9 @@ class movie(ts.timeseries):
 
                     cv2.imshow('frame', frame)
                     if save_movie:
-                        out.write(frame.astype('uint8'))
+                        frame = np.repeat(frame[:, :, None], 3, axis=-1)
+                        frame = np.minimum((frame * 255.), 255).astype('u1')
+                        out.write(frame)
                     if cv2.waitKey(int(1. / fr * 1000)) & 0xFF == ord('q'):
                         looping = False
                         terminated = True

@@ -1115,7 +1115,7 @@ class OnACID(object):
             init_batc_iter = [init_batch] + [0]*extra_files
         if self.params.get('online', 'save_online_movie') + self.params.get('online', 'show_movie'):
             resize_fact = 2
-            fourcc = cv2.VideoWriter_fourcc(*'H264')
+            fourcc = cv2.VideoWriter_fourcc(*self.params.get('online', 'opencv_codec'))
             out = cv2.VideoWriter(self.params.get('online', 'movie_name_online'),
                                   fourcc, 30, tuple([int(resize_fact*2*x) for x in self.params.get('data', 'dims')]),
                                   True)
@@ -1267,9 +1267,9 @@ class OnACID(object):
 
         return self
 
-    def create_frame(self, frame_cor, show_residuals=True, resize_fact=3, transpose=False):
+    def create_frame(self, frame_cor, show_residuals=True, resize_fact=3, transpose=True):
         if show_residuals:
-            caption = 'Mean Residual Buffer'
+            caption = 'Corr*PSNR buffer' if self.params.get('online', 'use_corr_img') else 'Mean Residual Buffer'
         else:
             caption = 'Identified Components'
         captions = ['Raw Data', 'Inferred Activity', caption, 'Denoised Data']
