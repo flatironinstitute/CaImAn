@@ -636,7 +636,7 @@ def dot_place_holder(par: List) -> Tuple:
             outp = (b_.T.dot(A_[idx_to_pass].T)).T.astype(np.float32)
     else:
         if transpose:
-            outp = A_[idx_to_pass].dot(b_[idx_to_pass]).astype(np.float32)
+            outp = A_[idx_to_pass].T.dot(b_[idx_to_pass]).astype(np.float32)
         else:
             outp = A_[idx_to_pass].dot(b_).astype(np.float32)
 
