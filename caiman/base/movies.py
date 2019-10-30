@@ -1267,7 +1267,7 @@ class movie(ts.timeseries):
             if bord_px is not None and np.sum(bord_px) > 0:
                 frame_in = frame_in[bord_px:-bord_px, bord_px:-bord_px]
             out = cv2.VideoWriter(movie_name, fourcc, 30.,
-                                  tuple([int(magnification * s) for s in frame_in.shape[::-1]]))
+                                  tuple([int(magnification * s) for s in frame_in.shape[1::-1]]))
         while looping:
 
             for iddxx, frame in enumerate(self):
@@ -1294,7 +1294,8 @@ class movie(ts.timeseries):
 
                     cv2.imshow('frame', frame)
                     if save_movie:
-                        frame = np.repeat(frame[:, :, None], 3, axis=-1)
+                        if frame.ndim < 3:
+                            frame = np.repeat(frame[:, :, None], 3, axis=-1)
                         frame = np.minimum((frame * 255.), 255).astype('u1')
                         out.write(frame)
                     if cv2.waitKey(int(1. / fr * 1000)) & 0xFF == ord('q'):
