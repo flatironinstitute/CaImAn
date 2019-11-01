@@ -411,10 +411,14 @@ def recursively_save_dict_contents_to_group(h5file:h5py.File, path:str, dic:Dict
     # save items to the hdf5 file
     for key, item in dic.items():
         key = str(key)
-
         if key == 'g':
+            if item is None:
+                item = 0
             logging.info(key + ' is an object type')
-            item = np.array(list(item))
+            try:
+                item = np.array(list(item))
+            except:
+                item = np.asarray(item, dtype=np.float)
         if key == 'g_tot':
             item = np.asarray(item, dtype=np.float)
         if key in ['groups', 'idx_tot', 'ind_A', 'Ab_epoch', 'coordinates',
