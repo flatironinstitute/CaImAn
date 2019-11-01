@@ -506,7 +506,7 @@ class Estimates(object):
         cols_c = np.random.rand(self.C.shape[0], 1, 3)
         cols_f = np.ones((self.f.shape[0], 1, 3))/8
         Cs = np.vstack((np.expand_dims(self.C[:, frame_range], -1)*cols_c,
-                        np.expand_dims(self.f[frame_range], -1)*cols_f))
+                        np.expand_dims(self.f[:, frame_range], -1)*cols_f))
         AC = np.tensordot(np.hstack((self.A.toarray(), self.b)), Cs, axes=(1, 0))
         AC = AC.reshape((dims) + (-1, 3)).transpose(2, 0, 1, 3)
         AC /= np.percentile(AC, 99.75)
