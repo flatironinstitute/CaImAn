@@ -1269,7 +1269,10 @@ class OnACID(object):
 
     def create_frame(self, frame_cor, show_residuals=True, resize_fact=3):
         if show_residuals:
-            caption = 'Mean Residual Buffer'
+            if self.params.get('online', 'use_corr_img'):
+                caption = 'Corr*PNR Image'
+            else:
+                caption = 'Mean Residual Buffer'
         else:
             caption = 'Identified Components'
         captions = ['Raw Data', 'Inferred Activity', caption, 'Denoised Data']
@@ -1299,9 +1302,15 @@ class OnACID(object):
         comps_frame = (comps_frame.copy() - self.bnd_AC[0])/np.diff(self.bnd_AC)
 
         if show_residuals:
-            #all_comps = np.reshape(self.Yres_buf.mean(0), self.dims, order='F')
-            all_comps = np.reshape(est.mean_buff, self.dims, order='F')
-            fac = 1. / np.percentile(est.mean_buff, 99.995)
+            if self.params.get('online', 'use_corr_img'):
+                pnr_img = est.max_img / est.sn.reshape(est.dims, order='F')
+                pnr_img[pnr_img<2] = 0
+                all_comps = np.nan_to_num(est.corr_img * pnr_img)
+                fac = 1. / self.params.get('init', 'min_corr') / self.params.get('init', 'min_pnr')
+            else:
+                #all_comps = np.reshape(self.Yres_buf.mean(0), self.dims, order='F')
+                all_comps = np.reshape(est.mean_buff, self.dims, order='F')
+                fac = 1. / np.percentile(est.mean_buff, 99.995)
         else:
             all_comps = np.array(A.sum(-1)).reshape(self.dims, order='F')
             fac = 2
