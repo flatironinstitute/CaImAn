@@ -491,6 +491,35 @@ class Estimates(object):
 
         return self
 
+    def make_color_movie(self, imgs, q_max=99.75, q_min=2, gain_res=1,
+                         magnification=1, include_bck=True,
+                         frame_range=slice(None, None, None),
+                         bpx=0, save_movie=False, display=True,
+                         movie_name='results_movie_color.avi',
+                         opencv_code='H264'):
+        """
+        Displays a color movie where each component is given an arbitrary
+        color. Will be merged with play_movie soon. Check that function for
+        arg definitions.
+        """
+        dims = imgs.shape[1:]
+        cols_c = np.random.rand(self.C.shape[0], 1, 3)
+        cols_f = np.ones((self.f.shape[0], 1, 3))/8
+        Cs = np.vstack((np.expand_dims(self.C[:, frame_range], -1)*cols_c,
+                        np.expand_dims(self.f[frame_range], -1)*cols_f))
+        AC = np.tensordot(np.hstack((self.A.toarray(), self.b)), Cs, axes=(1, 0))
+        AC = AC.reshape((dims) + (-1, 3)).transpose(2, 0, 1, 3)
+        AC /= np.percentile(AC, 99.75)
+        mov = caiman.movie(np.concatenate((np.repeat(np.expand_dims(imgs[frame_range]/np.percentile(imgs[:1000], 99.75), -1), 3, 3),
+                                           AC), axis=2))
+        if not display:
+            return mov
+
+        mov.play(q_min=q_min, q_max=q_max, magnification=magnification,
+                 save_movie=save_movie, movie_name=movie_name)
+
+        return mov
+
 
     def play_movie(self, imgs, q_max=99.75, q_min=2, gain_res=1,
                    magnification=1, include_bck=True,
