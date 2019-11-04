@@ -509,7 +509,8 @@ class Estimates(object):
                         np.expand_dims(self.f[:, frame_range], -1)*cols_f))
         AC = np.tensordot(np.hstack((self.A.toarray(), self.b)), Cs, axes=(1, 0))
         AC = AC.reshape((dims) + (-1, 3)).transpose(2, 0, 1, 3)
-        AC /= np.percentile(AC, 99.75)
+        
+        AC /= np.percentile(AC, 99.75, axis=(0, 1, 2))
         mov = caiman.movie(np.concatenate((np.repeat(np.expand_dims(imgs[frame_range]/np.percentile(imgs[:1000], 99.75), -1), 3, 3),
                                            AC), axis=2))
         if not display:
@@ -526,7 +527,8 @@ class Estimates(object):
                    frame_range=slice(None, None, None),
                    bpx=0, thr=0., save_movie=False,
                    movie_name='results_movie.avi',
-                   display=True, opencv_codec='H264'):
+                   display=True, opencv_codec='H264',
+                   use_color=False, gain_color=4, gain_bck=0.2):
         """
         Displays a movie with three panels (original data (left panel),
         reconstructed data (middle panel), residual (right panel))
@@ -535,64 +537,75 @@ class Estimates(object):
             imgs: np.array (possibly memory mapped, t,x,y[,z])
                 Imaging data
 
-            q_max: float (values in [0, 100])
+            q_max: float (values in [0, 100], default: 99.75)
                 percentile for maximum plotting value
 
-            q_min: float (values in [0, 100])
+            q_min: float (values in [0, 100], default: 1)
                 percentile for minimum plotting value
 
-            gain_res: float
+            gain_res: float (1)
                 amplification factor for residual movie
 
-            magnification: float
+            magnification: float (1)
                 magnification factor for whole movie
 
-            include_bck: bool
+            include_bck: bool (True)
                 flag for including background in original and reconstructed movie
 
-            frame_rage: range or slice or list
+            frame_rage: range or slice or list (default: slice(None))
                 display only a subset of frames
 
-            bpx: int
+            bpx: int (deafult: 0)
                 number of pixels to exclude on each border
 
-            thr: float (values in [0, 1[)
+            thr: float (values in [0, 1[) (default: 0)
                 threshold value for contours, no contours if thr=0
 
-            save_movie: bool
+            save_movie: bool (default: False)
                 flag to save an avi file of the movie
 
-            movie_name: str
+            movie_name: str (default: 'results_movie.avi')
                 name of saved file
 
-            display: bool
-                flag for playing the movie
+            display: bool (deafult: True)
+                flag for playing the movie (to stop the movie press 'q')
 
-            opencv_codec: str
+            opencv_codec: str (default: 'H264')
                 FourCC video codec for saving movie. Check http://www.fourcc.org/codecs.php
 
+            use_color: bool (default: False)
+                flag for making a color movie. If True a random color will be assigned
+                for each of the components
+
+            gain_color: float (default: 4)
+                amplify colors in the movie to make them brighter
+
+            gain_bck: float (default: 0.2)
+                dampen background in the movie to expose components (applicable
+                only when color is used.)
+
         Returns:
-            self (to stop the movie press 'q')
+            mov: The concatenated output movie
         """
         dims = imgs.shape[1:]
         if 'movie' not in str(type(imgs)):
-            imgs = caiman.movie(imgs)
+            imgs = caiman.movie(imgs[frame_range])
+        if use_color:
+            cols_c = np.random.rand(self.C.shape[0], 1, 3)*gain_color
+            Cs = np.expand_dims(self.C[:, frame_range], -1)*cols_c
+            #AC = np.tensordot(np.hstack((self.A.toarray(), self.b)), Cs, axes=(1, 0))
+            Y_rec_color = np.tensordot(self.A.toarray(), Cs, axes=(1, 0))
+            Y_rec_color = Y_rec_color.reshape((dims) + (-1, 3)).transpose(2, 1, 0, 3)
+
         AC = self.A.dot(self.C[:, frame_range])
         Y_rec = AC.reshape(dims + (-1,), order='F')
         Y_rec = Y_rec.transpose([2, 0, 1])
         if self.W is not None:
             ssub_B = int(round(np.sqrt(np.prod(dims) / self.W.shape[0])))
-            B = imgs[frame_range].reshape((-1, np.prod(dims)), order='F').T - AC
+            B = imgs.reshape((-1, np.prod(dims)), order='F').T - AC
             if ssub_B == 1:
                 B = self.b0[:, None] + self.W.dot(B - self.b0[:, None])
             else:
-#                B = self.b0[:, None] + (np.repeat(np.repeat(self.W.dot(
-#                    downscale(B.reshape(dims + (B.shape[-1],), order='F'),
-#                              (ssub_B, ssub_B, 1)).reshape((-1, B.shape[-1]), order='F') -
-#                    downscale(self.b0.reshape(dims, order='F'),
-#                              (ssub_B, ssub_B)).reshape((-1, 1), order='F'))
-#                    .reshape(((dims[0] - 1) // ssub_B + 1, (dims[1] - 1) // ssub_B + 1, -1), order='F'),
-#                    ssub_B, 0), ssub_B, 1)[:dims[0], :dims[1]].reshape((-1, B.shape[-1]), order='F'))
                 WB = self.W.dot(downscale(B.reshape(dims + (B.shape[-1],), order='F'),
                               (ssub_B, ssub_B, 1)).reshape((-1, B.shape[-1]), order='F'))
                 Wb0 = self.W.dot(downscale(self.b0.reshape(dims, order='F'),
@@ -612,16 +625,22 @@ class Estimates(object):
             Y_rec = Y_rec[:, bpx:-bpx, bpx:-bpx]
             imgs = imgs[:, bpx:-bpx, bpx:-bpx]
 
-        Y_res = imgs[frame_range] - Y_rec - B
-
-        mov = caiman.concatenate((imgs[frame_range] - (not include_bck) * B,
-                                  Y_rec + include_bck * B, Y_res * gain_res), axis=2)
+        Y_res = imgs - Y_rec - B
+        if use_color:
+            if bpx > 0:
+                Y_rec_color = Y_rec_color[:, bpx:-bpx, bpx:-bpx]
+            mov = caiman.concatenate((np.repeat(np.expand_dims(imgs - (not include_bck) * B, -1), 3, 3),
+                                      Y_rec_color + include_bck * np.expand_dims(B*gain_bck, -1),
+                                      np.repeat(np.expand_dims(Y_res * gain_res, -1), 3, 3)), axis=2)
+        else:
+            mov = caiman.concatenate((imgs[frame_range] - (not include_bck) * B,
+                                      Y_rec + include_bck * B, Y_res * gain_res), axis=2)
         if not display:
             return mov
 
         if thr > 0:
+            import cv2
             if save_movie:
-                import cv2
                 fourcc = cv2.VideoWriter_fourcc(*opencv_codec)
                 out = cv2.VideoWriter(movie_name, fourcc, 30.0,
                                       tuple([int(magnification*s) for s in mov.shape[1:][::-1]]))
@@ -648,7 +667,8 @@ class Estimates(object):
                     frame = cv2.resize(frame, None, fx=magnification, fy=magnification,
                                        interpolation=cv2.INTER_LINEAR)
                 frame = np.clip((frame - minmov) * 255. / (maxmov - minmov), 0, 255)
-                frame = np.repeat(frame[..., None], 3, 2)
+                if frame.ndim < 3:
+                    frame = np.repeat(frame[..., None], 3, 2)
                 for contour in contours:
                     cv2.drawContours(frame, contour, -1, (0, 255, 255), 1)
                 cv2.imshow('frame', frame.astype('uint8'))
