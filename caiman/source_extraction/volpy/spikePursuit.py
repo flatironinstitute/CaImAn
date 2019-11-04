@@ -145,14 +145,14 @@ def volspike(pars):
 
     # remove low frequency components
     data_hp = highpassVideo(data.T, 1 / tau_lp, sampleRate).T    
-    #data_lp = data - data_hp
-    """
+    data_lp = data - data_hp
+    
     data_pred = np.empty_like(data_hp)
     if highPassRegression:
         data_pred[:] = highpassVideo(data, 1 / tau_pred, sampleRate)
     else:
         data_pred[:] = data_hp
-    """
+    
     # initial trace
     if weights_init is None:
         t = np.nanmean(data_hp[:, bw.ravel()], 1)
@@ -167,7 +167,7 @@ def volspike(pars):
 
     # find out spikes of initial trace
     Xspikes, spikeTimes, guessData, output['rawROI']['falsePosRate'], output['rawROI']['detectionRate'], \
-    output['rawROI']['templates'], low_spk = denoiseSpikes(-t, windowLength, sampleRate, False, 100)
+    output['rawROI']['templates'], low_spk, _ = denoiseSpikes(-t, windowLength, sampleRate, False, 100)
 
     Xspikes = -Xspikes
     output['rawROI']['X'] = t.copy()
@@ -241,7 +241,7 @@ def volspike(pars):
     for iteration in range(nIter):
         doPlot = False
         if iteration == nIter - 1:
-            doPlot = False
+            doPlot = True
 
         # print('Identifying spatial filters')
         # print(iteration)
@@ -284,7 +284,7 @@ def volspike(pars):
         X = np.double(X * np.mean(t[spikeTimes]) / np.mean(X[spikeTimes]))
 
         # generate the new trace and the new denoised trace
-        Xspikes, spikeTimes, guessData, falsePosRate, detectionRate, templates, _ = denoiseSpikes(-X,
+        Xspikes, spikeTimes, guessData, falsePosRate, detectionRate, templates, _, thresh = denoiseSpikes(-X,
                                                                                                   windowLength,
                                                                                                   sampleRate, doPlot)
 
@@ -325,9 +325,10 @@ def volspike(pars):
     output['detectionRate'] = detectionRate
     output['templates'] = templates
     output['spikeTimes'] = spikeTimes
-    #output['F0'] = np.nanmean(data_lp[:, bw.flatten()] + output['meanIM'][bw][np.newaxis, :], 1)
-    #output['dFF'] = X / output['F0']
-    #output['rawROI']['dFF'] = output['rawROI']['X'] / output['F0']
+    output['thresh'] = thresh
+    output['F0'] = np.nanmean(data_lp[:, bw.flatten()] + output['meanIM'][bw][np.newaxis, :], 1)
+    output['dFF'] = X / output['F0']
+    output['rawROI']['dFF'] = output['rawROI']['X'] / output['F0']
     output['bg_pc'] = Ub  # background components
     output['low_spk'] = low_spk
     output['weights'] = weights
@@ -414,6 +415,7 @@ def denoiseSpikes(data, windowLength, sampleRate=400, doPlot=True, doClip=150):
     # filtering shrinks the data;
     # rescale so that the mean value at the peaks is same as in the input
     datafilt = datafilt * np.mean(data[spikeTimes]) / np.mean(datafilt[spikeTimes])
+    thresh2 = thresh2 * np.mean(data[spikeTimes]) / np.mean(datafilt[spikeTimes])
 
     # output templates
     templates = PTA
@@ -453,7 +455,7 @@ def denoiseSpikes(data, windowLength, sampleRate=400, doPlot=True, doClip=150):
                  linestyle='none')
         plt.show()
 
-    return datafilt, spikeTimes, guessData, falsePosRate, detectionRate, templates, low_spk
+    return datafilt, spikeTimes, guessData, falsePosRate, detectionRate, templates, low_spk, thresh2
 
 
 def getThresh(pks, doClip, pnorm=0.5):

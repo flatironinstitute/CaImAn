@@ -60,21 +60,39 @@ def main():
     
     # %% Please download the .npz file manually to your file path. 
     url = 'https://www.dropbox.com/s/tuv1bx9w6wdywnm/demo_voltage_imaging.npz?dl=0'
-    n_processes = 8
+    
     
     # %% Load demo movie and ROIs
     file_path = '/home/nel/Code/Voltage_imaging/exampledata/403106_3min/demo_voltage_imaging.npz'
     m = np.load(file_path)
-    mv = cm.movie(m.f.arr_0)
+    #mv = cm.movie(m.f.arr_0)
     ROIs = m.f.arr_1
+    
+    #name = '/home/nel/Dropbox_old/Voltron_fly_data/PPL1_ap2a2/axon/180319-1voltron/Data3/Data3.zip'
+    #from caiman.base.rois import nf_read_roi_zip
+    #ROIs = nf_read_roi_zip(name,(64,512))
 
     # %%
-    fnames = '/home/nel/Code/Voltage_imaging/exampledata/403106_3min/demomovie_voltage_imaging.hdf5'
+    fnames = '/home/nel/Dropbox_old/SimultaneousEphys/09212017Fish1-1/registered.tif'
+    #fnames = '/home/nel/Dropbox_old/SimultaneousEphys/09282017Fish1-1/registered.tif'
+    #fnames = '/home/nel/Dropbox_old/Voltron_fly_data/PPL1_ap2a2/axon/180319-1voltron/Data3/Data3.tif'
+    #folder = '/home/nel/Dropbox_old/Kaspar-Andrea/Ground truth data/Session1_raw_data_tifs/'
+    #file_list = [folder+i for i in sorted(os.listdir(folder)) if '.tif' in i]
+    #fnames = [[folder+'Cell1_'+str(i)+'.tif' for i in frames]]
+    #mv = cm.load(fnames)
+    
+    #fnames = '/home/nel/Dropbox_old/SimultaneousEphys/09212017Fish1-1/registered.hdf5'
+    #fnames = '/home/nel/Dropbox_old/Voltron_fly_data/PPL1_ap2a2/axon/180319-1voltron/Data3/Data3.hdf5'
+    #fnames = '/home/nel/Dropbox_old/SimultaneousEphys/09282017Fish1-1/registered.hdf5'
+    fnames = '/home/nel/Dropbox_old/Kaspar-Andrea/Ground truth data/hdf5/Session1.hdf5'
+    fnames = '/home/nel/Dropbox_old/Kaspar-Andrea/Ground truth data/hdf5/Session1.tif'
     mv.save(fnames)                                 # neglect the warning
+    
+    n_processes = 8
     
     # %% Setup some parameters for data and motion correction
     # dataset parameters
-    fr = 400                                        # sample rate of the movie
+    fr = 500                                        # sample rate of the movie
     ROIs = ROIs
     index = list(range(ROIs.shape[0]))              # index of neurons
     weights = None                                  # reuse spatial weights by 
@@ -152,6 +170,10 @@ def main():
                                border_to_0=border_to_0)
 
    # %% change fnames to the new motion corrected one
+    fname_new = '/home/nel/Code/VolPy/Mask_RCNN/videos & imgs/neurons_mc/FOV3_35um_d1_128_d2_512_d3_1_order_C_frames_20000_.mmap'
+    fname_new = '/home/nel/Code/VolPy/Mask_RCNN/videos & imgs/neurons_mc/FOV4_50um_d1_128_d2_512_d3_1_order_C_frames_20000_.mmap'
+    fname_new = '/home/nel/Dropbox_old/Kaspar-Andrea/Ground truth data/hdf5/memmap__d1_80_d2_128_d3_1_order_C_frames_24908_.mmap'
+    fname_new = '/home/nel/Dropbox_old/SimultaneousEphys/09212017Fish1-1/registered._rig__d1_44_d2_96_d3_1_order_F_frames_37950_.mmap'
     opts.change_params(params_dict={'fnames':fname_new})
     
     # %% use mask-rcnn to find ROIs
@@ -167,6 +189,9 @@ def main():
         Cn = ma.local_correlations(swap_dim=False, eight_neighbours=True, frames_per_chunk=1000000000)
         img_corr = (Cn-np.mean(Cn))/np.std(Cn)
         summary_image = np.stack([img,img,img_corr],axis=2).astype(np.float32)
+        
+        #summary_image = cm.load('/home/nel/Code/VolPy/Paper/img.tif')
+        #summary_image = cm.load('/home/nel/Dropbox_old/Kaspar-Andrea/Ground truth data/hdf5/Session1_summary.tif')
         
         config = neurons.NeuronsConfig()
         class InferenceConfig(config.__class__):
@@ -202,10 +227,13 @@ def main():
             visualize.display_instances(summary_image, r['rois'], r['masks'], r['class_ids'], 
                                     ['BG', 'neurons'], r['scores'], ax=ax,
                                     title="Predictions")
+            
+        plt.savefig('/home/nel/Code/VolPy/Paper/FOV4_35um.pdf')
     
     # %% set to rois
         opts.change_params(params_dict={'ROIs':ROIs_mrcnn,
                                         'index':list(range(ROIs_mrcnn.shape[0]))})  #
+                                        #'index':[18,27]})
     
     # %% process cells using volspike function
     dview.terminate()
@@ -216,7 +244,7 @@ def main():
     
     # %% some visualization
     vpy.estimates['cellN']
-    n = 5  # cell you are interested in
+    n = 0  # cell you are interested in
 
     plt.figure()
     plt.plot(vpy.estimates['trace'][n])
