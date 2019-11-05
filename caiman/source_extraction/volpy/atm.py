@@ -96,35 +96,8 @@ def volspike(pars):
 
     if (isinstance(spiketimes1, int) or (not_optimize == 1)):
 
+        not_active = 1
         print('not active cell')
-
-        ans = np.array([(first_timecourse, np.array(first_timecourse.shape),
-                         norm_tcourse1, np.zeros(norm_tcourse1.shape),
-                         spike_tcourse1, np.zeros(spike_tcourse1.shape),
-                         tlimit1, 0, threshold1, 0, spiketimes1, super_times1,
-                         kernel1, ROI_candidates[0], ROI_candidates[1],
-                         weight_init, np.zeros(weight_init.shape), np.zeros((21, 3)), 0., 0., 0)],
-                       dtype=[('raw_tcourse1', np.ndarray),
-                              ('raw_tcourse2', np.ndarray),
-                              ('norm_tcourse1', np.ndarray),
-                              ('norm_tcourse2', np.ndarray),
-                              ('spike_tcourse1', np.ndarray),
-                              ('spike_tcourse2', np.ndarray),
-                              ('tlimit1', np.int),
-                              ('tlimit2', np.int),
-                              ('threshold1', np.int),
-                              ('threshold2', np.int),
-                              ('spiketime', np.ndarray),
-                              ('super_spiketime', np.ndarray),
-                              ('spike_kernel', np.ndarray),
-                              ('ROI_Y', np.ndarray),
-                              ('ROI_X', np.ndarray),
-                              ('Weight_init', np.ndarray),
-                              ('Weight_final', np.ndarray),
-                              ('Learning_curve', np.ndarray),
-                              ('SN_initial', np.float),
-                              ('SN_final', np.float),
-                              ('active', np.int)])
 
     else:
         print('optimizing ROI')
@@ -246,84 +219,25 @@ def volspike(pars):
                 not_active = 1
             print("%d spikes found" % len(spiketimes2))
 
-        if (not_active == 1):
-            ans = np.array([(first_timecourse, np.array(first_timecourse.shape),
-                             norm_tcourse1, np.zeros(norm_tcourse1.shape),
-                             spike_tcourse1, np.zeros(spike_tcourse1.shape),
-                             tlimit1, 0, threshold1, 0, spiketimes1, super_times1,
-                             kernel1, ROI_candidates[0], ROI_candidates[1],
-                             weight_init, np.zeros(weight_init.shape), np.zeros((21, 3)), 0., 0., 0)],
-                           dtype=[('raw_tcourse1', np.ndarray),
-                                  ('raw_tcourse2', np.ndarray),
-                                  ('norm_tcourse1', np.ndarray),
-                                  ('norm_tcourse2', np.ndarray),
-                                  ('spike_tcourse1', np.ndarray),
-                                  ('spike_tcourse2', np.ndarray),
-                                  ('tlimit1', np.int),
-                                  ('tlimit2', np.int),
-                                  ('threshold1', np.int),
-                                  ('threshold2', np.int),
-                                  ('spiketime', np.ndarray),
-                                  ('super_spiketime', np.ndarray),
-                                  ('spike_kernel', np.ndarray),
-                                  ('ROI_Y', np.ndarray),
-                                  ('ROI_X', np.ndarray),
-                                  ('Weight_init', np.ndarray),
-                                  ('Weight_final', np.ndarray),
-                                  ('Learning_curve', np.ndarray),
-                                  ('SN_initial', np.float),
-                                  ('SN_final', np.float),
-                                  ('active', np.int)])
-
-        else:
-            ans = np.array([(first_timecourse, second_timecourse, norm_tcourse1,
-                             norm_tcourse2, spike_tcourse1, spike_tcourse2,
-                             tlimit1, tlimit2, threshold1, threshold2, spiketimes2, super_times2,
-                             kernel2, ROI_candidates[0], ROI_candidates[1],
-                             weight_init, W, Losses, SN[0], SN[1], 1)],
-                           dtype=[('raw_tcourse1', np.ndarray),
-                                  ('raw_tcourse2', np.ndarray),
-                                  ('norm_tcourse1', np.ndarray),
-                                  ('norm_tcourse2', np.ndarray),
-                                  ('spike_tcourse1', np.ndarray),
-                                  ('spike_tcourse2', np.ndarray),
-                                  ('tlimit1', np.int),
-                                  ('tlimit2', np.int),
-                                  ('threshold1', np.int),
-                                  ('threshold2', np.int),
-                                  ('spiketime', np.ndarray),
-                                  ('super_spiketime', np.ndarray),
-                                  ('spike_kernel', np.ndarray),
-                                  ('ROI_Y', np.ndarray),
-                                  ('ROI_X', np.ndarray),
-                                  ('Weight_init', np.ndarray),
-                                  ('Weight_final', np.ndarray),
-                                  ('Learning_curve', np.ndarray),
-                                  ('SN_initial', np.float),
-                                  ('SN_final', np.float),
-                                  ('active', np.int)])
-
     # output
+    output['cellN'] = cellN
+    output['spikeTimes'] = super_times1 if not_active else super_times2
+    output['num_spikes'] = output['spikeTimes'].shape[0]
+    output['yFilt'] = np.zeros(norm_tcourse1.shape) if not_active else norm_tcourse2
+    output['templates'] = kernel1 if not_active else kernel2
+    output['snr'] = 0. if not_active else SN[1]
+    output['weights'] = np.zeros(weight_init.shape) if not_active else W
     sigma = 1. # args['sigmas'][1]
-    X = ans['ROI_X'].item()
-    Y = ans['ROI_Y'].item()
+    X, Y = ROI_candidates
     X -= X.min() + 1
     Y -= Y.min() + 1
     output['spatialFilter'] = np.zeros((X.max() + 2, Y.max() + 2))
-    output['spatialFilter'][(X, Y)] = -ans['Weight_final'].item()
+    output['spatialFilter'][(X, Y)] = -output['weights']
     output['spatialFilter'] = cv2.GaussianBlur(output['spatialFilter'],
                                                (np.int(2 * np.ceil(2 * sigma) + 1),) * 2,
                                                sigma, borderType=cv2.BORDER_REPLICATE)
-
-    output['spikeTimes'] = ans['super_spiketime'].item()
-    output['yFilt'] = ans['norm_tcourse2'].item()
-    output['cellN'] = cellN
-    output['templates'] = ans['spike_kernel'].item()
-    output['snr'] = ans['SN_final'].item()
-    output['num_spikes'] = output['spikeTimes'].shape[0]
     output['passedLocalityTest'] = None
     output['low_spk'] = None
-    output['weights'] = ans['Weight_final'].item()
 
     return output
 
