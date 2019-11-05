@@ -8,6 +8,7 @@ import numpy as np
 from scipy.interpolate import interp1d
 import scipy.signal
 import sys
+from scipy.sparse import csr_matrix, dok_matrix
 from scipy.sparse.linalg import lsqr
 from scipy.stats import ttest_1samp
 import caiman as cm
@@ -519,26 +520,42 @@ def get_kernel(trace, spiketimes, spikesizes=None, tau=31, superfactor=1, b=Fals
     '''
     th = tau // 2
     t = len(trace)
-    s = np.zeros((superfactor, t + th))
+    # s = np.zeros((superfactor, t + th))
+    # for k in range(superfactor):
+    #     tmp = (spiketimes * superfactor + k) % superfactor == 0
+    #     s[k, (spiketimes[tmp] + k / float(superfactor)).astype(int)
+    #       ] = 1 if spikesizes is None else spikesizes[tmp]
+    # ss = np.zeros((tau * superfactor, t + th))
+    # for i in range(tau):
+    #     ss[i * superfactor:(i + 1) * superfactor, i:] = s[:, :t + th - i]
+    # ssm = ss - ss.mean() if b else ss
+
+    # symm = ssm.dot(ssm.T)
+
+    # if np.linalg.cond(symm) < 1 / sys.float_info.epsilon:
+    #     invm = np.linalg.inv(symm)
+    # else:
+    #     noise = np.random.rand(symm.shape[0], symm.shape[1]) / 10000
+    #     symm += noise
+    #     invm = np.linalg.inv(symm)
+
+    # return invm.dot(ssm.dot(np.hstack([np.zeros(th), trace])))
+
+    indi = []
+    indp = [0]
+    data = []
     for k in range(superfactor):
         tmp = (spiketimes * superfactor + k) % superfactor == 0
-        s[k, (spiketimes[tmp] + k / float(superfactor)).astype(int)
-          ] = 1 if spikesizes is None else spikesizes[tmp]
-    ss = np.zeros((tau * superfactor, t + th))
-    for i in range(tau):
-        ss[i * superfactor:(i + 1) * superfactor, i:] = s[:, :t + th - i]
+        indi.append((spiketimes[tmp] + k / float(superfactor)).astype(int))
+        indp.append(len(indi[-1]))
+        data.append(np.ones(indp[-1]) if spikesizes is None else spikesizes[tmp])
+    csrs = csr_matrix((np.concatenate(data), np.concatenate(indi), np.cumsum(indp)), (superfactor, t + th))
+    ss = csr_matrix((np.concatenate([csrs.data]*31),
+                     np.concatenate(csrs.indices + np.arange(31)[:, None]),
+                     np.concatenate([[0], np.concatenate(csrs.indptr[1:] + len(spiketimes)*np.arange(31)[:, None])])),
+                    (tau * superfactor, t + th))
     ssm = ss - ss.mean() if b else ss
-
-    symm = ssm.dot(ssm.T)
-
-    if np.linalg.cond(symm) < 1 / sys.float_info.epsilon:
-        invm = np.linalg.inv(symm)
-    else:
-        noise = np.random.rand(symm.shape[0], symm.shape[1]) / 10000
-        symm += noise
-        invm = np.linalg.inv(symm)
-
-    return invm.dot(ssm.dot(np.hstack([np.zeros(th), trace])))
+    return lsqr(ssm.T, np.hstack([np.zeros(th), trace]))[0]
 
 
 def get_spikesizes(trace, spiketimes, kernel):
