@@ -7,8 +7,7 @@ import pandas as pd
 import numpy as np
 from scipy.interpolate import interp1d
 import scipy.signal
-import sys
-from scipy.sparse import csr_matrix, dok_matrix
+from scipy.sparse import csr_matrix
 from scipy.sparse.linalg import lsqr
 from scipy.stats import ttest_1samp
 import caiman as cm
@@ -541,18 +540,18 @@ def get_kernel(trace, spiketimes, spikesizes=None, tau=31, superfactor=1, b=Fals
 
     # return invm.dot(ssm.dot(np.hstack([np.zeros(th), trace])))
 
-    indi = []
-    indp = [0]
+    indices = []
+    indptr = []
     data = []
     for k in range(superfactor):
         tmp = (spiketimes * superfactor + k) % superfactor == 0
-        indi.append((spiketimes[tmp] + k / float(superfactor)).astype(int))
-        indp.append(len(indi[-1]))
-        data.append(np.ones(indp[-1]) if spikesizes is None else spikesizes[tmp])
-    csrs = csr_matrix((np.concatenate(data), np.concatenate(indi), np.cumsum(indp)), (superfactor, t + th))
-    ss = csr_matrix((np.concatenate([csrs.data]*31),
-                     np.concatenate(csrs.indices + np.arange(31)[:, None]),
-                     np.concatenate([[0], np.concatenate(csrs.indptr[1:] + len(spiketimes)*np.arange(31)[:, None])])),
+        indices.append((spiketimes[tmp] + k / float(superfactor)).astype(int))
+        indptr.append(len(indices[-1]))
+        data.append(np.ones(indptr[-1]) if spikesizes is None else spikesizes[tmp])
+    ss = csr_matrix((np.concatenate([np.concatenate(data)] * tau),
+                     np.concatenate(np.concatenate(indices) + np.arange(tau)[:, None]),
+                     np.concatenate([[0], np.concatenate(np.cumsum(indptr) + len(spiketimes) *
+                                                         np.arange(tau)[:, None])])),
                     (tau * superfactor, t + th))
     ssm = ss - ss.mean() if b else ss
     return lsqr(ssm.T, np.hstack([np.zeros(th), trace]))[0]
@@ -592,13 +591,21 @@ def get_spikesizes(trace, spiketimes, kernel):
 
             trace_tmp = trace[spike_min:spike_max]
 
-            tmp = np.zeros((binsize, len(trace_tmp) + tau), dtype=np.float32)
+            # tmp = np.zeros((binsize, len(trace_tmp) + tau), dtype=np.float32)
+            # for j, t in enumerate(spiketimes[spike_range] - spike_min):
+            #     tmp[j, t:t + tau] = kernel.astype(np.float32)
+            indices = []
+            data = []
             for j, t in enumerate(spiketimes[spike_range] - spike_min):
-                tmp[j, t:t + tau] = kernel.astype(np.float32)
+                indices.append(np.arange(t, t + tau))
+                data.append(kernel.astype(np.float32))
+            tmp = csr_matrix((np.concatenate(data), np.concatenate(indices),
+                              tau * np.arange(len(spiketimes) + 1)),
+                             (binsize, len(trace_tmp) + tau), dtype=np.float32)
 
             ans[spike_range] = lsqr(tmp.T, np.hstack([trace_pre, trace_tmp, trace_post]))[0]
-
     return ans
+
 
 
 def get_spiketrain(spiketimes, spikesizes, T):
