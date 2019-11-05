@@ -11,6 +11,7 @@ import sys
 from scipy.sparse.linalg import lsqr
 from scipy.stats import ttest_1samp
 import caiman as cm
+import cv2
 
 
 def volspike(pars):
@@ -303,16 +304,26 @@ def volspike(pars):
                                   ('active', np.int)])
 
     # output
-    output['spikeTimes'] = ans['super_spiketime']
-    output['yFilt'] = ans['norm_tcourse2']
-    output['spatialFilter'] = None
+    sigma = 1. # args['sigmas'][1]
+    X = ans['ROI_X'].item()
+    Y = ans['ROI_Y'].item()
+    X -= X.min() + 1
+    Y -= Y.min() + 1
+    output['spatialFilter'] = np.zeros((X.max() + 2, Y.max() + 2))
+    output['spatialFilter'][(X, Y)] = -ans['Weight_final'].item()
+    output['spatialFilter'] = cv2.GaussianBlur(output['spatialFilter'],
+                                               (np.int(2 * np.ceil(2 * sigma) + 1),) * 2,
+                                               sigma, borderType=cv2.BORDER_REPLICATE)
+
+    output['spikeTimes'] = ans['super_spiketime'].item()
+    output['yFilt'] = ans['norm_tcourse2'].item()
     output['cellN'] = cellN
-    output['templates'] = ans['spike_kernel']
-    output['snr'] = ans['SN_final']
-    output['num_spikes'] = ans['super_spiketime'].shape[0]
+    output['templates'] = ans['spike_kernel'].item()
+    output['snr'] = ans['SN_final'].item()
+    output['num_spikes'] = output['spikeTimes'].shape[0]
     output['passedLocalityTest'] = None
     output['low_spk'] = None
-    output['weights'] = ans['Weight_final']
+    output['weights'] = ans['Weight_final'].item()
 
     return output
 
