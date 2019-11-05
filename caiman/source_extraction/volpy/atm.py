@@ -461,14 +461,15 @@ def get_kernel(trace, spiketimes, spikesizes=None, tau=31, superfactor=1, b=Fals
         tmp = (spiketimes * superfactor + k) % superfactor == 0
         indices.append((spiketimes[tmp] + k / float(superfactor)).astype(int))
         indptr.append(len(indices[-1]))
-        data.append(np.ones(indptr[-1]) if spikesizes is None else spikesizes[tmp])
+        data.append(np.ones(indptr[-1], dtype=np.float32) if spikesizes is None
+                    else spikesizes.astype(np.float32)[tmp])
     ss = csr_matrix((np.concatenate([np.concatenate(data)] * tau),
                      np.concatenate(np.concatenate(indices) + np.arange(tau)[:, None]),
                      np.concatenate([[0], np.concatenate(np.cumsum(indptr) + len(spiketimes) *
                                                          np.arange(tau)[:, None])])),
-                    (tau * superfactor, t + th))
+                    (tau * superfactor, t + th), dtype=np.float32)
     ssm = ss - ss.mean() if b else ss
-    return lsqr(ssm.T, np.hstack([np.zeros(th), trace]))[0]
+    return lsqr(ssm.T, np.hstack([np.zeros(th, dtype=np.float32), trace.astype(np.float32)]))[0]
 
 
 def get_spikesizes(trace, spiketimes, kernel):
@@ -488,7 +489,7 @@ def get_spikesizes(trace, spiketimes, kernel):
 
     for i in range(binnum):
         binsize = min(len(spiketimes) - (spikebin * i), spikebin)
-        spike_range = np.arange((spikebin * i), (spikebin * i + binsize)).astype(int)
+        spike_range = np.arange((spikebin * i), (spikebin * i + binsize), dtype=np.int32)
         if binsize > 0:
 
             spike_min = spiketimes[spike_range[0]]
@@ -496,18 +497,15 @@ def get_spikesizes(trace, spiketimes, kernel):
             if spike_min > th:
                 trace_pre = trace[spike_min - th:spike_min]
             else:
-                trace_pre = np.zeros(th)
+                trace_pre = np.zeros(th, dtype=np.float32)
 
             if spike_max < (len(trace) - (tau - th)):
                 trace_post = trace[spike_max:spike_max + tau - th]
             else:
-                trace_post = np.zeros(tau - th)
+                trace_post = np.zeros(tau - th, dtype=np.float32)
 
             trace_tmp = trace[spike_min:spike_max]
 
-            # tmp = np.zeros((binsize, len(trace_tmp) + tau), dtype=np.float32)
-            # for j, t in enumerate(spiketimes[spike_range] - spike_min):
-            #     tmp[j, t:t + tau] = kernel.astype(np.float32)
             indices = []
             data = []
             for j, t in enumerate(spiketimes[spike_range] - spike_min):
