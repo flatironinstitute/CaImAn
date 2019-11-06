@@ -28,8 +28,6 @@ def volspike(pars):
     windowLength = int(sampleRate // 20) # window length for spike templates
     output = {}
 
-    use_NMF = True
-
     Yr, dims, T = cm.load_memmap(fnames)
     if ROI1_image.shape == dims:
         img = np.reshape(Yr.T, [T] + list(dims), order='F')
@@ -121,7 +119,7 @@ def volspike(pars):
         peak_M = tcourse_zeroed[spike_tcourse1 > 0, :]
         noise_M = tcourse_zeroed[noise_inds, :]
 
-        if use_NMF:
+        if args['weight_update'] == 'NMF':
             W = -peak_M.mean(0)
             SN[0] = abs(np.dot(peak_M, W).mean() / np.dot(noise_M, W).std())
             for _ in range(5):
@@ -135,7 +133,7 @@ def volspike(pars):
                 W = np.maximum(-denoised_trace.dot(tcourse_zeroed), 0)  # maybe also sparsify?
                 W /= np.sqrt(W.dot(W))
             Losses = np.array(np.nan)
-        else:
+        elif args['weight_update'] == 'maxSNR':
             peak_dot = np.dot(peak_M, W).mean()
             noise_dot = np.dot(noise_M, W)
             noise_dot1 = noise_dot.mean()
@@ -188,6 +186,8 @@ def volspike(pars):
                     Losses[i + 1, 0] = (L1 / V)
                     Losses[i + 1, 1] = L2_alpha * N
                     Losses[i + 1, 2] = new_L
+        else:
+            raise Exception("parameter weight_update must be 'NMF' or 'maxSNR'")
 
         SN[1] = abs(np.dot(peak_M, W).mean() / np.dot(noise_M, W).std())
 
