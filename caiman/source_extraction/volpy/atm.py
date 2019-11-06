@@ -61,7 +61,8 @@ def volspike(pars):
 
     (sub_thresh1, high_freq1, spiketimes1, spiketrain1, spikesizes1, super_times1,
         super_sizes1, kernel1, upsampled_kernel1, tlimit1, threshold1) = denoise_spikes(
-        norm_tcourse1, sampleRate, windowLength, superfactor=10, threshs=(.35, .5, .6))
+        norm_tcourse1, sampleRate, windowLength, superfactor=args['superfactor'],
+        threshs=(.35, .5, .6))
 
     if isinstance(spiketimes1, int):
         print("%d spikes found" % spiketimes1)
@@ -200,7 +201,8 @@ def volspike(pars):
 
         (sub_thresh2, high_freq2, spiketimes2, spiketrain2, spikesizes2, super_times2,
             super_sizes2, kernel2, upsampled_kernel2, tlimit2, threshold2) = denoise_spikes(
-            norm_tcourse2, sampleRate, windowLength, superfactor=10, threshs=(.35, .5, .6))
+            norm_tcourse2, sampleRate, windowLength, superfactor=args['superfactor'],
+            threshs=(.35, .5, .6))
 
         spike_tcourse2 = np.zeros((len(norm_tcourse2),))
         if isinstance(spiketimes2, int):
@@ -235,12 +237,12 @@ def volspike(pars):
                                                (np.int(2 * np.ceil(2 * sigma) + 1),) * 2,
                                                sigma, borderType=cv2.BORDER_REPLICATE)
     output['passedLocalityTest'] = None
-    output['low_spk'] = None
+    output['low_spk'] = output['num_spikes'] < 30
 
     return output
 
 
-def denoise_spikes(trace, sampleRate, windowLength, superfactor=10, threshs=(.4, .6, .75)):
+def denoise_spikes(trace, sampleRate, windowLength, superfactor, threshs=(.4, .6, .75)):
 
     # Originally written by Johannes Friedrich @ Flatiron Institute
     # Modified by Takashi Kawashima @ HHMI Janelia
@@ -537,7 +539,7 @@ def get_spiketrain(spiketimes, spikesizes, T):
     return s
 
 
-def upsample_kernel(kernel, superfactor=10, interpolation='linear'):
+def upsample_kernel(kernel, superfactor, interpolation='linear'):
 
     # Originally written by Johannes Friedrich @ Flatiron Institute
     # Modified by Takashi Kawashima @ HHMI Janelia
@@ -549,7 +551,7 @@ def upsample_kernel(kernel, superfactor=10, interpolation='linear'):
 
 
 # upsampled_k[grid-delta] is kernel for spike at time t+delta/superfactor instead t
-def superresolve(high_freq, spiketimes, spikesizes, upsampled_k, superfactor=10):
+def superresolve(high_freq, spiketimes, spikesizes, upsampled_k, superfactor):
 
     # Originally written by Johannes Friedrich @ Flatiron Institute
     # Modified by Takashi Kawashima @ HHMI Janelia
