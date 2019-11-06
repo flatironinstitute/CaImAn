@@ -7,10 +7,11 @@ import pandas as pd
 import numpy as np
 from scipy.interpolate import interp1d
 import scipy.signal
-import sys
+from scipy.sparse import csr_matrix
 from scipy.sparse.linalg import lsqr
 from scipy.stats import ttest_1samp
 import caiman as cm
+import cv2
 
 
 def volspike(pars):
@@ -24,9 +25,8 @@ def volspike(pars):
 
     print('Now processing cell number {0}'.format(cellN))
 
+    windowLength = int(sampleRate // 20) # window length for spike templates
     output = {}
-
-    use_NMF = True
 
     Yr, dims, T = cm.load_memmap(fnames)
     if ROI1_image.shape == dims:
@@ -52,20 +52,17 @@ def volspike(pars):
     img_snippet = mean_img[miny:maxy, minx:maxx].copy()
     back = (np.sort(img_snippet.flatten())[0:int(img_snippet.size / 20)]).mean()
 
-    target_widths = np.zeros((10,))
-    for i in range(10):
-        target_widths[i] = 0.5 * (i + 1)
-
     first_timecourse = img[:, cell_inds[0], cell_inds[1]].mean(axis=1) - back
     norm_tcourse1 = first_timecourse / \
         np.array(pd.Series(first_timecourse).rolling(
-            window=150, min_periods=75, center=True).quantile(0.8))
+            window=int(sampleRate//2), min_periods=int(sampleRate//4), center=True).quantile(0.8))
 
     norm_tcourse1 = 2 - norm_tcourse1  # flip
 
     (sub_thresh1, high_freq1, spiketimes1, spiketrain1, spikesizes1, super_times1,
         super_sizes1, kernel1, upsampled_kernel1, tlimit1, threshold1) = denoise_spikes(
-        norm_tcourse1, superfactor=10, threshs=(.35, .5, .6))
+        norm_tcourse1, sampleRate, windowLength, superfactor=args['superfactor'],
+        threshs=(.35, .5, .6))
 
     if isinstance(spiketimes1, int):
         print("%d spikes found" % spiketimes1)
@@ -95,42 +92,16 @@ def volspike(pars):
 
     if (isinstance(spiketimes1, int) or (not_optimize == 1)):
 
+        not_active = 1
         print('not active cell')
-
-        ans = np.array([(first_timecourse, np.array(first_timecourse.shape),
-                         norm_tcourse1, np.zeros(norm_tcourse1.shape),
-                         spike_tcourse1, np.zeros(spike_tcourse1.shape),
-                         tlimit1, 0, threshold1, 0, spiketimes1, super_times1,
-                         kernel1, ROI_candidates[0], ROI_candidates[1],
-                         weight_init, np.zeros(weight_init.shape), np.zeros((21, 3)), 0., 0., 0)],
-                       dtype=[('raw_tcourse1', np.ndarray),
-                              ('raw_tcourse2', np.ndarray),
-                              ('norm_tcourse1', np.ndarray),
-                              ('norm_tcourse2', np.ndarray),
-                              ('spike_tcourse1', np.ndarray),
-                              ('spike_tcourse2', np.ndarray),
-                              ('tlimit1', np.int),
-                              ('tlimit2', np.int),
-                              ('threshold1', np.int),
-                              ('threshold2', np.int),
-                              ('spiketime', np.ndarray),
-                              ('super_spiketime', np.ndarray),
-                              ('spike_kernel', np.ndarray),
-                              ('ROI_Y', np.ndarray),
-                              ('ROI_X', np.ndarray),
-                              ('Weight_init', np.ndarray),
-                              ('Weight_final', np.ndarray),
-                              ('Learning_curve', np.ndarray),
-                              ('SN_initial', np.float),
-                              ('SN_final', np.float),
-                              ('active', np.int)])
 
     else:
         print('optimizing ROI')
 
         tcourse_raw = img[:, ROI_candidates[0], ROI_candidates[1]].astype('float64')
 
-        kernel = np.ones((51,)) / 51
+        w_kernel = int(sampleRate // 6 + 1)
+        kernel = np.ones((w_kernel,)) / w_kernel
         divider = np.convolve(np.ones((tcourse_raw.shape[0],)), kernel, mode='same')
         tcourse_detrend = np.zeros(tcourse_raw.shape)
         for i in range(npix):
@@ -149,13 +120,13 @@ def volspike(pars):
         peak_M = tcourse_zeroed[spike_tcourse1 > 0, :]
         noise_M = tcourse_zeroed[noise_inds, :]
 
-        if use_NMF:
+        if args['weight_update'] == 'NMF':
             W = -peak_M.mean(0)
             SN[0] = abs(np.dot(peak_M, W).mean() / np.dot(noise_M, W).std())
             for _ in range(5):
                 # update trace
                 noisy_trace = -tcourse_zeroed.dot(W)
-                spikeshape = get_kernel(noisy_trace, spiketimes1)
+                spikeshape = get_kernel(noisy_trace, spiketimes1, windowLength)
                 spikesizes = get_spikesizes(noisy_trace, spiketimes1, spikeshape)
                 spiketrain = get_spiketrain(spiketimes1, spikesizes, len(noisy_trace))
                 denoised_trace = np.convolve(spiketrain, spikeshape, 'same')
@@ -163,7 +134,7 @@ def volspike(pars):
                 W = np.maximum(-denoised_trace.dot(tcourse_zeroed), 0)  # maybe also sparsify?
                 W /= np.sqrt(W.dot(W))
             Losses = np.array(np.nan)
-        else:
+        elif args['weight_update'] == 'maxSNR':
             peak_dot = np.dot(peak_M, W).mean()
             noise_dot = np.dot(noise_M, W)
             noise_dot1 = noise_dot.mean()
@@ -216,19 +187,22 @@ def volspike(pars):
                     Losses[i + 1, 0] = (L1 / V)
                     Losses[i + 1, 1] = L2_alpha * N
                     Losses[i + 1, 2] = new_L
+        else:
+            raise Exception("parameter weight_update must be 'NMF' or 'maxSNR'")
 
         SN[1] = abs(np.dot(peak_M, W).mean() / np.dot(noise_M, W).std())
 
         second_timecourse = np.dot(tcourse_raw, W) / (W.sum()) - back
         norm_tcourse2 = second_timecourse / \
             np.array(pd.Series(second_timecourse).rolling(
-                window=150, min_periods=75, center=True).quantile(0.8))
+                window=int(sampleRate//2), min_periods=int(sampleRate//4), center=True).quantile(0.8))
 
         norm_tcourse2 = 2 - norm_tcourse2
 
         (sub_thresh2, high_freq2, spiketimes2, spiketrain2, spikesizes2, super_times2,
             super_sizes2, kernel2, upsampled_kernel2, tlimit2, threshold2) = denoise_spikes(
-            norm_tcourse2, superfactor=10, threshs=(.35, .5, .6))
+            norm_tcourse2, sampleRate, windowLength, superfactor=args['superfactor'],
+            threshs=(.35, .5, .6))
 
         spike_tcourse2 = np.zeros((len(norm_tcourse2),))
         if isinstance(spiketimes2, int):
@@ -245,79 +219,30 @@ def volspike(pars):
                 not_active = 1
             print("%d spikes found" % len(spiketimes2))
 
-        if (not_active == 1):
-            ans = np.array([(first_timecourse, np.array(first_timecourse.shape),
-                             norm_tcourse1, np.zeros(norm_tcourse1.shape),
-                             spike_tcourse1, np.zeros(spike_tcourse1.shape),
-                             tlimit1, 0, threshold1, 0, spiketimes1, super_times1,
-                             kernel1, ROI_candidates[0], ROI_candidates[1],
-                             weight_init, np.zeros(weight_init.shape), np.zeros((21, 3)), 0., 0., 0)],
-                           dtype=[('raw_tcourse1', np.ndarray),
-                                  ('raw_tcourse2', np.ndarray),
-                                  ('norm_tcourse1', np.ndarray),
-                                  ('norm_tcourse2', np.ndarray),
-                                  ('spike_tcourse1', np.ndarray),
-                                  ('spike_tcourse2', np.ndarray),
-                                  ('tlimit1', np.int),
-                                  ('tlimit2', np.int),
-                                  ('threshold1', np.int),
-                                  ('threshold2', np.int),
-                                  ('spiketime', np.ndarray),
-                                  ('super_spiketime', np.ndarray),
-                                  ('spike_kernel', np.ndarray),
-                                  ('ROI_Y', np.ndarray),
-                                  ('ROI_X', np.ndarray),
-                                  ('Weight_init', np.ndarray),
-                                  ('Weight_final', np.ndarray),
-                                  ('Learning_curve', np.ndarray),
-                                  ('SN_initial', np.float),
-                                  ('SN_final', np.float),
-                                  ('active', np.int)])
-
-        else:
-            ans = np.array([(first_timecourse, second_timecourse, norm_tcourse1,
-                             norm_tcourse2, spike_tcourse1, spike_tcourse2,
-                             tlimit1, tlimit2, threshold1, threshold2, spiketimes2, super_times2,
-                             kernel2, ROI_candidates[0], ROI_candidates[1],
-                             weight_init, W, Losses, SN[0], SN[1], 1)],
-                           dtype=[('raw_tcourse1', np.ndarray),
-                                  ('raw_tcourse2', np.ndarray),
-                                  ('norm_tcourse1', np.ndarray),
-                                  ('norm_tcourse2', np.ndarray),
-                                  ('spike_tcourse1', np.ndarray),
-                                  ('spike_tcourse2', np.ndarray),
-                                  ('tlimit1', np.int),
-                                  ('tlimit2', np.int),
-                                  ('threshold1', np.int),
-                                  ('threshold2', np.int),
-                                  ('spiketime', np.ndarray),
-                                  ('super_spiketime', np.ndarray),
-                                  ('spike_kernel', np.ndarray),
-                                  ('ROI_Y', np.ndarray),
-                                  ('ROI_X', np.ndarray),
-                                  ('Weight_init', np.ndarray),
-                                  ('Weight_final', np.ndarray),
-                                  ('Learning_curve', np.ndarray),
-                                  ('SN_initial', np.float),
-                                  ('SN_final', np.float),
-                                  ('active', np.int)])
-
     # output
-    output['spikeTimes'] = ans['super_spiketime']
-    output['yFilt'] = ans['norm_tcourse2']
-    output['spatialFilter'] = None
     output['cellN'] = cellN
-    output['templates'] = ans['spike_kernel']
-    output['snr'] = ans['SN_final']
-    output['num_spikes'] = ans['super_spiketime'].shape[0]
+    output['spikeTimes'] = super_times1 if not_active else super_times2
+    output['num_spikes'] = output['spikeTimes'].shape[0]
+    output['yFilt'] = np.zeros(norm_tcourse1.shape) if not_active else norm_tcourse2
+    output['templates'] = kernel1 if not_active else kernel2
+    output['snr'] = 0. if not_active else SN[1]
+    output['weights'] = np.zeros(weight_init.shape) if not_active else W
+    sigma = 1. # args['sigmas'][1]
+    X, Y = ROI_candidates
+    X -= X.min() + 1
+    Y -= Y.min() + 1
+    output['spatialFilter'] = np.zeros((X.max() + 2, Y.max() + 2))
+    output['spatialFilter'][(X, Y)] = -output['weights']
+    output['spatialFilter'] = cv2.GaussianBlur(output['spatialFilter'],
+                                               (np.int(2 * np.ceil(2 * sigma) + 1),) * 2,
+                                               sigma, borderType=cv2.BORDER_REPLICATE)
     output['passedLocalityTest'] = None
-    output['low_spk'] = None
-    output['weights'] = ans['Weight_final']
+    output['low_spk'] = output['num_spikes'] < 30
 
     return output
 
 
-def denoise_spikes(trace, superfactor=10, threshs=(.4, .6, .75)):
+def denoise_spikes(trace, sampleRate, windowLength, superfactor, threshs=(.4, .6, .75)):
 
     # Originally written by Johannes Friedrich @ Flatiron Institute
     # Modified by Takashi Kawashima @ HHMI Janelia
@@ -330,18 +255,18 @@ def denoise_spikes(trace, superfactor=10, threshs=(.4, .6, .75)):
     for iters in range(3):
         sub_thresh1 = trace if iters == 0 else trace - \
             np.convolve(spiketrain, kernel, 'same')  # subtract spikes
-        sub_thresh2 = butter_filter(sub_thresh1, 'low')  # filter subthreshold part
+        sub_thresh2 = butter_filter(sub_thresh1, 'low', fs=sampleRate)  # filter subthreshold part
         high_freq = trace - sub_thresh2  # high frequency part: spikes and noise
 
         high_freq_med = np.array(pd.Series(high_freq).rolling(
-            window=9000, min_periods=4500, center=True).median())
+            window=30*sampleRate, min_periods=15*sampleRate, center=True).median())
         high_freq_std = np.array(pd.Series(high_freq).rolling(
-            window=9000, min_periods=4500, center=True).std())
+            window=30*sampleRate, min_periods=15*sampleRate, center=True).std())
 
         trace_med = np.array(pd.Series(sub_thresh1).rolling(
-            window=9000, min_periods=4500, center=True).median())
+            window=30*sampleRate, min_periods=15*sampleRate, center=True).median())
         trace_std = np.array(pd.Series(sub_thresh1).rolling(
-            window=9000, min_periods=4500, center=True).std())
+            window=30*sampleRate, min_periods=15*sampleRate, center=True).std())
 
         if iters == 0:
 
@@ -437,7 +362,7 @@ def denoise_spikes(trace, superfactor=10, threshs=(.4, .6, .75)):
         if spiketimes.size == 0:
             break
 
-        kernel = get_kernel(high_freq, spiketimes)
+        kernel = get_kernel(high_freq, spiketimes, windowLength)
 
         # lower threshold, now picking up spikes not merely based on threshold but spike shape
 
@@ -499,35 +424,62 @@ def get_spiketimes(trace1, thresh1, trace2, thresh2, tlimit):
     return times
 
 
-def get_kernel(trace, spiketimes, spikesizes=None, tau=31, superfactor=1, b=False):
+def get_kernel(trace, spiketimes, windowLength, spikesizes=None, superfactor=1, b=False):
 
     # Originally written by Johannes Friedrich @ Flatiron Institute
     # Modified by Takashi Kawashima @ HHMI Janelia
     '''determine kernel via regression
     resolution of spike times must be some integer divided by superfactor
     '''
-    th = tau // 2
+    tau = windowLength * 2 + 1
     t = len(trace)
-    s = np.zeros((superfactor, t + th))
+
+    # s = np.zeros((superfactor, t + windowLength))
+    # for k in range(superfactor):
+    #     tmp = (spiketimes * superfactor + k) % superfactor == 0
+    #     s[k, (spiketimes[tmp] + k / float(superfactor)).astype(int)
+    #       ] = 1 if spikesizes is None else spikesizes[tmp]
+    # ss = np.zeros((tau * superfactor, t + windowLength))
+    # for i in range(tau):
+    #     ss[i * superfactor:(i + 1) * superfactor, i:] = s[:, :t + windowLength - i]
+    # ssm = ss - ss.mean() if b else ss
+
+    # symm = ssm.dot(ssm.T)
+
+    # if np.linalg.cond(symm) < 1 / np.finfo(float).eps:
+    #     invm = np.linalg.inv(symm)
+    # else:
+    #     import pdb;pdb.set_trace()
+    #     noise = np.random.rand(symm.shape[0], symm.shape[1]) / 10000
+    #     symm += noise
+    #     invm = np.linalg.inv(symm)
+
+    # return invm.dot(ssm.dot(np.hstack([np.zeros(windowLength), trace])))
+
+    indices = []
+    indptr = []
+    data = []
     for k in range(superfactor):
         tmp = (spiketimes * superfactor + k) % superfactor == 0
-        s[k, (spiketimes[tmp] + k / float(superfactor)).astype(int)
-          ] = 1 if spikesizes is None else spikesizes[tmp]
-    ss = np.zeros((tau * superfactor, t + th))
-    for i in range(tau):
-        ss[i * superfactor:(i + 1) * superfactor, i:] = s[:, :t + th - i]
+        indices.append((spiketimes[tmp] + k / float(superfactor)).astype(int))
+        indptr.append(len(indices[-1]))
+        data.append(np.ones(indptr[-1], dtype=np.float32) if spikesizes is None
+                    else spikesizes.astype(np.float32)[tmp])
+    tau4lastspike = t + windowLength - indices[-1][-1]
+    data = np.concatenate([np.concatenate(data)] * tau)
+    indices = np.concatenate(np.concatenate(indices) + np.arange(tau)[:, None])
+    indptr = np.concatenate([[0], np.concatenate(
+        np.cumsum(indptr) + len(spiketimes) * np.arange(tau)[:, None])])
+    if tau4lastspike < tau:
+        index = np.where(indices >= t + windowLength)[0]
+        data = np.delete(data, index)
+        indices = np.delete(indices, index)
+        indptr[tau4lastspike:] -= np.arange(len(indptr[tau4lastspike:]))
+    ss = csr_matrix((data, indices, indptr), (tau * superfactor,
+                                              t + windowLength), dtype=np.float32)
     ssm = ss - ss.mean() if b else ss
-
-    symm = ssm.dot(ssm.T)
-
-    if np.linalg.cond(symm) < 1 / sys.float_info.epsilon:
-        invm = np.linalg.inv(symm)
-    else:
-        noise = np.random.rand(symm.shape[0], symm.shape[1]) / 10000
-        symm += noise
-        invm = np.linalg.inv(symm)
-
-    return invm.dot(ssm.dot(np.hstack([np.zeros(th), trace])))
+    return lsqr(ssm.T, np.hstack([np.zeros(windowLength, dtype=np.float32),
+                                  trace.astype(np.float32)]))[0]
 
 
 def get_spikesizes(trace, spiketimes, kernel):
@@ -547,7 +499,7 @@ def get_spikesizes(trace, spiketimes, kernel):
 
     for i in range(binnum):
         binsize = min(len(spiketimes) - (spikebin * i), spikebin)
-        spike_range = np.arange((spikebin * i), (spikebin * i + binsize)).astype(int)
+        spike_range = np.arange((spikebin * i), (spikebin * i + binsize), dtype=np.int32)
         if binsize > 0:
 
             spike_min = spiketimes[spike_range[0]]
@@ -555,21 +507,25 @@ def get_spikesizes(trace, spiketimes, kernel):
             if spike_min > th:
                 trace_pre = trace[spike_min - th:spike_min]
             else:
-                trace_pre = np.zeros(th)
+                trace_pre = np.zeros(th, dtype=np.float32)
 
             if spike_max < (len(trace) - (tau - th)):
                 trace_post = trace[spike_max:spike_max + tau - th]
             else:
-                trace_post = np.zeros(tau - th)
+                trace_post = np.zeros(tau - th, dtype=np.float32)
 
             trace_tmp = trace[spike_min:spike_max]
 
-            tmp = np.zeros((binsize, len(trace_tmp) + tau), dtype=np.float32)
+            indices = []
+            data = []
             for j, t in enumerate(spiketimes[spike_range] - spike_min):
-                tmp[j, t:t + tau] = kernel.astype(np.float32)
+                indices.append(np.arange(t, t + tau))
+                data.append(kernel.astype(np.float32))
+            tmp = csr_matrix((np.concatenate(data), np.concatenate(indices),
+                              tau * np.arange(len(spiketimes[spike_range]) + 1)),
+                             (binsize, len(trace_tmp) + tau), dtype=np.float32)
 
             ans[spike_range] = lsqr(tmp.T, np.hstack([trace_pre, trace_tmp, trace_post]))[0]
-
     return ans
 
 
@@ -583,7 +539,7 @@ def get_spiketrain(spiketimes, spikesizes, T):
     return s
 
 
-def upsample_kernel(kernel, superfactor=10, interpolation='linear'):
+def upsample_kernel(kernel, superfactor, interpolation='linear'):
 
     # Originally written by Johannes Friedrich @ Flatiron Institute
     # Modified by Takashi Kawashima @ HHMI Janelia
@@ -595,7 +551,7 @@ def upsample_kernel(kernel, superfactor=10, interpolation='linear'):
 
 
 # upsampled_k[grid-delta] is kernel for spike at time t+delta/superfactor instead t
-def superresolve(high_freq, spiketimes, spikesizes, upsampled_k, superfactor=10):
+def superresolve(high_freq, spiketimes, spikesizes, upsampled_k, superfactor):
 
     # Originally written by Johannes Friedrich @ Flatiron Institute
     # Modified by Takashi Kawashima @ HHMI Janelia
