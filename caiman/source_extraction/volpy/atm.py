@@ -434,52 +434,51 @@ def get_kernel(trace, spiketimes, windowLength, spikesizes=None, superfactor=1, 
     tau = windowLength * 2 + 1
     t = len(trace)
 
-    # s = np.zeros((superfactor, t + windowLength))
-    # for k in range(superfactor):
-    #     tmp = (spiketimes * superfactor + k) % superfactor == 0
-    #     s[k, (spiketimes[tmp] + k / float(superfactor)).astype(int)
-    #       ] = 1 if spikesizes is None else spikesizes[tmp]
-    # ss = np.zeros((tau * superfactor, t + windowLength))
-    # for i in range(tau):
-    #     ss[i * superfactor:(i + 1) * superfactor, i:] = s[:, :t + windowLength - i]
-    # ssm = ss - ss.mean() if b else ss
+    if spiketimes[-1] + tau > t + windowLength:
+        s = np.zeros((superfactor, t + windowLength))
+        for k in range(superfactor):
+            tmp = (spiketimes * superfactor + k) % superfactor == 0
+            s[k, (spiketimes[tmp] + k / float(superfactor)).astype(int)
+              ] = 1 if spikesizes is None else spikesizes[tmp]
+        ss = np.zeros((tau * superfactor, t + windowLength))
+        for i in range(tau):
+            ss[i * superfactor:(i + 1) * superfactor, i:] = s[:, :t + windowLength - i]
+        ssm = ss - ss.mean() if b else ss
 
-    # symm = ssm.dot(ssm.T)
+        symm = ssm.dot(ssm.T)
+        if np.linalg.cond(symm) < 1 / np.finfo(float).eps:
+            invm = np.linalg.inv(symm)
+        else:
+            noise = np.random.rand(symm.shape[0], symm.shape[1]) / 10000
+            symm += noise
+            invm = np.linalg.inv(symm)
+        return invm.dot(ssm.dot(np.hstack([np.zeros(windowLength), trace])))
 
-    # if np.linalg.cond(symm) < 1 / np.finfo(float).eps:
-    #     invm = np.linalg.inv(symm)
-    # else:
-    #     import pdb;pdb.set_trace()
-    #     noise = np.random.rand(symm.shape[0], symm.shape[1]) / 10000
-    #     symm += noise
-    #     invm = np.linalg.inv(symm)
-
-    # return invm.dot(ssm.dot(np.hstack([np.zeros(windowLength), trace])))
-
-    indices = []
-    indptr = []
-    data = []
-    for k in range(superfactor):
-        tmp = (spiketimes * superfactor + k) % superfactor == 0
-        indices.append((spiketimes[tmp] + k / float(superfactor)).astype(int))
-        indptr.append(len(indices[-1]))
-        data.append(np.ones(indptr[-1], dtype=np.float32) if spikesizes is None
-                    else spikesizes.astype(np.float32)[tmp])
-    tau4lastspike = t + windowLength - indices[-1][-1]
-    data = np.concatenate([np.concatenate(data)] * tau)
-    indices = np.concatenate(np.concatenate(indices) + np.arange(tau)[:, None])
-    indptr = np.concatenate([[0], np.concatenate(
-        np.cumsum(indptr) + len(spiketimes) * np.arange(tau)[:, None])])
-    if tau4lastspike < tau:
-        index = np.where(indices >= t + windowLength)[0]
-        data = np.delete(data, index)
-        indices = np.delete(indices, index)
-        indptr[tau4lastspike:] -= np.arange(len(indptr[tau4lastspike:]))
-    ss = csr_matrix((data, indices, indptr), (tau * superfactor,
-                                              t + windowLength), dtype=np.float32)
-    ssm = ss - ss.mean() if b else ss
-    return lsqr(ssm.T, np.hstack([np.zeros(windowLength, dtype=np.float32),
-                                  trace.astype(np.float32)]))[0]
+    else:
+        indices = []
+        indptr = []
+        data = []
+        for k in range(superfactor):
+            tmp = (spiketimes * superfactor + k) % superfactor == 0
+            indices.append((spiketimes[tmp] + k / float(superfactor)).astype(int))
+            indptr.append(len(indices[-1]))
+            data.append(np.ones(indptr[-1], dtype=np.float32) if spikesizes is None
+                        else spikesizes.astype(np.float32)[tmp])
+        data = np.concatenate([np.concatenate(data)] * tau)
+        indices = np.concatenate(np.concatenate(indices) + np.arange(tau)[:, None])
+        indptr = np.concatenate([[0], np.concatenate(
+            np.cumsum(indptr) + len(spiketimes) * np.arange(tau)[:, None])])
+        # tau4lastspike = t + windowLength - spiketimes[-1]
+        # if tau4lastspike < tau:
+        #     index = np.where(indices >= t + windowLength)[0]
+        #     data = np.delete(data, index)
+        #     indices = np.delete(indices, index)
+        #     indptr[tau4lastspike:] -= np.arange(len(indptr[tau4lastspike:]))
+        ss = csr_matrix((data, indices, indptr), (tau * superfactor,
+                                                  t + windowLength), dtype=np.float32)
+        ssm = ss - ss.mean() if b else ss
+        return lsqr(ssm.T, np.hstack([np.zeros(windowLength, dtype=np.float32),
+                                      trace.astype(np.float32)]))[0]
 
 
 def get_spikesizes(trace, spiketimes, kernel):
