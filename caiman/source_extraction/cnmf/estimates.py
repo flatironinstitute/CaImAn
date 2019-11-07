@@ -590,12 +590,15 @@ class Estimates(object):
         dims = imgs.shape[1:]
         if 'movie' not in str(type(imgs)):
             imgs = caiman.movie(imgs[frame_range])
+        else:
+            imgs = imgs[frame_range]
+
         if use_color:
             cols_c = np.random.rand(self.C.shape[0], 1, 3)*gain_color
             Cs = np.expand_dims(self.C[:, frame_range], -1)*cols_c
             #AC = np.tensordot(np.hstack((self.A.toarray(), self.b)), Cs, axes=(1, 0))
             Y_rec_color = np.tensordot(self.A.toarray(), Cs, axes=(1, 0))
-            Y_rec_color = Y_rec_color.reshape((dims) + (-1, 3)).transpose(2, 1, 0, 3)
+            Y_rec_color = Y_rec_color.reshape((dims) + (-1, 3), order='F').transpose(2, 0, 1, 3)
 
         AC = self.A.dot(self.C[:, frame_range])
         Y_rec = AC.reshape(dims + (-1,), order='F')
