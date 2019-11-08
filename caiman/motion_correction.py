@@ -1647,7 +1647,7 @@ def register_translation(src_image, target_image, upsample_factor=1,
             target_image_cpx = np.array(
                 target_image, dtype=np.complex128, copy=False)
             src_freq = np.fft.fftn(src_image_cpx)
-            target_freq = fftn(target_image_cpx)
+            target_freq = np.fft.fftn(target_image_cpx)
 
     else:
         raise ValueError("Error: register_translation only knows the \"real\" "
@@ -2177,23 +2177,13 @@ def tile_and_correct(img, template, strides, overlaps, max_shifts, newoverlaps=N
         total_diffs_phase = [
             dfs for dfs in diffs_phase_grid_us.reshape(num_tiles)]
 
-        if shifts_opencv:
-            if gSig_filt is not None:
-                img = img_orig
-                imgs = [
-                    it[-1] for it in sliding_window(img, overlaps=newoverlaps, strides=newstrides)]
+        if gSig_filt is not None:
+            raise Exception(
+                'The use of FFT and filtering options have not been tested. Set opencv=True')
 
-            imgs = [apply_shift_iteration(im, sh, border_nan=border_nan)
-                    for im, sh in zip(imgs, total_shifts)]
-
-        else:
-            if gSig_filt is not None:
-                raise Exception(
-                    'The use of FFT and filtering options have not been tested. Set opencv=True')
-
-            imgs = [apply_shifts_dft(im, (
-                sh[0], sh[1]), dffphs, is_freq=False, border_nan=border_nan) for im, sh, dffphs in zip(
-                imgs, total_shifts, total_diffs_phase)]
+        imgs = [apply_shifts_dft(im, (
+            sh[0], sh[1]), dffphs, is_freq=False, border_nan=border_nan) for im, sh, dffphs in zip(
+            imgs, total_shifts, total_diffs_phase)]
 
         normalizer = np.zeros_like(img) * np.nan
         new_img = np.zeros_like(img) * np.nan
@@ -2435,23 +2425,13 @@ def tile_and_correct_3d(img, template, strides, overlaps, max_shifts, newoverlap
         total_diffs_phase = [
             dfs for dfs in diffs_phase_grid_us.reshape(num_tiles)]
 
-        if shifts_opencv:
-            if gSig_filt is not None:
-                img = img_orig
-                imgs = [
-                    it[-1] for it in sliding_window_3d(img, overlaps=newoverlaps, strides=newstrides)]
+        if gSig_filt is not None:
+            raise Exception(
+                'The use of FFT and filtering options have not been tested. Set opencv=True')
 
-            imgs = [apply_shift_iteration(im, sh, border_nan=border_nan)
-                    for im, sh in zip(imgs, total_shifts)]
-
-        else:
-            if gSig_filt is not None:
-                raise Exception(
-                    'The use of FFT and filtering options have not been tested. Set opencv=True')
-
-            imgs = [apply_shifts_dft(im, (
-                sh[0], sh[1], sh[2]), dffphs, is_freq=False, border_nan=border_nan) for im, sh, dffphs in zip(
-                imgs, total_shifts, total_diffs_phase)]
+        imgs = [apply_shifts_dft(im, (
+            sh[0], sh[1], sh[2]), dffphs, is_freq=False, border_nan=border_nan) for im, sh, dffphs in zip(
+            imgs, total_shifts, total_diffs_phase)]
 
         normalizer = np.zeros_like(img) * np.nan
         new_img = np.zeros_like(img) * np.nan
