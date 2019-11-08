@@ -578,6 +578,9 @@ class CNMFParams(object):
 
             use_cuda: bool, default: False
                 flag for using a GPU.
+
+            indices: tuple(slice), default: (slice(None), slice(None))
+               Use that to apply motion correction only on a part of the FOV
         """
 
         self.data = {
@@ -800,7 +803,8 @@ class CNMFParams(object):
             'splits_rig': 14,                   # number of splits across time for rigid registration
             'strides': (96, 96),                # how often to start a new patch in pw-rigid registration
             'upsample_factor_grid': 4,          # motion field upsampling factor during FFT shifts
-            'use_cuda': False                   # flag for using a GPU
+            'use_cuda': False,                  # flag for using a GPU
+            'indices': (slice(None), slice(None))  # part of FOV to be corrected
         }
 
         self.change_params(params_dict)
