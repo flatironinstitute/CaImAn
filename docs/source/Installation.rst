@@ -38,6 +38,7 @@ Package-based Process
 .. code:: bash
 
     conda create -n caiman  # caiman here refers to the name of the environment (you can pick any name you want)
+    conda activate caiman
     conda install caiman -c conda-forge
 
 -  Skip ahead to the section on setting up a data directory with caimanmanager
