@@ -22,7 +22,7 @@ pipeline {
             HOME = pwd(tmp:true)
           }
           steps {
-            sh 'chmod 993:989 /opt/conda/pkgs/urls.txt'
+            sh 'chown 993:989 /opt/conda/pkgs/urls.txt'
             sh 'conda clean --index-cache'
             sh 'conda env create -q -f environment.yml -p $CONDA_ENV'
             sh '''#!/bin/bash -ex
