@@ -2656,7 +2656,7 @@ def motion_correct_batch_rigid(fname, max_shifts, dview=None, splits=56, num_spl
 
     """
     corrected_slicer = slice(subidx.start, subidx.stop, subidx.step * 10)
-    corrected_slicer = (corrected_slicer,) + indices
+    #corrected_slicer = (corrected_slicer,) + indices
     #m = cm.load(fname, var_name_hdf5=var_name_hdf5, subindices=corrected_slicer)
     dims, T = cm.source_extraction.cnmf.utilities.get_file_size(fname, var_name_hdf5=var_name_hdf5)
     Ts = T // (subidx.step * 10)
@@ -2668,14 +2668,19 @@ def motion_correct_batch_rigid(fname, max_shifts, dview=None, splits=56, num_spl
     else:
         corrected_slicer = slice(subidx.start, subidx.stop, subidx.step * 30)
         m = cm.load(fname, var_name_hdf5=var_name_hdf5, subindices=corrected_slicer)
-    
+
     if len(m.shape) < 3:
         m = cm.load(fname, var_name_hdf5=var_name_hdf5)
         m = m[corrected_slicer]
         logging.warning("Your original file was saved as a single page " +
                         "file. Consider saving it in multiple smaller files" +
                         "with size smaller than 4GB (if it is a .tif file)")
-    #m = m[:, indices]
+
+    if is3D:
+        m = m[:, indices[0], indices[1], indices[2]]
+    else:
+        m = m[:, indices[0], indices[1]]
+
     if template is None:
         if gSig_filt is not None:
             m = cm.movie(

@@ -1444,7 +1444,8 @@ def load(file_name: Union[str, List[str]],
                     logging.warning('Your tif file is saved a single page' + 'file. Performance will be affected')
                     multi_page = False
                 if subindices is not None:
-                    if type(subindices) is list:
+                    #if isinstance(subindices, (list, tuple)): # is list or tuple:
+                    if isinstance(subindices, list):  # is list or tuple:
                         if multi_page:
                             input_arr = tffl.asarray(key=subindices[0])[:, subindices[1], subindices[2]]
                         else:
