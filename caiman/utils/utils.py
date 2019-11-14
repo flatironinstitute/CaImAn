@@ -435,7 +435,7 @@ def recursively_save_dict_contents_to_group(h5file:h5py.File, path:str, dic:Dict
         # save strings, numpy.int64, numpy.int32, and numpy.float64 types
         if isinstance(item, (np.int64, np.int32, np.float64, str, np.float, float, np.float32,int)):
             h5file[path + key] = item
-            if not h5file[path + key].value == item:
+            if not h5file[path + key][()] == item:
                 raise ValueError('The data representation in the HDF5 file does not match the original dict.')
         # save numpy arrays
         elif isinstance(item, np.ndarray):
@@ -444,7 +444,7 @@ def recursively_save_dict_contents_to_group(h5file:h5py.File, path:str, dic:Dict
             except:
                 item = np.array(item).astype('|S32')
                 h5file[path + key] = item
-            if not np.array_equal(h5file[path + key].value, item):
+            if not np.array_equal(h5file[path + key][()], item):
                 raise ValueError('The data representation in the HDF5 file does not match the original dict.')
         # save dictionaries
         elif isinstance(item, dict):
@@ -482,22 +482,22 @@ def recursively_load_dict_contents_from_group(h5file:h5py.File, path:str) -> Dic
 
         if isinstance(item, h5py._hl.dataset.Dataset):
             val_set = np.nan
-            if isinstance(item.value, str):
-                if item.value == 'NoneType':
+            if isinstance(item[()], str):
+                if item[()] == 'NoneType':
                     ans[key] = None
                 else:
-                    ans[key] = item.value
+                    ans[key] = item[()]
             elif key in ['dims', 'medw', 'sigma_smooth_snmf', 'dxy', 'max_shifts', 'strides', 'overlaps']:
 
-                if type(item.value) == np.ndarray:
-                    ans[key] = tuple(item.value)
+                if type(item[()]) == np.ndarray:
+                    ans[key] = tuple(item[()])
                 else:
-                    ans[key] = item.value
+                    ans[key] = item[()]
             else:
-                if type(item.value) == np.bool_:
-                    ans[key] = bool(item.value)
+                if type(item[()]) == np.bool_:
+                    ans[key] = bool(item[()])
                 else:
-                    ans[key] = item.value
+                    ans[key] = item[()]
 
         elif isinstance(item, h5py._hl.group.Group):
             if key == 'A':
