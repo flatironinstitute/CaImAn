@@ -12,7 +12,7 @@ import os
 import numpy as np
 try:
     os.environ["KERAS_BACKEND"] = "tensorflow"
-    from keras.models import model_from_json
+    from tensorflow.keras.models import model_from_json
     use_keras = True
 except(ModuleNotFoundError):
     import tensorflow as tf
