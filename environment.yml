@@ -26,7 +26,7 @@ dependencies:
 - scikit-learn
 - scipy
 - tensorflow
-- tifffile
+- tifffile=0.15.1
 - tk=8.6.8
 - tqdm
 - yapf
