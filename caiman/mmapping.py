@@ -443,7 +443,7 @@ def save_memmap(filenames: List[str],
             if is_3D:
                 Yr = f if not (isinstance(f, basestring)) else tifffile.imread(f)
                 if slices is not None:
-                    Yr = Yr[slices]
+                    Yr = Yr[tuple(slices)]
                 else:
                     if idx_xy is None:         #todo remove if not used, superceded by the slices parameter
                         Yr = Yr[remove_init:]
@@ -461,7 +461,7 @@ def save_memmap(filenames: List[str],
                     Yr = Yr.apply_shifts(xy_shifts, interpolation='cubic', remove_blanks=False)
 
                 if slices is not None:
-                    Yr = Yr[slices]
+                    Yr = Yr[tuple(slices)]
                 else:
                     if idx_xy is None:
                         if remove_init > 0:
