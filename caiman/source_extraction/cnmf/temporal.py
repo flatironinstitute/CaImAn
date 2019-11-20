@@ -196,7 +196,7 @@ def update_temporal_components(Y, A, b, Cin, fin, bl=None, c1=None, g=None, sn=N
     S = np.zeros(np.shape(Cin))
     Cin = np.vstack((Cin, fin))
     C = Cin.copy()
-    nA = np.ravel(A.power(2).sum(axis=0))
+    nA = np.ravel(A.power(2).sum(axis=0)) + np.finfo(np.float32).eps
 
     logging.info('Generating residuals')
 #    dview_res = None if block_size >= 500 else dview

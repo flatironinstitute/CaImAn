@@ -708,7 +708,7 @@ class Estimates(object):
             self.f = self.f.toarray()
 
         Ab = scipy.sparse.hstack((self.A, self.b)).tocsc()
-        nA2 = np.ravel(Ab.power(2).sum(axis=0))
+        nA2 = np.ravel(Ab.power(2).sum(axis=0)) + np.finfo(np.float32).eps
         nA2_inv_mat = scipy.sparse.spdiags(
             1. / nA2, 0, nA2.shape[0], nA2.shape[0])
         Cf = np.vstack((self.C, self.f))
@@ -808,7 +808,7 @@ class Estimates(object):
             nB = np.sqrt(np.ravel((self.b.power(2) if scipy.sparse.issparse(self.b)
                          else self.b**2).sum(axis=0)))
             nB_mat = scipy.sparse.spdiags(nB, 0, nB.shape[0], nB.shape[0])
-            nB_inv_mat = scipy.sparse.spdiags(1. / nB, 0, nB.shape[0], nB.shape[0])
+            nB_inv_mat = scipy.sparse.spdiags(1. / (nB + np.finfo(np.float32).eps), 0, nB.shape[0], nB.shape[0])
             self.b = self.b * nB_inv_mat
             self.f = nB_mat * self.f
         return self

@@ -709,7 +709,7 @@ class CNMF(object):
         Ab = scipy.sparse.hstack((self.estimates.A, self.estimates.b)).tocsc()
         nA2 = np.ravel(Ab.power(2).sum(axis=0))
         nA2_inv_mat = scipy.sparse.spdiags(
-            1. / nA2, 0, nA2.shape[0], nA2.shape[0])
+            1. / (nA2 + np.finfo(np.float32).eps), 0, nA2.shape[0], nA2.shape[0])
         Cf = np.vstack((self.estimates.C, self.estimates.f))
         if 'numpy.ndarray' in str(type(Yr)):
             YA = (Ab.T.dot(Yr)).T * nA2_inv_mat
