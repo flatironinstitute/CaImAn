@@ -2655,19 +2655,12 @@ def motion_correct_batch_rigid(fname, max_shifts, dview=None, splits=56, num_spl
         Exception 'The movie contains nans. Nans are not allowed!'
 
     """
-    corrected_slicer = slice(subidx.start, subidx.stop, subidx.step * 10)
-    #corrected_slicer = (corrected_slicer,) + indices
-    #m = cm.load(fname, var_name_hdf5=var_name_hdf5, subindices=corrected_slicer)
+
     dims, T = cm.source_extraction.cnmf.utilities.get_file_size(fname, var_name_hdf5=var_name_hdf5)
-    Ts = T // (subidx.step * 10)
-    if Ts < 300:
-        m = cm.load(fname, var_name_hdf5=var_name_hdf5, subindices=corrected_slicer)
-    elif Ts < 500:
-        corrected_slicer = slice(subidx.start, subidx.stop, subidx.step * 5)
-        m = cm.load(fname, var_name_hdf5=var_name_hdf5, subindices=corrected_slicer)
-    else:
-        corrected_slicer = slice(subidx.start, subidx.stop, subidx.step * 30)
-        m = cm.load(fname, var_name_hdf5=var_name_hdf5, subindices=corrected_slicer)
+    Ts = np.arange(T)[subidx].shape[0]
+    step = Ts // 10 if is3D else Ts // 50
+    corrected_slicer = slice(subidx.start, subidx.stop, step + 1)
+    m = cm.load(fname, var_name_hdf5=var_name_hdf5, subindices=corrected_slicer)
 
     if len(m.shape) < 3:
         m = cm.load(fname, var_name_hdf5=var_name_hdf5)
