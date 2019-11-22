@@ -170,6 +170,7 @@ def volspike(pars):
         reg = Ridge(alpha=alpha, fit_intercept=False, solver='lsqr').fit(Ub, t)
     else:
         reg = LinearRegression(fit_intercept=False).fit(Ub, t)
+        
     
     t = np.double(t - np.matmul(Ub, reg.coef_))
     
@@ -273,28 +274,20 @@ def volspike(pars):
                                                kernel_std_x=sigma, kernel_std_y=sigma,
                                                borderType=cv2.BORDER_REPLICATE)[0]
 
-        if iteration < nIter - 1:
-            
-            if use_Ridge:
-                #alpha = np.single(np.linalg.norm(Ub, ord='fro') ** 2) * 0.01
-                b = Ridge(alpha=alpha, fit_intercept=False, solver='lsqr').fit(Ub, X).coef_
-            else:
-                b = LinearRegression(fit_intercept=False).fit(Ub, X).coef_
-            
-            if doPlot:
-                plt.figure()
-                plt.plot(X)
-                plt.plot(np.matmul(Ub, b))
-                plt.title('Denoised trace vs background')
-                plt.show()
-            X = X - np.matmul(Ub, b)
+        if use_Ridge:
+            #alpha = np.single(np.linalg.norm(Ub, ord='fro') ** 2) * 0.01
+            b = Ridge(alpha=alpha, fit_intercept=False, solver='lsqr').fit(Ub, X).coef_
         else:
             b = LinearRegression(fit_intercept=False).fit(Ub, X).coef_
-            X = X - np.matmul(Ub, b)
-            if doGlobalSubtract:
-                print('do global subtract')
-            # need to add
-
+        
+        if doPlot:
+            plt.figure()
+            plt.plot(X)
+            plt.plot(np.matmul(Ub, b))
+            plt.title('Denoised trace vs background')
+            plt.show()
+        X = X - np.matmul(Ub, b)
+   
         # correct shrinkage
         X = np.double(X * np.mean(t[spikeTimes]) / np.mean(X[spikeTimes]))
 

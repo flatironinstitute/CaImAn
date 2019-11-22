@@ -74,7 +74,7 @@ def main():
 
     # %% Setup some parameters for data and motion correction
     # dataset parameters
-    fr = 400                                        # sample rate of the movie
+    fr = 300                                        # sample rate of the movie
     ROIs = ROIs
     index = list(range(ROIs.shape[0]))              # index of neurons
     weights = None                                  # reuse spatial weights by 
@@ -206,8 +206,8 @@ def main():
     # %% set to rois
         opts.change_params(params_dict={'ROIs':ROIs_mrcnn,
                                         'method':'SpikePursuit',
-                                        'Ridge_bg_coef':0.5})  #
-                                        #'index':[18,27]})
+                                        'Ridge_bg_coef':0.5,  #
+                                        'index':[28]})
     #list(range(ROIs_mrcnn.shape[0]))
 #    opts.change_params(params_dict={'use_Ridge':True}) 
  #   opts.change_params(params_dict={'use_Ridge':False}) 
@@ -216,7 +216,7 @@ def main():
     c, dview, n_processes = cm.cluster.setup_cluster(
             backend='local', n_processes=6, single_thread=False)
     vpy = VOLPY(n_processes=6, dview=dview, params=opts)
-    vpy.fit(dview=dview)
+    vpy.fit(dview=None)
     
     # %% some visualization
     vpy.estimates['cellN']
