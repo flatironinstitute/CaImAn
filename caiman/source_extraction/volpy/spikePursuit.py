@@ -107,6 +107,8 @@ def volspike(pars):
     localAlign = args['localAlign']
     globalAlign = args['globalAlign']
     highPassRegression = args['highPassRegression']
+    use_Ridge = args['use_Ridge']
+    Ridge_bg_coef = args['Ridge_bg_coef']
     windowLength = sampleRate * 0.02 # window length for spike templates
     output = {}
     output['rawROI'] = {}
@@ -162,8 +164,15 @@ def volspike(pars):
 
     # remove any variance in trace that can be predicted from the background principal components
     Ub, Sb, Vb = svds(data_hp[:, notbw.ravel()], nPC_bg)
-    reg = LinearRegression(fit_intercept=False).fit(Ub, t)
+    
+    if use_Ridge:
+        alpha = np.single(np.linalg.norm(Ub, ord='fro') ** 2) * Ridge_bg_coef
+        reg = Ridge(alpha=alpha, fit_intercept=False, solver='lsqr').fit(Ub, t)
+    else:
+        reg = LinearRegression(fit_intercept=False).fit(Ub, t)
+    
     t = np.double(t - np.matmul(Ub, reg.coef_))
+    
 
     # find out spikes of initial trace
     Xspikes, spikeTimes, guessData, output['rawROI']['falsePosRate'], output['rawROI']['detectionRate'], \
@@ -265,7 +274,13 @@ def volspike(pars):
                                                borderType=cv2.BORDER_REPLICATE)[0]
 
         if iteration < nIter - 1:
-            b = LinearRegression(fit_intercept=False).fit(Ub, X).coef_
+            
+            if use_Ridge:
+                #alpha = np.single(np.linalg.norm(Ub, ord='fro') ** 2) * 0.01
+                b = Ridge(alpha=alpha, fit_intercept=False, solver='lsqr').fit(Ub, X).coef_
+            else:
+                b = LinearRegression(fit_intercept=False).fit(Ub, X).coef_
+            
             if doPlot:
                 plt.figure()
                 plt.plot(X)
@@ -400,7 +415,7 @@ def denoiseSpikes(data, windowLength, sampleRate=400, doPlot=True, doClip=150):
     PTA = np.mean(PTD, 0)
 
     # matched filter
-    datafilt = whitenedMatchedFilter(data, locs, window)
+    datafilt = whitenedMatchedFilter(data, locs, window)     # Note in this step we use convolution(or template matching) to make spikes more prominent
 
     # spikes detected after filter
     pks2 = datafilt[signal.find_peaks(datafilt, height=None)[0]]
@@ -538,7 +553,8 @@ def whitenedMatchedFilter(data, locs, window):
     """
     Function for using whitened matched filter to the original signal for better
     SNR. Use welch method to approximate the spectral density of the signal.
-    Rescale the signal in frequency domain.
+    Rescale the signal in frequency domain. After scaling, convolve the signal with
+    peak-triggered-average to make spikes more prominent.
     """
     N = np.ceil(np.log2(len(data)))
     censor = np.zeros(len(data))

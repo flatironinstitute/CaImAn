@@ -113,7 +113,7 @@ class VOLPY(object):
 
         if self.params.volspike['method'] == 'SpikePursuit':
             volspike = spikePursuit.volspike
-        else:
+        elif self.params.volspike['method'] == 'atm':
             volspike = atm.volspike
         if 'multiprocessing' in str(type(dview)):
             results = dview.map_async(volspike, args_in).get(4294967)
@@ -133,7 +133,6 @@ class VOLPY(object):
         self.estimates['passedLocalityTest'] = [results[i]['passedLocalityTest'] for i in range(N)]
         self.estimates['low_spk'] = [results[i]['low_spk'] for i in range(N)]
         self.estimates['weights'] = [results[i]['weights'] for i in range(N)]
-        self.estimates['thresh'] = [results[i]['thresh'] for i in range(N)]
 
         return self
 
