@@ -1,6 +1,8 @@
 import logging
-import os
 import numpy as np
+import os
+import pkg_resources
+from pprint import pformat
 import scipy
 from scipy.ndimage.morphology import generate_binary_structure, iterate_structure
 
@@ -8,7 +10,6 @@ import caiman.utils.utils
 from ...paths import caiman_datadir
 from .utilities import dict_compare, get_file_size
 
-from pprint import pformat
 
 class CNMFParams(object):
     """Class for setting and changing the various parameters."""
@@ -590,7 +591,7 @@ class CNMFParams(object):
             'decay_time': decay_time,
             'dxy': dxy,
             'var_name_hdf5': var_name_hdf5,
-            'caiman_version': '1.7',
+            'caiman_version': pkg_resources.get_distribution('caiman').version,
             'last_commit': None,
             'mmap_F': None,
             'mmap_C': None
