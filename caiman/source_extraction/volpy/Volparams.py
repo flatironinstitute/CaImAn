@@ -10,8 +10,8 @@ class volparams(object):
     def __init__(self, fnames=None, fr=None, index=None, ROIs=None, weights=None, doCrossVal=False,
                  doGlobalSubtract=False, contextSize=50, censorSize=12, nPC_bg=8, tau_lp=3, tau_pred=1,
                  sigmas=np.array([1, 1.5, 2]), nIter=5, localAlign=False, globalAlign=False,
-                 highPassRegression=False, use_Ridge=True, Ridge_bg_coef=0.5, method='SpikePursuit', weight_update='NMF',
-                 superfactor=10, params_dict={}):
+                 highPassRegression=False, use_Ridge=True, Ridge_bg_coef=0.5, method='SpikePursuit',
+                 weight_update='RidgeRegression', superfactor=10, params_dict={}):
         """Class for setting parameters for voltage imaging. Including parameters for the data, motion correction and
         spike detection. The prefered way to set parameters is by using the set function, where a subclass is determined
         and a dictionary is passed. The whole dictionary can also be initialized at once by passing a dictionary
