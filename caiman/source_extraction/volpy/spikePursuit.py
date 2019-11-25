@@ -248,7 +248,11 @@ def volspike(pars):
                             borderType=cv2.BORDER_REPLICATE), data_hp.shape)))
     
     # Identify spatial filters with regularized regression
-    for _ in range(3 if args['weight_update'] == 'NMF' else 1):
+    for j in range(3 if args['weight_update'] == 'NMF' else 1):
+        if j==0:
+            initialGuess = guessData[:]
+        else:
+            guessData = initialGuess[:]
         for iteration in range(nIter):
             doPlot = False
             if iteration == nIter - 1:
