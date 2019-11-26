@@ -34,6 +34,7 @@ Package-based Process
    http://docs.continuum.io/anaconda/install. Allow the installer to
    modify your PATH variable
 -  Create a new environment with the caiman package from conda-forge:
+-  If you are installing on Windows, use the conda enabled shell (under "Anaconda" in your programs menu) rather than powershell or a generic prompt
 
 .. code:: bash
 
