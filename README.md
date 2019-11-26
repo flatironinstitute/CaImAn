@@ -17,6 +17,9 @@ A Python toolbox for large scale **Ca**lcium **Im**aging data **An**alysis and b
 
 CaImAn implements a set of essential methods required in the analysis pipeline of large scale calcium imaging data. Fast and scalable algorithms are implemented for motion correction, source extraction, spike deconvolution, and component registration across multiple days. It is suitable for both two-photon and one-photon fluorescence microscopy data, and can be run in both batch and online modes. CaImAn also contains some routines for the analysis of behavior from video cameras. A list of features as well as relevant references can be found [here](https://github.com/flatironinstitute/CaImAn/wiki/CaImAn-features-and-references).
 
+## Web-based Docs
+Documentation for CaImAn (including install instructions) can be found online [here](https://caiman.readthedocs.io/en/master/Overview.html).
+
 ## Companion paper
 A paper explaining most of the implementation details and benchmarking can be found [here](https://elifesciences.org/articles/38173).
 
@@ -49,15 +52,6 @@ You can now use the `save` method included in both the `CNMF` and `OnACID` objec
 The [Neurodata Without Borders (NWB)](https://www.nwb.org/) file format is now supported by CaImAn. You read and analyze NWB files and can save the results of the analysis (`Estimates` object) back to the original NWB file. Consult this [demo](use_cases/NWB/demo_pipeline_NWB.py) for an example on how to use this feature.
 
 **To use CaImAn with these additional features you'll need to create a new environment following the usual instructions.**
-
-
-## New: Removing Keras dependency (June 2019)
-
-To circumvent a problem arising in Windows installation, we recently removed keras from the list of dependencies. Keras was being used to deploy the pretrained neural network models for component screening. The neural network models are being deployed through tensorflow and for that we included tensorflow compatible versions of the models inside the folder `model`. Existing users who already have keras in their environment will continue using keras as it is slightly faster. However if you create an environment without it you may want to either reinstall caimanmanager or simply copy the files `model/*.pb` into the folder `caiman_data/model/` for the files to be discoverable. New CaImAn users do not need to do anything as this is being taken care of during the installation process.
-
-## Installation for calcium imaging data analysis
-
-Installation and updating instructions can be found [here](./docs/source/Installation.rst).
 
 ## Documentation & Wiki
 
@@ -138,7 +132,6 @@ If you use this code please cite the corresponding papers where original methods
 
 ## Other docs in this repo
 * [Running CaImAn on a Cluster](docs/CLUSTER.md)
-* [More detailed install instructions for Windows](docs/INSTALL-windows.md)
 * [Install quirks on some Linux Distributions](docs/README-Distros.md)
 * [How CaImAn can use your GPUs](docs/README-GPU.md)
 * [The CaImAn GUI](docs/GUI.md)
