@@ -40,7 +40,7 @@ Package-based Process
 
     conda create -n caiman  # caiman here refers to the name of the environment (you can pick any name you want)
     conda activate caiman
-    conda install -c conda-forge caiman
+    conda install caiman -c conda-forge
 
 -  Skip ahead to the section on setting up a data directory with caimanmanager
 
@@ -96,7 +96,7 @@ If you will be building CaImAn on Windows (not recommended):
 -  Install Microsoft Build Tools for Visual Studio 2017
    https://www.visualstudio.com/downloads/#build-tools-for-visual-studio-2017.
    You can find older versions of visual studio in a link to older tools at the
-   bottom of the page. 
+   bottom of the page.
    Check the “Build Tools” box, and in the detailed view on the right
    check the “C/C++ CLI Tools” component too. The specifics of this
    occasionally change as Microsoft changes its products and website;
