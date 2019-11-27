@@ -39,10 +39,8 @@ All the results and figures of the paper can be regenerated using this package. 
 
 ## New: Installation through conda-forge (August 2019)
 
-Beginning in August 2019 we have an experimental binary release of the software in the conda-forge package repos. This is intended for people who can use CaImAn as a library, interacting with it as the demos do. It also does not need a compiler. It is not suitable for people intending to change the CaImAn codebase. Comfort with conda is still required. If you wish to use the binary package, you do not need the sources (including this repo) at all. With a functional install of conda, you can do (on any platform):
-```bash
-conda create -n caiman -c conda-forge caiman
-```
+Beginning in August 2019 we have an experimental binary release of the software in the conda-forge package repos. This is intended for people who can use CaImAn as a library, interacting with it as the demos do. It also does not need a compiler. It is not suitable for people intending to change the CaImAn codebase. Comfort with conda is still required. If you wish to use the binary package, you do not need the sources (including this repo) at all. Installation and updating instructions can be found [here](./docs/source/Installation.rst).
+
 You will still need to use caimanmanager.py afterwards to create a data directory. If you install this way, do not follow any of the other install instructions below.
 
 ## New: Exporting results, GUI and NWB support (July 2019)
@@ -56,12 +54,11 @@ The [Neurodata Without Borders (NWB)](https://www.nwb.org/) file format is now s
 ## Documentation & Wiki
 
 Documentation of the code can be found [here](https://caiman.readthedocs.io/en/master/). 
-Moreover, our [wiki page](https://github.com/flatironinstitute/CaImAn/wiki) covers some aspects of the code. 
 
 ### Installation for behavioral analysis
 * Installation on Linux (Windows and MacOS are problematic with anaconda at the moment)
    * create a new environment (suggested for safety) and follow the instructions for the calcium imaging installation
-   * Install spams, as explained [here](http://spams-devel.gforge.inria.fr/). Installation is not straightforward and it might take some trials to get it right
+   * Install spams, as explained [here](http://spams-devel.gforge.inria.fr/). Installation is not straightforward and it might take some trials to get it right.
 
 ## Demos
 
@@ -162,7 +159,7 @@ Special thanks to the following people for letting us use their datasets for our
 * Sue Ann Koay, David Tank, Princeton University
 * Manolis Froudarakis, Jake Reimers, Andreas Tolias, Baylor College of Medicine
 * Clay Lacefield, Randy Bruno, Columbia University
-
+* Daniel Aharoni, Peyman Golshani, UCLA
 
 ## License
 
