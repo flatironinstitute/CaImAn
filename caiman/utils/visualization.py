@@ -1012,6 +1012,11 @@ def plot_contours(A, Cn, thr=None, thr_method='max', maxthr=0.2, nrgthr=0.9, dis
         thr_method = 'nrg'
 
 
+    for key in ['c', 'colors', 'line_color']:
+        if key in kwargs.keys():
+            color = kwargs[key]
+            kwargs.pop(key)
+
     ax = pl.gca()
     if vmax is None and vmin is None:
         pl.imshow(Cn, interpolation=None, cmap=cmap,

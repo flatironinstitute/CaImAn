@@ -121,7 +121,7 @@ params_movie[2] = {
     'folder_name': 'N.03.00.t/',
     'ds_factor': 2,
     'fr': 7,
-    'decay_time': 0.4,
+    'decay_time': 0.6,
     'gSig': [12, 12],  # expected half size of neurons
     'gnb': 3,
 }
@@ -132,15 +132,15 @@ params_movie[3] = {
     'epochs': 3,
     'ds_factor': 1,
     'fr': 10,
-    'decay_time': .75,
-    'gnb': 3,
+    'decay_time': 2,
+    'gnb': 2,
     'gSig': [6, 6],  # expected half size of neurons
 }
 
 # % neurofinder.04.00.test
 params_movie[4] = {
     'folder_name': 'N.04.00.t/',
-    'epochs': 3,
+    'epochs': 2,
     'ds_factor': 1,
     'fr': 8,
     'gSig': [7, 7],  # expected half size of neurons

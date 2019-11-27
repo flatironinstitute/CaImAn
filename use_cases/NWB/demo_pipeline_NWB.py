@@ -71,7 +71,7 @@ def main():
 
         # save file in NWB format with various additional info
         orig_movie.save(fnames[0], sess_desc='test', identifier='demo 1',
-             exp_desc='demo movie', imaging_plane_description='single plane',
+             imaging_plane_description='single plane',
              emission_lambda=520.0, indicator='GCAMP6f',
              location='parietal cortex',
              experimenter='Sue Ann Koay', lab_name='Tank Lab',

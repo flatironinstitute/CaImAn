@@ -39,7 +39,6 @@ Timeseries Handling
 
 .. autoclass:: timeseries
 .. automethod:: timeseries.save
-.. automethod:: timeseries.concatenate
 
 
 Motion Correction
