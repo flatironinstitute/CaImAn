@@ -1437,6 +1437,14 @@ def load(file_name: Union[str, List[str]],
     if os.path.exists(file_name):
         _, extension = os.path.splitext(file_name)[:2]
         extension = extension.lower()
+        if extension == '.mat':
+            logging.warning('Loading a *.mat file. x- and y- dimensions ' +
+                            'might have been swapped.')
+            byte_stream, file_opened = scipy.io.matlab.mio._open_file(file_name, appendmat=False)
+            mjv, mnv = scipy.io.matlab.mio.get_matfile_version(byte_stream)
+            if mjv == 2:
+                extension = '.h5'
+
         if extension == '.tif' or extension == '.tiff':        # load avi file
             with tifffile.TiffFile(file_name) as tffl:
                 multi_page = True if tffl.series[0].shape[0] > 1 else False
