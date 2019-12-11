@@ -827,7 +827,7 @@ class CNMFParams(object):
                 T = get_file_size(self.data['fnames'], var_name_hdf5=self.data['var_name_hdf5'])[1]
             if len(self.data['fnames']) > 1:
                 T = T[0]
-            num_splits = T//max(self.motion['num_frames_split'],10)
+            num_splits = max(T//max(self.motion['num_frames_split'], 10), 1)
             self.motion['splits_els'] = num_splits
             self.motion['splits_rig'] = num_splits
             self.online['movie_name_online'] = os.path.join(os.path.dirname(self.data['fnames'][0]), self.online['movie_name_online'])
