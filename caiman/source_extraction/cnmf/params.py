@@ -1,6 +1,8 @@
 import logging
-import os
 import numpy as np
+import os
+import pkg_resources
+from pprint import pformat
 import scipy
 from scipy.ndimage.morphology import generate_binary_structure, iterate_structure
 
@@ -8,7 +10,6 @@ import caiman.utils.utils
 from ...paths import caiman_datadir
 from .utilities import dict_compare, get_file_size
 
-from pprint import pformat
 
 class CNMFParams(object):
     """Class for setting and changing the various parameters."""
@@ -473,6 +474,9 @@ class CNMFParams(object):
 
             num_times_comp_updated: int, default: np.inf
 
+            opencv_codec: str, default: 'H264'
+                FourCC video codec for saving movie. Check http://www.fourcc.org/codecs.php
+
             path_to_model: str, default: os.path.join(caiman_datadir(), 'model', 'cnn_model_online.h5')
                 Path to online CNN classifier
 
@@ -575,6 +579,9 @@ class CNMFParams(object):
 
             use_cuda: bool, default: False
                 flag for using a GPU.
+
+            indices: tuple(slice), default: (slice(None), slice(None))
+               Use that to apply motion correction only on a part of the FOV
         """
 
         self.data = {
@@ -584,7 +591,7 @@ class CNMFParams(object):
             'decay_time': decay_time,
             'dxy': dxy,
             'var_name_hdf5': var_name_hdf5,
-            'caiman_version': '1.6.2',
+            'caiman_version': pkg_resources.get_distribution('caiman').version,
             'last_commit': None,
             'mmap_F': None,
             'mmap_C': None
@@ -757,6 +764,7 @@ class CNMFParams(object):
             'n_refit': n_refit,                # Additional iterations to simultaneously refit
             # path to CNN model for testing new comps
             'num_times_comp_updated': num_times_comp_updated,
+            'opencv_codec': 'H264',            # FourCC video codec for saving movie. Check http://www.fourcc.org/codecs.php
             'path_to_model': os.path.join(caiman_datadir(), 'model',
                                           'cnn_model_online.h5'),
             'rval_thr': rval_thr,              # space correlation threshold
@@ -787,8 +795,8 @@ class CNMFParams(object):
             'niter_rig': 1,                     # number of iterations rigid motion correction
             'nonneg_movie': True,               # flag for producing a non-negative movie
             'num_frames_split': 80,             # split across time every x frames
-            'num_splits_to_process_els': [7, None],
-            'num_splits_to_process_rig': None,
+            'num_splits_to_process_els': None,  # DO NOT MODIFY
+            'num_splits_to_process_rig': None,  # DO NOT MODIFY
             'overlaps': (32, 32),               # overlap between patches in pw-rigid motion correction
             'pw_rigid': False,                  # flag for performing pw-rigid motion correction
             'shifts_opencv': True,              # flag for applying shifts using cubic interpolation (otherwise FFT)
@@ -796,13 +804,17 @@ class CNMFParams(object):
             'splits_rig': 14,                   # number of splits across time for rigid registration
             'strides': (96, 96),                # how often to start a new patch in pw-rigid registration
             'upsample_factor_grid': 4,          # motion field upsampling factor during FFT shifts
-            'use_cuda': False                   # flag for using a GPU
+            'use_cuda': False,                  # flag for using a GPU
+            'indices': (slice(None), slice(None))  # part of FOV to be corrected
         }
 
         self.change_params(params_dict)
 
 
     def check_consistency(self):
+        """ Populates the params object with some dataset dependent values
+        and ensures that certain constraints are satisfied.
+        """
         self.data['last_commit'] = '-'.join(caiman.utils.utils.get_caiman_version())
         if self.data['dims'] is None and self.data['fnames'] is not None:
             self.data['dims'] = get_file_size(self.data['fnames'], var_name_hdf5=self.data['var_name_hdf5'])[0]
@@ -815,7 +827,7 @@ class CNMFParams(object):
                 T = get_file_size(self.data['fnames'], var_name_hdf5=self.data['var_name_hdf5'])[1]
             if len(self.data['fnames']) > 1:
                 T = T[0]
-            num_splits = T//max(self.motion['num_frames_split'],10)
+            num_splits = max(T//max(self.motion['num_frames_split'], 10), 1)
             self.motion['splits_els'] = num_splits
             self.motion['splits_rig'] = num_splits
             self.online['movie_name_online'] = os.path.join(os.path.dirname(self.data['fnames'][0]), self.online['movie_name_online'])
@@ -829,6 +841,11 @@ class CNMFParams(object):
             self.init['gSig'] = [-1, -1]
         if self.init['gSiz'] is None:
             self.init['gSiz'] = [2*gs + 1 for gs in self.init['gSig']]
+        self.init['gSiz'] = tuple([gs + 1 if gs % 2 == 0 else gs for gs in self.init['gSiz']])
+        if self.patch['rf'] is not None:
+            if self.patch['rf'] <= self.init['gSiz'][0]:
+                logging.warning("Changing rf from {0} to {1} ".format(self.patch['rf'], 2*self.init['gSiz'][0]) +
+                                "because the constraint rf > gSiz was not satisfied.")
 #        if self.motion['gSig_filt'] is None:
 #            self.motion['gSig_filt'] = self.init['gSig']
         if self.init['nb'] <= 0 and (self.patch['nb_patch'] != self.init['nb'] or

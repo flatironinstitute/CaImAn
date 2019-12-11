@@ -81,6 +81,7 @@ def download_demo(name:str='Sue_2x_3000_40_-46.tif', save_folder:str='') -> str:
                  'data_endoscope.tif': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/data_endoscope.tif',
                  'gmc_960_30mw_00001_red.tif': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/gmc_960_30mw_00001_red.tif',
                  'gmc_960_30mw_00001_green.tif': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/gmc_960_30mw_00001_green.tif',
+                 'msCam13.avi': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/msCam13.avi',
                  'alignment.pickle': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/alignment.pickle',
                  'data_dendritic.tif': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/2014-04-05-003.tif'}
     #          ,['./example_movies/demoMovie.tif','https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/demoMovie.tif']]
@@ -410,10 +411,14 @@ def recursively_save_dict_contents_to_group(h5file:h5py.File, path:str, dic:Dict
     # save items to the hdf5 file
     for key, item in dic.items():
         key = str(key)
-
         if key == 'g':
+            if item is None:
+                item = 0
             logging.info(key + ' is an object type')
-            item = np.array(list(item))
+            try:
+                item = np.array(list(item))
+            except:
+                item = np.asarray(item, dtype=np.float)
         if key == 'g_tot':
             item = np.asarray(item, dtype=np.float)
         if key in ['groups', 'idx_tot', 'ind_A', 'Ab_epoch', 'coordinates',
@@ -430,17 +435,19 @@ def recursively_save_dict_contents_to_group(h5file:h5py.File, path:str, dic:Dict
         # save strings, numpy.int64, numpy.int32, and numpy.float64 types
         if isinstance(item, (np.int64, np.int32, np.float64, str, np.float, float, np.float32,int)):
             h5file[path + key] = item
-            if not h5file[path + key].value == item:
-                raise ValueError('The data representation in the HDF5 file does not match the original dict.')
+            logging.debug('Saving {}'.format(key))
+            if not h5file[path + key][()] == item:
+                raise ValueError('Error while saving {}.'.format(key))
         # save numpy arrays
         elif isinstance(item, np.ndarray):
+            logging.debug('Saving {}'.format(key))
             try:
                 h5file[path + key] = item
             except:
                 item = np.array(item).astype('|S32')
                 h5file[path + key] = item
-            if not np.array_equal(h5file[path + key].value, item):
-                raise ValueError('The data representation in the HDF5 file does not match the original dict.')
+            if not np.array_equal(h5file[path + key][()], item):
+                raise ValueError('Error while saving {}.'.format(key))
         # save dictionaries
         elif isinstance(item, dict):
             recursively_save_dict_contents_to_group(h5file, path + key + '/', item)
@@ -477,22 +484,22 @@ def recursively_load_dict_contents_from_group(h5file:h5py.File, path:str) -> Dic
 
         if isinstance(item, h5py._hl.dataset.Dataset):
             val_set = np.nan
-            if isinstance(item.value, str):
-                if item.value == 'NoneType':
+            if isinstance(item[()], str):
+                if item[()] == 'NoneType':
                     ans[key] = None
                 else:
-                    ans[key] = item.value
+                    ans[key] = item[()]
             elif key in ['dims', 'medw', 'sigma_smooth_snmf', 'dxy', 'max_shifts', 'strides', 'overlaps']:
 
-                if type(item.value) == np.ndarray:
-                    ans[key] = tuple(item.value)
+                if type(item[()]) == np.ndarray:
+                    ans[key] = tuple(item[()])
                 else:
-                    ans[key] = item.value
+                    ans[key] = item[()]
             else:
-                if type(item.value) == np.bool_:
-                    ans[key] = bool(item.value)
+                if type(item[()]) == np.bool_:
+                    ans[key] = bool(item[()])
                 else:
-                    ans[key] = item.value
+                    ans[key] = item[()]
 
         elif isinstance(item, h5py._hl.group.Group):
             if key == 'A':

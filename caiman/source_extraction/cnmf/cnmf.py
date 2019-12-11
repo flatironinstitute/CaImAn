@@ -372,15 +372,15 @@ class CNMF(object):
             return self.fit(images, indices=indices)
 
         fit_cnm = self.fit(images, indices=indices)
-        Cn = summary_images.local_correlations(images, swap_dim=False)
+        Cn = summary_images.local_correlations(images[::max(T//1000, 1)], swap_dim=False)
         Cn[np.isnan(Cn)] = 0
         fit_cnm.save(fname_new[:-5]+'_init.hdf5')
-        fit_cnm.params.change_params({'p': self.params.get('preprocess', 'p')})
+        #fit_cnm.params.change_params({'p': self.params.get('preprocess', 'p')})
         # RE-RUN seeded CNMF on accepted patches to refine and perform deconvolution
         cnm2 = fit_cnm.refit(images, dview=self.dview)
         cnm2.estimates.evaluate_components(images, cnm2.params, dview=self.dview)
         # update object with selected components
-        cnm2.estimates.select_components(use_object=True)
+        #cnm2.estimates.select_components(use_object=True)
         # Extract DF/F values
         cnm2.estimates.detrend_df_f(quantileMin=8, frames_window=250)
         cnm2.estimates.Cn = Cn
@@ -709,7 +709,7 @@ class CNMF(object):
         Ab = scipy.sparse.hstack((self.estimates.A, self.estimates.b)).tocsc()
         nA2 = np.ravel(Ab.power(2).sum(axis=0))
         nA2_inv_mat = scipy.sparse.spdiags(
-            1. / nA2, 0, nA2.shape[0], nA2.shape[0])
+            1. / (nA2 + np.finfo(np.float32).eps), 0, nA2.shape[0], nA2.shape[0])
         Cf = np.vstack((self.estimates.C, self.estimates.f))
         if 'numpy.ndarray' in str(type(Yr)):
             YA = (Ab.T.dot(Yr)).T * nA2_inv_mat
@@ -1073,6 +1073,13 @@ def load_CNMF(filename, n_processes=1, dview=None):
             if 'keep' in rois.table:
                 keep = rois.table['keep'][roi_indices]
                 estims.idx_components = np.where(keep)[0]
+            if 'accepted' in rois.table:
+                accepted = rois.table['accepted'][roi_indices]
+                estims.accepted_list = np.where(accepted==True)[0]
+            if 'rejected' in rois.table:
+                rejected = rois.table['rejected'][roi_indices]
+                estims.rejected_list = np.where(rejected==True)[0]                
+                print(estims.rejected_list)
             estims.nr = len(roi_indices)
 
             if 'summary_images' in ophys.data_interfaces:

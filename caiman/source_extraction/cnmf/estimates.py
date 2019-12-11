@@ -491,12 +491,44 @@ class Estimates(object):
 
         return self
 
+    def make_color_movie(self, imgs, q_max=99.75, q_min=2, gain_res=1,
+                         magnification=1, include_bck=True,
+                         frame_range=slice(None, None, None),
+                         bpx=0, save_movie=False, display=True,
+                         movie_name='results_movie_color.avi',
+                         opencv_code='H264'):
+        """
+        Displays a color movie where each component is given an arbitrary
+        color. Will be merged with play_movie soon. Check that function for
+        arg definitions.
+        """
+        dims = imgs.shape[1:]
+        cols_c = np.random.rand(self.C.shape[0], 1, 3)
+        cols_f = np.ones((self.f.shape[0], 1, 3))/8
+        Cs = np.vstack((np.expand_dims(self.C[:, frame_range], -1)*cols_c,
+                        np.expand_dims(self.f[:, frame_range], -1)*cols_f))
+        AC = np.tensordot(np.hstack((self.A.toarray(), self.b)), Cs, axes=(1, 0))
+        AC = AC.reshape((dims) + (-1, 3)).transpose(2, 0, 1, 3)
+        
+        AC /= np.percentile(AC, 99.75, axis=(0, 1, 2))
+        mov = caiman.movie(np.concatenate((np.repeat(np.expand_dims(imgs[frame_range]/np.percentile(imgs[:1000], 99.75), -1), 3, 3),
+                                           AC), axis=2))
+        if not display:
+            return mov
+
+        mov.play(q_min=q_min, q_max=q_max, magnification=magnification,
+                 save_movie=save_movie, movie_name=movie_name)
+
+        return mov
+
 
     def play_movie(self, imgs, q_max=99.75, q_min=2, gain_res=1,
                    magnification=1, include_bck=True,
                    frame_range=slice(None, None, None),
                    bpx=0, thr=0., save_movie=False,
-                   movie_name='results_movie.avi'):
+                   movie_name='results_movie.avi',
+                   display=True, opencv_codec='H264',
+                   use_color=False, gain_color=4, gain_bck=0.2):
         """
         Displays a movie with three panels (original data (left panel),
         reconstructed data (middle panel), residual (right panel))
@@ -505,58 +537,78 @@ class Estimates(object):
             imgs: np.array (possibly memory mapped, t,x,y[,z])
                 Imaging data
 
-            q_max: float (values in [0, 100])
+            q_max: float (values in [0, 100], default: 99.75)
                 percentile for maximum plotting value
 
-            q_min: float (values in [0, 100])
+            q_min: float (values in [0, 100], default: 1)
                 percentile for minimum plotting value
 
-            gain_res: float
+            gain_res: float (1)
                 amplification factor for residual movie
 
-            magnification: float
+            magnification: float (1)
                 magnification factor for whole movie
 
-            include_bck: bool
+            include_bck: bool (True)
                 flag for including background in original and reconstructed movie
 
-            frame_rage: range or slice or list
+            frame_rage: range or slice or list (default: slice(None))
                 display only a subset of frames
 
-            bpx: int
+            bpx: int (deafult: 0)
                 number of pixels to exclude on each border
 
-            thr: float (values in [0, 1[)
+            thr: float (values in [0, 1[) (default: 0)
                 threshold value for contours, no contours if thr=0
 
-            save_movie: bool
+            save_movie: bool (default: False)
                 flag to save an avi file of the movie
 
-            movie_name: str
+            movie_name: str (default: 'results_movie.avi')
                 name of saved file
 
+            display: bool (deafult: True)
+                flag for playing the movie (to stop the movie press 'q')
+
+            opencv_codec: str (default: 'H264')
+                FourCC video codec for saving movie. Check http://www.fourcc.org/codecs.php
+
+            use_color: bool (default: False)
+                flag for making a color movie. If True a random color will be assigned
+                for each of the components
+
+            gain_color: float (default: 4)
+                amplify colors in the movie to make them brighter
+
+            gain_bck: float (default: 0.2)
+                dampen background in the movie to expose components (applicable
+                only when color is used.)
+
         Returns:
-            self (to stop the movie press 'q')
+            mov: The concatenated output movie
         """
         dims = imgs.shape[1:]
         if 'movie' not in str(type(imgs)):
-            imgs = caiman.movie(imgs)
+            imgs = caiman.movie(imgs[frame_range])
+        else:
+            imgs = imgs[frame_range]
+
+        if use_color:
+            cols_c = np.random.rand(self.C.shape[0], 1, 3)*gain_color
+            Cs = np.expand_dims(self.C[:, frame_range], -1)*cols_c
+            #AC = np.tensordot(np.hstack((self.A.toarray(), self.b)), Cs, axes=(1, 0))
+            Y_rec_color = np.tensordot(self.A.toarray(), Cs, axes=(1, 0))
+            Y_rec_color = Y_rec_color.reshape((dims) + (-1, 3), order='F').transpose(2, 0, 1, 3)
+
         AC = self.A.dot(self.C[:, frame_range])
         Y_rec = AC.reshape(dims + (-1,), order='F')
         Y_rec = Y_rec.transpose([2, 0, 1])
         if self.W is not None:
             ssub_B = int(round(np.sqrt(np.prod(dims) / self.W.shape[0])))
-            B = imgs[frame_range].reshape((-1, np.prod(dims)), order='F').T - AC
+            B = imgs.reshape((-1, np.prod(dims)), order='F').T - AC
             if ssub_B == 1:
                 B = self.b0[:, None] + self.W.dot(B - self.b0[:, None])
             else:
-#                B = self.b0[:, None] + (np.repeat(np.repeat(self.W.dot(
-#                    downscale(B.reshape(dims + (B.shape[-1],), order='F'),
-#                              (ssub_B, ssub_B, 1)).reshape((-1, B.shape[-1]), order='F') -
-#                    downscale(self.b0.reshape(dims, order='F'),
-#                              (ssub_B, ssub_B)).reshape((-1, 1), order='F'))
-#                    .reshape(((dims[0] - 1) // ssub_B + 1, (dims[1] - 1) // ssub_B + 1, -1), order='F'),
-#                    ssub_B, 0), ssub_B, 1)[:dims[0], :dims[1]].reshape((-1, B.shape[-1]), order='F'))
                 WB = self.W.dot(downscale(B.reshape(dims + (B.shape[-1],), order='F'),
                               (ssub_B, ssub_B, 1)).reshape((-1, B.shape[-1]), order='F'))
                 Wb0 = self.W.dot(downscale(self.b0.reshape(dims, order='F'),
@@ -576,18 +628,23 @@ class Estimates(object):
             Y_rec = Y_rec[:, bpx:-bpx, bpx:-bpx]
             imgs = imgs[:, bpx:-bpx, bpx:-bpx]
 
-        Y_res = imgs[frame_range] - Y_rec - B
-
-        mov = caiman.concatenate((imgs[frame_range] - (not include_bck) * B,
-                                  Y_rec + include_bck * B, Y_res * gain_res), axis=2)
-
+        Y_res = imgs - Y_rec - B
+        if use_color:
+            if bpx > 0:
+                Y_rec_color = Y_rec_color[:, bpx:-bpx, bpx:-bpx]
+            mov = caiman.concatenate((np.repeat(np.expand_dims(imgs - (not include_bck) * B, -1), 3, 3),
+                                      Y_rec_color + include_bck * np.expand_dims(B*gain_bck, -1),
+                                      np.repeat(np.expand_dims(Y_res * gain_res, -1), 3, 3)), axis=2)
+        else:
+            mov = caiman.concatenate((imgs[frame_range] - (not include_bck) * B,
+                                      Y_rec + include_bck * B, Y_res * gain_res), axis=2)
+        if not display:
+            return mov
 
         if thr > 0:
+            import cv2
             if save_movie:
-                import cv2
-                #fourcc = cv2.VideoWriter_fourcc('8', 'B', 'P', 'S')
-                #fourcc = cv2.VideoWriter_fourcc(*'XVID')
-                fourcc = cv2.VideoWriter_fourcc(*'MP4V')
+                fourcc = cv2.VideoWriter_fourcc(*opencv_codec)
                 out = cv2.VideoWriter(movie_name, fourcc, 30.0,
                                       tuple([int(magnification*s) for s in mov.shape[1:][::-1]]))
             contours = []
@@ -613,7 +670,8 @@ class Estimates(object):
                     frame = cv2.resize(frame, None, fx=magnification, fy=magnification,
                                        interpolation=cv2.INTER_LINEAR)
                 frame = np.clip((frame - minmov) * 255. / (maxmov - minmov), 0, 255)
-                frame = np.repeat(frame[..., None], 3, 2)
+                if frame.ndim < 3:
+                    frame = np.repeat(frame[..., None], 3, 2)
                 for contour in contours:
                     cv2.drawContours(frame, contour, -1, (0, 255, 255), 1)
                 cv2.imshow('frame', frame.astype('uint8'))
@@ -629,7 +687,7 @@ class Estimates(object):
             mov.play(q_min=q_min, q_max=q_max, magnification=magnification,
                      save_movie=save_movie, movie_name=movie_name)
 
-        return self
+        return mov
 
     def compute_residuals(self, Yr):
         """compute residual for each component (variable R)
@@ -650,7 +708,7 @@ class Estimates(object):
             self.f = self.f.toarray()
 
         Ab = scipy.sparse.hstack((self.A, self.b)).tocsc()
-        nA2 = np.ravel(Ab.power(2).sum(axis=0))
+        nA2 = np.ravel(Ab.power(2).sum(axis=0)) + np.finfo(np.float32).eps
         nA2_inv_mat = scipy.sparse.spdiags(
             1. / nA2, 0, nA2.shape[0], nA2.shape[0])
         Cf = np.vstack((self.C, self.f))
@@ -750,7 +808,7 @@ class Estimates(object):
             nB = np.sqrt(np.ravel((self.b.power(2) if scipy.sparse.issparse(self.b)
                          else self.b**2).sum(axis=0)))
             nB_mat = scipy.sparse.spdiags(nB, 0, nB.shape[0], nB.shape[0])
-            nB_inv_mat = scipy.sparse.spdiags(1. / nB, 0, nB.shape[0], nB.shape[0])
+            nB_inv_mat = scipy.sparse.spdiags(1. / (nB + np.finfo(np.float32).eps), 0, nB.shape[0], nB.shape[0])
             self.b = self.b * nB_inv_mat
             self.f = nB_mat * self.f
         return self
@@ -1281,7 +1339,7 @@ class Estimates(object):
     def remove_duplicates(self, predictions=None, r_values=None, dist_thr=0.1,
                           min_dist=10, thresh_subset=0.6, plot_duplicates=False,
                           select_comp=False):
-        ''' remove neurons that heavily overlapand might be duplicates
+        ''' remove neurons that heavily overlap and might be duplicates. 
 
         Args:
             predictions
@@ -1299,7 +1357,7 @@ class Estimates(object):
         duplicates_gt, indices_keep_gt, indices_remove_gt, D_gt, overlap_gt = detect_duplicates_and_subsets(
             A_gt_thr_bin,predictions=predictions, r_values=r_values, dist_thr=dist_thr, min_dist=min_dist,
             thresh_subset=thresh_subset)
-        print('Duplicates gt:' + str(len(duplicates_gt)))
+        logging.info('Number of duplicates: {}'.format(len(duplicates_gt)))
         if len(duplicates_gt) > 0:
             if plot_duplicates:
                 plt.figure()
@@ -1486,13 +1544,21 @@ class Estimates(object):
             ps.add_column('snr', 'signal to noise ratio')
             ps.add_column('cnn', 'description of CNN')
             ps.add_column('keep', 'in idx_components')
+            ps.add_column('accepted', 'in accepted list')
+            ps.add_column('rejected', 'in rejected list')
 
             # Add ROIs
-            for i, (roi, snr, r, cnn) in enumerate(zip(self.A.T, self.SNR_comp, self.r_values, self.cnn_preds)):
-                ps.add_roi(image_mask=roi.T.toarray().reshape(self.dims), r=r, snr=snr, cnn=cnn,
-                           keep=i in self.idx_components)
+            if not hasattr(self, 'accepted_list'):
+                for i, (roi, snr, r, cnn) in enumerate(zip(self.A.T, self.SNR_comp, self.r_values, self.cnn_preds)):
+                    ps.add_roi(image_mask=roi.T.toarray().reshape(self.dims), r=r, snr=snr, cnn=cnn,
+                               keep=i in self.idx_components, accepted=False, rejected=False)
+            else:
+                for i, (roi, snr, r, cnn) in enumerate(zip(self.A.T, self.SNR_comp, self.r_values, self.cnn_preds)):
+                    ps.add_roi(image_mask=roi.T.toarray().reshape(self.dims), r=r, snr=snr, cnn=cnn,
+                               keep=i in self.idx_components, accepted=i in self.accepted_list, rejected=i in self.rejected_list)
+            
             for bg in self.b.T:  # Backgrounds
-                ps.add_roi(image_mask=bg.reshape(self.dims), r=np.nan, snr=np.nan, cnn=np.nan, keep=False)
+                ps.add_roi(image_mask=bg.reshape(self.dims), r=np.nan, snr=np.nan, cnn=np.nan, keep=False, accepted=False, rejected=False)
             # Add Traces
             n_rois = self.A.shape[-1]
             n_bg = len(self.f)
@@ -1505,9 +1571,9 @@ class Estimates(object):
             timestamps = np.arange(self.f.shape[1]) / imaging_rate + starting_time
 
             # Neurons
-            fl.create_roi_response_series('RoiResponseSeries', self.C.T, 'lumens', rt_region_roi, timestamps=timestamps)
+            fl.create_roi_response_series(name='RoiResponseSeries', data=self.C.T, rois=rt_region_roi, unit='lumens', timestamps=timestamps)
             # Background
-            fl.create_roi_response_series('Background_Fluorescence_Response', self.f.T, 'lumens', rt_region_bg,
+            fl.create_roi_response_series(name='Background_Fluorescence_Response', data=self.f.T, rois=rt_region_bg, unit='lumens', 
                                           timestamps=timestamps)
 
             mod.add(TimeSeries(name='residuals', description='residuals', data=self.YrA.T, timestamps=timestamps,

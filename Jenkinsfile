@@ -19,6 +19,7 @@ pipeline {
           }
           environment {
             CONDA_ENV = "${env.WORKSPACE}/test/${env.STAGE_NAME}"
+            CONDA_PKGS_DIRS = "${env.WORKSPACE}/test/${env.STAGE_NAME}/packages"
             HOME = pwd(tmp:true)
           }
           steps {

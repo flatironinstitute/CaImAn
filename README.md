@@ -17,6 +17,9 @@ A Python toolbox for large scale **Ca**lcium **Im**aging data **An**alysis and b
 
 CaImAn implements a set of essential methods required in the analysis pipeline of large scale calcium imaging data. Fast and scalable algorithms are implemented for motion correction, source extraction, spike deconvolution, and component registration across multiple days. It is suitable for both two-photon and one-photon fluorescence microscopy data, and can be run in both batch and online modes. CaImAn also contains some routines for the analysis of behavior from video cameras. A list of features as well as relevant references can be found [here](https://github.com/flatironinstitute/CaImAn/wiki/CaImAn-features-and-references).
 
+## Web-based Docs
+Documentation for CaImAn (including install instructions) can be found online [here](https://caiman.readthedocs.io/en/master/Overview.html).
+
 ## Companion paper
 A paper explaining most of the implementation details and benchmarking can be found [here](https://elifesciences.org/articles/38173).
 
@@ -36,10 +39,8 @@ All the results and figures of the paper can be regenerated using this package. 
 
 ## New: Installation through conda-forge (August 2019)
 
-Beginning in August 2019 we have an experimental binary release of the software in the conda-forge package repos. This is intended for people who can use CaImAn as a library, interacting with it as the demos do. It also does not need a compiler. It is not suitable for people intending to change the CaImAn codebase. Comfort with conda is still required. If you wish to use the binary package, you do not need the sources (including this repo) at all. With a functional install of conda, you can do (on any platform):
-```bash
-conda create -n caiman -c conda-forge caiman
-```
+Beginning in August 2019 we have an experimental binary release of the software in the conda-forge package repos. This is intended for people who can use CaImAn as a library, interacting with it as the demos do. It also does not need a compiler. It is not suitable for people intending to change the CaImAn codebase. Comfort with conda is still required. If you wish to use the binary package, you do not need the sources (including this repo) at all. Installation and updating instructions can be found [here](./docs/source/Installation.rst).
+
 You will still need to use caimanmanager.py afterwards to create a data directory. If you install this way, do not follow any of the other install instructions below.
 
 ## New: Exporting results, GUI and NWB support (July 2019)
@@ -50,24 +51,14 @@ The [Neurodata Without Borders (NWB)](https://www.nwb.org/) file format is now s
 
 **To use CaImAn with these additional features you'll need to create a new environment following the usual instructions.**
 
-
-## New: Removing Keras dependency (June 2019)
-
-To circumvent a problem arising in Windows installation, we recently removed keras from the list of dependencies. Keras was being used to deploy the pretrained neural network models for component screening. The neural network models are being deployed through tensorflow and for that we included tensorflow compatible versions of the models inside the folder `model`. Existing users who already have keras in their environment will continue using keras as it is slightly faster. However if you create an environment without it you may want to either reinstall caimanmanager or simply copy the files `model/*.pb` into the folder `caiman_data/model/` for the files to be discoverable. New CaImAn users do not need to do anything as this is being taken care of during the installation process.
-
-## Installation for calcium imaging data analysis
-
-Installation and updating instructions can be found [here](./docs/source/Installation.rst).
-
 ## Documentation & Wiki
 
 Documentation of the code can be found [here](https://caiman.readthedocs.io/en/master/). 
-Moreover, our [wiki page](https://github.com/flatironinstitute/CaImAn/wiki) covers some aspects of the code. 
 
 ### Installation for behavioral analysis
 * Installation on Linux (Windows and MacOS are problematic with anaconda at the moment)
    * create a new environment (suggested for safety) and follow the instructions for the calcium imaging installation
-   * Install spams, as explained [here](http://spams-devel.gforge.inria.fr/). Installation is not straightforward and it might take some trials to get it right
+   * Install spams, as explained [here](http://spams-devel.gforge.inria.fr/). Installation is not straightforward and it might take some trials to get it right.
 
 ## Demos
 
@@ -138,7 +129,6 @@ If you use this code please cite the corresponding papers where original methods
 
 ## Other docs in this repo
 * [Running CaImAn on a Cluster](docs/CLUSTER.md)
-* [More detailed install instructions for Windows](docs/INSTALL-windows.md)
 * [Install quirks on some Linux Distributions](docs/README-Distros.md)
 * [How CaImAn can use your GPUs](docs/README-GPU.md)
 * [The CaImAn GUI](docs/GUI.md)
@@ -169,7 +159,7 @@ Special thanks to the following people for letting us use their datasets for our
 * Sue Ann Koay, David Tank, Princeton University
 * Manolis Froudarakis, Jake Reimers, Andreas Tolias, Baylor College of Medicine
 * Clay Lacefield, Randy Bruno, Columbia University
-
+* Daniel Aharoni, Peyman Golshani, UCLA
 
 ## License
 

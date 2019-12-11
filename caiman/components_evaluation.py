@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-
 """
 Created on Thu Oct 20 12:12:34 2016
 
@@ -34,11 +33,17 @@ except:
 try:
     profile
 except:
-    def profile(a): return a
+
+    def profile(a):
+        return a
 
 
 @profile
-def compute_event_exceptionality(traces:np.ndarray, robust_std:bool=False, N:int=5, use_mode_fast:bool=False, sigma_factor:float=3.) -> Tuple[np.ndarray, np.ndarray, Any, Any]:
+def compute_event_exceptionality(traces: np.ndarray,
+                                 robust_std: bool = False,
+                                 N: int = 5,
+                                 use_mode_fast: bool = False,
+                                 sigma_factor: float = 3.) -> Tuple[np.ndarray, np.ndarray, Any, Any]:
     """
     Define a metric and order components according to the probability of some "exceptional events" (like a spike).
 
@@ -126,11 +131,11 @@ def compute_event_exceptionality(traces:np.ndarray, robust_std:bool=False, N:int
 
 
 #%%
-def find_activity_intervals(C, Npeaks:int=5, tB=-3, tA=10, thres:float=0.3) -> List:
+def find_activity_intervals(C, Npeaks: int = 5, tB=-3, tA=10, thres: float = 0.3) -> List:
     # todo todocument
     import peakutils
     K, T = np.shape(C)
-    L:List = []
+    L: List = []
     for i in range(K):
         if np.sum(np.abs(np.diff(C[i, :]))) == 0:
             L.append([])
@@ -210,9 +215,9 @@ def classify_components_ep(Y, A, C, b, f, Athresh=0.1, Npeaks=5, tB=-3, tA=10, t
     LOC = find_activity_intervals(C, Npeaks=Npeaks, tB=tB, tA=tA, thres=thres)
     rval = np.zeros(K)
 
-    significant_samples:List[Any] = []
+    significant_samples: List[Any] = []
     for i in range(K):
-        if (i+1) % 200 == 0:  # Show status periodically
+        if (i + 1) % 200 == 0:         # Show status periodically
             logging.info('Components evaluated:' + str(i))
         if LOC[i] is not None:
             atemp = A[:, i].toarray().flatten()
@@ -232,8 +237,7 @@ def classify_components_ep(Y, A, C, b, f, Athresh=0.1, Npeaks=5, tB=-3, tA=10, t
             indexes = np.array(list(indexes)).astype(np.int)
             px = np.where(atemp > 0)[0]
             if px.size < 3:
-                logging.warning('Component {0} is almost empty. '.format(i) +
-                                'Space correlation is set to 0.')
+                logging.warning('Component {0} is almost empty. '.format(i) + 'Space correlation is set to 0.')
                 rval[i] = 0
                 significant_samples.append({0})
             else:
@@ -248,10 +252,18 @@ def classify_components_ep(Y, A, C, b, f, Athresh=0.1, Npeaks=5, tB=-3, tA=10, t
             significant_samples.append(0)
 
     return rval, significant_samples
+
+
 #%%
 
 
-def evaluate_components_CNN(A, dims, gSig, model_name:str=os.path.join(caiman_datadir(), 'model', 'cnn_model'), patch_size:int=50, loaded_model=None, isGPU:bool=False) -> Tuple[Any, np.array]:
+def evaluate_components_CNN(A,
+                            dims,
+                            gSig,
+                            model_name: str = os.path.join(caiman_datadir(), 'model', 'cnn_model'),
+                            patch_size: int = 50,
+                            loaded_model=None,
+                            isGPU: bool = False) -> Tuple[Any, np.array]:
     """ evaluate component quality using a CNN network
 
     """
@@ -264,17 +276,17 @@ def evaluate_components_CNN(A, dims, gSig, model_name:str=os.path.join(caiman_da
         from tensorflow.keras.models import model_from_json
         use_keras = True
         logging.info('Using Keras')
-    except(ModuleNotFoundError):
+    except (ModuleNotFoundError):
         use_keras = False
         logging.info('Using Tensorflow')
 
     if loaded_model is None:
         if use_keras:
             if os.path.isfile(os.path.join(caiman_datadir(), model_name + ".json")):
-                model_file    = os.path.join(caiman_datadir(), model_name + ".json")
+                model_file = os.path.join(caiman_datadir(), model_name + ".json")
                 model_weights = os.path.join(caiman_datadir(), model_name + ".h5")
             elif os.path.isfile(model_name + ".json"):
-                model_file    = model_name + ".json"
+                model_file = model_name + ".json"
                 model_weights = model_name + ".h5"
             else:
                 raise FileNotFoundError("File for requested model {} not found".format(model_name))
@@ -287,44 +299,54 @@ def evaluate_components_CNN(A, dims, gSig, model_name:str=os.path.join(caiman_da
             #loaded_model.compile('sgd', 'mse')
         else:
             if os.path.isfile(os.path.join(caiman_datadir(), model_name + ".h5.pb")):
-                model_file    = os.path.join(caiman_datadir(), model_name + ".h5.pb")
+                model_file = os.path.join(caiman_datadir(), model_name + ".h5.pb")
             elif os.path.isfile(model_name + ".h5.pb"):
-                model_file    = model_name + ".h5.pb"
+                model_file = model_name + ".h5.pb"
             else:
                 raise FileNotFoundError("File for requested model {} not found".format(model_name))
             loaded_model = load_graph(model_file)
 
         logging.debug("Loaded model from disk")
 
-    half_crop = np.minimum(
-        gSig[0] * 4 + 1, patch_size), np.minimum(gSig[1] * 4 + 1, patch_size)
+    half_crop = np.minimum(gSig[0] * 4 + 1, patch_size), np.minimum(gSig[1] * 4 + 1, patch_size)
     dims = np.array(dims)
-    coms = [scipy.ndimage.center_of_mass(
-        mm.toarray().reshape(dims, order='F')) for mm in A.tocsc().T]
+    coms = [scipy.ndimage.center_of_mass(mm.toarray().reshape(dims, order='F')) for mm in A.tocsc().T]
     coms = np.maximum(coms, half_crop)
-    coms = np.array([np.minimum(cms, dims - half_crop)
-                     for cms in coms]).astype(np.int)
-    crop_imgs = [mm.toarray().reshape(dims, order='F')[com[0] - half_crop[0]:com[0] + half_crop[0],
-                                                       com[1] - half_crop[1]:com[1] + half_crop[1]] for mm, com in zip(A.tocsc().T, coms)]
-    final_crops = np.array([cv2.resize(
-        im / np.linalg.norm(im), (patch_size, patch_size)) for im in crop_imgs])
+    coms = np.array([np.minimum(cms, dims - half_crop) for cms in coms]).astype(np.int)
+    crop_imgs = [
+        mm.toarray().reshape(dims, order='F')[com[0] - half_crop[0]:com[0] + half_crop[0], com[1] -
+                                              half_crop[1]:com[1] + half_crop[1]] for mm, com in zip(A.tocsc().T, coms)
+    ]
+    final_crops = np.array([cv2.resize(im / np.linalg.norm(im), (patch_size, patch_size)) for im in crop_imgs])
     if use_keras:
-        predictions = loaded_model.predict(
-            final_crops[:, :, :, np.newaxis], batch_size=32, verbose=1)
+        predictions = loaded_model.predict(final_crops[:, :, :, np.newaxis], batch_size=32, verbose=1)
     else:
         tf_in = loaded_model.get_tensor_by_name('prefix/conv2d_20_input:0')
         tf_out = loaded_model.get_tensor_by_name('prefix/output_node0:0')
         with tf.Session(graph=loaded_model) as sess:
-            predictions = sess.run(
-                tf_out, feed_dict={tf_in: final_crops[:, :, :, np.newaxis]})
+            predictions = sess.run(tf_out, feed_dict={tf_in: final_crops[:, :, :, np.newaxis]})
             sess.close()
 
     return predictions, final_crops
+
+
 #%%
 
 
-def evaluate_components(Y:np.ndarray, traces:np.ndarray, A, C, b, f, final_frate, remove_baseline:bool=True, N:int=5, robust_std:bool=False,
-                        Athresh:float=0.1, Npeaks:int=5, thresh_C:float=0.3, sigma_factor:float=3.) -> Tuple[Any, Any, Any, Any, Any, Any]:
+def evaluate_components(Y: np.ndarray,
+                        traces: np.ndarray,
+                        A,
+                        C,
+                        b,
+                        f,
+                        final_frate,
+                        remove_baseline: bool = True,
+                        N: int = 5,
+                        robust_std: bool = False,
+                        Athresh: float = 0.1,
+                        Npeaks: int = 5,
+                        thresh_C: float = 0.3,
+                        sigma_factor: float = 3.) -> Tuple[Any, Any, Any, Any, Any, Any]:
     """ Define a metric and order components according to the probability of some "exceptional events" (like a spike).
 
     Such probability is defined as the likelihood of observing the actual trace value over N samples given an estimated noise distribution.
@@ -399,8 +421,10 @@ def evaluate_components(Y:np.ndarray, traces:np.ndarray, A, C, b, f, final_frate
     Yr = np.reshape(Y, (np.prod(dims), T), order='F')
 
     logging.debug('Computing event exceptionality delta')
-    fitness_delta, erfc_delta, _, _ = compute_event_exceptionality(
-        np.diff(traces, axis=1), robust_std=robust_std, N=N, sigma_factor=sigma_factor)
+    fitness_delta, erfc_delta, _, _ = compute_event_exceptionality(np.diff(traces, axis=1),
+                                                                   robust_std=robust_std,
+                                                                   N=N,
+                                                                   sigma_factor=sigma_factor)
 
     logging.debug('Removing Baseline')
     if remove_baseline:
@@ -412,44 +436,56 @@ def evaluate_components(Y:np.ndarray, traces:np.ndarray, A, C, b, f, final_frate
                 scipy.ndimage.percentile_filter(
                     traces, 8, size=[1, num_samps_bl])
 
-        else:  # fast baseline removal
+        else:                                                                                # fast baseline removal
             downsampfact = num_samps_bl
-            elm_missing = int(np.ceil(T * 1.0 / downsampfact)
-                              * downsampfact - T)
+            elm_missing = int(np.ceil(T * 1.0 / downsampfact) * downsampfact - T)
             padbefore = int(np.floor(old_div(elm_missing, 2.0)))
             padafter = int(np.ceil(old_div(elm_missing, 2.0)))
-            tr_tmp = np.pad(
-                traces.T, ((padbefore, padafter), (0, 0)), mode='reflect')
+            tr_tmp = np.pad(traces.T, ((padbefore, padafter), (0, 0)), mode='reflect')
             numFramesNew, num_traces = np.shape(tr_tmp)
-            #% compute baseline quickly
+                                                                                             #% compute baseline quickly
             logging.debug("binning data ...")
-            tr_BL = np.reshape(tr_tmp, (downsampfact,
-                numFramesNew // downsampfact, num_traces), order='F')
+            tr_BL = np.reshape(tr_tmp, (downsampfact, numFramesNew // downsampfact, num_traces), order='F')
             tr_BL = np.percentile(tr_BL, 8, axis=0)
             logging.debug("interpolating data ...")
             logging.debug(tr_BL.shape)
-            tr_BL = scipy.ndimage.zoom(np.array(tr_BL, dtype=np.float32), [
-                                       downsampfact, 1], order=3, mode='constant', cval=0.0, prefilter=True)
+            tr_BL = scipy.ndimage.zoom(np.array(tr_BL, dtype=np.float32), [downsampfact, 1],
+                                       order=3,
+                                       mode='constant',
+                                       cval=0.0,
+                                       prefilter=True)
             if padafter == 0:
                 traces -= tr_BL.T
             else:
                 traces -= tr_BL[padbefore:-padafter].T
 
     logging.debug('Computing event exceptionality')
-    fitness_raw, erfc_raw, _, _ = compute_event_exceptionality(
-        traces, robust_std=robust_std, N=N, sigma_factor=sigma_factor)
+    fitness_raw, erfc_raw, _, _ = compute_event_exceptionality(traces,
+                                                               robust_std=robust_std,
+                                                               N=N,
+                                                               sigma_factor=sigma_factor)
 
     logging.debug('Evaluating spatial footprint')
     # compute the overlap between spatial and movie average across samples with significant events
-    r_values, significant_samples = classify_components_ep(Yr, A, C, b, f, Athresh=Athresh, Npeaks=Npeaks, tB=tB,
-                                                           tA=tA, thres=thresh_C)
+    r_values, significant_samples = classify_components_ep(Yr,
+                                                           A,
+                                                           C,
+                                                           b,
+                                                           f,
+                                                           Athresh=Athresh,
+                                                           Npeaks=Npeaks,
+                                                           tB=tB,
+                                                           tA=tA,
+                                                           thres=thresh_C)
 
     return fitness_raw, fitness_delta, erfc_raw, erfc_delta, r_values, significant_samples
 
-def grouper(n:int, iterable, fillvalue:bool=None):
+
+def grouper(n: int, iterable, fillvalue: bool = None):
     "grouper(3, 'ABCDEFG', 'x') --> ABC DEF Gxx"
     args = [iter(iterable)] * n
     return itertools.zip_longest(*args, fillvalue=fillvalue)
+
 
 def evaluate_components_placeholder(params):
     import caiman as cm
@@ -462,9 +498,28 @@ def evaluate_components_placeholder(params):
 
     return fitness_raw, fitness_delta, [], [], r_values, significant_samples
 
-def estimate_components_quality_auto(Y, A, C, b, f, YrA, frate, decay_time, gSig, dims, dview=None, min_SNR=2, r_values_min=0.9,
-                                     r_values_lowest=-1, Npeaks=10, use_cnn=True, thresh_cnn_min=0.95, thresh_cnn_lowest=0.1,
-                                     thresh_fitness_delta=-20., min_SNR_reject=0.5, gSig_range = None) -> Tuple[np.array, np.array, float, float, float]:
+
+def estimate_components_quality_auto(Y,
+                                     A,
+                                     C,
+                                     b,
+                                     f,
+                                     YrA,
+                                     frate,
+                                     decay_time,
+                                     gSig,
+                                     dims,
+                                     dview=None,
+                                     min_SNR=2,
+                                     r_values_min=0.9,
+                                     r_values_lowest=-1,
+                                     Npeaks=10,
+                                     use_cnn=True,
+                                     thresh_cnn_min=0.95,
+                                     thresh_cnn_lowest=0.1,
+                                     thresh_fitness_delta=-20.,
+                                     min_SNR_reject=0.5,
+                                     gSig_range=None) -> Tuple[np.array, np.array, float, float, float]:
     ''' estimates the quality of component automatically
 
     Args:
@@ -535,29 +590,53 @@ def estimate_components_quality_auto(Y, A, C, b, f, YrA, frate, decay_time, gSig
     # threshold on time variability
     fitness_min = scipy.special.log_ndtr(-min_SNR) * N_samples
     # components with SNR lower than 0.5 will be rejected
-    thresh_fitness_raw_reject = scipy.special.log_ndtr(
-        -min_SNR_reject) * N_samples
+    thresh_fitness_raw_reject = scipy.special.log_ndtr(-min_SNR_reject) * N_samples
 
     traces = C + YrA
-    _, _, fitness_raw, _, r_values = estimate_components_quality( # type: ignore # mypy cannot reason about return_all
-        traces, Y, A, C, b, f, final_frate=frate, Npeaks=Npeaks, r_values_min=r_values_min, fitness_min=fitness_min,
-        fitness_delta_min=thresh_fitness_delta, return_all=True, dview=dview, num_traces_per_group=50, N=N_samples)
+    _, _, fitness_raw, _, r_values = estimate_components_quality(      # type: ignore # mypy cannot reason about return_all
+        traces,
+        Y,
+        A,
+        C,
+        b,
+        f,
+        final_frate=frate,
+        Npeaks=Npeaks,
+        r_values_min=r_values_min,
+        fitness_min=fitness_min,
+        fitness_delta_min=thresh_fitness_delta,
+        return_all=True,
+        dview=dview,
+        num_traces_per_group=50,
+        N=N_samples)
 
     comp_SNR = -norm.ppf(np.exp(fitness_raw / N_samples))
 
-    idx_components, idx_components_bad, cnn_values = select_components_from_metrics(
-                A, dims, gSig, r_values,  comp_SNR, r_values_min,
-                r_values_lowest, min_SNR, min_SNR_reject,
-                thresh_cnn_min, thresh_cnn_lowest, use_cnn, gSig_range)
+    idx_components, idx_components_bad, cnn_values = select_components_from_metrics(A, dims, gSig, r_values, comp_SNR,
+                                                                                    r_values_min, r_values_lowest,
+                                                                                    min_SNR, min_SNR_reject,
+                                                                                    thresh_cnn_min, thresh_cnn_lowest,
+                                                                                    use_cnn, gSig_range)
 
     return idx_components, idx_components_bad, comp_SNR, r_values, cnn_values
 
-def select_components_from_metrics(A, dims, gSig, r_values, comp_SNR,
-                                   r_values_min=0.8, r_values_lowest=-1,
-                                   min_SNR=2.5, min_SNR_reject=0.5,
-                                   thresh_cnn_min=0.8, thresh_cnn_lowest=0.1,
-                                   use_cnn=True, gSig_range=None,
-                                   neuron_class=1, predictions=None, **kwargs) -> Tuple[np.array, np.array, Any]:
+
+def select_components_from_metrics(A,
+                                   dims,
+                                   gSig,
+                                   r_values,
+                                   comp_SNR,
+                                   r_values_min=0.8,
+                                   r_values_lowest=-1,
+                                   min_SNR=2.5,
+                                   min_SNR_reject=0.5,
+                                   thresh_cnn_min=0.8,
+                                   thresh_cnn_lowest=0.1,
+                                   use_cnn=True,
+                                   gSig_range=None,
+                                   neuron_class=1,
+                                   predictions=None,
+                                   **kwargs) -> Tuple[np.array, np.array, Any]:
     '''Selects components based on pre-computed metrics. For each metric
     space correlation, trace SNR, and CNN classifier both an upper and a lower
     thresholds are considered. A component is accepted if and only if it
@@ -570,10 +649,10 @@ def select_components_from_metrics(A, dims, gSig, r_values, comp_SNR,
     idx_components_r = np.where(r_values >= r_values_min)[0]
     idx_components_raw = np.where(comp_SNR > min_SNR)[0]
 
-    idx_components:Any = [] # changes type over the function
+    idx_components: Any = []   # changes type over the function
 
     if use_cnn:
-          # normally 1
+        # normally 1
         if gSig_range is None:
             if predictions is None:
                 predictions, _ = evaluate_components_CNN(A, dims, gSig)
@@ -581,32 +660,44 @@ def select_components_from_metrics(A, dims, gSig, r_values, comp_SNR,
         else:
             predictions = np.zeros(len(r_values))
             for size_range in gSig_range:
-                predictions = np.maximum(predictions,
-                                         evaluate_components_CNN(A, dims, size_range)[0][:, neuron_class])
+                predictions = np.maximum(predictions, evaluate_components_CNN(A, dims, size_range)[0][:, neuron_class])
 
-        idx_components_cnn = np.where(
-            predictions >= thresh_cnn_min)[0]
-        bad_comps = np.where((r_values <= r_values_lowest) | (comp_SNR <= min_SNR_reject) | (
-            predictions <= thresh_cnn_lowest))[0]
+        idx_components_cnn = np.where(predictions >= thresh_cnn_min)[0]
+        bad_comps = np.where((r_values <= r_values_lowest) | (comp_SNR <= min_SNR_reject) |
+                             (predictions <= thresh_cnn_lowest))[0]
         idx_components = np.union1d(idx_components, idx_components_cnn)
         cnn_values = predictions
     else:
-        bad_comps = np.where((r_values <= r_values_lowest) | (
-            comp_SNR <= min_SNR_reject))[0]
+        bad_comps = np.where((r_values <= r_values_lowest) | (comp_SNR <= min_SNR_reject))[0]
         cnn_values = []
 
     idx_components = np.union1d(idx_components, idx_components_r)
     idx_components = np.union1d(idx_components, idx_components_raw)
     idx_components = np.setdiff1d(idx_components, bad_comps)
-    idx_components_bad = np.setdiff1d(
-        list(range(len(r_values))), idx_components)
-
+    idx_components_bad = np.setdiff1d(list(range(len(r_values))), idx_components)
 
     return idx_components.astype(np.int), idx_components_bad.astype(np.int), cnn_values
 
-def estimate_components_quality(traces, Y, A, C, b, f, final_frate=30, Npeaks=10, r_values_min=.95,
-                                fitness_min=-100, fitness_delta_min=-100, return_all:bool=False, N=5,
-                                remove_baseline=True, dview=None, robust_std=False, Athresh=0.1, thresh_C=0.3, num_traces_per_group=20) -> Tuple[np.ndarray, ...]:
+
+def estimate_components_quality(traces,
+                                Y,
+                                A,
+                                C,
+                                b,
+                                f,
+                                final_frate=30,
+                                Npeaks=10,
+                                r_values_min=.95,
+                                fitness_min=-100,
+                                fitness_delta_min=-100,
+                                return_all: bool = False,
+                                N=5,
+                                remove_baseline=True,
+                                dview=None,
+                                robust_std=False,
+                                Athresh=0.1,
+                                thresh_C=0.3,
+                                num_traces_per_group=20) -> Tuple[np.ndarray, ...]:
     """ Define a metric and order components according to the probability of some "exceptional events" (like a spike).
 
     Such probability is defined as the likelihood of observing the actual trace value over N samples given an estimated noise distribution.
@@ -672,7 +763,7 @@ def estimate_components_quality(traces, Y, A, C, b, f, final_frate=30, Npeaks=10
                                 N=N, robust_std=robust_std, Athresh=Athresh,
                                 Npeaks=Npeaks, thresh_C=thresh_C)
 
-    else:  # memory mapped case
+    else:      # memory mapped case
         fitness_raw = []
         fitness_delta = []
         erfc_raw = []
@@ -687,16 +778,18 @@ def estimate_components_quality(traces, Y, A, C, b, f, final_frate=30, Npeaks=10
                 idx = list(g)
                 # idx = list(filter(None.__ne__, idx))
                 idx = list(filter(lambda a: a is not None, idx))
-                params.append([Y.filename, traces[idx], A.tocsc()[:, idx], C[idx], b, f,
-                               final_frate, remove_baseline, N, robust_std, Athresh, Npeaks, thresh_C])
+                params.append([
+                    Y.filename, traces[idx],
+                    A.tocsc()[:, idx], C[idx], b, f, final_frate, remove_baseline, N, robust_std, Athresh, Npeaks,
+                    thresh_C
+                ])
 
             if dview is None:
                 res = map(evaluate_components_placeholder, params)
             else:
                 logging.info('Component evaluation in parallel')
                 if 'multiprocessing' in str(type(dview)):
-                    res = dview.map_async(
-                        evaluate_components_placeholder, params).get(4294967)
+                    res = dview.map_async(evaluate_components_placeholder, params).get(4294967)
                 else:
                     res = dview.map_sync(evaluate_components_placeholder, params)
 
@@ -715,9 +808,9 @@ def estimate_components_quality(traces, Y, A, C, b, f, final_frate=30, Npeaks=10
         else:
             warnings.warn("There were no components to evaluate. Check your parameter settings.")
 
-    idx_components_r = np.where(np.array(r_values) >= r_values_min)[0]     # threshold on space consistency
-    idx_components_raw = np.where(np.array(fitness_raw) < fitness_min)[0]  # threshold on time variability
-    # threshold on time variability (if nonsparse activity)
+    idx_components_r = np.where(np.array(r_values) >= r_values_min)[0]         # threshold on space consistency
+    idx_components_raw = np.where(np.array(fitness_raw) < fitness_min)[0]      # threshold on time variability
+                                                                               # threshold on time variability (if nonsparse activity)
     idx_components_delta = np.where(np.array(fitness_delta) < fitness_delta_min)[0]
 
     idx_components = np.union1d(idx_components_r, idx_components_raw)

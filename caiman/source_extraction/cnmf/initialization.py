@@ -87,8 +87,8 @@ def downscale(Y, ds, opencv=False):
             Y = Y[..., None]
             ds = tuple(ds) + (1,)
         else:
-            Y_ds = movie(Y).resize(fx=1. / ds[0], fy=1. / ds[1], fz=1. / ds[2],
-                                   interpolation=cv2.INTER_AREA)
+            Y_ds = movie(Y.transpose(2, 0, 1)).resize(fx=1. / ds[0], fy=1. / ds[1], fz=1. / ds[2],
+                                                      interpolation=cv2.INTER_AREA).transpose(1, 2, 0)
         logging.info('Downscaling using OpenCV')
     else:
         if d > 3:
@@ -314,15 +314,15 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
     if ssub != 1 or tsub != 1:
 
         if method == 'corr_pnr':
-            logging.info("Spatial downsampling 1-photon")
+            logging.info("Spatial/Temporal downsampling 1-photon")
             # this icrements the performance against ground truth and solves border problems
             Y_ds = downscale(Y, tuple([ssub] * len(d) + [tsub]), opencv=False)
         else:
-            logging.info("Spatial downsampling 2-photon")
+            logging.info("Spatial/Temporal downsampling 2-photon")
             # this icrements the performance against ground truth and solves border problems
             Y_ds = downscale(Y, tuple([ssub] * len(d) + [tsub]), opencv=True)
 #            mean_val = np.mean(Y)
-#            Y_ds = downscale_local_mean(Y, tuple([ssub] * len(d) + [tsub]), cval=mean_val) # this gives better results against ground truth for 2-photon datasets
+#            Y_ds = downscale_local_mean(Y, tuple([ssub] * len(d) + [tsub]), cval=mean_val)
     else:
         Y_ds = Y
 
@@ -349,6 +349,11 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
     elif method == 'sparse_nmf':
         Ain, Cin, _, b_in, f_in = sparseNMF(
             Y_ds, nr=K, nb=nb, max_iter_snmf=max_iter_snmf, alpha=alpha_snmf,
+            sigma_smooth=sigma_smooth_snmf, remove_baseline=remove_baseline, perc_baseline=perc_baseline_snmf)
+
+    elif method == 'compressed_nmf':
+        Ain, Cin, _, b_in, f_in = compressedNMF(
+            Y_ds, nr=K, nb=nb, max_iter_snmf=max_iter_snmf,
             sigma_smooth=sigma_smooth_snmf, remove_baseline=remove_baseline, perc_baseline=perc_baseline_snmf)
 
     elif method == 'graph_nmf':
@@ -432,7 +437,6 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
 
     if Ain.size > 0:
         Cin = resize(Cin, [K, T])
-
         center = np.asarray(
             [center_of_mass(a.reshape(d, order='F')) for a in Ain.T])
     else:
@@ -591,12 +595,76 @@ def sparseNMF(Y_ds, nr, max_iter_snmf=500, alpha=10e2, sigma_smooth=(.5, .5, .5)
 
     return A_in, C_in, center, b_in, f_in
 
+
+def compressedNMF(Y_ds, nr, r_ov=10, max_iter_snmf=500,
+                  sigma_smooth=(.5, .5, .5), remove_baseline=True,
+                  perc_baseline=20, nb=1, truncate=2, tol=1e-3):
+    m = scipy.ndimage.gaussian_filter(np.transpose(
+            Y_ds, np.roll(np.arange(Y_ds.ndim), 1)), sigma=sigma_smooth,
+            mode='nearest', truncate=truncate)
+    if remove_baseline:
+        logging.info('REMOVING BASELINE')
+        bl = np.percentile(m, perc_baseline, axis=0)
+        m = np.maximum(0, m - bl)
+    else:
+        logging.info('NOT REMOVING BASELINE')
+        bl = np.zeros(m.shape[1:])
+
+    T, dims = m.shape[0], m.shape[1:]
+    d = np.prod(dims)
+    yr = np.reshape(m, [T, d], order='F')
+    A, C, USV = nnsvd_init(yr, nr, r_ov=r_ov)    
+    W_r = np.random.randn(d, nr + r_ov)
+    W_l = np.random.randn(T, nr + r_ov)
+    US = USV[0]*USV[1]
+    YYt = US.dot(USV[2].dot(USV[2].T)).dot(US.T)
+#    YYt = yr.dot(yr.T)
+
+    B = YYt.dot(YYt.dot(US.dot(USV[2].dot(W_r))))
+    PC, _ = np.linalg.qr(B)
+
+    B = USV[2].T.dot(US.T.dot(YYt.dot(YYt.dot(W_l))))
+    PA, _ = np.linalg.qr(B)
+#    mdl = NMF(n_components=nr, verbose=False, init='nndsvd', tol=1e-10,
+#              max_iter=1)
+#    C = mdl.fit_transform(yr).T
+#    A = mdl.components_.T
+
+    yrPA = yr.dot(PA)
+    yrPC = PC.T.dot(yr)
+    for it in range(max_iter_snmf):
+
+        C__ = C.copy()
+        A__ = A.copy()
+        C_ = C.dot(PC)
+        A_ = PA.T.dot(A)
+
+        C = C*(yrPA.dot(A_)/(C.T.dot(A_.T.dot(A_))+np.finfo(C.dtype).eps)).T
+        A = A*(yrPC.T.dot(C_.T))/(A.dot(C_.dot(C_.T)) +  np.finfo(C.dtype).eps)
+        nA = np.sqrt((A**2).sum(0))
+        A /= nA
+        C *= nA[:, np.newaxis]
+        if (np.linalg.norm(C - C__)/np.linalg.norm(C__) < tol) & (np.linalg.norm(A - A__)/np.linalg.norm(A__) < tol):
+            logging.info('Graph NMF converged after {} iterations'.format(it+1))
+            break
+    A_in = A
+    C_in = C
+
+    m1 = yr.T - A_in.dot(C_in) + np.maximum(0, bl.flatten(order='F'))[:, np.newaxis]
+    model = NMF(n_components=nb, init='random',
+                random_state=0, max_iter=max_iter_snmf)
+    b_in = model.fit_transform(np.maximum(m1, 0)).astype(np.float32)
+    f_in = model.components_.astype(np.float32)
+    center = caiman.base.rois.com(A_in, *dims)
+
+    return A_in, C_in, center, b_in, f_in
+
+
 def graphNMF(Y_ds, nr, max_iter_snmf=500, lambda_gnmf=1,
              sigma_smooth=(.5, .5, .5), remove_baseline=True,
              perc_baseline=20, nb=1, truncate=2, tol=1e-3, SC_kernel='heat',
              SC_normalize=True, SC_thr=0, SC_sigma=1, SC_use_NN=False,
              SC_nnn=20):
-
     m = scipy.ndimage.gaussian_filter(np.transpose(
     Y_ds, np.roll(np.arange(Y_ds.ndim), 1)), sigma=sigma_smooth,
     mode='nearest', truncate=truncate)
@@ -608,7 +676,6 @@ def graphNMF(Y_ds, nr, max_iter_snmf=500, lambda_gnmf=1,
         logging.info('NOT REMOVING BASELINE')
         bl = np.zeros(m.shape[1:])
         m1 = m
-
     T, dims = m1.shape[0], m1.shape[1:]
     d = np.prod(dims)
     yr = np.reshape(m1, [T, d], order='F')
@@ -1758,9 +1825,9 @@ def compute_W(Y, A, C, dims, radius, data_fits_in_memory=True, ssub=1, tsub=1, p
     return spr.csr_matrix((data, indices, indptr), dtype='float32'), b0.astype(np.float32)
 
 #%%
-def nnsvd_init(X,n_components,eps=1e-6,random_state=None):
-    # NNDSVD initialization from scikit learn package
-    U, S, V = randomized_svd(X, n_components, random_state=random_state)
+def nnsvd_init(X, n_components, r_ov=10, eps=1e-6, random_state=42):
+    # NNDSVD initialization from scikit learn package (modified)
+    U, S, V = randomized_svd(X, n_components + r_ov, random_state=random_state)
     W, H = np.zeros(U.shape), np.zeros(V.shape)
 
     # The leading singular triplet is non-negative
@@ -1800,7 +1867,7 @@ def nnsvd_init(X,n_components,eps=1e-6,random_state=None):
 
     C = W.T
     A = H.T
-    return A,C #
+    return A[:, 1:n_components], C[:n_components], (U, S, V) #
 #%%
 def norm(x):
     """Dot product-based Euclidean norm implementation

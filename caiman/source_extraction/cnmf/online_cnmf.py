@@ -19,11 +19,11 @@ from builtins import range
 from builtins import str
 from builtins import zip
 import cv2
-from multiprocessing import current_process, cpu_count
 import logging
-import os
 from math import sqrt
+from multiprocessing import current_process, cpu_count
 import numpy as np
+import os
 from past.utils import old_div
 from scipy.ndimage import percentile_filter
 from scipy.ndimage.filters import gaussian_filter
@@ -31,10 +31,9 @@ from scipy.sparse import coo_matrix, csc_matrix, spdiags, hstack
 from scipy.stats import norm
 from sklearn.decomposition import NMF
 from sklearn.preprocessing import normalize
+import tensorflow as tf
 from time import time
 from typing import List, Tuple
-import tensorflow as tf
-import logging
 
 import caiman
 from .cnmf import CNMF
@@ -222,7 +221,7 @@ class OnACID(object):
         self.estimates.CY = self.estimates.CY * 1. / self.params.get('online', 'init_batch')
         self.estimates.CC = 1 * self.estimates.CC / self.params.get('online', 'init_batch')
 
-        print('Expecting ' + str(expected_comps) + ' components')
+        logging.info('Expecting {0} components'.format(str(expected_comps)))
         self.estimates.CY.resize([expected_comps + self.params.get('init', 'nb'), self.estimates.CY.shape[-1]], refcheck=False)
         if self.params.get('online', 'use_dense'):
             self.estimates.Ab_dense = np.zeros((self.estimates.CY.shape[-1], expected_comps + self.params.get('init', 'nb')),
@@ -1040,8 +1039,8 @@ class OnACID(object):
         if opts['show_movie']:
             self.bnd_AC = np.percentile(self.estimates.A.dot(self.estimates.C),
                                         (0.001, 100-0.005))
-            self.bnd_BG = np.percentile(self.estimates.b.dot(self.estimates.f),
-                                        (0.001, 100-0.001))
+            #self.bnd_BG = np.percentile(self.estimates.b.dot(self.estimates.f),
+            #                            (0.001, 100-0.001))
         return self
 
     def save(self,filename):
@@ -1113,9 +1112,9 @@ class OnACID(object):
             process_files = fls[:init_files + extra_files]   # additional files
             # where to start reading at each file
             init_batc_iter = [init_batch] + [0]*extra_files
-        if self.params.get('online', 'save_online_movie'):
+        if self.params.get('online', 'save_online_movie') + self.params.get('online', 'show_movie'):
             resize_fact = 2
-            fourcc = cv2.VideoWriter_fourcc(*'H264')
+            fourcc = cv2.VideoWriter_fourcc(*self.params.get('online', 'opencv_codec'))
             out = cv2.VideoWriter(self.params.get('online', 'movie_name_online'),
                                   fourcc, 30, tuple([int(resize_fact*2*x) for x in self.params.get('data', 'dims')]),
                                   True)
@@ -1128,7 +1127,7 @@ class OnACID(object):
 
         #     Go through all files
             for file_count, ffll in enumerate(process_files):
-                logging.info('Now processing file {}'.format(ffll))
+                logging.warning('Now processing file {}'.format(ffll))
                 Y_ = caiman.base.movies.load_iter(
                     ffll, var_name_hdf5=self.params.get('data', 'var_name_hdf5'),
                     subindices=slice(init_batc_iter[file_count], None, None))
@@ -1163,7 +1162,7 @@ class OnACID(object):
                         # Motion Correction
                         if self.params.get('online', 'motion_correct'):    # motion correct
                             templ = self.estimates.Ab.dot(
-                                    self.estimates.C_on[:self.M, t-1]).reshape(self.params.get('data', 'dims'), order='F')#*self.img_norm
+                                    np.median(self.estimates.C_on[:self.M, t-51:t-1], 1)).reshape(self.params.get('data', 'dims'), order='F')#*self.img_norm
                             if self.is1p and self.estimates.W is not None:
                                 if ssub_B == 1:
                                     B = self.estimates.W.dot((frame_ - templ).flatten(order='F') - self.estimates.b0) + self.estimates.b0
@@ -1243,7 +1242,7 @@ class OnACID(object):
             self.estimates.bl = [0] * self.estimates.C.shape[0]
             self.estimates.S = np.zeros_like(self.estimates.C)
         if self.params.get('online', 'ds_factor') > 1:
-            dims = Y_.shape[1:]
+            dims = frame.shape
             self.estimates.A = hstack([coo_matrix(cv2.resize(self.estimates.A[:, i].reshape(self.estimates.dims, order='F').toarray(),
                                                             dims[::-1]).reshape(-1, order='F')[:,None]) for i in range(self.N)], format='csc')
             if self.estimates.b.shape[-1] > 0:
@@ -1267,12 +1266,9 @@ class OnACID(object):
 
         return self
 
-    def create_frame(self, frame_cor, show_residuals=True, resize_fact=3):
+    def create_frame(self, frame_cor, show_residuals=True, resize_fact=3, transpose=True):
         if show_residuals:
-            if self.params.get('online', 'use_corr_img'):
-                caption = 'Corr*PNR Image'
-            else:
-                caption = 'Mean Residual Buffer'
+            caption = 'Corr*PSNR buffer' if self.params.get('online', 'use_corr_img') else 'Mean Residual Buffer'
         else:
             caption = 'Identified Components'
         captions = ['Raw Data', 'Inferred Activity', caption, 'Denoised Data']
@@ -1322,26 +1318,34 @@ class OnACID(object):
         frame_comp_2 = cv2.resize(np.concatenate([comps_frame, denoised_frame], axis=-1), 
                                   (2 * np.int(self.dims[1] * resize_fact), np.int(self.dims[0] * resize_fact)))
         frame_pn = np.concatenate([frame_comp_1, frame_comp_2], axis=0).T
+        if transpose:
+            self.dims = self.dims[::-1]
+            frame_pn = frame_pn.T
+
         vid_frame = np.repeat(frame_pn[:, :, None], 3, axis=-1)
         vid_frame = np.minimum((vid_frame * 255.), 255).astype('u1')
 
         #if show_residuals and est.ind_new:
         if est.ind_new:
-            add_v = np.int(self.dims[1]*resize_fact)
+            add_v = np.int(self.dims[1-transpose]*resize_fact)
             for ind_new in est.ind_new:
-                cv2.rectangle(vid_frame,(int(ind_new[0][1]*resize_fact),int(ind_new[1][1]*resize_fact)+add_v),
-                                             (int(ind_new[0][0]*resize_fact),int(ind_new[1][0]*resize_fact)+add_v),(255,0,255),2)
+                cv2.rectangle(vid_frame,(int(ind_new[transpose][1]*resize_fact) + transpose*add_v,
+                                         int(ind_new[1-transpose][1]*resize_fact) + (1-transpose)*add_v),
+                                             (int(ind_new[transpose][0]*resize_fact) + transpose*add_v,
+                                              int(ind_new[1-transpose][0]*resize_fact)+ (1-transpose)*add_v), (255,0,255), 2)
 
         cv2.putText(vid_frame, captions[0], (5, 20), fontFace=5, fontScale=0.8, color=(
             0, 255, 0), thickness=1)
-        cv2.putText(vid_frame, captions[1], (np.int(
+        cv2.putText(vid_frame, captions[1+transpose], (np.int(
             self.dims[0] * resize_fact) + 5, 20), fontFace=5, fontScale=0.8, color=(0, 255, 0), thickness=1)
-        cv2.putText(vid_frame, captions[2], (5, np.int(
+        cv2.putText(vid_frame, captions[2-transpose], (5, np.int(
             self.dims[1] * resize_fact) + 20), fontFace=5, fontScale=0.8, color=(0, 255, 0), thickness=1)
         cv2.putText(vid_frame, captions[3], (np.int(self.dims[0] * resize_fact) + 5, np.int(
             self.dims[1] * resize_fact) + 20), fontFace=5, fontScale=0.8, color=(0, 255, 0), thickness=1)
         cv2.putText(vid_frame, 'Frame = ' + str(self.t), (vid_frame.shape[1] // 2 - vid_frame.shape[1] //
                                                      10, vid_frame.shape[0] - 20), fontFace=5, fontScale=0.8, color=(0, 255, 255), thickness=1)
+        if transpose:
+            self.dims = self.dims[::-1]
         return vid_frame
 
 
@@ -2168,67 +2172,6 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
         use_peak_max=use_peak_max, test_both=test_both, mean_buff=mean_buff,
         tf_in=tf_in, tf_out=tf_out)
 
-    # cn, pnr = caiman.summary_images.correlation_pnr(Yres_buf.reshape((-1,) + dims, order='F'),
-    #                                                 gSig=1, center_psf=False, swap_dim=False)
-    # Y_filter = Yres_buf.reshape((-1,) + dims, order='F').copy()
-    # for i in range(len(Y_filter)):
-    #      # Y_filter[i] = cv2.GaussianBlur(Y_filter[i], tuple(gSiz), gSig[0])  #, Y_filter[i], gSig[1], cv2.BORDER_CONSTANT)
-    #      Y_filter[i] = cv2.GaussianBlur(Y_filter[i], tuple(gSiz), 1)  #, Y_filter[i], 1, cv2.BORDER_CONSTANT)
-
-    # cn = caiman.summary_images.local_correlations_fft(#Y_filter, swap_dim=False)
-    #     Yres_buf.reshape((-1,) + dims, order='F'), swap_dim=False)
-
-    # foo = get_candidate_components(
-    #     # corr_img, dims, Yres_buf=Yres_buf, min_num_trial=min_num_trial, gSig=gSig,
-    #     cn, dims, Yres_buf=Yres_buf, min_num_trial=min_num_trial, gSig=gSig,
-    #     gHalf=gHalf, sniper_mode=sniper_mode, rval_thr=rval_thr, patch_size=50,
-    #     loaded_model=loaded_model, thresh_CNN_noisy=thresh_CNN_noisy,
-    #     use_peak_max=use_peak_max, test_both=test_both, mean_buff=mean_buff)
-    # Ains, Cins, Cins_res, inds, ijsig_all, cnn_pos, local_max = foo
-
-    # if not t%100:
-    #     import matplotlib.pyplot as plt
-    #     from scipy.io import loadmat
-    #     from caiman.utils.visualization import plot_contours
-    #     A = loadmat('/mnt/home/jfriedrich/CNMF_E/eLife_submission/code/' +
-    #                 'scripts_figures/fig_striatum/results_bk.mat')['A']
-    #     A = csc_matrix(A.toarray().reshape(
-    #         dims + (-1,), order='F').reshape((-1, A.shape[-1]), order='C'))
-    #     # plt.figure(figsize=(20, 20))
-    #     # plt.subplot(221)
-    #     # plt.colorbar(plt.imshow(pnr_img))
-    #     # plt.subplot(222)
-    #     # # plt.colorbar(plt.imshow(corr_img))
-    #     # plot_contours(A, corr_img, thr=.6, colors='w', display_numbers=False)
-    #     # plt.scatter(*foo[-1].T[::-1], c='r')
-    #     # plt.subplot(223)
-    #     # plt.colorbar(plt.imshow(pnr_img * corr_img))
-    #     # plt.subplot(224)
-    #     # # plt.colorbar(plt.imshow(sv.reshape(dims)))
-    #     # plot_contours(A, sv.reshape(dims), thr=.6, colors='w', display_numbers=False)
-    #     # plt.scatter(*local_max.T[::-1], c='r')
-    #     # plt.show()
-    #     plt.figure(figsize=(20, 20))
-    #     plt.subplot(331)
-    #     plt.colorbar(plt.imshow(pnr_img))
-    #     plt.subplot(332)
-    #     plot_contours(A, corr_img, thr=.6, colors='w', display_numbers=False)
-    #     plt.scatter(*foo[-1].T[::-1], c='r')
-    #     plt.subplot(333)
-    #     plt.colorbar(plt.imshow(pnr_img * corr_img))
-    #     plt.subplot(334)
-    #     plt.colorbar(plt.imshow(pnr))
-    #     plt.subplot(335)
-    #     plot_contours(A, cn, thr=.6, colors='w', display_numbers=False)
-    #     # plt.scatter(*foo[-1].T[::-1], c='r')
-    #     plt.subplot(336)
-    #     plt.colorbar(plt.imshow(pnr * cn))
-    #     plt.subplot(337)
-    #     plot_contours(A, sv.reshape(dims), thr=.6, colors='w', display_numbers=False)
-    #     plt.scatter(*local_max.T[::-1], c='r')
-    #     plt.show()
-    #     import pdb;pdb.set_trace()
-
     ind_new_all = ijsig_all
 
     num_added = 0  # len(inds)
@@ -2423,17 +2366,6 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                     rho_buf[:, ind_vb] = tmp.reshape(T, -1, d1)[
                         (slice(None),) + slices].reshape(T, -1)**2
 
-                # import matplotlib.pyplot as plt
-                # plt.figure(figsize=(15, 10))
-                # plt.subplot(231)
-                # plt.colorbar(plt.imshow(pnr_img))
-                # plt.subplot(232)
-                # plt.colorbar(plt.imshow(corr_img))
-                # plt.subplot(233)
-                # plt.colorbar(plt.imshow(pnr_img*corr_img))
-                # plt.subplot(234)
-                # plt.colorbar(plt.imshow(sv.reshape(dims)))
-
                 sv[ind_vb] = np.sum(rho_buf[:, ind_vb], 0)
 
     return Ab, Cf, Yres_buf, rho_buf, CC, CY, ind_A, sv, groups, ind_new, ind_new_all, sv, cnn_pos
@@ -2581,7 +2513,7 @@ def initialize_movie_online(Y, K, gSig, rf, stride, base_name,
     print((len(traces)))
     print((len(idx_components)))
     #%
-    cnm_refine.sn = sn
+    cnm_refine.sn = sn # FIXME: There is no sn in scope here
     cnm_refine.idx_components = idx_components
     cnm_refine.idx_components_bad = idx_components_bad
     cnm_refine.r_values = r_values

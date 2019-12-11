@@ -31,6 +31,7 @@ import numpy as np
 import os
 import platform as plt
 import scipy
+from typing import Dict
 
 # Set up the logger; change this if you like.
 # You can log to a file using the filename parameter, or make the output more or less
@@ -127,7 +128,7 @@ class Comparison(object):
 
     def __init__(self):
 
-        self.comparison = {
+        self.comparison:Dict[str, Dict] = {
             'rig_shifts': {},
             'pwrig_shifts': {},
             'cnmf_on_patch': {},
@@ -214,8 +215,8 @@ class Comparison(object):
         # initialization
         dims_test = [self.dims[0], self.dims[1]]
         dims_gt = dims_test
-        dt = datetime.datetime.today()
-        dt = str(dt)
+        today_dt = datetime.datetime.today()
+        today_str = str(today_dt)
         plat = plt.platform()
         plat = str(plat)
         pro = plt.processor()
@@ -223,7 +224,7 @@ class Comparison(object):
         # we store a big file which contains everything (INFORMATION)
         information = {
             'platform': plat,
-            'time': dt,
+            'time': today_str,
             'processor': pro,
             'params': params,
             'cnmpatch': cnmpatch,
@@ -234,15 +235,15 @@ class Comparison(object):
             }
         }
 
-        rootdir = os.path.abspath(cm.__path__[0])[:-7]
         file_path = os.path.join(caiman_datadir(), "testdata", "groundtruth.npz")
 
         # OPENINGS
         # if we want to set this data as truth
         if istruth:
             # we just save it
-            if os._exists(file_path):
+            if os.path.exists(file_path):
                 os.remove(file_path)
+            else:
                 logging.debug("nothing to remove\n")
             np.savez_compressed(file_path,
                                 information=information,
@@ -282,9 +283,9 @@ class Comparison(object):
         dr = os.path.join(caiman_datadir(), "testdata")
         for name in os.listdir(dr):
             i += 1
-        i = str(i)
-        if not os.path.exists(dr + i):
-            os.makedirs(dr + i)
+        istr = str(i)
+        if not os.path.exists(dr + istr):
+            os.makedirs(dr + istr)
         information.update({'diff': {}})
         information.update({'differences': {'proc': False, 'params_movie': False, 'params_cnm': False}})
                                                                                                             # INFORMATION FOR THE USER
@@ -342,7 +343,7 @@ class Comparison(object):
                  timer=self.comparison['cnmf_on_patch']['timer'] - data['timer']['cnmf_on_patch'])
         })
         #try:
-        #    pl.gcf().savefig(dr + i + '/' + 'onpatch.pdf')
+        #    pl.gcf().savefig(dr + istr + '/' + 'onpatch.pdf')
         #    pl.close()
         #except:
         #    pass
@@ -362,17 +363,16 @@ class Comparison(object):
                  timer=self.comparison['cnmf_full_frame']['timer'] - data['timer']['cnmf_full_frame'])
         })
         #try:
-        #    pl.gcf().savefig(dr + i + '/' + 'cnmfull.pdf')
+        #    pl.gcf().savefig(dr + istr + '/' + 'cnmfull.pdf')
         #    pl.close()
         #except:
         #    pass
 
         # Saving of everything
-        target_dir = os.path.join(caiman_datadir(), "testdata", i)
+        target_dir = os.path.join(caiman_datadir(), "testdata", istr)
         if not os.path.exists(target_dir):
-            os.makedirs(os.path.join(caiman_datadir(), "testdata",
-                                     i))                                             # XXX If we ever go Python3, just use the exist_ok flag to os.makedirs
-        file_path = os.path.join(target_dir, i + ".npz")
+            os.makedirs(os.path.join(caiman_datadir(), "testdata", istr)) # TODO Revise to just use the exist_ok flag to os.makedirs
+        file_path = os.path.join(target_dir, istr + ".npz")
         np.savez_compressed(file_path,
                             information=information,
                             A_full=self.comparison['cnmf_full_frame']['ourdata'][0],

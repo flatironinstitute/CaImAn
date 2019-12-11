@@ -35,7 +35,6 @@ def prepare_shape(mytuple: Tuple) -> Tuple:
     return tuple(map(lambda x: np.uint64(x), mytuple))
 
 
-    
 #%%
 def load_memmap(filename: str, mode: str = 'r') -> Tuple[Any, Tuple, int]:
     """ Load a memory mapped file created by the function save_memmap
@@ -68,7 +67,7 @@ def load_memmap(filename: str, mode: str = 'r') -> Tuple[Any, Tuple, int]:
     # TODO: Eventually get the code to save these in a different dir
     file_to_load = filename
     filename = os.path.split(filename)[-1]
-    fpart = filename.split('_')[1:-1]      # The filename encodes the structure of the map
+    fpart = filename.split('_')[1:-1]  # The filename encodes the structure of the map
     d1, d2, d3, T, order = int(fpart[-9]), int(fpart[-7]), int(fpart[-5]), int(fpart[-1]), fpart[-3]
     Yr = np.memmap(file_to_load, mode=mode, shape=prepare_shape((d1 * d2 * d3, T)), dtype=np.float32, order=order)
     if d3 == 1:
@@ -444,7 +443,7 @@ def save_memmap(filenames: List[str],
             if is_3D:
                 Yr = f if not (isinstance(f, basestring)) else tifffile.imread(f)
                 if slices is not None:
-                    Yr = Yr[slices]
+                    Yr = Yr[tuple(slices)]
                 else:
                     if idx_xy is None:         #todo remove if not used, superceded by the slices parameter
                         Yr = Yr[remove_init:]
@@ -462,7 +461,7 @@ def save_memmap(filenames: List[str],
                     Yr = Yr.apply_shifts(xy_shifts, interpolation='cubic', remove_blanks=False)
 
                 if slices is not None:
-                    Yr = Yr[slices]
+                    Yr = Yr[tuple(slices)]
                 else:
                     if idx_xy is None:
                         if remove_init > 0:
@@ -637,7 +636,7 @@ def dot_place_holder(par: List) -> Tuple:
             outp = (b_.T.dot(A_[idx_to_pass].T)).T.astype(np.float32)
     else:
         if transpose:
-            outp = A_[idx_to_pass].dot(b_[idx_to_pass]).astype(np.float32)
+            outp = A_[idx_to_pass].T.dot(b_[idx_to_pass]).astype(np.float32)
         else:
             outp = A_[idx_to_pass].dot(b_).astype(np.float32)
 

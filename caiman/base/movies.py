@@ -97,14 +97,16 @@ class movie(ts.timeseries):
             return input_arr
 
         if (type(input_arr) is np.ndarray) or \
-           (type(input_arr) is h5py._hl.dataset.Dataset) or\
-           ('mmap' in str(type(input_arr))) or\
+           (type(input_arr) is h5py._hl.dataset.Dataset) or \
+           ('mmap' in str(type(input_arr))) or \
            ('tifffile' in str(type(input_arr))):
-            return super(movie, cls).__new__(cls, input_arr, **kwargs)
+            return super().__new__(cls, input_arr, **kwargs)  
+            #return super(movie, cls).__new__(cls, input_arr, **kwargs)
         else:
             raise Exception('Input must be an ndarray, use load instead!')
 
     def apply_shifts_online(self, xy_shifts, save_base_name=None):
+        # This function is unused.
         # todo: todocument
 
         if save_base_name is None:
@@ -290,7 +292,7 @@ class movie(ts.timeseries):
         if remove_blanks:
             max_z, max_h, max_w = np.max(shifts, axis=0)
             min_z, min_h, min_w = np.min(shifts, axis=0)
-            self = self.crop(
+            self.crop(
                 crop_top=max_z,
                 crop_bottom=min_z,             # NOTE: edge boundaries for z dimension need to be tested
                 crop_left=max_h,
@@ -453,7 +455,7 @@ class movie(ts.timeseries):
             Exception 'Method not defined'
         """
         if type(self[0, 0, 0]) is not np.float32:
-            warnings.warn('Casting the array to float 32')
+            warnings.warn('Casting the array to float32')
             self = np.asanyarray(self, dtype=np.float32)
 
         if interpolation == 'cubic':
@@ -510,7 +512,7 @@ class movie(ts.timeseries):
                 self[i] = warp(frame, tform, preserve_range=True, order=interpolation)
 
             else:
-                raise Exception('Unknown shift  application method')
+                raise Exception('Unknown shift application method')
 
         if remove_blanks:
             max_h, max_w = np.max(shifts, axis=0)
@@ -529,7 +531,7 @@ class movie(ts.timeseries):
         """
         #todo: todocument
         if type(self[0, 0, 0]) is not np.float32:
-            warnings.warn('Casting the array to float 32')
+            warnings.warn('Casting the array to float32')
             self = np.asanyarray(self, dtype=np.float32)
 
         t, _, _ = self.shape
@@ -600,7 +602,7 @@ class movie(ts.timeseries):
 
         numFrames, linePerFrame, pixPerLine = np.shape(self)
         downsampfact = int(secsWindow * self.fr)
-        logging.debug("Downsample factor: " + str(downsampfact))
+        logging.debug(f"Downsample factor: {downsampfact}")
         elm_missing = int(np.ceil(numFrames * 1.0 / downsampfact) * downsampfact - numFrames)
         padbefore = int(np.floor(old_div(elm_missing, 2.0)))
         padafter = int(np.ceil(old_div(elm_missing, 2.0)))
@@ -609,8 +611,6 @@ class movie(ts.timeseries):
         sys.stdout.flush()
         mov_out = movie(np.pad(self.astype(np.float32), ((padbefore, padafter), (0, 0), (0, 0)), mode='reflect'),
                         **self.__dict__)
-        #mov_out[:padbefore] = mov_out[padbefore+1]
-        #mov_out[-padafter:] = mov_out[-padafter-1]
         numFramesNew, linePerFrame, pixPerLine = np.shape(mov_out)
 
         #% compute baseline quickly
@@ -628,7 +628,6 @@ class movie(ts.timeseries):
                                    mode='constant',
                                    cval=0.0,
                                    prefilter=False)
-        #        movBL = movie(movBL).resize(1,1,downsampfact, interpolation = 4)
 
         #% compute DF/F
         if method == 'delta_f_over_sqrt_f':
@@ -984,11 +983,29 @@ class movie(ts.timeseries):
         return traces
 
     def resize(self, fx=1, fy=1, fz=1, interpolation=cv2.INTER_AREA):
-        # todo: todocument
+        """
+        Resizing caiman movie into a new one. Note that the temporal
+        dimension is controlled by fz and fx, fy, fz correspond to
+        magnification factors. For example to downsample in time by
+        a factor of 2, you need to set fz = 0.5.
+
+        Args:
+            fx (float):
+                Magnification factor along x-dimension
+
+            fy (float):
+                Magnification factor along y-dimension
+
+            fz (float):
+                Magnification factor along temporal dimension
+
+        Returns:
+            self (caiman movie)
+        """
         T, d1, d2 = self.shape
         d = d1 * d2
         elm = d * T
-        max_els = 2**31 - 1
+        max_els = 2**61 - 1    # the bug for sizes >= 2**31 is appears to be fixed now
         if elm > max_els:
             chunk_size = old_div((max_els), d)
             new_m: List = []
@@ -1148,10 +1165,11 @@ class movie(ts.timeseries):
              backend: str = 'opencv',
              do_loop: bool = False,
              bord_px=None,
-             q_max=100,
-             q_min=0,
+             q_max=99.75,
+             q_min=1,
              plot_text: bool = False,
              save_movie: bool = False,
+             opencv_codec: str = 'H264',
              movie_name: str = 'movie.avi') -> None:
         """
         Play the movie using opencv
@@ -1183,6 +1201,9 @@ class movie(ts.timeseries):
 
             save_movie: bool
                 flag to save an avi file of the movie
+
+            opencv_codec: str
+                FourCC video codec for saving movie. Check http://www.fourcc.org/codecs.php
 
             movie_name: str
                 name of saved file
@@ -1241,16 +1262,12 @@ class movie(ts.timeseries):
         looping = True
         terminated = False
         if save_movie:
-            #fourcc = cv2.VideoWriter_fourcc('8', 'B', 'P', 'S')
-            #fourcc = cv2.VideoWriter_fourcc(*'XVID')
-            #fourcc = cv2.VideoWriter_fourcc(*'DIVX')
-            #fourcc = cv2.VideoWriter_fourcc(*'X264')
-            fourcc = cv2.VideoWriter_fourcc(*'MP4V')
+            fourcc = cv2.VideoWriter_fourcc(*opencv_codec)
             frame_in = self[0]
             if bord_px is not None and np.sum(bord_px) > 0:
                 frame_in = frame_in[bord_px:-bord_px, bord_px:-bord_px]
             out = cv2.VideoWriter(movie_name, fourcc, 30.,
-                                  tuple([int(magnification * s) for s in frame_in.shape[::-1]]))
+                                  tuple([int(magnification * s) for s in frame_in.shape[1::-1]]))
         while looping:
 
             for iddxx, frame in enumerate(self):
@@ -1277,7 +1294,10 @@ class movie(ts.timeseries):
 
                     cv2.imshow('frame', frame)
                     if save_movie:
-                        out.write(frame.astype('uint8'))
+                        if frame.ndim < 3:
+                            frame = np.repeat(frame[:, :, None], 3, axis=-1)
+                        frame = np.minimum((frame * 255.), 255).astype('u1')
+                        out.write(frame)
                     if cv2.waitKey(int(1. / fr * 1000)) & 0xFF == ord('q'):
                         looping = False
                         terminated = True
@@ -1417,6 +1437,14 @@ def load(file_name: Union[str, List[str]],
     if os.path.exists(file_name):
         _, extension = os.path.splitext(file_name)[:2]
         extension = extension.lower()
+        if extension == '.mat':
+            logging.warning('Loading a *.mat file. x- and y- dimensions ' +
+                            'might have been swapped.')
+            byte_stream, file_opened = scipy.io.matlab.mio._open_file(file_name, appendmat=False)
+            mjv, mnv = scipy.io.matlab.mio.get_matfile_version(byte_stream)
+            if mjv == 2:
+                extension = '.h5'
+
         if extension == '.tif' or extension == '.tiff':        # load avi file
             with tifffile.TiffFile(file_name) as tffl:
                 multi_page = True if tffl.series[0].shape[0] > 1 else False
@@ -1424,7 +1452,8 @@ def load(file_name: Union[str, List[str]],
                     logging.warning('Your tif file is saved a single page' + 'file. Performance will be affected')
                     multi_page = False
                 if subindices is not None:
-                    if type(subindices) is list:
+                    #if isinstance(subindices, (list, tuple)): # is list or tuple:
+                    if isinstance(subindices, list):  # is list or tuple:
                         if multi_page:
                             input_arr = tffl.asarray(key=subindices[0])[:, subindices[1], subindices[2]]
                         else:
@@ -1602,7 +1631,7 @@ def load(file_name: Union[str, List[str]],
                 images = images[subindices]
 
             if in_memory:
-                logging.debug('loading in memory')
+                logging.debug('loading mmap file in memory')
                 images = np.array(images).astype(outtype)
 
             logging.debug('mmap')
@@ -1634,7 +1663,7 @@ def load(file_name: Union[str, List[str]],
         else:
             raise Exception('Unknown file type')
     else:
-        logging.error('File request:[' + str(file_name) + "] not found!")
+        logging.error(f"File request:[{file_name}] not found!")
         raise Exception('File not found!')
 
     return movie(input_arr.astype(outtype),
@@ -1691,7 +1720,7 @@ def load_movie_chain(file_list: List[str],
         if channel is not None:
             logging.debug(m.shape)
             m = m[channel].squeeze()
-            logging.debug("Movie shape: " + str(m.shape))
+            logging.debug(f"Movie shape: {m.shape}")
 
         if not is3D:
             if m.ndim == 2:
@@ -1729,7 +1758,7 @@ def loadmat_sbx(filename: str):
 
 def _check_keys(checkdict: Dict) -> None:
     """
-    checks if entries in dictionary rare mat-objects. If yes todict is called to change them to nested dictionaries.
+    checks if entries in dictionary are mat-objects. If yes todict is called to change them to nested dictionaries.
     Modifies its parameter in-place.
     """
 
@@ -1999,15 +2028,16 @@ def from_zipfiles_to_movie_lists(zipfile_name: str, max_frames_per_movie: int = 
 
         mov = from_zip_file_to_movie(zipfile_name, start_end=(sf, sf + max_frames_per_movie))
         if binary:
-            fname = os.path.join(base_file_names, 'movie_' + str(sf) + '.mmap')
+            fname = os.path.join(base_file_names, f'movie_{sf}.mmap')
             fname = mov.save(fname, order='C')
         else:
-            fname = os.path.join(base_file_names, 'movie_' + str(sf) + '.tif')
+            fname = os.path.join(base_file_names, f'movie_{sf}.tif')
             mov.save(fname)
 
         movie_list.append(fname)
 
     return movie_list
+
 
 def load_iter(file_name, subindices=None, var_name_hdf5: str = 'mov'):
     """
@@ -2018,7 +2048,7 @@ def load_iter(file_name, subindices=None, var_name_hdf5: str = 'mov'):
             name of file. Possible extensions are tif, avi and hdf5
 
         subindices: iterable indexes
-            for loading only portion of the movie
+            for loading only a portion of the movie
 
     Returns:
         iter: iterator over movie
@@ -2054,12 +2084,18 @@ def load_iter(file_name, subindices=None, var_name_hdf5: str = 'mov'):
                         raise StopIteration
             else:
                 if type(subindices) is slice:
-                    subindices = range(subindices.start,
-                                       int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-                                       if subindices.stop is None else subindices.stop,
-                                       1 if subindices.step is None else subindices.step)
+                    subindices = range(
+                        subindices.start,
+                        int(cap.get(cv2.CAP_PROP_FRAME_COUNT)) if subindices.stop is None else subindices.stop,
+                        1 if subindices.step is None else subindices.step)
                 t = 0
                 for ind in subindices:
+#                    cap.set(1, ind)
+#                    ret, frame = cap.read()
+#                    if ret:
+#                        yield frame[..., 0]
+#                    else:
+#                        raise StopIteration
                     while t <= ind:
                         ret, frame = cap.read()
                         t += 1
@@ -2086,6 +2122,5 @@ def load_iter(file_name, subindices=None, var_name_hdf5: str = 'mov'):
             for y in load(file_name, subindices=subindices):
                 yield y
     else:
-        logging.error('File request:[' + str(file_name) + "] not found!")
+        logging.error(f"File request:[{file_name}] not found!")
         raise Exception('File not found!')
-

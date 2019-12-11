@@ -34,10 +34,12 @@ Package-based Process
    http://docs.continuum.io/anaconda/install. Allow the installer to
    modify your PATH variable
 -  Create a new environment with the caiman package from conda-forge:
+-  If you are installing on Windows, use the conda enabled shell (under "Anaconda" in your programs menu) rather than powershell or a generic prompt
 
 .. code:: bash
 
     conda create -n caiman  # caiman here refers to the name of the environment (you can pick any name you want)
+    conda activate caiman
     conda install caiman -c conda-forge
 
 -  Skip ahead to the section on setting up a data directory with caimanmanager
@@ -72,18 +74,29 @@ Installation on Windows
    <summary>Installation on Windows</summary>
 
 The Windows installation process differs more widely from installation
-on Linux or MacOSX and has different issues you may run into.
+on Linux or MacOSX and has different issues you may run into. We strongly recommend
+using the package-based install rather than building CaImAn yourself. In either case,
+everything you do should be from a Conda enabled shell (which you can find in your programs menu)
+rather than from Powershell or any other shell.
 
+-  Remove any associations you may have made between .py files and an existing python
+   interpreter or editor
 -  Increase the maximum size of your pagefile to 64G or more
    (http://www.tomshardware.com/faq/id-2864547/manage-virtual-memory-pagefile-windows.html).
    The Windows memmap interface is sensitive to the maximum setting
    and leaving it at the default can cause errors when processing larger
    datasets
+Installing CaImAn from a package on Windows should be otherwise the same as any other OS for the
+package-based process described above.
+
+If you will be building CaImAn on Windows (not recommended):
 -  Use Conda to install git (With “conda install git”) - use of
    another commandline git is acceptable, but may lead to issues
    depending on default settings
 -  Install Microsoft Build Tools for Visual Studio 2017
    https://www.visualstudio.com/downloads/#build-tools-for-visual-studio-2017.
+   You can find older versions of visual studio in a link to older tools at the
+   bottom of the page.
    Check the “Build Tools” box, and in the detailed view on the right
    check the “C/C++ CLI Tools” component too. The specifics of this
    occasionally change as Microsoft changes its products and website;

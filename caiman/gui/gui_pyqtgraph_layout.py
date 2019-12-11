@@ -6,6 +6,9 @@ import os
 from pyqtgraph import FileDialog
 from pyqtgraph.Qt import QtGui
 from pyqtgraph.parametertree import Parameter, ParameterTree
+from scipy.sparse import csc_matrix
+from datetime import datetime
+from dateutil.tz import tzlocal
 
 import caiman as cm
 from caiman.source_extraction.cnmf.cnmf import load_CNMF
@@ -64,7 +67,8 @@ else:
 
 estimates = cnm_obj.estimates
 params_obj = cnm_obj.params
-
+dims = estimates.dims                           #original dimension
+estimates.rotation = False                       # flag for rotation
 min_mov = np.min(mov)
 max_mov = np.max(mov)
 
@@ -73,6 +77,38 @@ if not hasattr(estimates, 'Cn'):
     estimates.Cn = cm.local_correlations(mov, swap_dim=False)
 #Cn = estimates.Cn
 
+# We rotate our components 90 degrees right because of incompatiability of pyqtgraph and pyplot
+def rotate90(img, right=None, vector=None, sparse=False):
+    # rotate the img 90 degrees
+    # we first transpose the img then flip axis
+    # If right is ture, then rotate 90 degrees right, otherwise, rotate left
+    # If vector is True, then we first reshape the spatial 1D vector to 2D then rotate
+    # If vector is False, then we directly rotate the matrix
+    global dims
+    a = int(right)
+    if vector == False:
+        img = img.transpose([1,0])
+        img = np.flip(img, axis=a)
+    elif vector == True:
+        if sparse == False:
+            img = img.reshape((dims[1-a], dims[a], img.shape[1]), order='F')
+            img = img.transpose([1,0,2])
+            img = np.flip(img, axis=a)
+            img = img.reshape((dims[0]*dims[1], img.shape[2]), order='F')
+        else:
+            img = img.toarray()
+            img = img.reshape((dims[1-a], dims[a], img.shape[1]), order='F')
+            img = img.transpose([1,0,2])
+            img = np.flip(img, axis=a)
+            img = img.reshape((dims[0]*dims[1], img.shape[2]), order='F')
+            img = csc_matrix(img)
+    return img
+
+estimates.Cn = rotate90(estimates.Cn, right=True, vector=False)  
+estimates.A = rotate90(estimates.A, right=True, vector=True, sparse=True)
+estimates.b = rotate90(estimates.b, right=True, vector=True)
+estimates.dims = (estimates.dims[1], estimates.dims[0])
+estimates.rotation = True               # rotation flag becomes true after rotation
 
 min_mov_denoise = np.min(estimates.A)*estimates.C.min()
 max_mov_denoise = np.max(estimates.A)*estimates.C.max()
@@ -83,22 +119,25 @@ nr_index = 0
 min_background = np.min(estimates.b, axis=0)*np.min(estimates.f, axis=1)
 max_background = np.max(estimates.b, axis=0)*np.max(estimates.f, axis=1)
 
+accepted_empty = True                       # check if accepted list exist and empty
+if hasattr(estimates, 'accepted_list'):
+    accepted_empty = (len(estimates.accepted_list)==0)
 
-if not hasattr(estimates, 'accepted_list'):
+if (not hasattr(estimates, 'accepted_list')) or accepted_empty:
     # if estimates.discarded_components.A.shape[-1] > 0:
     #     estimates.restore_discarded_components()
     estimates.accepted_list = np.array([], dtype=np.int)
     estimates.rejected_list = np.array([], dtype=np.int)
 
-    estimates.img_components = estimates.A.toarray().reshape((estimates.dims[0], estimates.dims[1], -1), order='F').transpose([2,0,1])
-    estimates.cms = np.array([scipy.ndimage.measurements.center_of_mass(comp) for comp in estimates.img_components])
-    estimates.idx_components = np.arange(estimates.nr)
-    estimates.idx_components_bad = np.array([])
-    estimates.background_image = make_color_img(estimates.Cn)
-    # Generate image data
-    estimates.img_components /= estimates.img_components.max(axis=(1, 2))[:, None, None]
-    estimates.img_components *= 255
-    estimates.img_components = estimates.img_components.astype(np.uint8)
+estimates.img_components = estimates.A.toarray().reshape((estimates.dims[0], estimates.dims[1], -1), order='F').transpose([2,0,1])
+estimates.cms = np.array([scipy.ndimage.measurements.center_of_mass(comp) for comp in estimates.img_components])
+estimates.idx_components = np.arange(estimates.nr)
+estimates.idx_components_bad = np.array([])
+estimates.background_image = make_color_img(estimates.Cn)
+# Generate image data
+estimates.img_components /= estimates.img_components.max(axis=(1, 2))[:, None, None]
+estimates.img_components *= 255
+estimates.img_components = estimates.img_components.astype(np.uint8)
 
 
 def draw_contours_overall(md):
@@ -153,16 +192,14 @@ def draw_contours():
 
     img.setImage(bkgr_contours, autoLevels=False)
 
-
-pg.setConfigOptions(imageAxisOrder='row-major')
-
+pg.setConfigOptions(imageAxisOrder='col-major')
 
 def draw_contours_update(cf, im):
     global thrshcomp_line, estimates
     curFrame = cf.copy()
 
     if len(estimates.idx_components) > 0:
-        contours = [cv2.findContours(cv2.threshold(img.T, np.int(thrshcomp_line.value()), 255, 0)[1], cv2.RETR_TREE,
+        contours = [cv2.findContours(cv2.threshold(img, np.int(thrshcomp_line.value()), 255, 0)[1], cv2.RETR_TREE,
                                      cv2.CHAIN_APPROX_SIMPLE)[0] for img in estimates.img_components[estimates.idx_components]]
         SNRs = np.array(estimates.r_values)
         iidd = np.array(estimates.idx_components)
@@ -304,7 +341,7 @@ def mouseClickEvent(event):
     x = int(pos.x())
     y = int(pos.y())
 
-    if x < 0 or x > mov.shape[1] or y < 0 or y > mov.shape[2]:
+    if x < 0 or x > estimates.dims[0] or y < 0 or y > estimates.dims[1]:
         #  if the user click outside of the movie, jump out of the function
         return
 
@@ -518,11 +555,28 @@ pars_action.param('REMOVE SINGLE').sigActivated.connect(remove_single)
 
 
 def save_object():
+    global estimates, cnm_obj, rotation_flag
     print('Saving')
-    ffll = F.getSaveFileName(filter='*.hdf5')
+    ffll = F.getSaveFileName(filter='HDF5 (*.hdf5);;NWB (*.nwb)')
     print(ffll[0])
+    # rotate back
+    if estimates.rotation == True:
+        estimates.Cn = rotate90(estimates.Cn, right=False, vector=False)  
+        estimates.A = rotate90(estimates.A, right=False, vector=True, sparse=True)
+        estimates.b = rotate90(estimates.b, right=False, vector=True)
+        estimates.dims = (estimates.dims[1], estimates.dims[0])
+        estimates.rotation = False
     cnm_obj.estimates = estimates
-    cnm_obj.save(ffll[0])
+    if os.path.splitext(ffll[0])[1] == '.hdf5':
+        cnm_obj.save(ffll[0])
+    elif os.path.splitext(ffll[0])[1] == '.nwb':
+        from pynwb import NWBHDF5IO
+        with NWBHDF5IO(fpath, 'r') as io:
+            nwb = io.read()
+            raw_data_file = nwb.acquisition['TwoPhotonSeries'].external_file[0]
+        cnm_obj.estimates.save_NWB(ffll[0], imaging_rate=cnm_obj.params.data['fr'], session_start_time=datetime.now(tzlocal()),
+                            raw_data_file=raw_data_file)
+
 
 pars_action.param('SAVE OBJECT').sigActivated.connect(save_object)
 
@@ -553,7 +607,7 @@ def change(param, changes):
         return
     else:
         draw_contours()                
-    
+
 pars.sigTreeStateChanged.connect(change)
 
 change(None, None) # set params to default
@@ -567,3 +621,12 @@ w.show()
 
 #  Start the Qt event loop
 app.exec_()
+
+# Rotate back
+if estimates.rotation == True:
+    estimates.Cn = rotate90(estimates.Cn, right=False, vector=False)  
+    estimates.A = rotate90(estimates.A, right=False, vector=True, sparse=True)
+    estimates.b = rotate90(estimates.b, right=False, vector=True)
+    estimates.dims = (estimates.dims[1], estimates.dims[0])
+    cnm_obj.estimates = estimates
+    estimates.rotation = False

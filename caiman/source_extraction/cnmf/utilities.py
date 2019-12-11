@@ -976,6 +976,11 @@ def get_file_size(file_name, var_name_hdf5='mov'):
         if os.path.exists(file_name):
             _, extension = os.path.splitext(file_name)[:2]
             extension = extension.lower()
+            if extension == '.mat':
+                byte_stream, file_opened = scipy.io.matlab.mio._open_file(file_name, appendmat=False)
+                mjv, mnv = scipy.io.matlab.mio.get_matfile_version(byte_stream)
+                if mjv == 2:
+                    extension = '.h5'
             if extension == '.tif' or extension == '.tiff':
                 tffl = tifffile.TiffFile(file_name)
                 siz = tffl.series[0].shape
