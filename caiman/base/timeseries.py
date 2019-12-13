@@ -171,7 +171,7 @@ class timeseries(np.ndarray):
         extension = extension.lower()
         logging.debug("Parsing extension " + str(extension))
 
-        if extension == '.tif':
+        if extension in ['.tif', '.tiff', '.btf']:
             with tifffile.TiffWriter(file_name, bigtiff=bigtiff, imagej=imagej) as tif:
                 for i in range(self.shape[0]):
                     if i % 200 == 0:
