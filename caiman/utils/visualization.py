@@ -738,7 +738,7 @@ def nb_imshow(image, cmap='jet'):
 
 def nb_plot_contour(image, A, d1, d2, thr=None, thr_method='max', maxthr=0.2, nrgthr=0.9,
                     face_color=None, line_color='red', alpha=0.4, line_width=2,
-                    coordinates=None, show=True, cmap='jet', **kwargs):
+                    coordinates=None, show=True, cmap='viridis', **kwargs):
     """Interactive Equivalent of plot_contours for ipython notebook
 
     Args:

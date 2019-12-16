@@ -167,7 +167,8 @@ class Estimates(object):
 
 
     def plot_contours(self, img=None, idx=None, crd=None, thr_method='max',
-                      thr='0.2', display_numbers=True, params=None):
+                      thr=0.2, display_numbers=True, params=None,
+                      cmap='viridis'):
         """view contours of all spatial footprints.
 
         Args:
@@ -201,7 +202,8 @@ class Estimates(object):
                            int(params.quality['use_cnn'])))
         if idx is None:
             caiman.utils.visualization.plot_contours(self.A, img, coordinates=self.coordinates,
-                                                     display_numbers=display_numbers)
+                                                     display_numbers=display_numbers,
+                                                     cmap=cmap)
         else:
             if not isinstance(idx, list):
                 idx = idx.tolist()
@@ -211,18 +213,20 @@ class Estimates(object):
             plt.subplot(1, 2, 1)
             caiman.utils.visualization.plot_contours(self.A[:, idx], img,
                                                      coordinates=coor_g,
-                                                     display_numbers=display_numbers)
+                                                     display_numbers=display_numbers,
+                                                     cmap=cmap)
             plt.title('Accepted Components')
             bad = list(set(range(self.A.shape[1])) - set(idx))
             plt.subplot(1, 2, 2)
             caiman.utils.visualization.plot_contours(self.A[:, bad], img,
                                                      coordinates=coor_b,
-                                                     display_numbers=display_numbers)
+                                                     display_numbers=display_numbers,
+                                                     cmap=cmap)
             plt.title('Rejected Components')
         return self
 
     def plot_contours_nb(self, img=None, idx=None, crd=None, thr_method='max',
-                         thr='0.2', params=None):
+                         thr=0.2, params=None, line_color='white', cmap='viridis'):
         """view contours of all spatial footprints (notebook environment).
 
         Args:
@@ -252,7 +256,8 @@ class Estimates(object):
             if idx is None:
                 p = caiman.utils.visualization.nb_plot_contour(img, self.A, self.dims[0],
                                 self.dims[1], coordinates=self.coordinates,
-                                thr_method=thr_method, thr=thr, show=False)
+                                thr_method=thr_method, thr=thr, show=False,
+                                line_color=line_color, cmap=cmap)
                 p.title.text = 'Contour plots of found components'
                 if params is not None:
                     p.xaxis.axis_label = '''\
@@ -269,7 +274,8 @@ class Estimates(object):
                 coor_b = [self.coordinates[cr] for cr in bad]
                 p1 = caiman.utils.visualization.nb_plot_contour(img, self.A[:, idx],
                                 self.dims[0], self.dims[1], coordinates=coor_g,
-                                thr_method=thr_method, thr=thr, show=False)
+                                thr_method=thr_method, thr=thr, show=False,
+                                line_color=line_color, cmap=cmap)
                 p1.plot_width = 450
                 p1.plot_height = 450 * self.dims[0] // self.dims[1]
                 p1.title.text = "Accepted Components"
@@ -282,7 +288,8 @@ class Estimates(object):
                 bad = list(set(range(self.A.shape[1])) - set(idx))
                 p2 = caiman.utils.visualization.nb_plot_contour(img, self.A[:, bad],
                                 self.dims[0], self.dims[1], coordinates=coor_b,
-                                thr_method=thr_method, thr=thr, show=False)
+                                thr_method=thr_method, thr=thr, show=False,
+                                line_color=line_color, cmap=cmap)
                 p2.plot_width = 450
                 p2.plot_height = 450 * self.dims[0] // self.dims[1]
                 p2.title.text = 'Rejected Components'
@@ -297,7 +304,7 @@ class Estimates(object):
             print("Bokeh could not be loaded. Either it is not installed or you are not running within a notebook")
             print("Using non-interactive plot as fallback")
             self.plot_contours(img=img, idx=idx, crd=crd, thr_method=thr_method,
-                         thr=thr, params=params)
+                               thr=thr, params=params, cmap=cmap)
         return self
 
     def view_components(self, Yr=None, img=None, idx=None):

@@ -531,6 +531,7 @@ def register_ROIs(A1,
         font = {'family': 'Myriad Pro', 'weight': 'regular', 'size': 10}
         pl.rc('font', **font)
         lp, hp = np.nanpercentile(Cn, [5, 95])
+        pl.figure(figsize=(20, 10))
         pl.subplot(1, 2, 1)
         pl.imshow(Cn, vmin=lp, vmax=hp, cmap=cmap)
         [pl.contour(norm_nrg(mm), levels=[level], colors='w', linewidths=1) for mm in masks_1[matched_ROIs1]]
