@@ -932,7 +932,7 @@ class OnACID(object):
         Y = caiman.load(fls[0], subindices=slice(0, opts['init_batch'],
                  None), var_name_hdf5=self.params.get('data', 'var_name_hdf5')).astype(np.float32)
         if model_LN is not None:
-            Y = caiman.movie(np.squeeze(model_LN.predict(np.expand_dims(Y, -1))))
+            Y = Y - caiman.movie(np.squeeze(model_LN.predict(np.expand_dims(Y, -1))))
         # Downsample if needed
         ds_factor = np.maximum(opts['ds_factor'], 1)
         if ds_factor > 1:
@@ -1187,11 +1187,9 @@ class OnACID(object):
                 frame_count = -1
                 while True:   # process each file
                     try:
-                        #import pdb
-                        #pdb.set_trace()
                         frame = next(Y_)
                         if model_LN is not None:
-                            frame = np.squeeze(model_LN.predict(np.expand_dims(np.expand_dims(frame.astype(np.float32), 0), -1)))
+                            frame = frame - np.squeeze(model_LN.predict(np.expand_dims(np.expand_dims(frame.astype(np.float32), 0), -1)))
                         frame_count += 1
                         t_frame_start = time()
                         if np.isnan(np.sum(frame)):
