@@ -926,11 +926,13 @@ class OnACID(object):
 
         return self
 
-    def initialize_online(self):
+    def initialize_online(self, model_LN=None):
         fls = self.params.get('data', 'fnames')
         opts = self.params.get_group('online')
         Y = caiman.load(fls[0], subindices=slice(0, opts['init_batch'],
                  None), var_name_hdf5=self.params.get('data', 'var_name_hdf5')).astype(np.float32)
+        if model_LN is not None:
+            Y = caiman.movie(np.squeeze(model_LN.predict(np.expand_dims(Y, -1))))
         # Downsample if needed
         ds_factor = np.maximum(opts['ds_factor'], 1)
         if ds_factor > 1:
@@ -1031,7 +1033,7 @@ class OnACID(object):
             self.estimates.lam = np.zeros(nr)
         else:
             raise Exception('Unknown initialization method!')
-        dims, Ts = get_file_size(fls)
+        dims, Ts = get_file_size(fls, var_name_hdf5=self.params.get('data', 'var_name_hdf5'))
         dims = Y.shape[1:]
         self.params.set('data', {'dims': dims})
         T1 = np.array(Ts).sum()*self.params.get('online', 'epochs')
@@ -1085,12 +1087,61 @@ class OnACID(object):
         Returns:
             self (results of caiman online)
         """
-
+        self.t_init = -time()
         fls = self.params.get('data', 'fnames')
         init_batch = self.params.get('online', 'init_batch')
+        if self.params.get('online', 'ring_CNN'):
+            logging.info('Estimating Ring CNN model')
+            from caiman.utils.nn_models import (get_run_logdir, fit_NL_model,
+                                    create_LN_model, quantile_loss, get_mask, total_variation_loss,
+                                    rate_scheduler)
+            gSig = self.params.get('init', 'gSig')[0]
+            width = self.params.get('ring_CNN', 'width')
+            nch = self.params.get('ring_CNN', 'n_channels')
+            if self.params.get('ring_CNN', 'loss_fn') == 'pct':
+                loss_fn = quantile_loss(self.params.get('ring_CNN', 'pct'))
+            else:
+                loss_fn = self.params.get('ring_CNN', 'loss_fn')
+            if self.params.get('ring_CNN', 'lr_scheduler') is None:
+                sch = None
+            else:
+                sch = rate_scheduler(**self.params.get('ring_CNN', 'lr_scheduler'))
+            Y = caiman.base.movies.load(fls[0], subindices=slice(init_batch),
+                                        var_name_hdf5=self.params.get('data', 'var_name_hdf5'))
+            shape = Y.shape[1:] + (1,)
+            logging.info('Starting background model training.')
+            model_LN = create_LN_model(Y, shape=shape, n_channels=nch,
+                                       lr=self.params.get('ring_CNN', 'lr'), gSig=gSig,
+                                       loss=loss_fn, width=width,
+                                       use_add=self.params.get('ring_CNN', 'use_add'),
+                                       use_bias=self.params.get('ring_CNN', 'use_bias'))
+            model_LN, history, path_to_model = fit_NL_model(model_LN, Y,
+                                                            epochs=self.params.get('ring_CNN', 'max_epochs'),
+                                                            patience=self.params.get('ring_CNN', 'patience'),
+                                                            schedule=sch)
+            logging.info('Training complete.')
+            self.params.set('ring_CNN', {'path_to_model': path_to_model})
+#            new_fl = []
+#            for fl in fls:
+#                Y = caiman.load(fl, var_name_hdf5=self.params.get('data', 'var_name_hdf5'))
+#                logging.info('Extracting background from file {}'.format(fl))
+#                B = np.squeeze(model_LN.predict(np.expand_dims(Y, -1)))
+#                logging.info('Complete')
+#                D = Y - B
+#                if self.params.get('ring_CNN', 'loss_fn') == 'pct':
+#                    D -= np.quantile(D, self.params.get('ring_CNN', 'pct'), axis=0)
+#                fname, extension = os.path.splitext(fl)[:2]
+#                fname_new = fname + '_bck_removed.h5'
+#                logging.info('Saving file as {}'.format(fname_new))
+#                caiman.movie(D).save(fname_new, var_name_hdf5=self.params.get('data', 'var_name_hdf5'))
+#                logging.info('done')
+#                new_fl.append(fname_new)
+#            fls = new_fl
+#            self.params.set('data', {'fnames': fls})
+        else:
+            model_LN = None
         epochs = self.params.get('online', 'epochs')
-        self.t_init = -time()
-        self.initialize_online()
+        self.initialize_online(model_LN=model_LN)
         self.t_init += time()
         extra_files = len(fls) - 1
         init_files = 1
@@ -1136,7 +1187,11 @@ class OnACID(object):
                 frame_count = -1
                 while True:   # process each file
                     try:
+                        #import pdb
+                        #pdb.set_trace()
                         frame = next(Y_)
+                        if model_LN is not None:
+                            frame = np.squeeze(model_LN.predict(np.expand_dims(np.expand_dims(frame.astype(np.float32), 0), -1)))
                         frame_count += 1
                         t_frame_start = time()
                         if np.isnan(np.sum(frame)):

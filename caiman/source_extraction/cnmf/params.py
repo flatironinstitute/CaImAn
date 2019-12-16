@@ -738,6 +738,8 @@ class CNMFParams(object):
             'rval_lowest': -1,         # minimum accepted space correlation
             'rval_thr': rval_thr,      # space correlation threshold
             'use_cnn': True,           # use CNN based classifier
+            'use_ecc': False,          # flag for eccentricity based filtering
+            'max_ecc': 3
         }
 
         self.online = {
@@ -767,6 +769,7 @@ class CNMFParams(object):
             'opencv_codec': 'H264',            # FourCC video codec for saving movie. Check http://www.fourcc.org/codecs.php
             'path_to_model': os.path.join(caiman_datadir(), 'model',
                                           'cnn_model_online.h5'),
+            'ring_CNN': False,                 # flag for using a ring CNN background model 
             'rval_thr': rval_thr,              # space correlation threshold
             'save_online_movie': False,        # flag for saving online movie
             'show_movie': False,               # display movie online
@@ -807,6 +810,19 @@ class CNMFParams(object):
             'use_cuda': False,                  # flag for using a GPU
             'indices': (slice(None), slice(None))  # part of FOV to be corrected
         }
+
+        self.ring_CNN = {
+            'n_channels' : 2,
+            'use_bias' : False,
+            'use_add' : False,
+            'pct' : 0.01,
+            'patience' : 3,
+            'max_epochs': 100,
+            'width': 5,
+            'loss_fn': 'pct',
+            'lr': 1e-3,
+            'lr_scheduler': None,
+            'path_to_model': None}
 
         self.change_params(params_dict)
 
@@ -945,7 +961,7 @@ class CNMFParams(object):
         return {'data': self.data, 'spatial_params': self.spatial, 'temporal_params': self.temporal,
                 'init_params': self.init, 'preprocess_params': self.preprocess,
                 'patch_params': self.patch, 'online': self.online, 'quality': self.quality,
-                'merging': self.merging, 'motion': self.motion
+                'merging': self.merging, 'motion': self.motion, 'ring_CNN': self.ring_CNN
                 }
 
     def __repr__(self):
