@@ -732,7 +732,6 @@ def distance_masks(M_s: List, cm_s: List[List], max_dist: float, enclosed_thr: O
     for gt_comp, test_comp, cmgt_comp, cmtest_comp in zip(M_s[:-1], M_s[1:], cm_s[:-1], cm_s[1:]):
 
         # todo : better with a function that calls itself
-        logging.info('New Pair **')
         # not to interfer with M_s
         gt_comp = gt_comp.copy()[:, :]
         test_comp = test_comp.copy()[:, :]
