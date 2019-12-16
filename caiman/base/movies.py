@@ -2105,7 +2105,7 @@ def load_iter(file_name, subindices=None, var_name_hdf5: str = 'mov'):
                         raise StopIteration
                 cap.release()
                 raise StopIteration
-        elif extension in ('.hdf5', '.h5'):
+        elif extension in ('.hdf5', '.h5', '.mat'):
             with h5py.File(file_name, "r") as f:
                 Y = f.get(var_name_hdf5)
                 if subindices is None:
@@ -2119,7 +2119,8 @@ def load_iter(file_name, subindices=None, var_name_hdf5: str = 'mov'):
                     for ind in subindices:
                         yield Y[ind]
         else:  # fall back to memory inefficient version
-            for y in load(file_name, subindices=subindices):
+            for y in load(file_name, var_name_hdf5=var_name_hdf5,
+                          subindices=subindices):
                 yield y
     else:
         logging.error(f"File request:[{file_name}] not found!")
