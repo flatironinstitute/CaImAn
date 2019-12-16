@@ -20,7 +20,7 @@ from .temporal import constrained_foopsi_parallel
 from .merging import merge_iteration
 from ...components_evaluation import (
         evaluate_components_CNN, estimate_components_quality_auto,
-        select_components_from_metrics)
+        select_components_from_metrics, compute_eccentricity)
 from ...base.rois import (
         detect_duplicates_and_subsets, nf_match_neurons_in_binary_masks,
         nf_masks_to_neurof_dict)
@@ -103,6 +103,9 @@ class Estimates(object):
 
             cnn_preds: np.ndarray
                 CNN predictions for each component
+
+            ecc: np.ndarray
+                eccentricity values
         """
         # variables related to the estimates of traces, footprints, deconvolution and background
         self.A = A
@@ -133,6 +136,7 @@ class Estimates(object):
         self.SNR_comp = None
         self.r_values = None
         self.cnn_preds = None
+        self.ecc = None
 
         # online
 
@@ -986,7 +990,13 @@ class Estimates(object):
         self.SNR_comp = SNR_comp
         self.r_values = r_values
         self.cnn_preds = cnn_preds
-
+        if opts['use_ecc']:
+            self.ecc = compute_eccentricity(self.A, dims)
+            idx_ecc = np.where(self.ecc < opts['max_ecc'])[0]
+            self.idx_components_bad = np.union1d(self.idx_components_bad,
+                                                 np.setdiff1d(self.idx_components,
+                                                              idx_ecc))
+            self.idx_components = np.intersect1d(self.idx_components, idx_ecc)
         return self
 
     def filter_components(self, imgs, params, new_dict={}, dview=None, select_mode='All'):
@@ -1069,6 +1079,12 @@ class Estimates(object):
                                            thresh_cnn_lowest=opts['cnn_lowest'],
                                            use_cnn=opts['use_cnn'],
                                            gSig_range=opts['gSig_range'])
+            if opts['use_ecc']:
+                idx_ecc = np.where(self.ecc < opts['max_ecc'])[0]
+                self.idx_components_bad = np.union1d(self.idx_components_bad,
+                                                     np.setdiff1d(self.idx_components,
+                                                                  idx_ecc))
+                self.idx_components = np.intersect1d(self.idx_components, idx_ecc)
 
         if select_mode == 'Accepted':
            self.idx_components = np.array(np.intersect1d(self.idx_components,self.accepted_list))
