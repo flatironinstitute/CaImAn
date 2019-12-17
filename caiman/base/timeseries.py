@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-
 """
 Class representing a time series.
 
@@ -18,7 +17,11 @@ import pickle as cpk
 from scipy.io import savemat
 import tifffile
 import warnings
-
+from datetime import datetime
+from dateutil.tz import tzlocal
+from pynwb import NWBHDF5IO, NWBFile
+from pynwb.ophys import TwoPhotonSeries, OpticalChannel
+from pynwb.device import Device
 from caiman.paths import memmap_frames_filename
 
 try:
@@ -30,6 +33,7 @@ try:
     plt.ion()
 except:
     pass
+
 
 #%%
 class timeseries(np.ndarray):
@@ -92,14 +96,15 @@ class timeseries(np.ndarray):
                         frRef = inp.fr
                     else:
                         if not (frRef - inp.fr) == 0:
-                            raise ValueError('Frame rates of input vectors do not match.'
-                                             ' You cannot perform operations on time series with different frame rates.')
+                            raise ValueError(
+                                'Frame rates of input vectors do not match.'
+                                ' You cannot perform operations on time series with different frame rates.')
                     if startRef is None:
                         startRef = inp.start_time
                     else:
                         if not (startRef - inp.start_time) == 0:
-                            warnings.warn(
-                                'start_time of input vectors do not match: ignore if this is what desired.', UserWarning)
+                            warnings.warn('start_time of input vectors do not match: ignore if this is desired.',
+                                          UserWarning)
 
         # then just call the parent
         return np.ndarray.__array_prepare__(self, out_arr, context)
@@ -114,10 +119,30 @@ class timeseries(np.ndarray):
         self.file_name = getattr(obj, 'file_name', None)
         self.meta_data = getattr(obj, 'meta_data', None)
 
-    def save(self, file_name, to32=True, order='F',imagej=False, bigtiff=True,
-             software='CaImAn', compress=0, var_name_hdf5='mov'):
+    def save(self,
+             file_name,
+             to32=True,
+             order='F',
+             imagej=False,
+             bigtiff=True,
+             excitation_lambda=488.0,
+             compress=0,
+             var_name_hdf5='mov',
+             sess_desc='some_description',
+             identifier='some identifier',
+             imaging_plane_description='some imaging plane description',
+             emission_lambda=520.0,
+             indicator='OGB-1',
+             location='brain',
+             starting_time=0.,
+             experimenter='Dr Who',
+             lab_name=None,
+             institution=None,
+             experiment_description='Experiment Description',
+             session_id='Session ID'):
         """
-        Save the timeseries in various formats
+        Save the timeseries in single precision. Supported formats include
+        TIFF, NPZ, AVI, MAT, HDF5/H5, MMAP, and NWB
 
         Args:
             file_name: str
@@ -140,46 +165,40 @@ class timeseries(np.ndarray):
         extension = extension.lower()
         logging.debug("Parsing extension " + str(extension))
 
-        if extension == '.tif':  # load avi file
-
+        if extension == '.tif':
             with tifffile.TiffWriter(file_name, bigtiff=bigtiff, imagej=imagej) as tif:
-
-
                 for i in range(self.shape[0]):
                     if i % 200 == 0:
                         logging.debug(str(i) + ' frames saved')
 
                     curfr = self[i].copy()
-                    if to32 and not('float32' in str(self.dtype)):
-                         curfr = curfr.astype(np.float32)
-
+                    if to32 and not ('float32' in str(self.dtype)):
+                        curfr = curfr.astype(np.float32)
                     tif.save(curfr, compress=compress)
-
-
-
         elif extension == '.npz':
-            if to32 and not('float32' in str(self.dtype)):
+            if to32 and not ('float32' in str(self.dtype)):
                 input_arr = self.astype(np.float32)
             else:
                 input_arr = np.array(self)
 
-            np.savez(file_name, input_arr=input_arr, start_time=self.start_time,
-                     fr=self.fr, meta_data=self.meta_data, file_name=self.file_name)
-
+            np.savez(file_name,
+                     input_arr=input_arr,
+                     start_time=self.start_time,
+                     fr=self.fr,
+                     meta_data=self.meta_data,
+                     file_name=self.file_name)
         elif extension == '.avi':
             codec = None
             try:
                 codec = cv2.FOURCC('I', 'Y', 'U', 'V')
             except AttributeError:
                 codec = cv2.VideoWriter_fourcc(*'IYUV')
-            np.clip(self, np.percentile(self, 1),
-                    np.percentile(self, 99), self)
+            np.clip(self, np.percentile(self, 1), np.percentile(self, 99), self)
             minn, maxx = np.min(self), np.max(self)
             data = 255 * (self - minn) / (maxx - minn)
             data = data.astype(np.uint8)
             y, x = data[0].shape
-            vw = cv2.VideoWriter(file_name, codec, self.fr,
-                                 (x, y), isColor=True)
+            vw = cv2.VideoWriter(file_name, codec, self.fr, (x, y), isColor=True)
             for d in data:
                 vw.write(cv2.cvtColor(d, cv2.COLOR_GRAY2BGR))
             vw.release()
@@ -190,23 +209,33 @@ class timeseries(np.ndarray):
             else:
                 f_name = ''
 
-            if to32 and not('float32' in str(self.dtype)):
+            if to32 and not ('float32' in str(self.dtype)):
                 input_arr = self.astype(np.float32)
             else:
                 input_arr = np.array(self)
 
             if self.meta_data[0] is None:
-                savemat(file_name, {'input_arr': np.rollaxis(
-                    input_arr, axis=0, start=3), 'start_time': self.start_time,
-                    'fr': self.fr, 'meta_data': [], 'file_name': f_name})
+                savemat(
+                    file_name, {
+                        'input_arr': np.rollaxis(input_arr, axis=0, start=3),
+                        'start_time': self.start_time,
+                        'fr': self.fr,
+                        'meta_data': [],
+                        'file_name': f_name
+                    })
             else:
-                savemat(file_name, {'input_arr': np.rollaxis(
-                    input_arr, axis=0, start=3), 'start_time': self.start_time,
-                    'fr': self.fr, 'meta_data': self.meta_data, 'file_name': f_name})
+                savemat(
+                    file_name, {
+                        'input_arr': np.rollaxis(input_arr, axis=0, start=3),
+                        'start_time': self.start_time,
+                        'fr': self.fr,
+                        'meta_data': self.meta_data,
+                        'file_name': f_name
+                    })
 
         elif extension in ('.hdf5', '.h5'):
             with h5py.File(file_name, "w") as f:
-                if to32 and not('float32' in str(self.dtype)):
+                if to32 and not ('float32' in str(self.dtype)):
                     input_arr = self.astype(np.float32)
                 else:
                     input_arr = np.array(self)
@@ -215,20 +244,18 @@ class timeseries(np.ndarray):
                 dset.attrs["fr"] = self.fr
                 dset.attrs["start_time"] = self.start_time
                 try:
-                    dset.attrs["file_name"] = [
-                        a.encode('utf8') for a in self.file_name]
+                    dset.attrs["file_name"] = [a.encode('utf8') for a in self.file_name]
                 except:
                     logging.warning('No file saved')
                 if self.meta_data[0] is not None:
                     logging.debug("Metadata for saved file: " + str(self.meta_data))
                     dset.attrs["meta_data"] = cpk.dumps(self.meta_data)
-
         elif extension == '.mmap':
             base_name = name
 
             T = self.shape[0]
             dims = self.shape[1:]
-            if to32 and not('float32' in str(self.dtype)):
+            if to32 and not ('float32' in str(self.dtype)):
                 input_arr = self.astype(np.float32)
             else:
                 input_arr = np.array(self)
@@ -238,13 +265,58 @@ class timeseries(np.ndarray):
 
             fname_tot = memmap_frames_filename(base_name, dims, T, order)
             fname_tot = os.path.join(os.path.split(file_name)[0], fname_tot)
-            big_mov = np.memmap(fname_tot, mode='w+', dtype=np.float32,
-                                shape=(np.uint64(np.prod(dims)), np.uint64(T)), order=order)
+            big_mov = np.memmap(fname_tot,
+                                mode='w+',
+                                dtype=np.float32,
+                                shape=(np.uint64(np.prod(dims)), np.uint64(T)),
+                                order=order)
 
             big_mov[:] = np.asarray(input_arr, dtype=np.float32)
             big_mov.flush()
             del big_mov, input_arr
             return fname_tot
+        elif extension == '.nwb':
+            if to32 and not ('float32' in str(self.dtype)):
+                input_arr = self.astype(np.float32)
+            else:
+                input_arr = np.array(self)
+            # Create NWB file
+            nwbfile = NWBFile(sess_desc,
+                              identifier,
+                              datetime.now(tzlocal()),
+                              experimenter=experimenter,
+                              lab=lab_name,
+                              institution=institution,
+                              experiment_description=experiment_description,
+                              session_id=session_id)
+            # Get the device
+            device = Device('imaging_device')
+            nwbfile.add_device(device)
+            # OpticalChannel
+            optical_channel = OpticalChannel('OpticalChannel', 'main optical channel', emission_lambda=emission_lambda)
+            imaging_plane = nwbfile.create_imaging_plane(name='ImagingPlane',
+                                                         optical_channel=optical_channel,
+                                                         description=imaging_plane_description,
+                                                         device=device,
+                                                         excitation_lambda=excitation_lambda,
+                                                         imaging_rate=self.fr,
+                                                         indicator=indicator,
+                                                         location=location)
+            # Images
+            image_series = TwoPhotonSeries(name=var_name_hdf5,
+                                           dimension=self.shape[1:],
+                                           data=input_arr,
+                                           imaging_plane=imaging_plane,
+                                           starting_frame=[0],
+                                           starting_time=starting_time,
+                                           rate=self.fr)
+
+            nwbfile.add_acquisition(image_series)
+
+            with NWBHDF5IO(file_name, 'w') as io:
+                io.write(nwbfile)
+
+            return file_name
 
         else:
             logging.error("Extension " + str(extension) + " unknown")
@@ -268,10 +340,8 @@ def concatenate(*args, **kwargs):
                     obj = m
                     frRef = obj.fr
                 else:
-                    obj.__dict__['file_name'].extend(
-                        [ls for ls in m.file_name])
-                    obj.__dict__['meta_data'].extend(
-                        [ls for ls in m.meta_data])
+                    obj.__dict__['file_name'].extend([ls for ls in m.file_name])
+                    obj.__dict__['meta_data'].extend([ls for ls in m.meta_data])
                     if obj.fr != m.fr:
                         raise ValueError('Frame rates of input vectors \
                             do not match. You cannot concatenate movies with \

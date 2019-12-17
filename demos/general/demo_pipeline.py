@@ -55,7 +55,7 @@ from caiman.utils.utils import download_demo
 logging.basicConfig(format=
                     "%(relativeCreated)12d [%(filename)s:%(funcName)20s():%(lineno)s]"\
                     "[%(process)d] %(message)s",
-                    level=logging.INFO)
+                    level=logging.WARNING)
 
 #%%
 def main():
@@ -170,6 +170,7 @@ def main():
 
     # parameters for component evaluation
     opts_dict = {'fnames': fnames,
+                 'p': p,
                  'fr': fr,
                  'nb': gnb,
                  'rf': rf,
@@ -184,12 +185,14 @@ def main():
                  'ssub': ssub,
                  'tsub': tsub}
 
-    opts.change_params(params_dict=opts_dict)
+    opts.change_params(params_dict=opts_dict);
 # %% RUN CNMF ON PATCHES
     # First extract spatial and temporal components on patches and combine them
-    # for this step deconvolution is turned off (p=0)
+    # for this step deconvolution is turned off (p=0). If you want to have
+    # deconvolution within each patch change params.patch['p_patch'] to a
+    # nonzero value
 
-    opts.change_params({'p': 0})
+    #opts.change_params({'p': 0})
     cnm = cnmf.CNMF(n_processes, params=opts, dview=dview)
     cnm = cnm.fit(images)
 
@@ -204,9 +207,11 @@ def main():
     Cn[np.isnan(Cn)] = 0
     cnm.estimates.plot_contours(img=Cn)
     plt.title('Contour plots of found components')
+#%% save results
+    cnm.estimates.Cn = Cn
+    cnm.save(fname_new[:-5]+'_init.hdf5')
 
 # %% RE-RUN seeded CNMF on accepted patches to refine and perform deconvolution
-    cnm.params.change_params({'p': p})
     cnm2 = cnm.refit(images, dview=dview)
     # %% COMPONENT EVALUATION
     # the components are evaluated in three ways:
@@ -242,7 +247,9 @@ def main():
 
     #%% Show final traces
     cnm2.estimates.view_components(img=Cn)
-
+    #%%
+    cnm2.estimates.Cn = Cn
+    cnm2.save(cnm2.mmap_file[:-4] + 'hdf5')
     #%% reconstruct denoised movie (press q to exit)
     if display_images:
         cnm2.estimates.play_movie(images, q_max=99.9, gain_res=2,

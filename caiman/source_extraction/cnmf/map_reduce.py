@@ -129,6 +129,8 @@ def cnmf_patches(args_in):
         opts.set('patch', {'n_processes': 1, 'rf': None, 'stride': None})
         for group in ('init', 'temporal', 'spatial'):
             opts.set(group, {'nb': params.get('patch', 'nb_patch')})
+        for group in ('preprocess', 'temporal'):
+            opts.set(group, {'p': params.get('patch', 'p_patch')})
 
         cnm = cnmf.CNMF(n_processes=1, params=opts)
 
@@ -408,7 +410,7 @@ def run_CNMF_patches(file_name, shape, params, gnb=1, dview=None,
     logging.info("Constructing background")
 
     Im = scipy.sparse.csr_matrix(
-        (1. / mask, (np.arange(d), np.arange(d))), dtype=np.float32)
+        (1. / (mask + np.finfo(np.float32).eps), (np.arange(d), np.arange(d))), dtype=np.float32)
 
     if not del_duplicates:
         A_tot = Im.dot(A_tot)

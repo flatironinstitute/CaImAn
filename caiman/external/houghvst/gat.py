@@ -19,7 +19,7 @@ def compute_gat(arr, sigma_sq, alpha=1):
     :param alpha: scaling factor of the Poisson noise component
     :return: variance-stabilized array
     """
-    v = np.maximum((arr / alpha) + (3. / 8.) + sigma_sq / (alpha ** 2), 0)
+    v = np.maximum((arr / alpha) + (3. / 8.) + sigma_sq / (alpha**2), 0)
     f = 2. * np.sqrt(v)
     return f
 
@@ -47,19 +47,16 @@ def compute_inverse_gat(arr, sigma_sq, m=0, alpha=1, method='asym'):
     approximation of the exact unbiased inverse.
     :return: inverse variance-stabilized array
     """
-    sigma_sq /= alpha ** 2
+    sigma_sq /= alpha**2
 
     if method == 'closed-form':
         # closed-form approximation of the exact unbiased inverse:
         arr_trunc = np.maximum(arr, 0.8)
-        inverse = ((arr_trunc / 2.) ** 2
-                   + 0.25 * np.sqrt(1.5) * arr_trunc ** -1
-                   - (11. / 8.) * arr_trunc ** -2
-                   + (5. / 8.) * np.sqrt(1.5) * arr_trunc ** -3
-                   - (1. / 8.) - sigma_sq)
+        inverse = ((arr_trunc / 2.)**2 + 0.25 * np.sqrt(1.5) * arr_trunc**-1 - (11. / 8.) * arr_trunc**-2 +
+                   (5. / 8.) * np.sqrt(1.5) * arr_trunc**-3 - (1. / 8.) - sigma_sq)
     elif method == 'asym':
         # asymptotic approximation of the exact unbiased inverse:
-        inverse = (arr / 2.) ** 2 - 1. / 8 - sigma_sq
+        inverse = (arr / 2.)**2 - 1. / 8 - sigma_sq
         # inverse = np.maximum(0, inverse)
     else:
         raise NotImplementedError('Only supports the closed-form')

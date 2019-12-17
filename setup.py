@@ -18,6 +18,9 @@ here = path.abspath(path.dirname(__file__))
 with open('README.md', 'r') as rmf:
     readme = rmf.read()
 
+with open('VERSION', 'r') as verfile:
+    version = verfile.read().strip()
+
 ############
 # This stanza asks for caiman datafiles (demos, movies, ...) to be stashed in "share/caiman", either
 # in the system directory if this was installed with a system python, or inside the virtualenv/conda
@@ -31,7 +34,7 @@ with open('README.md', 'r') as rmf:
 
 binaries = ['caimanmanager.py']
 extra_dirs = ['demos', 'docs', 'model']
-data_files = [('share/caiman', ['LICENSE.txt', 'README.md', 'test_demos.sh']),
+data_files = [('share/caiman', ['LICENSE.txt', 'README.md', 'test_demos.sh', 'VERSION']),
               ('share/caiman/example_movies', ['example_movies/data_endoscope.tif', 'example_movies/demoMovie.tif']),
               ('share/caiman/testdata', ['testdata/groundtruth.npz', 'testdata/example.npz'])
              ]
@@ -46,7 +49,8 @@ data_files.append(['bin', binaries])
 # compile with:     python setup.py build_ext -i
 # clean up with:    python setup.py clean --all
 if sys.platform == 'darwin':
-	extra_compiler_args = ['-stdlib=libc++']
+        # see https://github.com/pandas-dev/pandas/issues/23424
+	extra_compiler_args = ['-stdlib=libc++']  # not needed #, '-mmacosx-version-min=10.9']
 else:
 	extra_compiler_args = []
 
@@ -54,14 +58,16 @@ ext_modules = [Extension("caiman.source_extraction.cnmf.oasis",
                          sources=["caiman/source_extraction/cnmf/oasis.pyx"],
                          include_dirs=[np.get_include()],
                          language="c++",
-                         extra_compile_args = extra_compiler_args)]
+                         extra_compile_args = extra_compiler_args,
+                         extra_link_args = extra_compiler_args,
+                         )]
 
 setup(
     name='caiman',
-    version='1.0',
+    version=version,
     author='Andrea Giovannucci, Eftychios Pnevmatikakis, Johannes Friedrich, Valentina Staneva, Ben Deverett, Erick Cobos, Jeremie Kalfon',
-    author_email='agiovannucci@flatironinstitute.org',
-    url='https://github.com/simonsfoundation/CaImAn',
+    author_email='epnevmatikakis@flatironinstitute.org',
+    url='https://github.com/flatironinstitute/CaImAn',
     license='GPL-2',
     description='Advanced algorithms for ROI detection and deconvolution of Calcium Imaging datasets.',
     long_description=readme,

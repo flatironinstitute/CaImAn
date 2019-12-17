@@ -22,12 +22,16 @@ https://docs.python.org/3/library/urllib.request.htm
 
 import cv2
 import h5py
+import multiprocessing
+import inspect
 import logging
 import matplotlib.pyplot as plt
 import numpy as np
 import os
 import pickle
 import scipy
+import subprocess
+import tensorflow as tf
 from scipy.ndimage.filters import gaussian_filter
 from tifffile import TiffFile
 from typing import Any, Dict, List, Tuple, Union, Iterable
@@ -42,6 +46,7 @@ from urllib.request import urlopen
 from ..external.cell_magic_wand import cell_magic_wand
 from ..source_extraction.cnmf.spatial import threshold_components
 from caiman.paths import caiman_datadir
+import caiman.utils
 
 #%%
 
@@ -73,7 +78,12 @@ def download_demo(name:str='Sue_2x_3000_40_-46.tif', save_folder:str='') -> str:
                  'Tolias_mesoscope_1.hdf5': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/Tolias_mesoscope_1.hdf5',
                  'Tolias_mesoscope_2.hdf5': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/Tolias_mesoscope_2.hdf5',
                  'Tolias_mesoscope_3.hdf5': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/Tolias_mesoscope_3.hdf5',
-                 'data_endoscope.tif': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/data_endoscope.tif'}
+                 'data_endoscope.tif': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/data_endoscope.tif',
+                 'gmc_960_30mw_00001_red.tif': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/gmc_960_30mw_00001_red.tif',
+                 'gmc_960_30mw_00001_green.tif': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/gmc_960_30mw_00001_green.tif',
+                 'msCam13.avi': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/msCam13.avi',
+                 'alignment.pickle': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/alignment.pickle',
+                 'data_dendritic.tif': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/2014-04-05-003.tif'}
     #          ,['./example_movies/demoMovie.tif','https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/demoMovie.tif']]
     base_folder = os.path.join(caiman_datadir(), 'example_movies')
     if os.path.exists(base_folder):
@@ -352,7 +362,7 @@ def cell_magic_wand_wrapper(params):
 #%% From https://codereview.stackexchange.com/questions/120802/recursively-save-python-dictionaries-to-hdf5-files-using-h5py
 
 
-def save_dict_to_hdf5(dic:Dict, filename:str) -> None:
+def save_dict_to_hdf5(dic:Dict, filename:str, subdir:str='/') -> None:
     ''' Save dictionary to hdf5 file
     Args:
         dic: dictionary
@@ -362,7 +372,7 @@ def save_dict_to_hdf5(dic:Dict, filename:str) -> None:
     '''
 
     with h5py.File(filename, 'w') as h5file:
-        recursively_save_dict_contents_to_group(h5file, '/', dic)
+        recursively_save_dict_contents_to_group(h5file, subdir, dic)
 
 def load_dict_from_hdf5(filename:str) -> Dict:
     ''' Load dictionary from hdf5 file
@@ -401,14 +411,19 @@ def recursively_save_dict_contents_to_group(h5file:h5py.File, path:str, dic:Dict
     # save items to the hdf5 file
     for key, item in dic.items():
         key = str(key)
-
         if key == 'g':
+            if item is None:
+                item = 0
             logging.info(key + ' is an object type')
-            item = np.array(list(item))
+            try:
+                item = np.array(list(item))
+            except:
+                item = np.asarray(item, dtype=np.float)
         if key == 'g_tot':
             item = np.asarray(item, dtype=np.float)
         if key in ['groups', 'idx_tot', 'ind_A', 'Ab_epoch', 'coordinates',
-                   'loaded_model', 'optional_outputs', 'merged_ROIs']:
+                   'loaded_model', 'optional_outputs', 'merged_ROIs', 'tf_in',
+                   'tf_out']:
             logging.info(['groups', 'idx_tot', 'ind_A', 'Ab_epoch', 'coordinates', 'loaded_model', 'optional_outputs', 'merged_ROIs',
                    '** not saved'])
             continue
@@ -420,17 +435,19 @@ def recursively_save_dict_contents_to_group(h5file:h5py.File, path:str, dic:Dict
         # save strings, numpy.int64, numpy.int32, and numpy.float64 types
         if isinstance(item, (np.int64, np.int32, np.float64, str, np.float, float, np.float32,int)):
             h5file[path + key] = item
-            if not h5file[path + key].value == item:
-                raise ValueError('The data representation in the HDF5 file does not match the original dict.')
+            logging.debug('Saving {}'.format(key))
+            if not h5file[path + key][()] == item:
+                raise ValueError('Error while saving {}.'.format(key))
         # save numpy arrays
         elif isinstance(item, np.ndarray):
+            logging.debug('Saving {}'.format(key))
             try:
                 h5file[path + key] = item
             except:
                 item = np.array(item).astype('|S32')
                 h5file[path + key] = item
-            if not np.array_equal(h5file[path + key].value, item):
-                raise ValueError('The data representation in the HDF5 file does not match the original dict.')
+            if not np.array_equal(h5file[path + key][()], item):
+                raise ValueError('Error while saving {}.'.format(key))
         # save dictionaries
         elif isinstance(item, dict):
             recursively_save_dict_contents_to_group(h5file, path + key + '/', item)
@@ -467,22 +484,22 @@ def recursively_load_dict_contents_from_group(h5file:h5py.File, path:str) -> Dic
 
         if isinstance(item, h5py._hl.dataset.Dataset):
             val_set = np.nan
-            if isinstance(item.value, str):
-                if item.value == 'NoneType':
+            if isinstance(item[()], str):
+                if item[()] == 'NoneType':
                     ans[key] = None
                 else:
-                    ans[key] = item.value
+                    ans[key] = item[()]
             elif key in ['dims', 'medw', 'sigma_smooth_snmf', 'dxy', 'max_shifts', 'strides', 'overlaps']:
 
-                if type(item.value) == np.ndarray:
-                    ans[key] = tuple(item.value)
+                if type(item[()]) == np.ndarray:
+                    ans[key] = tuple(item[()])
                 else:
-                    ans[key] = item.value
+                    ans[key] = item[()]
             else:
-                if type(item.value) == np.bool_:
-                    ans[key] = bool(item.value)
+                if type(item[()]) == np.bool_:
+                    ans[key] = bool(item[()])
                 else:
-                    ans[key] = item.value
+                    ans[key] = item[()]
 
         elif isinstance(item, h5py._hl.group.Group):
             if key == 'A':
@@ -495,3 +512,94 @@ def recursively_load_dict_contents_from_group(h5file:h5py.File, path:str) -> Dic
             else:
                 ans[key] = recursively_load_dict_contents_from_group(h5file, path + key + '/')
     return ans
+
+
+def fun(f, q_in, q_out):
+    while True:
+        i, x = q_in.get()
+        if i is None:
+            break
+        q_out.put((i, f(x)))
+
+
+def parmap(f, X, nprocs=multiprocessing.cpu_count()):
+    q_in = multiprocessing.Queue(1)
+    q_out = multiprocessing.Queue()
+
+    proc = [multiprocessing.Process(target=fun, args=(f, q_in, q_out))
+            for _ in range(nprocs)]
+    for p in proc:
+        p.daemon = True
+        p.start()
+
+    sent = [q_in.put((i, x)) for i, x in enumerate(X)]
+    [q_in.put((None, None)) for _ in range(nprocs)]
+    res = [q_out.get() for _ in range(len(sent))]
+
+    [p.join() for p in proc]
+
+    return [x for i, x in sorted(res)]
+
+def load_graph(frozen_graph_filename):
+    """ Load a tensorflow .pb model and use it for inference"""
+    # We load the protobuf file from the disk and parse it to retrieve the
+    # unserialized graph_def
+    with tf.gfile.GFile(frozen_graph_filename, "rb") as f:
+        graph_def = tf.GraphDef()
+        graph_def.ParseFromString(f.read())
+
+    # Then, we can use again a convenient built-in function to import a
+    # graph_def into the current default Graph
+    with tf.Graph().as_default() as graph:
+        tf.import_graph_def(
+            graph_def,
+            input_map=None,
+            return_elements=None,
+            name="prefix",
+            producer_op_list=None
+        )
+    return graph
+
+def get_caiman_version() -> Tuple[str, str]:
+    """ Get the version of CaImAn, as best we can determine"""
+    # This does its best to determine the version of CaImAn. This uses the first successful
+    # from these methods:
+    # 'GITW' ) git rev-parse if caiman is built from "pip install -e ." and we are working
+    #    out of the checkout directory (the user may have since updated without reinstall)
+    # 'RELF') A release file left in the process to cut a release. Should have a single line
+    #    in it whick looks like "Version:1.4"
+    # 'FILE') The date of some frequently changing files, which act as a very rough
+    #    approximation when no other methods are possible
+    #
+    # Data is returned as a tuple of method and version, with method being the 4-letter string above
+    # and version being a format-dependent string
+
+    # Attempt 'GITW'.
+    # TODO:
+    # A) Find a place to do it that's better than cwd
+    # B) Hide the output from the terminal
+    try:
+        rev = subprocess.check_output(["git", "rev-parse", "HEAD"], stderr=subprocess.DEVNULL).decode("utf-8").split("\n")[0]
+    except:
+        rev = None
+    if rev is not None:
+        return 'GITW', rev
+
+    # Attempt: 'RELF'
+    relfile = os.path.join(caiman_datadir(), 'RELEASE')
+    if os.path.isfile(relfile):
+        with open(relfile, 'r') as sfh:
+            for line in sfh:
+                if ':' in line: # expect a line like "Version:1.3"
+                    _, version = line.rstrip().split(':')
+                    return 'RELF', version 
+
+    # Attempt: 'FILE'
+    # Right now this samples the utils directory
+    modpath = os.path.dirname(inspect.getfile(caiman.utils)) # Probably something like /mnt/home/pgunn/miniconda3/envs/caiman/lib/python3.7/site-packages/caiman
+    newest = 0
+    for fn in os.listdir(modpath):
+        last_modified = os.stat(os.path.join(modpath, fn)).st_mtime
+        if last_modified > newest:
+            newest = last_modified
+    return 'FILE', str(int(newest))
