@@ -16,6 +16,7 @@ from builtins import range
 from past.utils import old_div
 
 import cv2
+from functools import partial
 import h5py
 import logging
 from matplotlib import animation
@@ -38,7 +39,6 @@ from tqdm import tqdm
 from typing import Any, Dict, List, Tuple, Union
 import warnings
 from zipfile import ZipFile
-from functools import partial
 
 import caiman as cm
 
