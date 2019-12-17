@@ -701,13 +701,22 @@ def local_correlations_movie_offline(file_name,
                                      eight_neighbours: bool = True,
                                      order_mean: int = 1,
                                      ismulticolor: bool = False,
-                                     dview=None):
+                                     dview=None,
+                                     remove_baseline:bool=False, winSize_baseline:int=5,
+                                     quantil_min_baseline:float=8):
 
     if Tot_frames is None:
         Tot_frames = cm.load(file_name).shape[0]
 
-    params: List = [[file_name, range(j, j + window), eight_neighbours, swap_dim, order_mean, ismulticolor]
+    params: List = [[file_name, range(j, j + window), eight_neighbours, swap_dim,
+                   order_mean, ismulticolor, remove_baseline, winSize_baseline,
+                   quantil_min_baseline]
                     for j in range(0, Tot_frames - window, stride)]
+
+    params.append([file_name,range(Tot_frames - window,Tot_frames), eight_neighbours, swap_dim,
+                   order_mean, ismulticolor, remove_baseline, winSize_baseline,
+                   quantil_min_baseline])
+
     if dview is None:
         parallel_result = list(map(local_correlations_movie_parallel, params))
     else:
@@ -722,8 +731,11 @@ def local_correlations_movie_offline(file_name,
 
 
 def local_correlations_movie_parallel(params: Tuple) -> np.ndarray:
-    mv_name, idx, eight_neighbours, swap_dim, order_mean, ismulticolor = params
-    mv = cm.load(mv_name, subindices=idx)
+    mv_name, idx, eight_neighbours, swap_dim, order_mean, ismulticolor, remove_baseline, winSize_baseline, quantil_min_baseline  = params
+    mv = cm.load(mv_name, subindices=idx, in_memory=True)
+    if remove_baseline:
+        mv.removeBL(quantilMin=quantil_min_baseline, windowSize=winSize_baseline, in_place=True)
+
     if ismulticolor:
         return local_correlations_multicolor(mv, swap_dim=swap_dim)[None, :, :].astype(np.float32)
     else:
