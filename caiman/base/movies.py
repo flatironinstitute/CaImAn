@@ -38,6 +38,7 @@ from tqdm import tqdm
 from typing import Any, Dict, List, Tuple, Union
 import warnings
 from zipfile import ZipFile
+from functools import partial
 
 import caiman as cm
 
@@ -568,8 +569,57 @@ class movie(ts.timeseries):
 
             crop_begin/crop_end: (undocumented)
         """
-        t, h, w = self.shape
-        self[:, :, :] = self[crop_begin:t - crop_end, crop_top:h - crop_bottom, crop_left:w - crop_right]
+        Crop movie (inline)
+
+           
+    
+    def removeBL(self, windowSize:int=100, quantilMin:int=8, in_place:bool=False, returnBL:bool=False):                   
+        """
+        Remove baseline from movie using percentiles over a window
+        Args:
+            windowSize: int
+                window size over which to compute the baseline (the larger the faster the algorithm and the less granular
+
+            quantilMin: float
+                percentil to be used as baseline value
+            in_place: bool
+                update movie in place
+            returnBL:
+                return only baseline
+
+        Return:
+             movie without baseline or baseline itself (returnBL=True)
+        """
+        pixs = self.to2DPixelxTime()
+        iter_win = rolling_window(pixs,windowSize,windowSize)
+        myperc = partial(np.percentile, q=quantilMin, axis=-1)
+        res = np.array(list(map(myperc,iter_win))).T
+        if returnBL:
+                return cm.movie(cv2.resize(res,pixs.shape[::-1]),fr=self.fr).to3DFromPixelxTime(self.shape)           
+        if (not in_place):            
+            return (pixs-cv2.resize(res,pixs.shape[::-1])).to3DFromPixelxTime(self.shape)
+        else:
+            self -= cm.movie(cv2.resize(res,pixs.shape[::-1]),fr=self.fr).to3DFromPixelxTime(self.shape) 
+            return self
+            
+        
+        
+    
+    def to2DPixelxTime(self, order='F'):
+        """
+        Transform 3D movie into 2D
+        """
+        return self.transpose([2,1,0]).reshape((-1,self.shape[0]),order=order)  
+
+
+    def to3DFromPixelxTime(self, shape, order='F'):
+        """
+            Transform 2D movie into 3D
+        """
+        return to_3D(self,shape[::-1],order=order).transpose([2,1,0])
+    
+
+        
 
     def computeDFF(self, secsWindow: int = 5, quantilMin: int = 8, method: str = 'only_baseline',
                    order: str = 'F') -> Tuple[Any, Any]:
@@ -2037,6 +2087,27 @@ def from_zipfiles_to_movie_lists(zipfile_name: str, max_frames_per_movie: int = 
         movie_list.append(fname)
 
     return movie_list
+
+
+def rolling_window(ndarr, window_size, stride):   
+        """
+        generates efficient rolling window for running statistics
+        Args:
+            ndarr: ndarray
+                input pixels in format pixels x time
+            window_size: int
+                size of the sliding window
+            stride: int
+                stride of the sliding window
+        Returns:
+                iterator with views of the input array
+                
+        """
+        for i in range(0,ndarr.shape[-1]-window_size-stride+1,stride): 
+            yield ndarr[:,i:np.minimum(i+window_size, ndarr.shape[-1])]
+            
+        if i+stride != ndarr.shape[-1]:
+           yield ndarr[:,i+stride:]
 
 
 def load_iter(file_name, subindices=None, var_name_hdf5: str = 'mov'):
