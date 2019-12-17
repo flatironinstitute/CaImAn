@@ -569,7 +569,9 @@ class movie(ts.timeseries):
 
             crop_begin/crop_end: (undocumented)
         """
-        Crop movie (inline)
+        t, h, w = self.shape
+        self[:, :, :] = self[crop_begin:t - crop_end, crop_top:h - crop_bottom, crop_left:w - crop_right]
+    
 
            
     
@@ -932,6 +934,7 @@ class movie(ts.timeseries):
                 frames_per_chunk: int (undocumented)
 
                 order_mean: (undocumented)
+                
 
             Returns:
                 rho: d1 x d2 [x d3] matrix, cross-correlation with adjacent pixels
@@ -2195,3 +2198,4 @@ def load_iter(file_name, subindices=None, var_name_hdf5: str = 'mov'):
     else:
         logging.error(f"File request:[{file_name}] not found!")
         raise Exception('File not found!')
+
