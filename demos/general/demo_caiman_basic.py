@@ -38,6 +38,7 @@ import caiman as cm
 from caiman.paths import caiman_datadir
 from caiman.source_extraction.cnmf import cnmf as cnmf
 from caiman.source_extraction.cnmf import params as params
+from caiman.summary_images import local_correlations_movie_offline
 
 # %%
 # Set up the logger; change this if you like.
@@ -98,7 +99,12 @@ def main():
     cnm = cnm.fit_file()
 
 # %% plot contour plots of components
-    Cn = cm.load(fnames[0], subindices=slice(1000)).local_correlations(swap_dim=False)
+    Cns = local_correlations_movie_offline(fnames[0], 
+                                       remove_baseline=True, fr = fr, 
+                                       swap_dim=False, window=1000, stride=1000,
+                                       winSize_baseline=100, quantil_min_baseline=30,
+                                       dview=dview)
+    Cn = Cns.max(axis=0)
     cnm.estimates.plot_contours(img=Cn)
 
 # %% load memory mapped file
