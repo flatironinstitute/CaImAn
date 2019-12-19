@@ -468,6 +468,7 @@ class OnACID(object):
         self.estimates.sn = np.sqrt(self.estimates.vr)
         
         t_new = time()
+        num_added = 0
         if self.params.get('online', 'update_num_comps'):
 
             if self.params.get('online', 'use_corr_img'):
@@ -933,6 +934,7 @@ class OnACID(object):
                  None), var_name_hdf5=self.params.get('data', 'var_name_hdf5')).astype(np.float32)
         if model_LN is not None:
             Y = Y - caiman.movie(np.squeeze(model_LN.predict(np.expand_dims(Y, -1))))
+            Y = np.maximum(Y, 0)
         # Downsample if needed
         ds_factor = np.maximum(opts['ds_factor'], 1)
         if ds_factor > 1:
@@ -1115,12 +1117,15 @@ class OnACID(object):
                                        loss=loss_fn, width=width,
                                        use_add=self.params.get('ring_CNN', 'use_add'),
                                        use_bias=self.params.get('ring_CNN', 'use_bias'))
-            model_LN, history, path_to_model = fit_NL_model(model_LN, Y,
-                                                            epochs=self.params.get('ring_CNN', 'max_epochs'),
-                                                            patience=self.params.get('ring_CNN', 'patience'),
-                                                            schedule=sch)
-            logging.info('Training complete.')
-            self.params.set('ring_CNN', {'path_to_model': path_to_model})
+            if self.params.get('ring_CNN', 'reuse_model'):
+                model_LN.load_weights(self.params.get('ring_CNN', 'path_to_model'))
+            else:
+                model_LN, history, path_to_model = fit_NL_model(model_LN, Y,
+                                                                epochs=self.params.get('ring_CNN', 'max_epochs'),
+                                                                patience=self.params.get('ring_CNN', 'patience'),
+                                                                schedule=sch)
+                logging.info('Training complete.')
+                self.params.set('ring_CNN', {'path_to_model': path_to_model})
 #            new_fl = []
 #            for fl in fls:
 #                Y = caiman.load(fl, var_name_hdf5=self.params.get('data', 'var_name_hdf5'))
@@ -1171,6 +1176,9 @@ class OnACID(object):
                                   True)
         # Iterate through the epochs
         for iter in range(epochs):
+            if iter == epochs - 1 and self.params.get('online', 'stop_detection'):
+                self.params.set('online', {'update_num_comps': False})
+            logging.info('Searching for new components set to: {}'.format(self.params.get('online', 'update_num_comps')))
             if iter > 0:
                 # if not on first epoch process all files from scratch
                 process_files = fls[:init_files + extra_files]
@@ -1190,6 +1198,7 @@ class OnACID(object):
                         frame = next(Y_)
                         if model_LN is not None:
                             frame = frame - np.squeeze(model_LN.predict(np.expand_dims(np.expand_dims(frame.astype(np.float32), 0), -1)))
+                            frame = np.maximum(frame, 0)
                         frame_count += 1
                         t_frame_start = time()
                         if np.isnan(np.sum(frame)):

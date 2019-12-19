@@ -775,6 +775,7 @@ class CNMFParams(object):
             'show_movie': False,               # display movie online
             'simultaneously': simultaneously,  # demix and deconvolve simultaneously
             'sniper_mode': sniper_mode,        # flag for using CNN
+            'stop_detection': False,           # flag for stop detecting new neurons at the last epoch 
             'test_both': test_both,            # flag for using both CNN and space correlation
             'thresh_CNN_noisy': thresh_CNN_noisy,  # threshold for online CNN classifier
             'thresh_fitness_delta': thresh_fitness_delta,
@@ -822,7 +823,8 @@ class CNMFParams(object):
             'loss_fn': 'pct',
             'lr': 1e-3,
             'lr_scheduler': None,
-            'path_to_model': None}
+            'path_to_model': None,
+            'reuse_model': False}
 
         self.change_params(params_dict)
 
