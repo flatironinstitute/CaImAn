@@ -983,6 +983,14 @@ class Estimates(object):
                                              min_SNR_reject=opts['SNR_lowest'])
         self.idx_components = idx_components.astype(int)
         self.idx_components_bad = idx_components_bad.astype(int)
+        if np.any(np.isnan(r_values)):
+            logging.warning('NaN values detected for space correlation in {}'.format(np.where(np.isnan(r_values))[0]) +
+                            '. Changing their value to -1.')
+            r_values = np.where(np.isnan(r_values), -1, r_values)
+        if np.any(np.isnan(SNR_comp)):
+            logging.warning('NaN values detected for trace SNR in {}'.format(np.where(np.isnan(SNR_comp))[0]) +
+                            '. Changing their value to 0.')
+            SNR_comp = np.where(np.isnan(SNR_comp), 0, SNR_comp)
         self.SNR_comp = SNR_comp
         self.r_values = r_values
         self.cnn_preds = cnn_preds
