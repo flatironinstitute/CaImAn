@@ -99,11 +99,11 @@ def main():
     cnm = cnm.fit_file()
 
 # %% plot contour plots of components
-    Cns = local_correlations_movie_offline(fnames[0], 
-                                       remove_baseline=True, fr = fr, 
-                                       swap_dim=False, window=1000, stride=1000,
-                                       winSize_baseline=100, quantil_min_baseline=30,
-                                       dview=dview)
+    Cns = local_correlations_movie_offline(fnames[0],
+                                           remove_baseline=True,
+                                           swap_dim=False, window=1000, stride=1000,
+                                           winSize_baseline=100, quantil_min_baseline=10,
+                                           dview=dview)
     Cn = Cns.max(axis=0)
     cnm.estimates.plot_contours(img=Cn)
 

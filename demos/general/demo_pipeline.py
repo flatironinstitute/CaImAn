@@ -204,11 +204,10 @@ def main():
     #  cnm1.fit_file(motion_correct=True)
 
 # %% plot contours of found components
-    Cns = local_correlations_movie_offline(mc.mmap_file[0], 
-                                       remove_baseline=True, fr = fr, 
-                                       swap_dim=False, window=1000, stride=1000,
-                                       winSize_baseline=100, quantil_min_baseline=30,
-                                       dview=dview)
+    Cns = local_correlations_movie_offline(mc.mmap_file[0],
+                                           remove_baseline=True, window=1000, stride=1000,
+                                           winSize_baseline=100, quantil_min_baseline=10,
+                                           dview=dview)
     Cn = Cns.max(axis=0)
     Cn[np.isnan(Cn)] = 0
     cnm.estimates.plot_contours(img=Cn)

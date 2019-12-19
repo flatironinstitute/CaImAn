@@ -21,7 +21,7 @@ from typing import Any, List, Optional, Tuple
 
 import caiman as cm
 from caiman.source_extraction.cnmf.pre_processing import get_noise_fft
-
+from caiman.source_extraction.cnmf.utilities import get_file_size
 
 def max_correlation_image(Y, bin_size: int = 1000, eight_neighbours: bool = True, swap_dim: bool = True) -> np.ndarray:
     """Computes the max-correlation image for the input dataset Y with bin_size
@@ -694,26 +694,27 @@ def local_correlations_movie(file_name,
 
 def local_correlations_movie_offline(file_name,
                                      Tot_frames=None,
-                                     fr: int = 10,
+                                     fr: float = 10.,
                                      window: int = 30,
                                      stride: int = 3,
-                                     swap_dim: bool = True,
+                                     swap_dim: bool = False,
                                      eight_neighbours: bool = True,
                                      order_mean: int = 1,
                                      ismulticolor: bool = False,
                                      dview=None,
-                                     remove_baseline:bool=False, winSize_baseline:int=5,
-                                     quantil_min_baseline:float=8):
+                                     remove_baseline: bool = False,
+                                     winSize_baseline: int = 5,
+                                     quantil_min_baseline: float = 8):
 
     if Tot_frames is None:
-        Tot_frames = cm.load(file_name).shape[0]
+        _, Tot_frames = get_file_size(file_name)
 
     params: List = [[file_name, range(j, j + window), eight_neighbours, swap_dim,
-                   order_mean, ismulticolor, remove_baseline, winSize_baseline,
-                   quantil_min_baseline]
+                     order_mean, ismulticolor, remove_baseline, winSize_baseline,
+                     quantil_min_baseline]
                     for j in range(0, Tot_frames - window, stride)]
 
-    params.append([file_name,range(Tot_frames - window,Tot_frames), eight_neighbours, swap_dim,
+    params.append([file_name, range(Tot_frames - window, Tot_frames), eight_neighbours, swap_dim,
                    order_mean, ismulticolor, remove_baseline, winSize_baseline,
                    quantil_min_baseline])
 
@@ -726,7 +727,7 @@ def local_correlations_movie_offline(file_name,
             parallel_result = dview.map_sync(local_correlations_movie_parallel, params)
             dview.results.clear()
 
-    mm = cm.movie(np.concatenate(parallel_result, axis=0), fr=fr)
+    mm = cm.movie(np.concatenate(parallel_result, axis=0), fr=fr/len(parallel_result))
     return mm
 
 
