@@ -2081,7 +2081,8 @@ def load_iter(file_name, subindices=None, var_name_hdf5: str = 'mov'):
                         yield frame[..., 0]
                     else:
                         cap.release()
-                        raise StopIteration
+                        return
+                        #raise StopIteration
             else:
                 if type(subindices) is slice:
                     subindices = range(
@@ -2102,9 +2103,11 @@ def load_iter(file_name, subindices=None, var_name_hdf5: str = 'mov'):
                     if ret:
                         yield frame[..., 0]
                     else:
-                        raise StopIteration
+                        return
+                        #raise StopIteration
                 cap.release()
-                raise StopIteration
+                return
+                #raise StopIteration
         elif extension in ('.hdf5', '.h5'):
             with h5py.File(file_name, "r") as f:
                 Y = f.get(var_name_hdf5)

@@ -1221,7 +1221,7 @@ class OnACID(object):
                                 break
                         t += 1
                         t_online.append(time() - t_frame_start)
-                    except StopIteration:
+                    except  (StopIteration, RuntimeError):
                         break
         
             self.Ab_epoch.append(self.estimates.Ab.copy())
