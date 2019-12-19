@@ -17,7 +17,7 @@ import caiman
 from .utilities import detrend_df_f
 from .spatial import threshold_components
 from .temporal import constrained_foopsi_parallel
-from .merging import merge_iteration
+from .merging import merge_iteration, merge_components
 from ...components_evaluation import (
         evaluate_components_CNN, estimate_components_quality_auto,
         select_components_from_metrics, compute_eccentricity)
@@ -1177,6 +1177,20 @@ class Estimates(object):
                 self.F_dff_dec = np.stack([results[0][i] for i in order])
                 self.S_dff = np.stack([results[1][i] for i in order])
 
+    def merge_components(self, Y, params, mx=50, fast_merge=True,
+                         dview=None, max_merge_area=None):
+            """merges components
+            """
+            self.A, self.C, self.nr, self.merged_ROIs, self.S, \
+            self.bl, self.c1, self.neurons_sn, self.g, empty_merged, \
+            self.YrA =\
+                merge_components(Y, self.A, self.b, self.C, self.YrA,
+                                 self.f, self.S, self.sn, params.get_group('temporal'),
+                                 params.get_group('spatial'), dview=dview,
+                                 bl=self.bl, c1=self.c1, sn=self.neurons_sn,
+                                 g=self.g, thr=params.get('merging', 'merge_thr'), mx=mx,
+                                 fast_merge=fast_merge, merge_parallel=params.get('merging', 'merge_parallel'),
+                                 max_merge_area=max_merge_area)
 
     def manual_merge(self, components, params):
         ''' merge a given list of components. The indices
