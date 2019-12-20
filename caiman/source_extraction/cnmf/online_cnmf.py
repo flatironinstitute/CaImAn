@@ -1093,7 +1093,7 @@ class OnACID(object):
         fls = self.params.get('data', 'fnames')
         init_batch = self.params.get('online', 'init_batch')
         if self.params.get('online', 'ring_CNN'):
-            logging.info('Estimating Ring CNN model')
+            logging.info('Using Ring CNN model')
             from caiman.utils.nn_models import (get_run_logdir, fit_NL_model,
                                     create_LN_model, quantile_loss, get_mask, total_variation_loss,
                                     rate_scheduler)
@@ -1118,13 +1118,15 @@ class OnACID(object):
                                        use_add=self.params.get('ring_CNN', 'use_add'),
                                        use_bias=self.params.get('ring_CNN', 'use_bias'))
             if self.params.get('ring_CNN', 'reuse_model'):
+                logging.info('Using existing model from {}'.format(self.params.get('ring_CNN', 'path_to_model')))
                 model_LN.load_weights(self.params.get('ring_CNN', 'path_to_model'))
             else:
+                logging.info('Estimating model from scratch, starting training.')
                 model_LN, history, path_to_model = fit_NL_model(model_LN, Y,
                                                                 epochs=self.params.get('ring_CNN', 'max_epochs'),
                                                                 patience=self.params.get('ring_CNN', 'patience'),
                                                                 schedule=sch)
-                logging.info('Training complete.')
+                logging.info('Training complete. Model saved in {}.'.format(path_to_model))
                 self.params.set('ring_CNN', {'path_to_model': path_to_model})
 #            new_fl = []
 #            for fl in fls:
@@ -1204,7 +1206,7 @@ class OnACID(object):
                         if np.isnan(np.sum(frame)):
                             raise Exception('Frame ' + str(frame_count) +
                                             ' contains NaN')
-                        if t % 100 == 0:
+                        if t % 500 == 0:
                             logging.info('Epoch: ' + str(iter + 1) + '. ' + str(t) +
                                          ' frames have beeen processed in total. ' +
                                          str(self.N - old_comps) +
@@ -2600,20 +2602,11 @@ def load_OnlineCNMF(filename, dview = None):
             useful to set up parllelization in the objects
     """
 
-    #load params
-
     for key,val in load_dict_from_hdf5(filename).items():
         if key == 'params':
             prms = CNMFParams()
-            prms.data = val['data']
-            prms.patch = val['patch']
-            prms.preprocess = val['preprocess']
-            prms.init = val['init']
-            prms.spatial = val['spatial']
-            prms.temporal = val['temporal']
-            prms.merging = val['merging']
-            prms.quality = val['quality']
-            prms.quality = val['online']
+            for subdict in val.keys():
+                prms.set(subdict, val[subdict])
 
     new_obj = OnACID(params=prms)
 
