@@ -45,6 +45,7 @@ from caiman.motion_correction import MotionCorrect
 from caiman.source_extraction.cnmf import cnmf as cnmf
 from caiman.source_extraction.cnmf import params as params
 from caiman.utils.utils import download_demo
+from caiman.summary_images import local_correlations_movie_offline
 
 # %%
 # Set up the logger (optional); change this if you like.
@@ -203,7 +204,11 @@ def main():
     #  cnm1.fit_file(motion_correct=True)
 
 # %% plot contours of found components
-    Cn = cm.local_correlations(images, swap_dim=False)
+    Cns = local_correlations_movie_offline(mc.mmap_file[0],
+                                           remove_baseline=True, window=1000, stride=1000,
+                                           winSize_baseline=100, quantil_min_baseline=10,
+                                           dview=dview)
+    Cn = Cns.max(axis=0)
     Cn[np.isnan(Cn)] = 0
     cnm.estimates.plot_contours(img=Cn)
     plt.title('Contour plots of found components')
