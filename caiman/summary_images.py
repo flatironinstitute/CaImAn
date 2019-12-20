@@ -21,7 +21,7 @@ from typing import Any, List, Optional, Tuple
 
 import caiman as cm
 from caiman.source_extraction.cnmf.pre_processing import get_noise_fft
-
+from caiman.source_extraction.cnmf.utilities import get_file_size
 
 def max_correlation_image(Y, bin_size: int = 1000, eight_neighbours: bool = True, swap_dim: bool = True) -> np.ndarray:
     """Computes the max-correlation image for the input dataset Y with bin_size
@@ -694,20 +694,74 @@ def local_correlations_movie(file_name,
 
 def local_correlations_movie_offline(file_name,
                                      Tot_frames=None,
-                                     fr: int = 10,
-                                     window: int = 30,
-                                     stride: int = 3,
-                                     swap_dim: bool = True,
+                                     fr: float = 10.,
+                                     window: int = 100,
+                                     stride: int = 100,
+                                     swap_dim: bool = False,
                                      eight_neighbours: bool = True,
                                      order_mean: int = 1,
                                      ismulticolor: bool = False,
-                                     dview=None):
+                                     dview=None,
+                                     remove_baseline: bool = False,
+                                     winSize_baseline: int = 50,
+                                     quantil_min_baseline: float = 8):
+    """
+    Efficient (parallel) computation of correlation image in shifting windows 
+    with option for prior baseline removal
 
+    Args:
+        Y:  str
+            path to movie file
+
+        Tot_frames: int
+            Number of total frames considered
+
+        fr: int (100)
+            Frame rate (optional)
+
+        window: int (100)
+            Window length in frames
+
+        stride: int (30)
+            Stride length in frames
+
+        swap_dim: bool (False)
+            True indicates that time is listed in the last axis of Y (matlab format)
+            and moves it in the front (default: False)
+
+        eight_neighbours: Boolean
+            Use 8 neighbors if true, and 4 if false for 3D data
+            Use 18 neighbors if true, and 6 if false for 4D data
+
+        dview: map object
+            Use it for parallel computation
+
+        remove_baseline: bool (False)
+            Flag for removing baseline prior to computation of CI
+
+        winSize_baseline: int (50)
+            Running window length for computing baseline
+
+        quantile_min_baseline: float (8)
+            Percentile used for baseline computations
+
+    Returns:
+        mm: cm.movie (3D or 4D).
+            local correlation movie
+
+    """
     if Tot_frames is None:
-        Tot_frames = cm.load(file_name).shape[0]
+        _, Tot_frames = get_file_size(file_name)
 
-    params: List = [[file_name, range(j, j + window), eight_neighbours, swap_dim, order_mean, ismulticolor]
+    params: List = [[file_name, range(j, j + window), eight_neighbours, swap_dim,
+                     order_mean, ismulticolor, remove_baseline, winSize_baseline,
+                     quantil_min_baseline]
                     for j in range(0, Tot_frames - window, stride)]
+
+    params.append([file_name, range(Tot_frames - window, Tot_frames), eight_neighbours, swap_dim,
+                   order_mean, ismulticolor, remove_baseline, winSize_baseline,
+                   quantil_min_baseline])
+
     if dview is None:
         parallel_result = list(map(local_correlations_movie_parallel, params))
     else:
@@ -717,13 +771,16 @@ def local_correlations_movie_offline(file_name,
             parallel_result = dview.map_sync(local_correlations_movie_parallel, params)
             dview.results.clear()
 
-    mm = cm.movie(np.concatenate(parallel_result, axis=0), fr=fr)
+    mm = cm.movie(np.concatenate(parallel_result, axis=0), fr=fr/len(parallel_result))
     return mm
 
 
 def local_correlations_movie_parallel(params: Tuple) -> np.ndarray:
-    mv_name, idx, eight_neighbours, swap_dim, order_mean, ismulticolor = params
-    mv = cm.load(mv_name, subindices=idx)
+    mv_name, idx, eight_neighbours, swap_dim, order_mean, ismulticolor, remove_baseline, winSize_baseline, quantil_min_baseline  = params
+    mv = cm.load(mv_name, subindices=idx, in_memory=True)
+    if remove_baseline:
+        mv.removeBL(quantilMin=quantil_min_baseline, windowSize=winSize_baseline, in_place=True)
+
     if ismulticolor:
         return local_correlations_multicolor(mv, swap_dim=swap_dim)[None, :, :].astype(np.float32)
     else:
