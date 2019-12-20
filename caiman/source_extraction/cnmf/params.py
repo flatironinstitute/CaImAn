@@ -795,8 +795,8 @@ class CNMFParams(object):
             'niter_rig': 1,                     # number of iterations rigid motion correction
             'nonneg_movie': True,               # flag for producing a non-negative movie
             'num_frames_split': 80,             # split across time every x frames
-            'num_splits_to_process_els': [7, None],
-            'num_splits_to_process_rig': None,
+            'num_splits_to_process_els': None,  # DO NOT MODIFY
+            'num_splits_to_process_rig': None,  # DO NOT MODIFY
             'overlaps': (32, 32),               # overlap between patches in pw-rigid motion correction
             'pw_rigid': False,                  # flag for performing pw-rigid motion correction
             'shifts_opencv': True,              # flag for applying shifts using cubic interpolation (otherwise FFT)
@@ -827,7 +827,7 @@ class CNMFParams(object):
                 T = get_file_size(self.data['fnames'], var_name_hdf5=self.data['var_name_hdf5'])[1]
             if len(self.data['fnames']) > 1:
                 T = T[0]
-            num_splits = T//max(self.motion['num_frames_split'],10)
+            num_splits = max(T//max(self.motion['num_frames_split'], 10), 1)
             self.motion['splits_els'] = num_splits
             self.motion['splits_rig'] = num_splits
             self.online['movie_name_online'] = os.path.join(os.path.dirname(self.data['fnames'][0]), self.online['movie_name_online'])

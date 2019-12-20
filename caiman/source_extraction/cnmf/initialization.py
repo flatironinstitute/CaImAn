@@ -605,29 +605,30 @@ def compressedNMF(Y_ds, nr, r_ov=10, max_iter_snmf=500,
     if remove_baseline:
         logging.info('REMOVING BASELINE')
         bl = np.percentile(m, perc_baseline, axis=0)
-        m1 = np.maximum(0, m - bl)
+        m = np.maximum(0, m - bl)
     else:
         logging.info('NOT REMOVING BASELINE')
         bl = np.zeros(m.shape[1:])
-        m1 = m
 
-    T, dims = m1.shape[0], m1.shape[1:]
+    T, dims = m.shape[0], m.shape[1:]
     d = np.prod(dims)
-    yr = np.reshape(m1, [T, d], order='F')
-
+    yr = np.reshape(m, [T, d], order='F')
+    A, C, USV = nnsvd_init(yr, nr, r_ov=r_ov)    
     W_r = np.random.randn(d, nr + r_ov)
     W_l = np.random.randn(T, nr + r_ov)
-    YYt = yr.dot(yr.T)
+    US = USV[0]*USV[1]
+    YYt = US.dot(USV[2].dot(USV[2].T)).dot(US.T)
+#    YYt = yr.dot(yr.T)
 
-    B = YYt.dot(YYt.dot(yr.dot(W_r)))
+    B = YYt.dot(YYt.dot(US.dot(USV[2].dot(W_r))))
     PC, _ = np.linalg.qr(B)
 
-    B = yr.T.dot(YYt.dot(YYt.dot(W_l)))
+    B = USV[2].T.dot(US.T.dot(YYt.dot(YYt.dot(W_l))))
     PA, _ = np.linalg.qr(B)
-    mdl = NMF(n_components=nr, verbose=False, init='nndsvd', tol=1e-10,
-              max_iter=1)
-    C = mdl.fit_transform(yr).T
-    A = mdl.components_.T
+#    mdl = NMF(n_components=nr, verbose=False, init='nndsvd', tol=1e-10,
+#              max_iter=1)
+#    C = mdl.fit_transform(yr).T
+#    A = mdl.components_.T
 
     yrPA = yr.dot(PA)
     yrPC = PC.T.dot(yr)
@@ -1824,9 +1825,9 @@ def compute_W(Y, A, C, dims, radius, data_fits_in_memory=True, ssub=1, tsub=1, p
     return spr.csr_matrix((data, indices, indptr), dtype='float32'), b0.astype(np.float32)
 
 #%%
-def nnsvd_init(X,n_components,eps=1e-6,random_state=None):
-    # NNDSVD initialization from scikit learn package
-    U, S, V = randomized_svd(X, n_components, random_state=random_state)
+def nnsvd_init(X, n_components, r_ov=10, eps=1e-6, random_state=42):
+    # NNDSVD initialization from scikit learn package (modified)
+    U, S, V = randomized_svd(X, n_components + r_ov, random_state=random_state)
     W, H = np.zeros(U.shape), np.zeros(V.shape)
 
     # The leading singular triplet is non-negative
@@ -1866,7 +1867,7 @@ def nnsvd_init(X,n_components,eps=1e-6,random_state=None):
 
     C = W.T
     A = H.T
-    return A,C #
+    return A[:, 1:n_components], C[:n_components], (U, S, V) #
 #%%
 def norm(x):
     """Dot product-based Euclidean norm implementation
