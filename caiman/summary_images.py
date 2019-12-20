@@ -695,17 +695,61 @@ def local_correlations_movie(file_name,
 def local_correlations_movie_offline(file_name,
                                      Tot_frames=None,
                                      fr: float = 10.,
-                                     window: int = 30,
-                                     stride: int = 3,
+                                     window: int = 100,
+                                     stride: int = 100,
                                      swap_dim: bool = False,
                                      eight_neighbours: bool = True,
                                      order_mean: int = 1,
                                      ismulticolor: bool = False,
                                      dview=None,
                                      remove_baseline: bool = False,
-                                     winSize_baseline: int = 5,
+                                     winSize_baseline: int = 50,
                                      quantil_min_baseline: float = 8):
+    """
+    Efficient (parallel) computation of correlation image in shifting windows 
+    with option for prior baseline removal
 
+    Args:
+        Y:  str
+            path to movie file
+
+        Tot_frames: int
+            Number of total frames considered
+
+        fr: int (100)
+            Frame rate (optional)
+
+        window: int (100)
+            Window length in frames
+
+        stride: int (30)
+            Stride length in frames
+
+        swap_dim: bool (False)
+            True indicates that time is listed in the last axis of Y (matlab format)
+            and moves it in the front (default: False)
+
+        eight_neighbours: Boolean
+            Use 8 neighbors if true, and 4 if false for 3D data
+            Use 18 neighbors if true, and 6 if false for 4D data
+
+        dview: map object
+            Use it for parallel computation
+
+        remove_baseline: bool (False)
+            Flag for removing baseline prior to computation of CI
+
+        winSize_baseline: int (50)
+            Running window length for computing baseline
+
+        quantile_min_baseline: float (8)
+            Percentile used for baseline computations
+
+    Returns:
+        mm: cm.movie (3D or 4D).
+            local correlation movie
+
+    """
     if Tot_frames is None:
         _, Tot_frames = get_file_size(file_name)
 
