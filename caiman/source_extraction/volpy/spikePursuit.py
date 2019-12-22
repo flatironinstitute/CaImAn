@@ -147,13 +147,15 @@ def volspike(pars):
 
     # remove low frequency components
     data_hp = highpassVideo(data.T, 1 / tau_lp, sampleRate).T    
-    data_lp = data - data_hp
     
+    
+    """
     data_pred = np.empty_like(data_hp)
     if highPassRegression:
         data_pred[:] = highpassVideo(data, 1 / tau_pred, sampleRate)
     else:
         data_pred[:] = data_hp
+    """
     
     # initial trace
     if weights_init is None:
@@ -246,7 +248,7 @@ def volspike(pars):
                             kernel_size_y=np.int(2 * np.ceil(2 * sigma) + 1),
                             kernel_std_x=sigma, kernel_std_y=sigma,
                             borderType=cv2.BORDER_REPLICATE), data_hp.shape)))
-    
+
     # Identify spatial filters with regularized regression
     for iteration in range(nIter):
         doPlot = False
@@ -255,9 +257,9 @@ def volspike(pars):
 
         # print('Identifying spatial filters')
         # print(iteration)
-     
+
         Ri = Ridge(alpha=lambdas[l_max], fit_intercept=True, solver='lsqr')
-        gD = np.single(guessData[selectPred>0])
+        gD = guessData[selectPred>0]
         Ri.fit(recon, gD)
         weights = Ri.coef_
         weights[0] = Ri.intercept_
@@ -289,8 +291,8 @@ def volspike(pars):
         X = X - np.matmul(Ub, b)
    
         # correct shrinkage
-        X = np.double(X * np.mean(t[spikeTimes]) / np.mean(X[spikeTimes]))
-
+        X = np.single(X * np.mean(t[spikeTimes]) / np.mean(X[spikeTimes]))
+        
         # generate the new trace and the new denoised trace
         Xspikes, spikeTimes, guessData, falsePosRate, detectionRate, templates, _, thresh = denoiseSpikes(-X,
                                                                                                   windowLength,
@@ -322,6 +324,10 @@ def volspike(pars):
     noise = np.std(Xspikes[selectSpikes == 0])
     snr = sgn / noise
     output['snr'] = snr
+
+    del pred
+    del recon
+    data_lp = data - data_hp
 
     # output
     output['y'] = X
@@ -579,6 +585,7 @@ def highpassVideo(video, freq, sampleRate):
     normFreq = freq / (sampleRate / 2)
     b, a = signal.butter(3, normFreq, 'high')
     videoFilt = np.single(signal.filtfilt(b, a, video, padtype='odd', padlen=3 * (max(len(b), len(a)) - 1)))
+    del video
     return videoFilt
 
 

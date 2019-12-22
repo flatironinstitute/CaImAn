@@ -263,12 +263,12 @@ def nf_match_neurons_in_binary_masks(masks_gt, masks_comp, thresh_cost=.7, min_d
                     'weight': 'regular',
                     'size': 10}
             pl.rc('font', **font)
-            lp, hp = np.nanpercentile(Cn, [5, 95])
+            lp, hp = np.nanpercentile(Cn, [5, 99])
             ses_1 = mpatches.Patch(color='red', label=labels[0])
-            ses_2 = mpatches.Patch(color='white', label=labels[1])
+            ses_2 = mpatches.Patch(color='yellow', label=labels[1])
             pl.subplot(1, 2, 1)
             pl.imshow(Cn, vmin=lp, vmax=hp, cmap=cmap)
-            [pl.contour(norm_nrg(mm), levels=[level], colors='w', linewidths=1)
+            [pl.contour(norm_nrg(mm), levels=[level], colors='y', linewidths=1)
              for mm in masks_comp[idx_tp_comp]]
             [pl.contour(norm_nrg(mm), levels=[level], colors='r',
                         linewidths=1) for mm in masks_gt[idx_tp_gt]]
@@ -281,7 +281,7 @@ def nf_match_neurons_in_binary_masks(masks_gt, masks_comp, thresh_cost=.7, min_d
             pl.axis('off')
             pl.subplot(1, 2, 2)
             pl.imshow(Cn, vmin=lp, vmax=hp, cmap=cmap)
-            [pl.contour(norm_nrg(mm), levels=[level], colors='w', linewidths=1)
+            [pl.contour(norm_nrg(mm), levels=[level], colors='y', linewidths=1)
              for mm in masks_comp[idx_fp_comp]]
             [pl.contour(norm_nrg(mm), levels=[level], colors='r',
                         linewidths=1) for mm in masks_gt[idx_fn_gt]]

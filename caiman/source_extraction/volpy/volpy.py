@@ -95,34 +95,52 @@ class VOLPY(object):
             # params.set('patch', {'n_processes': n_processes})
         self.estimates = {}
 
-    def fit(self, dview=None):
+    def fit(self, n_processes=None, dview=None):
         """Run the volspike function to detect spikes and save the result
         into self.estimate
         """
-
-        args_in = []
+        results = []
         fnames = self.params.data['fnames']
         fr = self.params.data['fr']
-        for i in self.params.data['index']:
-            ROIs = self.params.data['ROIs'][i]
-            if self.params.data['weights'] is None:
-                weights = None
-            else:
-                weights = self.params.data['weights'][i]
-            args_in.append([fnames, fr, i, ROIs, weights, self.params.volspike])
-
+        
         if self.params.volspike['method'] == 'SpikePursuit':
             volspike = spikePursuit.volspike
         elif self.params.volspike['method'] == 'atm':
             volspike = atm.volspike
-        if 'multiprocessing' in str(type(dview)):
-            results = dview.map_async(volspike, args_in).get(4294967)
-        elif dview is not None:
-            results = dview.map_sync(volspike, args_in)
-        else:
-            results = list(map(volspike, args_in))
-
+        
+       
+        N = len(self.params.data['index'])
+        times = int(np.ceil(N/n_processes))
+        for j in range(times):
+            if j < (times - 1):
+                li = [k for k in range(j*n_processes, (j+1)*n_processes)]
+            else:
+                li = [k for k in range(j*n_processes, N )]
+            print(li)
+            
+            args_in = []
+                
+            for i in li:
+                ROIs = self.params.data['ROIs'][i]
+                if self.params.data['weights'] is None:
+                    weights = None
+                else:
+                    weights = self.params.data['weights'][i]
+                args_in.append([fnames, fr, i, ROIs, weights, self.params.volspike])
+    
+            if 'multiprocessing' in str(type(dview)):
+                results_part = dview.map_async(volspike, args_in).get(4294967)
+            elif dview is not None:
+                results_part = dview.map_sync(volspike, args_in)
+            else:
+                results_part = list(map(volspike, args_in))
+                    
+            results = results + results_part
+            
+                 
+        
         N = len(results)
+        print(N)
         self.estimates['spikeTimes'] = [results[i]['spikeTimes'] for i in range(N)]
         self.estimates['trace'] = [results[i]['yFilt'] for i in range(N)]
         self.estimates['spatialFilter'] = [results[i]['spatialFilter'] for i in range(N)]
@@ -133,6 +151,7 @@ class VOLPY(object):
         self.estimates['passedLocalityTest'] = [results[i]['passedLocalityTest'] for i in range(N)]
         self.estimates['low_spk'] = [results[i]['low_spk'] for i in range(N)]
         self.estimates['weights'] = [results[i]['weights'] for i in range(N)]
+        
 
         return self
 

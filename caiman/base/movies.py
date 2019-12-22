@@ -513,6 +513,71 @@ class movie(ts.timeseries):
         logging.debug('Final Size Movie:' + np.str(self.shape))
         return mov_out, movie(movBL, fr=self.fr, start_time=self.start_time, meta_data=self.meta_data, file_name=self.file_name)
 
+    def compute_BL(self, secsWindow:int=5, quantilMin:int=8, method:str='only_baseline', order:str='F') -> Tuple[Any, Any]:
+        """
+        compute the DFF of the movie or remove baseline
+
+        In order to compute the baseline frames are binned according to the window length parameter
+        and then the intermediate values are interpolated.
+
+        Args:
+            secsWindow: length of the windows used to compute the quantile
+
+            quantilMin : value of the quantile
+
+            method='only_baseline','delta_f_over_f','delta_f_over_sqrt_f'
+
+        Returns:
+            self: DF or DF/F or DF/sqrt(F) movies
+
+            movBL=baseline movie
+
+        Raises:
+            Exception 'Unknown method'
+        """
+        logging.debug("computing minimum ...")
+        sys.stdout.flush()
+        if np.min(self) <= 0 and method != 'only_baseline':
+            raise ValueError("All pixels must be positive")
+
+        numFrames, linePerFrame, pixPerLine = np.shape(self)
+        downsampfact = int(secsWindow * self.fr)
+        logging.debug("Downsample factor: " + str(downsampfact))
+        elm_missing = int(np.ceil(numFrames * 1.0 / downsampfact)
+                          * downsampfact - numFrames)
+        padbefore = int(np.floor(old_div(elm_missing, 2.0)))
+        padafter = int(np.ceil(old_div(elm_missing, 2.0)))
+
+        logging.debug('Initial Size Image:' + np.str(np.shape(self)))
+        sys.stdout.flush()
+    
+        self = np.pad(self.astype(np.float32), ((
+            padbefore, padafter), (0, 0), (0, 0)), mode='reflect')
+        #mov_out[:padbefore] = mov_out[padbefore+1]
+        #mov_out[-padafter:] = mov_out[-padafter-1]
+        numFramesNew, linePerFrame, pixPerLine = np.shape(self)
+        
+        #% compute baseline quickly
+        logging.debug("binning data ...")
+        sys.stdout.flush()
+        movBL = np.reshape(self, (downsampfact, int(
+            old_div(numFramesNew, downsampfact)), linePerFrame, pixPerLine), order=order)
+        movBL = np.percentile(movBL, quantilMin, axis=0)
+        logging.debug("interpolating data ...")
+        sys.stdout.flush()
+        logging.debug("movBL shape is " + str(movBL.shape))
+        
+        movBL = scipy.ndimage.zoom(np.array(movBL, dtype=np.float32), [
+                                   downsampfact, 1, 1], order=1, mode='constant', cval=0.0, prefilter=False)
+
+        
+        movBL = movBL[padbefore:len(movBL) - padafter, :, :]
+        logging.debug('Final Size Movie:' + np.str(self.shape))
+        
+        
+        return movBL
+
+
     def NonnegativeMatrixFactorization(self, n_components:int=30, init:str='nndsvd', beta:int=1, tol=5e-7, sparseness:str='components', **kwargs) -> Tuple[np.ndarray, np.ndarray]:
         """
         See documentation for scikit-learn NMF
