@@ -423,13 +423,15 @@ def recursively_save_dict_contents_to_group(h5file:h5py.File, path:str, dic:Dict
             item = np.asarray(item, dtype=np.float)
         if key in ['groups', 'idx_tot', 'ind_A', 'Ab_epoch', 'coordinates',
                    'loaded_model', 'optional_outputs', 'merged_ROIs', 'tf_in',
-                   'tf_out']:
-            logging.info(['groups', 'idx_tot', 'ind_A', 'Ab_epoch', 'coordinates', 'loaded_model', 'optional_outputs', 'merged_ROIs',
-                   '** not saved'])
+                   'tf_out', 'empty_merged']:
+            logging.info('Key {} is not saved.'.format(key))
             continue
 
         if isinstance(item, list) or isinstance(item, tuple):
-            item = np.array(item)
+            if len(item) > 0 and all(isinstance(elem, str) for elem in item):
+                item = np.string_(item)
+            else:
+                item = np.array(item)
         if not isinstance(key, str):
             raise ValueError("dict keys must be strings to save to hdf5")
         # save strings, numpy.int64, numpy.int32, and numpy.float64 types
@@ -489,6 +491,7 @@ def recursively_load_dict_contents_from_group(h5file:h5py.File, path:str) -> Dic
                     ans[key] = None
                 else:
                     ans[key] = item[()]
+
             elif key in ['dims', 'medw', 'sigma_smooth_snmf', 'dxy', 'max_shifts', 'strides', 'overlaps']:
 
                 if type(item[()]) == np.ndarray:
