@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-
 """
 
 author: Pengcheng Zhou
@@ -18,6 +17,7 @@ from PyQt5.QtWidgets import QFileDialog, QWidget, QLabel, QPushButton, \
 
 
 class FileOpen(QWidget):
+
     def __init__(self, parent=None, pars=None, directory='.'):
         super(FileOpen, self).__init__(parent)
 
@@ -27,7 +27,7 @@ class FileOpen(QWidget):
             self.name = None
             self.type = None
             self.fr = 10.0
-            self.pixel_size = [1]
+            self.pixel_size = [1.0]
         else:
             self.file_name = pars.file_name
             if directory != '.':
@@ -85,9 +85,7 @@ class FileOpen(QWidget):
         self.setWindowTitle("choose video data for processing")
 
     def load_from_file(self):
-        self.file_name, _ = QFileDialog.getOpenFileName(QFileDialog(),
-                                                        "open file",
-                                                        self.dir_folder)
+        self.file_name, _ = QFileDialog.getOpenFileName(QFileDialog(), "open file", self.dir_folder)
         self.dir_folder, file_name = os.path.split(self.file_name)
         self.name, self.type = os.path.splitext(file_name)
         self.dir_line.setText(self.dir_folder)
@@ -96,8 +94,7 @@ class FileOpen(QWidget):
 
     def done(self):
         self.fr = float(self.fr_line.text())
-        self.pixel_size = [float(i)
-                           for i in self.pixel_size_line.text().split(',')]
+        self.pixel_size = [float(i) for i in self.pixel_size_line.text().split(',')]
         self.close()
 
 
@@ -114,12 +111,8 @@ def open_file(directory='.'):
     temp = file_ui.pixel_size_line.text()
     file_ui.pixel_size = [float(i) for i in temp.split(',')]
 
-    file_info = OrderedDict([('file_name', file_ui.file_name),
-                             ('dir', file_ui.dir_folder),
-                             ('name', file_ui.name),
-                             ('type', file_ui.type),
-                             ('Fs', file_ui.fr),
-                             ('pixel_size', file_ui.pixel_size)])
+    file_info = OrderedDict([('file_name', file_ui.file_name), ('dir', file_ui.dir_folder), ('name', file_ui.name),
+                             ('type', file_ui.type), ('Fs', file_ui.fr), ('pixel_size', file_ui.pixel_size)])
     return file_info
 
 

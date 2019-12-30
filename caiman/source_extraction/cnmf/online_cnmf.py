@@ -18,33 +18,39 @@ from builtins import map
 from builtins import range
 from builtins import str
 from builtins import zip
-
 import cv2
+import logging
 from math import sqrt
+from multiprocessing import current_process, cpu_count
 import numpy as np
+import os
 from past.utils import old_div
 from scipy.ndimage import percentile_filter
 from scipy.ndimage.filters import gaussian_filter
-from scipy.sparse import coo_matrix, csc_matrix, spdiags
+from scipy.sparse import coo_matrix, csc_matrix, spdiags, hstack
 from scipy.stats import norm
 from sklearn.decomposition import NMF
 from sklearn.preprocessing import normalize
+import tensorflow as tf
 from time import time
 from typing import List, Tuple
-import tensorflow as tf
 
 import caiman
-#  from caiman.source_extraction.cnmf import params
 from .cnmf import CNMF
 from .estimates import Estimates
-from .initialization import imblur, initialize_components, hals
+from .initialization import imblur, initialize_components, hals, downscale
 from .oasis import OASIS
 from .params import CNMFParams
-from .utilities import update_order, get_file_size, peak_local_max
+from .pre_processing import get_noise_fft
+from .utilities import update_order, get_file_size, peak_local_max, decimation_matrix
 from ... import mmapping
 from ...components_evaluation import compute_event_exceptionality
-from ...motion_correction import motion_correct_iteration_fast, tile_and_correct
-from ...utils.utils import save_dict_to_hdf5, load_dict_from_hdf5, load_graph
+from ...motion_correction import (motion_correct_iteration_fast,
+                                  tile_and_correct, high_pass_filter_space,
+                                  sliding_window)
+from ...utils.utils import save_dict_to_hdf5, load_dict_from_hdf5, parmap, load_graph
+from ...utils.stats import pd_solve
+from ... import summary_images
 
 try:
     cv2.setNumThreads(0)
@@ -55,7 +61,6 @@ try:
     profile
 except:
     def profile(a): return a
-
 
 class OnACID(object):
     """  Source extraction of streaming data using online matrix factorization.
@@ -78,30 +83,41 @@ class OnACID(object):
             Run the entire online pipeline on a given list of files
     """
 
-    def __init__(self, params=None, estimates=None):
-        if params is None:
-            self.params = CNMFParams()
+    def __init__(self, params=None, estimates=None, path=None, dview=None):
+        if path is None:
+            self.params = CNMFParams() if params is None else params
+            self.estimates = Estimates() if estimates is None else estimates
         else:
-            self.params = params
+            onacid = load_OnlineCNMF(path)
+            self.params = params if params is not None else onacid.params
+            self.estimates= estimates if estimates is not None else onacid.estimates
+        self.dview = dview
+#            if params is None or estimates is None:
+#                raise ValueError("Cannot Specify Estimates and Params While \
+#                                 Loading Object From File")
 
-        if estimates is None:
-            self.estimates = Estimates()
-
+    @profile
     def _prepare_object(self, Yr, T, new_dims=None, idx_components=None):
+
+        init_batch = self.params.get('online', 'init_batch')
+        old_dims = self.params.get('data', 'dims')
+        self.is1p = (self.params.get('init', 'method_init') == 'corr_pnr' and 
+                    self.params.get('init', 'ring_size_factor') is not None)
 
         if idx_components is None:
             idx_components = range(self.estimates.A.shape[-1])
 
         self.estimates.A = self.estimates.A.astype(np.float32)
         self.estimates.C = self.estimates.C.astype(np.float32)
-        self.estimates.f = self.estimates.f.astype(np.float32)
-        self.estimates.b = self.estimates.b.astype(np.float32)
+        if self.estimates.f is not None:
+            self.estimates.f = self.estimates.f.astype(np.float32)
+        if self.estimates.b is not None:
+            self.estimates.b = self.estimates.b.astype(np.float32)
         self.estimates.YrA = self.estimates.YrA.astype(np.float32)
         self.estimates.select_components(idx_components=idx_components)
         self.N = self.estimates.A.shape[-1]
         self.M = self.params.get('init', 'nb') + self.N
-        self.dims = self.params.get('data', 'dims')
-
+        
         expected_comps = self.params.get('online', 'expected_comps')
         if expected_comps <= self.N + self.params.get('online', 'max_num_added'):
             expected_comps = self.N + self.params.get('online', 'max_num_added') + 200
@@ -113,27 +129,36 @@ class OnACID(object):
 
         if new_dims is not None:
 
-            new_Yr = np.zeros([np.prod(new_dims), T])
-            for ffrr in range(T):
-                tmp = cv2.resize(Yr[:, ffrr].reshape(
-                    self.dims, order='F'), new_dims[::-1])
+            new_Yr = np.zeros([np.prod(new_dims), init_batch])
+            for ffrr in range(init_batch):
+                tmp = cv2.resize(Yr[:, ffrr].reshape(old_dims, order='F'), new_dims[::-1])
                 print(tmp.shape)
                 new_Yr[:, ffrr] = tmp.reshape([np.prod(new_dims)], order='F')
             Yr = new_Yr
-            A_new = csc_matrix((np.prod(new_dims), self.estimates.A.shape[-1]), dtype=np.float32)
+            A_new = csc_matrix((np.prod(new_dims), self.estimates.A.shape[-1]),
+                               dtype=np.float32)
             for neur in range(self.N):
                 a = self.estimates.A.tocsc()[:, neur].toarray()
-                a = a.reshape(self.dims, order='F')
+                a = a.reshape(old_dims, order='F')
                 a = cv2.resize(a, new_dims[::-1]).reshape([-1, 1], order='F')
 
                 A_new[:, neur] = csc_matrix(a)
 
             self.estimates.A = A_new
-            self.estimates.b = self.estimates.b.reshape(self.dims, order='F')
-            self.estimates.b = cv2.resize(
-                self.estimates.b, new_dims[::-1]).reshape([-1, 1], order='F')
+            if self.estimates.b.size:
+                self.estimates.b = self.estimates.b.reshape(old_dims, order='F')
+                self.estimates.b = cv2.resize(
+                    self.estimates.b, new_dims[::-1]).reshape([-1, 1], order='F')
+            else:
+                self.estimates.b.shape = (np.prod(new_dims), 0)
+            if self.is1p:
+                # self.estimates.b0 is calculated below
+                # ToDo, but not easy: resize self.estimates.W
+                raise NotImplementedError('change of dimensions not yet implemented for CNMF-E')
 
-            self.dims = new_dims
+            self.estimates.dims = new_dims
+        else:
+            self.estimates.dims = old_dims
 
         self.estimates.normalize_components()
         self.estimates.A = self.estimates.A.todense()
@@ -143,7 +168,6 @@ class OnACID(object):
 
         self.estimates.noisyC[self.params.get('init', 'nb'):self.M, :self.params.get('online', 'init_batch')] = self.estimates.C + self.estimates.YrA
         self.estimates.noisyC[:self.params.get('init', 'nb'), :self.params.get('online', 'init_batch')] = self.estimates.f
-        self.estimates.dims = self.dims
         if self.params.get('preprocess', 'p'):
             # if no parameter for calculating the spike size threshold is given, then use L1 penalty
             if self.params.get('temporal', 's_min') is None:
@@ -152,8 +176,7 @@ class OnACID(object):
                 use_L1 = False
 
             self.estimates.OASISinstances = [OASIS(
-                g=np.ravel(0.01) if self.params.get('preprocess', 'p') == 0 else gam[0],
-                lam=0 if not use_L1 else l,
+                g=gam[0], lam=0 if not use_L1 else l,
                 s_min=0 if use_L1 else (self.params.get('temporal', 's_min') if self.params.get('temporal', 's_min') > 0 else
                                          (-self.params.get('temporal', 's_min') * sn * np.sqrt(1 - np.sum(gam)))),
                 b=b,
@@ -161,20 +184,45 @@ class OnACID(object):
                 for gam, l, b, sn in zip(self.estimates.g, self.estimates.lam, self.estimates.bl, self.estimates.neurons_sn)]
 
             for i, o in enumerate(self.estimates.OASISinstances):
-                o.fit(self.estimates.noisyC[i + self.params.get('init', 'nb'), :self.params.get('online', 'init_batch')])
-                self.estimates.C_on[i, :self.params.get('online', 'init_batch')] = o.c
+                o.fit(self.estimates.noisyC[i + self.params.get('init', 'nb'), :init_batch])
+                self.estimates.C_on[i, :init_batch] = o.c
         else:
-            self.estimates.C_on[:self.N, :self.params.get('online', 'init_batch')] = self.estimates.C
+            self.estimates.C_on[:self.N, :init_batch] = self.estimates.C
+        
+        if self.is1p:
+            ssub_B = self.params.get('init', 'ssub_B') * self.params.get('init', 'ssub')
+            X = Yr[:, :init_batch] - np.asarray(self.estimates.A.dot(self.estimates.C))
+            self.estimates.b0 = X.mean(1)
+            X -= self.estimates.b0[:, None]
+            if ssub_B > 1:
+                self.estimates.downscale_matrix = decimation_matrix(self.estimates.dims, ssub_B)
+                X = self.estimates.downscale_matrix.dot(X)
+            if self.params.get('online', 'full_XXt'):
+                self.estimates.XXt = X.dot(X.T)
+            else:
+                self.XXt_mats = []
+                self.XXt_vecs = []
+                self.W_ind = []
+                W = self.estimates.W
+                for p in range(W.shape[0]):
+                    index = W.indices[W.indptr[p]:W.indptr[p + 1]]
+                    self.W_ind.append(index)
+                    x_i = X[index]
+                    self.XXt_mats.append(x_i.dot(x_i.T))
+                    self.XXt_vecs.append(x_i.dot(X[p].T))
 
         self.estimates.Ab, self.ind_A, self.estimates.CY, self.estimates.CC = init_shapes_and_sufficient_stats(
-            Yr[:, :self.params.get('online', 'init_batch')].reshape(
-                self.params.get('data', 'dims') + (-1,), order='F'), self.estimates.A,
-            self.estimates.C_on[:self.N, :self.params.get('online', 'init_batch')], self.estimates.b, self.estimates.noisyC[:self.params.get('init', 'nb'), :self.params.get('online', 'init_batch')])
+            Yr[:, :init_batch].reshape(self.estimates.dims + (-1,), order='F'),
+            self.estimates.A, self.estimates.C_on[:self.N, :init_batch],
+            self.estimates.b, self.estimates.noisyC[:self.params.get('init', 'nb'), :init_batch],
+            W=self.estimates.W if self.is1p else None, b0=self.estimates.b0 if self.is1p else None,
+            ssub_B=self.params.get('init', 'ssub_B') * self.params.get('init', 'ssub'))
 
-        self.estimates.CY, self.estimates.CC = self.estimates.CY * 1. / self.params.get('online', 'init_batch'), 1 * self.estimates.CC / self.params.get('online', 'init_batch')
+        self.estimates.CY = self.estimates.CY * 1. / self.params.get('online', 'init_batch')
+        self.estimates.CC = 1 * self.estimates.CC / self.params.get('online', 'init_batch')
 
-        print('Expecting ' + str(expected_comps) + ' components')
-        self.estimates.CY.resize([expected_comps + self.params.get('init', 'nb'), self.estimates.CY.shape[-1]])
+        logging.info('Expecting {0} components'.format(str(expected_comps)))
+        self.estimates.CY.resize([expected_comps + self.params.get('init', 'nb'), self.estimates.CY.shape[-1]], refcheck=False)
         if self.params.get('online', 'use_dense'):
             self.estimates.Ab_dense = np.zeros((self.estimates.CY.shape[-1], expected_comps + self.params.get('init', 'nb')),
                                      dtype=np.float32)
@@ -182,29 +230,63 @@ class OnACID(object):
         self.estimates.C_on = np.vstack(
             [self.estimates.noisyC[:self.params.get('init', 'nb'), :], self.estimates.C_on.astype(np.float32)])
 
-        self.params.set('init', {'gSiz': np.add(np.multiply(np.ceil(self.params.get('init', 'gSig')).astype(np.int), 2), 1)})
+        if not self.is1p:
+            self.params.set('init', {'gSiz': np.add(np.multiply(np.ceil(
+                self.params.get('init', 'gSig')).astype(np.int), 2), 1)})
 
         self.estimates.Yr_buf = RingBuffer(Yr[:, self.params.get('online', 'init_batch') - self.params.get('online', 'minibatch_shape'):
                                     self.params.get('online', 'init_batch')].T.copy(), self.params.get('online', 'minibatch_shape'))
         self.estimates.Yres_buf = RingBuffer(self.estimates.Yr_buf - self.estimates.Ab.dot(
-            self.estimates.C_on[:self.M, self.params.get('online', 'init_batch') - self.params.get('online', 'minibatch_shape'):self.params.get('online', 'init_batch')]).T, self.params.get('online', 'minibatch_shape'))
+            self.estimates.C_on[:self.M, self.params.get('online', 'init_batch') - self.params.get('online', 'minibatch_shape'):
+            self.params.get('online', 'init_batch')]).T, self.params.get('online', 'minibatch_shape'))
+
+        if self.is1p:
+            estim = self.estimates
+            d1, d2 = estim.dims    
+            estim.Yres_buf -= estim.b0
+            if ssub_B == 1:
+                estim.Atb = estim.Ab.T.dot(estim.W.dot(estim.b0) - estim.b0)
+                estim.AtW = estim.Ab.T.dot(estim.W)
+                estim.AtWA = estim.AtW.dot(estim.Ab).toarray()
+                estim.Yres_buf -= estim.W.dot(estim.Yres_buf.T).T
+            else:
+                A_ds = estim.downscale_matrix.dot(estim.Ab)
+                estim.Atb = estim.Ab.T.dot(np.repeat(np.repeat(estim.W.dot(
+                    estim.downscale_matrix.dot(estim.b0).reshape((-1, 1), order='F'))
+                    .reshape(((d1 - 1) // ssub_B + 1, (d2 - 1) // ssub_B + 1), order='F'),
+                    ssub_B, 0), ssub_B, 1)[:d1, :d2].ravel(order='F') - estim.b0)
+                estim.AtW = A_ds.T.dot(estim.W)
+                estim.AtWA = estim.AtW.dot(A_ds).toarray()
+                estim.Yres_buf -= np.repeat(np.repeat(estim.W.dot(
+                    estim.downscale_matrix.dot(estim.Yres_buf.T))
+                    .reshape(((d1 - 1) // ssub_B + 1, (d2 - 1) // ssub_B + 1, -1), order='F'),
+                    ssub_B, 0), ssub_B, 1)[:d1, :d2].reshape(
+                -1, self.params.get('online', 'minibatch_shape'), order='F').T
+
         self.estimates.sn = np.array(np.std(self.estimates.Yres_buf,axis=0))
         self.estimates.vr = np.array(np.var(self.estimates.Yres_buf,axis=0))
         self.estimates.mn = self.estimates.Yres_buf.mean(0)
         self.estimates.mean_buff = self.estimates.Yres_buf.mean(0)
         self.estimates.ind_new = []
-        self.estimates.rho_buf = imblur(np.maximum(self.estimates.Yres_buf.T,0).reshape(
-            self.params.get('data', 'dims') + (-1,), order='F'), sig=self.params.get('init', 'gSig'), siz=self.params.get('init', 'gSiz'), nDimBlur=len(self.params.get('data', 'dims')))**2
-        self.estimates.rho_buf = np.reshape(
-            self.estimates.rho_buf, (np.prod(self.params.get('data', 'dims')), -1)).T
-        self.estimates.rho_buf = np.ascontiguousarray(self.estimates.rho_buf)
-        self.estimates.rho_buf = RingBuffer(self.estimates.rho_buf, self.params.get('online', 'minibatch_shape'))
+        if self.params.get('online', 'use_corr_img'):
+            self.estimates.rho_buf = None
+            self.estimates.sv = None
+        else:
+            self.estimates.rho_buf = imblur(np.maximum(self.estimates.Yres_buf.T, 0).reshape(
+                self.estimates.dims + (-1,), order='F'), sig=self.params.get('init', 'gSig'),
+                siz=self.params.get('init', 'gSiz'), nDimBlur=len(self.estimates.dims))**2
+            self.estimates.rho_buf = np.reshape(
+                self.estimates.rho_buf, (np.prod(self.estimates.dims), -1)).T
+            self.estimates.rho_buf = np.ascontiguousarray(self.estimates.rho_buf)
+            self.estimates.rho_buf = RingBuffer(self.estimates.rho_buf, self.params.get('online', 'minibatch_shape'))
+            self.estimates.sv = np.sum(self.estimates.rho_buf.get_last_frames(
+                min(self.params.get('online', 'init_batch'), self.params.get('online', 'minibatch_shape')) - 1), 0)
         self.estimates.AtA = (self.estimates.Ab.T.dot(self.estimates.Ab)).toarray()
         self.estimates.AtY_buf = self.estimates.Ab.T.dot(self.estimates.Yr_buf.T)
-        self.estimates.sv = np.sum(self.estimates.rho_buf.get_last_frames(
-            min(self.params.get('online', 'init_batch'), self.params.get('online', 'minibatch_shape')) - 1), 0)
         self.estimates.groups = list(map(list, update_order(self.estimates.Ab)[0]))
         self.update_counter = 2**np.linspace(0, 1, self.N, dtype=np.float32)
+        self.estimates.CC = np.ascontiguousarray(self.estimates.CC)
+        self.estimates.CY = np.ascontiguousarray(self.estimates.CY)
         self.time_neuron_added:List = []
         for nneeuu in range(self.N):
             self.time_neuron_added.append((nneeuu, self.params.get('online', 'init_batch')))
@@ -216,15 +298,16 @@ class OnACID(object):
         if self.params.get('online', 'path_to_model') is None or self.params.get('online', 'sniper_mode') is False:
             loaded_model = None
             self.params.set('online', {'sniper_mode': False})
+            self.tf_in = None
+            self.tf_out = None
         else:
             try:
-                import keras
-                from keras.models import model_from_json
-                #logging.debug('Using Keras')
+                from tensorflow.keras.models import model_from_json
+                logging.info('Using Keras')
                 use_keras = True
             except(ModuleNotFoundError):
                 use_keras = False
-                #logging.debug('Using Tensorflow')
+                logging.info('Using Tensorflow')
             if use_keras:
                 path = self.params.get('online', 'path_to_model').split(".")[:-1]
                 json_path = ".".join(path + ["json"])
@@ -234,25 +317,74 @@ class OnACID(object):
                 json_file.close()
                 loaded_model = model_from_json(loaded_model_json)
                 loaded_model.load_weights(model_path)
-                opt = keras.optimizers.rmsprop(lr=0.0001, decay=1e-6)
-                loaded_model.compile(loss=keras.losses.categorical_crossentropy,
-                                     optimizer=opt, metrics=['accuracy'])
+                #opt = tf.keras.optimizers.rmsprop(lr=0.0001, decay=1e-6)
+                #loaded_model.compile(loss=tf.keras.losses.categorical_crossentropy,
+                #                     optimizer=opt, metrics=['accuracy'])
                 self.tf_in = None
                 self.tf_out = None
-                self.loaded_model = loaded_model
             else:
                 path = self.params.get('online', 'path_to_model').split(".")[:-1]
                 model_path = '.'.join(path + ['h5', 'pb'])
                 loaded_model = load_graph(model_path)
                 self.tf_in = loaded_model.get_tensor_by_name('prefix/conv2d_1_input:0')
                 self.tf_out = loaded_model.get_tensor_by_name('prefix/output_node0:0')
-                self.loaded_model = tf.Session(graph=loaded_model)
+                loaded_model = tf.Session(graph=loaded_model)
+        self.loaded_model = loaded_model
+
+        if self.is1p:
+            from skimage.morphology import disk
+            radius = int(round(self.params.get('init', 'ring_size_factor') *
+                self.params.get('init', 'gSiz')[0] / float(ssub_B)))
+            ring = disk(radius + 1)
+            ring[1:-1, 1:-1] -= disk(radius)
+            self._ringidx = [i - radius - 1 for i in np.nonzero(ring)]
+            self._dims_B = ((self.estimates.dims[0] - 1) // ssub_B + 1,
+                            (self.estimates.dims[1] - 1) // ssub_B + 1)
+
+            def get_indices_of_pixels_on_ring(self, pixel):
+                pixel = np.unravel_index(pixel, self._dims_B, order='F')
+                x = pixel[0] + self._ringidx[0]
+                y = pixel[1] + self._ringidx[1]
+                inside = (x >= 0) * (x < self._dims_B[0]) * (y >= 0) * (y < self._dims_B[1])
+                return np.ravel_multi_index((x[inside], y[inside]), self._dims_B, order='F')
+            self.get_indices_of_pixels_on_ring = get_indices_of_pixels_on_ring.__get__(self)
+
+            # generate list of indices of XX' that get accessed
+            if self.params.get('online', 'full_XXt'):
+                l = np.prod(self._dims_B)
+                tmp = np.zeros((l, l), dtype=bool)
+                for p in range(l):
+                    index = self.get_indices_of_pixels_on_ring(p)
+                    tmp[index[:, None], index] = True
+                    tmp[index, p] = True
+                self.estimates.XXt_ind = list([np.where(t)[0] for t in tmp])
+
+        if self.params.get('online', 'use_corr_img'):
+            Yres = Yr[:, :init_batch] - self.estimates.Ab.dot(
+                self.estimates.C_on[:self.M, :init_batch])
+            if self.is1p:
+                Yres -= self.estimates.b0[:, None]
+                if ssub_B == 1:
+                    Yres -= self.estimates.W.dot(Yres)
+                else:
+                    Yres -= np.repeat(np.repeat(self.estimates.W.dot(
+                        estim.downscale_matrix.dot(Yres))
+                        .reshape(((d1 - 1) // ssub_B + 1, (d2 - 1) // ssub_B + 1, -1), order='F'),
+                        ssub_B, 0), ssub_B, 1)[:d1, :d2].reshape(-1, init_batch, order='F')                
+            Yres = Yres.reshape((d1, d2, -1), order='F')
+
+            (self.estimates.first_moment, self.estimates.second_moment,
+                self.estimates.crosscorr, self.estimates.col_ind, self.estimates.row_ind,
+                self.estimates.num_neigbors, self.estimates.corrM, self.estimates.corr_img) = \
+            summary_images.prepare_local_correlations(Yres, swap_dim=True, eight_neighbours=False)
+            self.estimates.max_img = Yres.max(-1)
+
         return self
 
     @profile
     def fit_next(self, t, frame_in, num_iters_hals=3):
         """
-        This method fits the next frame using the online cnmf algorithm and
+        This method fits the next frame using the CaImAn online algorithm and
         updates the object.
 
         Args
@@ -272,6 +404,8 @@ class OnACID(object):
         nb_ = self.params.get('init', 'nb')
         Ab_ = self.estimates.Ab
         mbs = self.params.get('online', 'minibatch_shape')
+        ssub_B = self.params.get('init', 'ssub_B') * self.params.get('init', 'ssub')
+        d1, d2 = self.estimates.dims
         expected_comps = self.params.get('online', 'expected_comps')
         frame = frame_in.astype(np.float32)
 #        print(np.max(1/scipy.sparse.linalg.norm(self.estimates.Ab,axis = 0)))
@@ -282,8 +416,15 @@ class OnACID(object):
         if (not self.params.get('online', 'simultaneously')) or self.params.get('preprocess', 'p') == 0:
             # get noisy fluor value via NNLS (project data on shapes & demix)
             C_in = self.estimates.noisyC[:self.M, t - 1].copy()
-            self.estimates.C_on[:self.M, t], self.estimates.noisyC[:self.M, t] = HALS4activity(
-                frame, self.estimates.Ab, C_in, self.estimates.AtA, iters=num_iters_hals, groups=self.estimates.groups)
+            if self.is1p:
+                self.estimates.C_on[:self.M, t], self.estimates.noisyC[:self.M, t] = demix1p(
+                    frame, self.estimates.Ab, C_in, self.estimates.AtA, Atb=self.estimates.Atb,
+                    AtW=self.estimates.AtW, AtWA=self.estimates.AtWA, iters=num_iters_hals,
+                    groups=self.estimates.groups, ssub_B=ssub_B, 
+                    downscale_matrix=self.estimates.downscale_matrix if ssub_B > 1 else None)
+            else:
+                self.estimates.C_on[:self.M, t], self.estimates.noisyC[:self.M, t] = HALS4activity(
+                    frame, self.estimates.Ab, C_in, self.estimates.AtA, iters=num_iters_hals, groups=self.estimates.groups)
             if self.params.get('preprocess', 'p'):
                 # denoise & deconvolve
                 for i, o in enumerate(self.estimates.OASISinstances):
@@ -292,6 +433,9 @@ class OnACID(object):
                               1: t + 1] = o.get_c_of_last_pool()
 
         else:
+            if self.is1p:
+                raise NotImplementedError(
+                    'simultaneous demixing and deconvolution not implemented yet for CNMF-E')
             # update buffer, initialize C with previous value
             self.estimates.C_on[:, t] = self.estimates.C_on[:, t - 1]
             self.estimates.noisyC[:, t] = self.estimates.C_on[:, t - 1]
@@ -310,6 +454,14 @@ class OnACID(object):
 
         #self.estimates.mean_buff = self.estimates.Yres_buf.mean(0)
         res_frame = frame - self.estimates.Ab.dot(self.estimates.C_on[:self.M, t])
+        if self.is1p:
+            self.estimates.b0 = self.estimates.b0 * (t-1)/t + res_frame/t
+            res_frame -= self.estimates.b0
+            x = res_frame if ssub_B == 1 else self.estimates.downscale_matrix.dot(res_frame)
+            res_frame -= (self.estimates.W.dot(x) if ssub_B == 1 else
+                          np.repeat(np.repeat(self.estimates.W.dot(x).reshape(
+                              ((d1 - 1) // ssub_B + 1, (d2 - 1) // ssub_B + 1), order='F'),
+                              ssub_B, 0), ssub_B, 1)[:d1, :d2].ravel(order='F'))
         mn_ = self.estimates.mn.copy()
         self.estimates.mn = (t-1)/t*self.estimates.mn + res_frame/t
         self.estimates.vr = (t-1)/t*self.estimates.vr + (res_frame - mn_)*(res_frame - self.estimates.mn)/t
@@ -318,17 +470,38 @@ class OnACID(object):
         t_new = time()
         if self.params.get('online', 'update_num_comps'):
 
+            if self.params.get('online', 'use_corr_img'):
+                corr_img_mode = 'simple'  #'exponential'  # 'cumulative'
+                self.estimates.corr_img = summary_images.update_local_correlations(
+                    t + 1 if corr_img_mode == 'cumulative' else mbs, 
+                    res_frame.reshape((1,) + self.estimates.dims, order='F'),
+                    self.estimates.first_moment, self.estimates.second_moment,
+                    self.estimates.crosscorr, self.estimates.col_ind, self.estimates.row_ind,
+                    self.estimates.num_neigbors, self.estimates.corrM,
+                    del_frames=[self.estimates.Yres_buf[self.estimates.Yres_buf.cur]]
+                    if corr_img_mode == 'simple' else None)
             self.estimates.mean_buff += (res_frame-self.estimates.Yres_buf[self.estimates.Yres_buf.cur])/self.params.get('online', 'minibatch_shape')
             self.estimates.Yres_buf.append(res_frame)
 
-            res_frame = np.reshape(res_frame, self.params.get('data', 'dims'), order='F')
+            res_frame = np.reshape(res_frame, self.estimates.dims, order='F')
 
-            rho = imblur(np.maximum(res_frame,0), sig=self.params.get('init', 'gSig'),
-                         siz=self.params.get('init', 'gSiz'), nDimBlur=len(self.params.get('data', 'dims')))**2
+            if self.params.get('online', 'use_corr_img'):
+                self.estimates.max_img = np.max([self.estimates.max_img, res_frame], 0)
+            else:
+                rho = imblur(np.maximum(res_frame,0), sig=self.params.get('init', 'gSig'),
+                             siz=self.params.get('init', 'gSiz'),
+                             nDimBlur=len(self.params.get('data', 'dims')))**2
+                rho = np.reshape(rho, np.prod(self.params.get('data', 'dims')))
+                self.estimates.rho_buf.append(rho)
 
-            rho = np.reshape(rho, np.prod(self.params.get('data', 'dims')))
-            self.estimates.rho_buf.append(rho)
-
+            # old_max_img = self.estimates.max_img.copy()
+            if self.params.get('preprocess', 'p') == 1:
+                g_est = np.mean(self.estimates.g)
+            elif self.params.get('preprocess', 'p') == 2:
+                g_est = np.mean(self.estimates.g, 0)
+            else:
+                g_est = 0
+            use_corr = self.params.get('online', 'use_corr_img')
             (self.estimates.Ab, Cf_temp, self.estimates.Yres_buf, self.estimates.rho_buf,
                 self.estimates.CC, self.estimates.CY, self.ind_A, self.estimates.sv,
                 self.estimates.groups, self.estimates.ind_new, self.ind_new_all,
@@ -343,8 +516,7 @@ class OnACID(object):
                 thresh_overlap=self.params.get('online', 'thresh_overlap'), groups=self.estimates.groups,
                 batch_update_suff_stat=self.params.get('online', 'batch_update_suff_stat'),
                 gnb=self.params.get('init', 'nb'), sn=self.estimates.sn, 
-                g=(np.mean(self.estimates.g) if self.params.get('preprocess', 'p') == 1 else 
-                    np.mean(self.estimates.g, 0)), s_min=self.params.get('temporal', 's_min'),
+                g=g_est, s_min=self.params.get('temporal', 's_min'),
                 Ab_dense=self.estimates.Ab_dense if self.params.get('online', 'use_dense') else None,
                 oases=self.estimates.OASISinstances if self.params.get('preprocess', 'p') else None,
                 N_samples_exceptionality=self.params.get('online', 'N_samples_exceptionality'),
@@ -354,12 +526,43 @@ class OnACID(object):
                 thresh_CNN_noisy = self.params.get('online', 'thresh_CNN_noisy'),
                 sniper_mode=self.params.get('online', 'sniper_mode'),
                 use_peak_max=self.params.get('online', 'use_peak_max'),
-                mean_buff=self.estimates.mean_buff, tf_in=self.tf_in,
-                tf_out=self.tf_out)
+                mean_buff=self.estimates.mean_buff,
+                tf_in=self.tf_in, tf_out=self.tf_out,
+                ssub_B=ssub_B, W=self.estimates.W if self.is1p else None,
+                b0=self.estimates.b0 if self.is1p else None,
+                corr_img=self.estimates.corr_img if use_corr else None,
+                first_moment=self.estimates.first_moment if use_corr else None,
+                second_moment=self.estimates.second_moment if use_corr else None,
+                crosscorr=self.estimates.crosscorr if use_corr else None,
+                col_ind=self.estimates.col_ind if use_corr else None,
+                row_ind=self.estimates.row_ind if use_corr else None,
+                corr_img_mode=corr_img_mode if use_corr else None,
+                downscale_matrix=self.estimates.downscale_matrix if
+                (self.is1p and ssub_B > 1) else None,
+                max_img=self.estimates.max_img if use_corr else None)
 
             num_added = len(self.ind_A) - self.N
 
             if num_added > 0:
+                # import matplotlib.pyplot as plt
+                # plt.figure(figsize=(15, 10))
+                # plt.subplot(231)
+                # plt.imshow(self.estimates.corr_img)
+                # foo = summary_images.update_local_correlations(
+                # np.inf, np.zeros((0,) + self.estimates.dims, order='F'),
+                # self.estimates.first_moment, self.estimates.second_moment,
+                # self.estimates.crosscorr, self.estimates.col_ind, self.estimates.row_ind,
+                # self.estimates.num_neigbors, self.estimates.corrM)
+                # plt.subplot(232)
+                # plt.imshow(foo)
+                # plt.subplot(233)
+                # plt.imshow(self.estimates.Ab_dense[:,self.M].reshape(self.estimates.dims, order='F'))
+                # plt.subplot(234)
+                # plt.imshow(old_max_img)
+                # plt.subplot(235)
+                # plt.imshow(self.estimates.max_img)
+                # plt.show()
+                
                 self.N += num_added
                 self.M += num_added
                 if self.N + self.params.get('online', 'max_num_added') > expected_comps:
@@ -379,9 +582,9 @@ class OnACID(object):
                         self.estimates.Ab_dense = np.zeros((self.estimates.CY.shape[-1], expected_comps + nb_),
                                                  dtype=np.float32)
                         self.estimates.Ab_dense[:, :Ab_.shape[1]] = Ab_.toarray()
-                    print('Increasing number of expected components to:' +
+                    logging.info('Increasing number of expected components to:' +
                           str(expected_comps))
-                self.update_counter.resize(self.N)
+                self.update_counter.resize(self.N, refcheck=False)
 
                 self.estimates.noisyC[self.M - num_added:self.M, t - mbs +
                             1:t + 1] = Cf_temp[self.M - num_added:self.M]
@@ -393,8 +596,8 @@ class OnACID(object):
                         self.estimates.C_on[_ct, t - mbs + 1: t +
                                   1] = self.estimates.OASISinstances[_ct - nb_].get_c(mbs)
                     else:
-                        self.estimates.C_on[_ct, t - mbs + 1: t + 1] = np.maximum(0,
-                                                                        self.estimates.noisyC[_ct, t - mbs + 1: t + 1])
+                        self.estimates.C_on[_ct, t - mbs + 1: t + 1] = np.maximum(
+                            0, self.estimates.noisyC[_ct, t - mbs + 1: t + 1])
                     if self.params.get('online', 'simultaneously') and self.params.get('online', 'n_refit'):
                         self.estimates.AtY_buf = np.concatenate((
                             self.estimates.AtY_buf, [Ab_.data[Ab_.indptr[_ct]:Ab_.indptr[_ct + 1]].dot(
@@ -414,10 +617,54 @@ class OnACID(object):
                         self.estimates.Ab[:, -num_added:]).toarray()
                 self.estimates.AtA[-num_added:] = self.estimates.AtA[:, -num_added:].T
                 
+                if self.is1p:
+                    # # update XXt and W: TODO only update necessary pixels not all!
+                    # x = (y - self.Ab.dot(ccf).T - self.b0).T if ssub_B == 1
+                    #         else (downscale((y.T - self.Ab.dot(ccf) - self.b0[:, None])
+                    #                .reshape(self.dims2 + (-1,), order='F'), (ssub_B, ssub_B, 1))
+                    #      .reshape((-1, len(y)), order='F'))
+
+                    # for p in range(self.W.shape[0]):
+                    #     index = self.get_indices_of_pixels_on_ring(p)
+                    #     self.W.data[self.W.indptr[p]:self.W.indptr[p + 1]] = \
+                    #         np.linalg.inv(self.XXt[index[:, None], index]).dot(self.XXt[index, p])
+
+                    if ssub_B == 1:
+                        # self.estimates.AtW = Ab_.T.dot(self.estimates.W)
+                        # self.estimates.AtWA = self.estimates.AtW.dot(Ab_).toarray()
+                        # faster incremental update of AtW and AtWA instead of above lines:
+                        csr_append(self.estimates.AtW, Ab_.T[-num_added:].dot(self.estimates.W))
+                        AtWA = self.estimates.AtWA
+                        self.estimates.AtWA = np.zeros((self.M, self.M), dtype=np.float32)
+                        self.estimates.AtWA[:-num_added, :-num_added] = AtWA
+                        self.estimates.AtWA[:, -num_added:] = self.estimates.AtW.dot(
+                            Ab_[:, -num_added:]).toarray()
+                        self.estimates.AtWA[-num_added:] = self.estimates.AtW[-num_added:].dot(
+                            Ab_).toarray()
+                        self.estimates.Atb = self.estimates.AtW.dot(
+                            self.estimates.b0) - Ab_.T.dot(self.estimates.b0)
+                    else:
+                        A_ds = self.estimates.downscale_matrix.dot(self.estimates.Ab)
+                        # self.estimates.AtW = A_ds.T.dot(self.estimates.W)
+                        # self.estimates.AtWA = self.estimates.AtW.dot(A_ds).toarray()
+                        # faster incremental update of AtW and AtWA instead of above lines:
+                        csr_append(self.estimates.AtW, A_ds.T[-num_added:].dot(self.estimates.W))
+                        AtWA = self.estimates.AtWA
+                        self.estimates.AtWA = np.zeros((self.M, self.M), dtype=np.float32)
+                        self.estimates.AtWA[:-num_added, :-num_added] = AtWA
+                        self.estimates.AtWA[:, -num_added:] = self.estimates.AtW.dot(
+                            A_ds[:, -num_added:]).toarray()
+                        self.estimates.AtWA[-num_added:] = self.estimates.AtW[-num_added:].dot(
+                            A_ds).toarray()
+                        self.estimates.Atb = ssub_B**2 * self.estimates.AtW.dot(
+                            self.estimates.downscale_matrix.dot(
+                                self.estimates.b0)) - Ab_.T.dot(self.estimates.b0)
+
                 # set the update counter to 0 for components that are overlaping the newly added
                 idx_overlap = self.estimates.AtA[nb_:-num_added, -num_added:].nonzero()[0]
                 self.update_counter[idx_overlap] = 0
         self.t_detect.append(time() - t_new)
+        t_stat = time()
         if self.params.get('online', 'batch_update_suff_stat'):
         # faster update using minibatch of frames
             min_batch = min(self.params.get('online', 'update_freq'), mbs)
@@ -425,14 +672,41 @@ class OnACID(object):
 
                 ccf = self.estimates.C_on[:self.M, t - min_batch + 1:t + 1]
                 y = self.estimates.Yr_buf.get_last_frames(min_batch)
-                # ccf = self.estimates.C_on[:self.M, t - mbs + 1:t + 1]
-                # y = self.estimates.Yr_buf #.get_last_frames(mbs)
+                if self.is1p:  # subtract background
+                    if ssub_B == 1:
+                        x = (y - self.estimates.Ab.dot(ccf).T - self.estimates.b0).T
+                        y -= self.estimates.W.dot(x).T
+                    else:
+                        x = self.estimates.downscale_matrix.dot(
+                            y.T - self.estimates.Ab.dot(ccf) - self.estimates.b0[:, None])
+                        y -= np.repeat(np.repeat(
+                            self.estimates.W.dot(x).T.reshape((-1, (d1 - 1) // ssub_B + 1,
+                                (d2 - 1) // ssub_B + 1), order='F'),
+                            ssub_B, 1), ssub_B, 2)[:, :d1, :d2].reshape((len(y), -1), order='F')
+                    y -= self.estimates.b0
+                    # self.estimates.XXt += x.dot(x.T)
+                    # exploit that we only access some elements of XXt, hence update only these
 
+                    if self.params.get('online', 'full_XXt'):
+                        XXt = self.estimates.XXt  # alias for faster repeated look up in large loop
+                        for i, idx in enumerate(self.estimates.XXt_ind):
+                            XXt[i, idx] += (x[i].dot(x[idx].T)).flatten()
+                    else:
+                        XXt_mats = self.XXt_mats
+                        XXt_vecs = self.XXt_vecs
+                        W = self.estimates.W
+                        for p in range(len(XXt_mats)):
+                            # index = W.indices[W.indptr[p]:W.indptr[p + 1]]
+                            x_i = x[self.W_ind[p]]
+                            XXt_mats[p] += x_i.dot(x_i.T)
+                            XXt_vecs[p] += x_i.dot(x[p].T)
                 # much faster: exploit that we only access CY[m, ind_pixels], hence update only these
                 n0 = min_batch
                 t0 = 0 * self.params.get('online', 'init_batch')
                 w1 = (t - n0 + t0) * 1. / (t + t0)  # (1 - 1./t)#mbs*1. / t
                 w2 = 1. / (t + t0)  # 1.*mbs /t
+                ccf = np.ascontiguousarray(ccf)
+                y = np.asfortranarray(y)
                 for m in range(self.N):
                     self.estimates.CY[m + nb_, self.ind_A[m]] *= w1
                     self.estimates.CY[m + nb_, self.ind_A[m]] += w2 * \
@@ -443,24 +717,53 @@ class OnACID(object):
                 self.estimates.CC = self.estimates.CC * w1 + w2 * ccf.dot(ccf.T)
 
         else:
-
             ccf = self.estimates.C_on[:self.M, t - self.params.get('online', 'minibatch_suff_stat'):t -
                                       self.params.get('online', 'minibatch_suff_stat') + 1]
             y = self.estimates.Yr_buf.get_last_frames(self.params.get('online', 'minibatch_suff_stat') + 1)[:1]
+            if self.is1p:  # subtract background
+                if ssub_B == 1:
+                    x = (y - self.estimates.Ab.dot(ccf).T - self.estimates.b0).T
+                    y -= self.estimates.W.dot(x).T
+                    y -= self.estimates.b0
+                else:
+                    x = self.estimates.downscale_matrix.dot(
+                        y.T - self.estimates.Ab.dot(ccf) - self.estimates.b0[:, None])
+                    y -= (np.repeat(np.repeat(self.estimates.W.dot(x).T
+                        .reshape((-1, (d1 - 1) // ssub_B + 1, (d2 - 1) // ssub_B + 1), order='F'),
+                        ssub_B, 1), ssub_B, 2)[:, :d1, :d2]
+                        .reshape((len(y), -1), order='F') + self.estimates.b0)
+                # self.estimates.XXt += x.dot(x.T)
+                # exploit that we only access some elements of XXt, hence update only these
+                if self.params.get('online', 'full_XXt'):
+                    XXt = self.estimates.XXt  # alias for faster repeated look up in large loop
+                    for i, idx in enumerate(self.estimates.XXt_ind):
+                        XXt[i, idx] += (x[i] * x[idx]).flatten()
+                else:
+                    XXt_mats = self.XXt_mats
+                    XXt_vecs = self.XXt_vecs
+                    W = self.estimates.W
+                    for p in range(len(XXt_mats)):
+                        # index = W.indices[W.indptr[p]:W.indptr[p + 1]]
+                        x_i = x[self.W_ind[p]]
+                        XXt_mats[p] += np.outer(x_i, x_i)
+                        XXt_vecs[p] += x_i.dot(x[p].T)
             # much faster: exploit that we only access CY[m, ind_pixels], hence update only these
+            ccf = np.ascontiguousarray(ccf)
+            y = np.asfortranarray(y)
             for m in range(self.N):
                 self.estimates.CY[m + nb_, self.ind_A[m]] *= (1 - 1. / t)
                 self.estimates.CY[m + nb_, self.ind_A[m]] += ccf[m +
                                                        nb_].dot(y[:, self.ind_A[m]]) / t
             self.estimates.CY[:nb_] = self.estimates.CY[:nb_] * (1 - 1. / t) + ccf[:nb_].dot(y / t)
             self.estimates.CC = self.estimates.CC * (1 - 1. / t) + ccf.dot(ccf.T / t)
+        self.t_stat.append(time() - t_stat)
 
         # update shapes
         t_sh = time()
         if not self.params.get('online', 'dist_shape_update'):  # bulk shape update
             if ((t + 1 - self.params.get('online', 'init_batch')) %
                     self.params.get('online', 'update_freq') == 0):
-                print('Updating Shapes')
+                logging.info('Updating Shapes')
 
                 if self.N > self.params.get('online', 'max_comp_update_shape'):
                     indicator_components = np.where(self.update_counter <=
@@ -485,6 +788,64 @@ class OnACID(object):
                         q=0.5, iters=self.params.get('online', 'iters_shape'))
 
                 self.estimates.AtA = (Ab_.T.dot(Ab_)).toarray()
+                if self.is1p and ((t + 1 - self.params.get('online', 'init_batch')) %
+                    (self.params.get('online', 'W_update_factor') * self.params.get('online', 'update_freq')) == 0):
+                    W = self.estimates.W
+                    # for p in range(W.shape[0]):
+                    #     # index = self.get_indices_of_pixels_on_ring(p)
+                    #     index = W.indices[W.indptr[p]:W.indptr[p + 1]]
+                    #     # for _ in range(3):  # update W via coordinate decent
+                    #     #     for k, i in enumerate(index):
+                    #     #         self.W.data[self.W.indptr[p] + k] += ((self.XXt[p, i] -
+                    #     #                                      self.W.data[self.W.indptr[p]:self.W.indptr[p+1]].dot(self.XXt[index, i])) /
+                    #     #                                     self.XXt[i, i])
+                    #     # update W using normal equations
+                    #     tmp = XXt[index[:, None], index]
+                    #     tmp[np.diag_indices(len(tmp))] += np.trace(tmp) * 1e-5
+                    #     W.data[W.indptr[p]:W.indptr[p + 1]] = np.linalg.inv(tmp).dot(XXt[index, p])
+                    if self.params.get('online', 'full_XXt'):
+                        XXt = self.estimates.XXt  # alias for considerably faster look up in large loop
+                        def process_pixel(p):
+                            # index = W.indices[W.indptr[p]:W.indptr[p + 1]]
+                            index = self.W_ind[p]
+                            tmp = XXt[index[:, None], index]
+                            tmp[np.diag_indices(len(tmp))] += np.trace(tmp) * 1e-5
+                            return pd_solve(tmp, XXt[index, p])
+                        if False:  # current_process().name == 'MainProcess':
+                            W.data = np.concatenate(parmap(process_pixel, range(W.shape[0])))
+                        else:
+                            W.data = np.concatenate(list(map(process_pixel, range(W.shape[0]))))
+                    else:
+                        XXt_mats = self.XXt_mats
+                        XXt_vecs = self.XXt_vecs
+#                        def process_pixel2(p):
+#                            #return np.linalg.solve(a[0], a[1])
+#                            return np.linalg.solve(XXt_mats[p], XXt_vecs[p])
+                       # W.data = np.concatenate(list(map(process_pixel2, range(W.shape[0]))))
+                        if self.dview is None: 
+                            W.data = np.concatenate(list(map(inv_mat_vec, zip(XXt_mats, XXt_vecs))))
+                        elif 'multiprocessing' in str(type(self.dview)):
+                            W.data = np.concatenate(list(self.dview.imap(inv_mat_vec, zip(XXt_mats, XXt_vecs), chunksize=256)))
+                        else:
+                            W.data = np.concatenate(list(self.dview.map_sync(inv_mat_vec, zip(XXt_mats, XXt_vecs))))
+                            self.dview.results.clear()
+                           
+                       #W.data = np.concatenate(parmap(process_pixel2, range(W.shape[0])))
+                       #W.data = np.concatenate(parmap(process_pixel2, zip(XXt_mats, XXt_vecs)))
+                    
+                    if ssub_B == 1:
+                        self.estimates.Atb = Ab_.T.dot(W.dot(self.estimates.b0) - self.estimates.b0)
+                        self.estimates.AtW = Ab_.T.dot(W)
+                        self.estimates.AtWA = self.estimates.AtW.dot(Ab_).toarray()
+                    else:
+                        d1, d2 = self.estimates.dims
+                        A_ds = self.estimates.downscale_matrix.dot(self.estimates.Ab)
+                        self.estimates.Atb = Ab_.T.dot(np.repeat(np.repeat(W.dot(
+                            self.estimates.downscale_matrix.dot(self.estimates.b0).reshape((-1, 1), order='F'))
+                            .reshape(((d1 - 1) // ssub_B + 1, (d2 - 1) // ssub_B + 1), order='F'),
+                            ssub_B, 0), ssub_B, 1)[:d1, :d2].ravel(order='F') - self.estimates.b0)
+                        self.estimates.AtW = A_ds.T.dot(W)
+                        self.estimates.AtWA = self.estimates.AtW.dot(A_ds).toarray()
 
                 ind_zero = list(np.where(self.estimates.AtA.diagonal() < 1e-10)[0])
                 if len(ind_zero) > 0:
@@ -524,7 +885,7 @@ class OnACID(object):
                     self.estimates.AtY_buf = Ab_.T.dot(self.estimates.Yr_buf.T)
 
         else:  # distributed shape update
-            self.update_counter *= .5**(1. / self.params.get('online', 'update_freq'))
+            self.update_counter *= 2**(-1. / self.params.get('online', 'update_freq'))
             # if not num_added:
             if (not num_added) and (time() - t_start < 2*self.time_spend / (t - self.params.get('online', 'init_batch') + 1)):
                 candidates = np.where(self.update_counter <= 1)[0]
@@ -570,18 +931,23 @@ class OnACID(object):
         opts = self.params.get_group('online')
         Y = caiman.load(fls[0], subindices=slice(0, opts['init_batch'],
                  None), var_name_hdf5=self.params.get('data', 'var_name_hdf5')).astype(np.float32)
-
+        # Downsample if needed
         ds_factor = np.maximum(opts['ds_factor'], 1)
         if ds_factor > 1:
             Y = Y.resize(1./ds_factor, 1./ds_factor)
-        mc_flag = self.params.get('online', 'motion_correct')
         self.estimates.shifts = []  # store motion shifts here
         self.estimates.time_new_comp = []
-        if mc_flag:
+        if self.params.get('online', 'motion_correct'):
             max_shifts_online = self.params.get('online', 'max_shifts_online')
             mc = Y.motion_correct(max_shifts_online, max_shifts_online)
             Y = mc[0].astype(np.float32)
-            self.estimates.shifts.extend(mc[1])
+            if self.params.get('motion', 'pw_rigid'):
+                n_p = len([(it[0], it[1])
+                 for it in sliding_window(Y[0], self.params.get('motion', 'overlaps'), self.params.get('motion', 'strides'))])
+                for sh in mc[1]:
+                    self.estimates.shifts.append([tuple(sh) for i in range(n_p)])
+            else:
+                self.estimates.shifts.extend(mc[1])                
 
         img_min = Y.min()
 
@@ -589,7 +955,7 @@ class OnACID(object):
             Y -= img_min
         img_norm = np.std(Y, axis=0)
         img_norm += np.median(img_norm)  # normalize data to equalize the FOV
-        print('Size frame:' + str(img_norm.shape))
+        logging.info('Frame size:' + str(img_norm.shape))
         if self.params.get('online', 'normalize'):
             Y = Y/img_norm[None, :, :]
         if opts['show_movie']:
@@ -599,9 +965,27 @@ class OnACID(object):
         self.img_min = img_min
         self.img_norm = img_norm
         if self.params.get('online', 'init_method') == 'bare':
-            self.estimates.A, self.estimates.b, self.estimates.C, self.estimates.f, self.estimates.YrA = bare_initialization(
-                    Y.transpose(1, 2, 0), gnb=self.params.get('init', 'nb'), k=self.params.get('init', 'K'),
-                    gSig=self.params.get('init', 'gSig'), return_object=False)
+            init = self.params.get_group('init').copy()
+            is1p = (init['method_init'] == 'corr_pnr' and  init['ring_size_factor'] is not None)
+            if is1p:
+                self.estimates.sn, psx = get_noise_fft(
+                    Yr, noise_range=self.params.get('preprocess', 'noise_range'),
+                    noise_method=self.params.get('preprocess', 'noise_method'),
+                    max_num_samples_fft=self.params.get('preprocess', 'max_num_samples_fft'))
+            for key in ('K', 'nb', 'gSig', 'method_init'):
+                init.pop(key, None)
+            tmp = bare_initialization(
+                Y.transpose(1, 2, 0), init_batch=self.params.get('online', 'init_batch'),
+                k=self.params.get('init', 'K'), gnb=self.params.get('init', 'nb'),
+                method_init=self.params.get('init', 'method_init'), sn=self.estimates.sn,
+                gSig=self.params.get('init', 'gSig'), return_object=False,
+                options_total=self.params.to_dict(), **init)
+            if is1p:
+                (self.estimates.A, self.estimates.b, self.estimates.C, self.estimates.f,
+                 self.estimates.YrA, self.estimates.W, self.estimates.b0) = tmp
+            else:
+                (self.estimates.A, self.estimates.b, self.estimates.C, self.estimates.f,
+                 self.estimates.YrA) = tmp
             self.estimates.S = np.zeros_like(self.estimates.C)
             nr = self.estimates.C.shape[0]
             self.estimates.g = np.array([-np.poly([0.9] * max(self.params.get('preprocess', 'p'), 1))[1:]
@@ -611,26 +995,23 @@ class OnACID(object):
             self.estimates.neurons_sn = np.std(self.estimates.YrA, axis=-1)
             self.estimates.lam = np.zeros(nr)
         elif self.params.get('online', 'init_method') == 'cnmf':
-            cnm = CNMF(n_processes=1, params=self.params)
+            n_processes = cpu_count() - 1 or 1
+            cnm = CNMF(n_processes=n_processes, params=self.params, dview=self.dview)
             cnm.estimates.shifts = self.estimates.shifts
             if self.params.get('patch', 'rf') is None:
-                self.dview = None
+                cnm.dview = None
                 cnm.fit(np.array(Y))
                 self.estimates = cnm.estimates
-#                self.estimates.A, self.estimates.C, self.estimates.b, self.estimates.f,\
-#                self.estimates.S, self.estimates.YrA = cnm.estimates.A, cnm.estimates.C, cnm.estimates.b,\
-#                cnm.estimates.f, cnm.estimates.S, self.estimates.YrA
 
             else:
-                f_new = mmapping.save_memmap(fls[:1], base_name='Yr', order='C',
+                Y.save('init_file.hdf5')
+                f_new = mmapping.save_memmap(['init_file.hdf5'], base_name='Yr', order='C',
                                              slices=[slice(0, opts['init_batch']), None, None])
+
                 Yrm, dims_, T_ = mmapping.load_memmap(f_new)
                 Y = np.reshape(Yrm.T, [T_] + list(dims_), order='F')
                 cnm.fit(Y)
                 self.estimates = cnm.estimates
-#                self.estimates.A, self.estimates.C, self.estimates.b, self.estimates.f,\
-#                self.estimates.S, self.estimates.YrA = cnm.estimates.A, cnm.estimates.C, cnm.estimates.b,\
-#                cnm.estimates.f, cnm.estimates.S, cnm.estimates.YrA
                 if self.params.get('online', 'normalize'):
                     self.estimates.A /= self.img_norm.reshape(-1, order='F')[:, np.newaxis]
                     self.estimates.b /= self.img_norm.reshape(-1, order='F')[:, np.newaxis]
@@ -658,8 +1039,8 @@ class OnACID(object):
         if opts['show_movie']:
             self.bnd_AC = np.percentile(self.estimates.A.dot(self.estimates.C),
                                         (0.001, 100-0.005))
-            self.bnd_BG = np.percentile(self.estimates.b.dot(self.estimates.f),
-                                        (0.001, 100-0.001))
+            #self.bnd_BG = np.percentile(self.estimates.b.dot(self.estimates.f),
+            #                            (0.001, 100-0.001))
         return self
 
     def save(self,filename):
@@ -675,6 +1056,7 @@ class OnACID(object):
             save_dict_to_hdf5(self.__dict__, filename)
         else:
             raise Exception("Unsupported file extension")
+
 
     def fit_online(self, **kwargs):
         """Implements the caiman online algorithm on the list of files fls. The
@@ -707,7 +1089,9 @@ class OnACID(object):
         fls = self.params.get('data', 'fnames')
         init_batch = self.params.get('online', 'init_batch')
         epochs = self.params.get('online', 'epochs')
+        self.t_init = -time()
         self.initialize_online()
+        self.t_init += time()
         extra_files = len(fls) - 1
         init_files = 1
         t = init_batch
@@ -717,6 +1101,9 @@ class OnACID(object):
         self.t_shapes:List = []
         self.t_detect:List = []
         self.t_motion:List = []
+        self.t_stat:List = []
+        ssub_B = self.params.get('init', 'ssub_B') * self.params.get('init', 'ssub')
+        d1, d2 = self.params.get('data', 'dims')
         max_shifts_online = self.params.get('online', 'max_shifts_online')
         if extra_files == 0:     # check whether there are any additional files
             process_files = fls[:init_files]     # end processing at this file
@@ -725,84 +1112,123 @@ class OnACID(object):
             process_files = fls[:init_files + extra_files]   # additional files
             # where to start reading at each file
             init_batc_iter = [init_batch] + [0]*extra_files
-        if self.params.get('online', 'save_online_movie'):
-            fourcc = cv2.VideoWriter_fourcc('8', 'B', 'P', 'S')
+        if self.params.get('online', 'save_online_movie') + self.params.get('online', 'show_movie'):
+            resize_fact = 2
+            fourcc = cv2.VideoWriter_fourcc(*self.params.get('online', 'opencv_codec'))
             out = cv2.VideoWriter(self.params.get('online', 'movie_name_online'),
-                                  fourcc, 30.0, tuple([int(2*x) for x in self.params.get('data', 'dims')]))
+                                  fourcc, 30, tuple([int(resize_fact*2*x) for x in self.params.get('data', 'dims')]),
+                                  True)
+        # Iterate through the epochs
         for iter in range(epochs):
             if iter > 0:
                 # if not on first epoch process all files from scratch
                 process_files = fls[:init_files + extra_files]
                 init_batc_iter = [0] * (extra_files + init_files)
 
+        #     Go through all files
             for file_count, ffll in enumerate(process_files):
-                print('Now processing file ' + ffll)
-                Y_ = caiman.load(ffll, var_name_hdf5=self.params.get('data', 'var_name_hdf5'), 
-                                 subindices=slice(init_batc_iter[file_count], None, None))
+                logging.warning('Now processing file {}'.format(ffll))
+                Y_ = caiman.base.movies.load_iter(
+                    ffll, var_name_hdf5=self.params.get('data', 'var_name_hdf5'),
+                    subindices=slice(init_batc_iter[file_count], None, None))
 
                 old_comps = self.N     # number of existing components
-                for frame_count, frame in enumerate(Y_):   # process each file
-                    t_frame_start = time()
-                    if np.isnan(np.sum(frame)):
-                        raise Exception('Frame ' + str(frame_count) +
-                                        ' contains NaN')
-                    if t % 100 == 0:
-                        print('Epoch: ' + str(iter + 1) + '. ' + str(t) +
-                              ' frames have beeen processed in total. ' +
-                              str(self.N - old_comps) +
-                              ' new components were added. Total # of components is '
-                              + str(self.estimates.Ab.shape[-1] - self.params.get('init', 'nb')))
-                        old_comps = self.N
+                frame_count = -1
+                while True:   # process each file
+                    try:
+                        frame = next(Y_)
+                        frame_count += 1
+                        t_frame_start = time()
+                        if np.isnan(np.sum(frame)):
+                            raise Exception('Frame ' + str(frame_count) +
+                                            ' contains NaN')
+                        if t % 100 == 0:
+                            logging.info('Epoch: ' + str(iter + 1) + '. ' + str(t) +
+                                         ' frames have beeen processed in total. ' +
+                                         str(self.N - old_comps) +
+                                         ' new components were added. Total # of components is '
+                                         + str(self.estimates.Ab.shape[-1] - self.params.get('init', 'nb')))
+                            old_comps = self.N
 
-                    frame_ = frame.copy().astype(np.float32)
-                    if self.params.get('online', 'ds_factor') > 1:
-                        frame_ = cv2.resize(frame_, self.img_norm.shape[::-1])
+                        # Downsample and normalize
+                        frame_ = frame.copy().astype(np.float32)
+                        if self.params.get('online', 'ds_factor') > 1:
+                            frame_ = cv2.resize(frame_, self.img_norm.shape[::-1])
 
-                    if self.params.get('online', 'normalize'):
-                        frame_ -= self.img_min     # make data non-negative
-                    t_mot = time()    
-                    if self.params.get('online', 'motion_correct'):    # motion correct
-                        templ = self.estimates.Ab.dot(
-                            self.estimates.C_on[:self.M, t-1]).reshape(self.params.get('data', 'dims'), order='F')*self.img_norm
-                        if self.params.get('motion', 'pw_rigid'):
-                            frame_cor1, shift = motion_correct_iteration_fast(
-                                    frame_, templ, max_shifts_online, max_shifts_online)
-                            frame_cor, shift = tile_and_correct(frame_, templ, self.params.motion['strides'], self.params.motion['overlaps'], 
-                                                                self.params.motion['max_shifts'], newoverlaps=None, newstrides=None, upsample_factor_grid=4,
-                                                                upsample_factor_fft=10, show_movie=False, max_deviation_rigid=self.params.motion['max_deviation_rigid'],
-                                                                add_to_movie=0, shifts_opencv=True, gSig_filt=None,
-                                                                use_cuda=False, border_nan='copy')[:2]
+                        if self.params.get('online', 'normalize'):
+                            frame_ -= self.img_min     # make data non-negative
+                        t_mot = time()
+
+                        # Motion Correction
+                        if self.params.get('online', 'motion_correct'):    # motion correct
+                            templ = self.estimates.Ab.dot(
+                                    np.median(self.estimates.C_on[:self.M, t-51:t-1], 1)).reshape(self.params.get('data', 'dims'), order='F')#*self.img_norm
+                            if self.is1p and self.estimates.W is not None:
+                                if ssub_B == 1:
+                                    B = self.estimates.W.dot((frame_ - templ).flatten(order='F') - self.estimates.b0) + self.estimates.b0
+                                    B = B.reshape(self.params.get('data', 'dims'), order='F')
+                                else:
+                                    b0 = self.estimates.b0.reshape((d1, d2), order='F')#*self.img_norm
+                                    bc2 = downscale(frame_ - templ - b0, (ssub_B, ssub_B)).flatten(order='F')
+                                    Wb = self.estimates.W.dot(bc2).reshape(((d1 - 1) // ssub_B + 1, (d2 - 1) // ssub_B + 1), order='F')
+                                    B = b0 + np.repeat(np.repeat(Wb, ssub_B, 0), ssub_B, 1)[:d1, :d2]
+                                templ += B
+                            if self.params.get('online', 'normalize'):
+                                templ *= self.img_norm
+                            if self.is1p:
+                                templ = high_pass_filter_space(templ, self.params.motion['gSig_filt'])
+                            if self.params.get('motion', 'pw_rigid'):
+                                frame_cor, shift, _, xy_grid = tile_and_correct(frame_, templ, self.params.motion['strides'], self.params.motion['overlaps'],
+                                                                                self.params.motion['max_shifts'], newoverlaps=None, newstrides=None, upsample_factor_grid=4,
+                                                                                upsample_factor_fft=10, show_movie=False, max_deviation_rigid=self.params.motion['max_deviation_rigid'],
+                                                                                add_to_movie=0, shifts_opencv=True, gSig_filt=None,
+                                                                                use_cuda=False, border_nan='copy')
+                            else:
+                                if self.is1p:
+                                    frame_orig = frame_.copy()
+                                    frame_ = high_pass_filter_space(frame_, self.params.motion['gSig_filt'])
+                                frame_cor, shift = motion_correct_iteration_fast(
+                                        frame_, templ, max_shifts_online, max_shifts_online)
+                                if self.is1p:
+                                    M = np.float32([[1, 0, shift[1]], [0, 1, shift[0]]])
+                                    frame_cor = cv2.warpAffine(
+                                        frame_orig, M, frame_.shape[::-1], flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REFLECT)
+
+                            self.estimates.shifts.append(shift)
                         else:
-                            frame_cor, shift = motion_correct_iteration_fast(
-                                    frame_, templ, max_shifts_online, max_shifts_online)
-                        self.estimates.shifts.append(shift)
-                    else:
-                        templ = None
-                        frame_cor = frame_
-                    self.t_motion.append(time() - t_mot)
-                    
-                    if self.params.get('online', 'normalize'):
-                        frame_cor = frame_cor/self.img_norm
-                    self.fit_next(t, frame_cor.reshape(-1, order='F'))
-                    if self.params.get('online', 'show_movie'):
-                        self.t = t
-                        vid_frame = self.create_frame(frame_cor)
-                        if self.params.get('online', 'save_online_movie'):
-                            out.write(vid_frame)
-                            for rp in range(len(self.estimates.ind_new)*2):
-                                out.write(vid_frame)
+                            templ = None
+                            frame_cor = frame_
 
-                        cv2.imshow('frame', vid_frame)
-                        for rp in range(len(self.estimates.ind_new)*2):
+                        self.t_motion.append(time() - t_mot)
+                        
+                        if self.params.get('online', 'normalize'):
+                            frame_cor = frame_cor/self.img_norm
+                        # Fit next frame
+                        self.fit_next(t, frame_cor.reshape(-1, order='F'))
+                        # Show
+                        if self.params.get('online', 'show_movie'):
+                            self.t = t
+                            vid_frame = self.create_frame(frame_cor, resize_fact=resize_fact)
+                            if self.params.get('online', 'save_online_movie'):
+                                out.write(vid_frame)
+                                for rp in range(len(self.estimates.ind_new)*2):
+                                    out.write(vid_frame)
+
                             cv2.imshow('frame', vid_frame)
-                        if cv2.waitKey(1) & 0xFF == ord('q'):
-                            break
-                    t += 1
-                    t_online.append(time() - t_frame_start)
+                            for rp in range(len(self.estimates.ind_new)*2):
+                                cv2.imshow('frame', vid_frame)
+                            if cv2.waitKey(1) & 0xFF == ord('q'):
+                                break
+                        t += 1
+                        t_online.append(time() - t_frame_start)
+                    except  (StopIteration, RuntimeError):
+                        break
+        
             self.Ab_epoch.append(self.estimates.Ab.copy())
+
         if self.params.get('online', 'normalize'):
-            self.estimates.Ab /= 1./self.img_norm.reshape(-1, order='F')[:,np.newaxis]
-            self.estimates.Ab = csc_matrix(self.estimates.Ab)
+            self.estimates.Ab = csc_matrix(self.estimates.Ab.multiply(
+                self.img_norm.reshape(-1, order='F')[:, np.newaxis]))
         self.estimates.A, self.estimates.b = self.estimates.Ab[:, self.params.get('init', 'nb'):], self.estimates.Ab[:, :self.params.get('init', 'nb')].toarray()
         self.estimates.C, self.estimates.f = self.estimates.C_on[self.params.get('init', 'nb'):self.M, t - t //
                          epochs:t], self.estimates.C_on[:self.params.get('init', 'nb'), t - t // epochs:t]
@@ -811,9 +1237,25 @@ class OnACID(object):
         if self.estimates.OASISinstances is not None:
             self.estimates.bl = [osi.b for osi in self.estimates.OASISinstances]
             self.estimates.S = np.stack([osi.s for osi in self.estimates.OASISinstances])
+            self.estimates.S = self.estimates.S[:, t - t // epochs:t]
         else:
             self.estimates.bl = [0] * self.estimates.C.shape[0]
             self.estimates.S = np.zeros_like(self.estimates.C)
+        if self.params.get('online', 'ds_factor') > 1:
+            dims = frame.shape
+            self.estimates.A = hstack([coo_matrix(cv2.resize(self.estimates.A[:, i].reshape(self.estimates.dims, order='F').toarray(),
+                                                            dims[::-1]).reshape(-1, order='F')[:,None]) for i in range(self.N)], format='csc')
+            if self.estimates.b.shape[-1] > 0:
+                self.estimates.b = np.concatenate([cv2.resize(self.estimates.b[:, i].reshape(self.estimates.dims, order='F'),
+                                                              dims[::-1]).reshape(-1, order='F')[:,None] for i in range(self.params.get('init', 'nb'))], axis=1)
+            else:
+                self.estimates.b = np.resize(self.estimates.b, (self.estimates.A.shape[0], 0))
+            if self.estimates.b0 is not None:
+                b0 = self.estimates.b0.reshape(self.estimates.dims, order='F')
+                b0 = cv2.resize(b0, dims[::-1])
+                self.estimates.b0 = b0.reshape((-1, 1), order='F')
+            self.params.set('data', {'dims': dims})
+            self.estimates.dims = dims
         if self.params.get('online', 'save_online_movie'):
             out.release()
         if self.params.get('online', 'show_movie'):
@@ -824,12 +1266,13 @@ class OnACID(object):
 
         return self
 
-    def create_frame(self, frame_cor, show_residuals=True, resize_fact=1):
+    def create_frame(self, frame_cor, show_residuals=True, resize_fact=3, transpose=True):
         if show_residuals:
-            caption = 'Mean Residual Buffer'
+            caption = 'Corr*PSNR buffer' if self.params.get('online', 'use_corr_img') else 'Mean Residual Buffer'
         else:
             caption = 'Identified Components'
         captions = ['Raw Data', 'Inferred Activity', caption, 'Denoised Data']
+        self.dims = self.estimates.dims
         self.captions = captions
         est = self.estimates
         gnb = self.M - self.N
@@ -838,7 +1281,18 @@ class OnACID(object):
         # inferred activity due to components (no background)
         frame_plot = (frame_cor.copy() - self.bnd_Y[0])/np.diff(self.bnd_Y)
         comps_frame = A.dot(C[:, self.t - 1]).reshape(self.dims, order='F')
-        bgkrnd_frame = b.dot(f[:, self.t - 1]).reshape(self.dims, order='F')  # denoised frame (components + background)
+        if self.is1p:
+            ssub_B = self.params.get('init', 'ssub_B') * self.params.get('init', 'ssub')
+            if ssub_B == 1:
+                B = self.estimates.W.dot((frame_cor - comps_frame).flatten(order='F') - self.estimates.b0) + self.estimates.b0
+                bgkrnd_frame = B.reshape(self.dims, order='F')
+            else:
+                b0 = self.estimates.b0.reshape(self.dims, order='F')#*self.img_norm
+                bc2 = downscale(frame_cor - comps_frame - b0, (ssub_B, ssub_B)).flatten(order='F')
+                Wb = self.estimates.W.dot(bc2).reshape(((self.dims[0] - 1) // ssub_B + 1, (self.dims[1] - 1) // ssub_B + 1), order='F')
+                bgkrnd_frame = b0 + np.repeat(np.repeat(Wb, ssub_B, 0), ssub_B, 1)[:self.dims[0], :self.dims[1]]
+        else:
+            bgkrnd_frame = b.dot(f[:, self.t - 1]).reshape(self.dims, order='F')  # denoised frame (components + background)
         denoised_frame = comps_frame + bgkrnd_frame
         denoised_frame = (denoised_frame.copy() - self.bnd_Y[0])/np.diff(self.bnd_Y)
         comps_frame = (comps_frame.copy() - self.bnd_AC[0])/np.diff(self.bnd_AC)
@@ -846,34 +1300,46 @@ class OnACID(object):
         if show_residuals:
             #all_comps = np.reshape(self.Yres_buf.mean(0), self.dims, order='F')
             all_comps = np.reshape(est.mean_buff, self.dims, order='F')
-            all_comps = np.minimum(np.maximum(all_comps, 0)*2 + 0.25, 255)
+            fac = 1. / np.percentile(est.mean_buff, 99.995)
         else:
             all_comps = np.array(A.sum(-1)).reshape(self.dims, order='F')
+            fac = 2
+        #all_comps = (all_comps.copy() - self.bnd_Y[0])/np.diff(self.bnd_Y)
+        all_comps = np.minimum(np.maximum(all_comps, 0)*fac, 1)
                                                   # spatial shapes
         frame_comp_1 = cv2.resize(np.concatenate([frame_plot, all_comps * 1.], axis=-1),
                                   (2 * np.int(self.dims[1] * resize_fact), np.int(self.dims[0] * resize_fact)))
         frame_comp_2 = cv2.resize(np.concatenate([comps_frame, denoised_frame], axis=-1), 
                                   (2 * np.int(self.dims[1] * resize_fact), np.int(self.dims[0] * resize_fact)))
         frame_pn = np.concatenate([frame_comp_1, frame_comp_2], axis=0).T
+        if transpose:
+            self.dims = self.dims[::-1]
+            frame_pn = frame_pn.T
+
         vid_frame = np.repeat(frame_pn[:, :, None], 3, axis=-1)
         vid_frame = np.minimum((vid_frame * 255.), 255).astype('u1')
 
-        if show_residuals and est.ind_new:
-            add_v = np.int(self.dims[1]*resize_fact)
+        #if show_residuals and est.ind_new:
+        if est.ind_new:
+            add_v = np.int(self.dims[1-transpose]*resize_fact)
             for ind_new in est.ind_new:
-                cv2.rectangle(vid_frame,(int(ind_new[0][1]*resize_fact),int(ind_new[1][1]*resize_fact)+add_v),
-                                             (int(ind_new[0][0]*resize_fact),int(ind_new[1][0]*resize_fact)+add_v),(255,0,255),2)
+                cv2.rectangle(vid_frame,(int(ind_new[transpose][1]*resize_fact) + transpose*add_v,
+                                         int(ind_new[1-transpose][1]*resize_fact) + (1-transpose)*add_v),
+                                             (int(ind_new[transpose][0]*resize_fact) + transpose*add_v,
+                                              int(ind_new[1-transpose][0]*resize_fact)+ (1-transpose)*add_v), (255,0,255), 2)
 
         cv2.putText(vid_frame, captions[0], (5, 20), fontFace=5, fontScale=0.8, color=(
             0, 255, 0), thickness=1)
-        cv2.putText(vid_frame, captions[1], (np.int(
+        cv2.putText(vid_frame, captions[1+transpose], (np.int(
             self.dims[0] * resize_fact) + 5, 20), fontFace=5, fontScale=0.8, color=(0, 255, 0), thickness=1)
-        cv2.putText(vid_frame, captions[2], (5, np.int(
+        cv2.putText(vid_frame, captions[2-transpose], (5, np.int(
             self.dims[1] * resize_fact) + 20), fontFace=5, fontScale=0.8, color=(0, 255, 0), thickness=1)
         cv2.putText(vid_frame, captions[3], (np.int(self.dims[0] * resize_fact) + 5, np.int(
             self.dims[1] * resize_fact) + 20), fontFace=5, fontScale=0.8, color=(0, 255, 0), thickness=1)
         cv2.putText(vid_frame, 'Frame = ' + str(self.t), (vid_frame.shape[1] // 2 - vid_frame.shape[1] //
                                                      10, vid_frame.shape[0] - 20), fontFace=5, fontScale=0.8, color=(0, 255, 255), thickness=1)
+        if transpose:
+            self.dims = self.dims[::-1]
         return vid_frame
 
 
@@ -915,18 +1381,24 @@ def bare_initialization(Y, init_batch=1000, k=1, method_init='greedy_roi', gnb=1
     else:
         Y = Y[:, :, :init_batch]
 
-    Ain, Cin, b_in, f_in, center = initialize_components(
-        Y, K=k, gSig=gSig, nb=gnb, method_init=method_init)
-    Ain = coo_matrix(Ain)
-    b_in = np.array(b_in)
-    Yr = np.reshape(Y, (Ain.shape[0], Y.shape[-1]), order='F')
-    nA = (Ain.power(2).sum(axis=0))
-    nr = nA.size
+    try:
+        Ain, Cin, b_in, f_in, center = initialize_components(
+            Y, K=k, gSig=gSig, nb=gnb, method_init=method_init, **kwargs)
+        Ain = coo_matrix(Ain)
+        b_in = np.array(b_in)
+        Yr = np.reshape(Y, (Ain.shape[0], Y.shape[-1]), order='F')
+        nA = (Ain.power(2).sum(axis=0))
+        nr = nA.size
 
-    YA = spdiags(old_div(1., nA), 0, nr, nr) * \
-        (Ain.T.dot(Yr) - (Ain.T.dot(b_in)).dot(f_in))
-    AA = spdiags(old_div(1., nA), 0, nr, nr) * (Ain.T.dot(Ain))
-    YrA = YA - AA.T.dot(Cin)
+        YA = spdiags(old_div(1., nA), 0, nr, nr) * \
+            (Ain.T.dot(Yr) - (Ain.T.dot(b_in)).dot(f_in))
+        AA = spdiags(old_div(1., nA), 0, nr, nr) * (Ain.T.dot(Ain))
+        YrA = YA - AA.T.dot(Cin)
+    except ValueError:
+        Ain, Cin, b_in, f_in, center, extra_1p = initialize_components(
+            Y, K=k, gSig=gSig, nb=gnb, method_init=method_init, **kwargs)
+        Ain = coo_matrix(Ain)
+        YrA, _, W, b0 = extra_1p[-4:]
     if return_object:
         cnm_init = caiman.source_extraction.cnmf.cnmf.CNMF(2, k=k, gSig=gSig, Ain=Ain, Cin=Cin, b_in=np.array(
             b_in), f_in=f_in, method_init=method_init, p=p, gnb=gnb, **kwargs)
@@ -946,7 +1418,10 @@ def bare_initialization(Y, init_batch=1000, k=1, method_init='greedy_roi', gnb=1
 
         return cnm_init
     else:
-        return Ain, np.array(b_in), Cin, f_in, YrA
+        try:
+            return Ain, np.array(b_in), Cin, f_in, YrA, W, b0
+        except:
+            return Ain, np.array(b_in), Cin, f_in, YrA
 
 
 #%%
@@ -991,12 +1466,12 @@ def seeded_initialization(Y, Ain, dims=None, init_batch=1000, order_init=None, g
         not_px = np.array(not_px).flatten()
     Yr = np.reshape(Y, (Ain.shape[0], Y.shape[-1]), order='F')
     model = NMF(n_components=gnb, init='nndsvdar', max_iter=10)
-    b_temp = model.fit_transform(np.maximum(Yr[not_px], 0))
     f_in = model.components_.squeeze()
     f_in = np.atleast_2d(f_in)
     Y_resf = np.dot(Yr, f_in.T)
 #    b_in = np.maximum(Y_resf.dot(np.linalg.inv(f_in.dot(f_in.T))), 0)
     b_in = np.maximum(np.linalg.solve(f_in.dot(f_in.T), Y_resf.T), 0).T
+    # b_in = np.maximum(pd_solve(f_in.dot(f_in.T), Y_resf.T), 0).T
     Yr_no_bg = (Yr - b_in.dot(f_in)).astype(np.float32)
 
     Cin = np.zeros([Ain.shape[-1],Yr.shape[-1]], dtype = np.float32)
@@ -1128,6 +1603,57 @@ def HALS4activity(Yr, A, noisyC, AtA=None, iters=5, tol=1e-3, groups=None,
     return C, noisyC
 
 
+def demix1p(y, A, noisyC, AtA, Atb, AtW, AtWA, iters=5, tol=1e-3,
+            groups=None, downscale_matrix=None, ssub_B=1):
+    """
+    Solve C = argmin_C ||Yr-AC-B|| using block-coordinate decent
+    where B = W(Y-AC-b0) + b0  (ring model for 1p data)
+    Parameters
+    ----------
+    y : array of float, shape (x*y[*z],)
+        flattened array of raw data frame
+    A : sparse matrix of float
+        neural shapes
+    noisyC : ndarray of float
+        Initial value of fluorescence intensities.
+    AtA : ndarray of float
+        Overlap matrix of shapes A.
+    Atb : ndarray of float
+        Projection of constant background terms on shapes A: A'(Wb0-b0)
+    AtW : sparse matrix of float, shape (x*y, x*y)
+        Projection of ring matrix W on shapes A
+    AtWA : ndarray of float
+        A'*W*A
+    iters : int, optional
+        Maximal number of iterations.
+    tol : float, optional
+        Tolerance.
+    groups: list of lists
+        groups of components to update in parallel
+    """
+    AtY = A.T.dot(y)
+    AtWyb = AtW.dot(y if ssub_B == 1 else downscale_matrix.dot(y) *
+                    ssub_B**2) - Atb  # Atb is A'(Wb0-b0)
+    num_iters = 0
+    C_old = np.zeros_like(noisyC)
+    C = noisyC.copy()
+    # faster than np.linalg.norm
+    def norm(c): return sqrt(c.ravel().dot(c.ravel()))
+    while (norm(C_old - C) >= tol * norm(C_old)) and (num_iters < iters):
+        C_old[:] = C
+        AtB = AtWyb - AtWA.dot(C)  # A'B = A'WY - A'WAC - A'(Wb0-b0)
+        if groups is None:
+            for m in range(len(AtY)):
+                noisyC[m] = C[m] + (AtY[m] - AtA[m].dot(C) - AtB[m]) / (AtA[m, m] + np.finfo(C.dtype).eps)
+                C[m] = max(noisyC[m], 0)
+        else:
+            for m in groups:
+                noisyC[m] = C[m] + (AtY[m] - AtA[m].dot(C) - AtB[m]) / (AtA.diagonal()[m] + np.finfo(C.dtype).eps)
+                C[m] = np.maximum(noisyC[m], 0)
+        num_iters += 1
+    return C, noisyC
+
+
 @profile
 def demix_and_deconvolve(C, noisyC, AtY, AtA, OASISinstances, iters=3, n_refit=0):
     """
@@ -1212,15 +1738,18 @@ def demix_and_deconvolve(C, noisyC, AtY, AtA, OASISinstances, iters=3, n_refit=0
 
 
 #%% Estimate shapes on small initial batch
-def init_shapes_and_sufficient_stats(Y, A, C, b, f, bSiz=3):
+def init_shapes_and_sufficient_stats(Y, A, C, b, f, W=None, b0=None, ssub_B=1, bSiz=3):
     # smooth the components
     dims, T = np.shape(Y)[:-1], np.shape(Y)[-1]
     K = A.shape[1]  # number of neurons
-    nb = b.shape[1]  # number of background components
-    if isinstance(bSiz, (int, float)):
-        bSiz = [bSiz] * len(dims)
-
-    Ab = np.hstack([b, A])
+    if W is None:
+        nb = b.shape[1]  # number of background components
+    # if isinstance(bSiz, (int, float)):
+    #     bSiz = [bSiz] * len(dims)
+        Ab = np.hstack([b, A])
+    else:
+        Ab = A
+        nb = 0
     # Ab = scipy.sparse.hstack([A.astype('float32'), b.astype('float32')]).tocsc()  might be faster
     # closing of shapes to not have holes in index matrix ind_A.
     # do this somehow smarter & faster, e.g. smooth only within patch !!
@@ -1232,8 +1761,22 @@ def init_shapes_and_sufficient_stats(Y, A, C, b, f, bSiz=3):
     Ab = csc_matrix(Ab)
     ind_A = [Ab.indices[Ab.indptr[m]:Ab.indptr[m + 1]]
              for m in range(nb, nb + K)]
-    Cf = np.r_[f.reshape(nb, -1), C]
+    Cf = np.r_[f.reshape(nb, -1), C] if f.size else C
     CY = Cf.dot(np.reshape(Y, (np.prod(dims), T), order='F').T)
+    if W is not None:
+        if ssub_B == 1:
+            CY -= Cf.dot(W.dot(np.reshape(Y, (-1, T), order='F') -
+                               A.dot(C) - b0[:, None]).T + b0)
+        else:
+            d1, d2 = dims
+            B = b0[:, None] + (np.repeat(np.repeat(W.dot(
+                downscale(Y - np.asarray(A.dot(C)).reshape(dims + (T,), order='F'),
+                              (ssub_B, ssub_B, 1)).reshape((-1, T), order='F') -
+                downscale(b0.reshape(dims, order='F'),
+                          (ssub_B, ssub_B)).reshape((-1, 1), order='F'))
+                .reshape(((d1 - 1) // ssub_B + 1, (d2 - 1) // ssub_B + 1, -1), order='F'),
+                ssub_B, 0), ssub_B, 1)[:d1, :d2].reshape((-1, T), order='F'))
+            CY -= Cf.dot(B.T)
     CC = Cf.dot(Cf.T)
     return Ab, ind_A, CY, CC
 
@@ -1255,7 +1798,7 @@ def update_shapes(CY, CC, Ab, ind_A, sn=None, q=0.5, indicator_components=None,
                 for m in idx_comp:  # neurons
                     ind_pixels = ind_A[m - nb]
                     tmp = np.maximum(Ab.data[Ab.indptr[m]:Ab.indptr[m + 1]] +
-                        ((CY[m, ind_pixels] - Ab.dot(CC[m])[ind_pixels]) / CC[m, m]), 0)
+                        ((CY[m, ind_pixels] - Ab.dot(CC[m])[ind_pixels]) / (CC[m, m] + np.finfo(CC.dtype).eps)), 0)
                     # normalize
                     if tmp.dot(tmp) > 0:
                         tmp *= 1e-3 / \
@@ -1267,7 +1810,7 @@ def update_shapes(CY, CC, Ab, ind_A, sn=None, q=0.5, indicator_components=None,
                 for m in idx_comp:  # neurons
                     ind_pixels = ind_A[m - nb]
                     tmp = np.maximum(Ab_dense[ind_pixels, m] + 
-                        ((CY[m, ind_pixels] - Ab_dense[ind_pixels].dot(CC[m])) / CC[m, m]), 0)
+                        ((CY[m, ind_pixels] - Ab_dense[ind_pixels].dot(CC[m])) / (CC[m, m] + np.finfo(CC.dtype).eps)), 0)
                     # normalize
                     if tmp.dot(tmp) > 0:
                         tmp *= 1e-3 / \
@@ -1280,7 +1823,7 @@ def update_shapes(CY, CC, Ab, ind_A, sn=None, q=0.5, indicator_components=None,
                     sl = slice(Ab.indptr[m], Ab.indptr[m + 1])
                     ind_pixels = Ab.indices[sl]
                     Ab.data[sl] = np.maximum(
-                        Ab.data[sl] + ((CY[m, ind_pixels] - Ab.dot(CC[m])[ind_pixels]) / CC[m, m]), 0)
+                        Ab.data[sl] + ((CY[m, ind_pixels] - Ab.dot(CC[m])[ind_pixels]) / (CC[m, m] + np.finfo(CC.dtype).eps)), 0)
                     if Ab_dense is not None:
                         Ab_dense[ind_pixels, m] = Ab.data[sl]
     else:
@@ -1291,7 +1834,7 @@ def update_shapes(CY, CC, Ab, ind_A, sn=None, q=0.5, indicator_components=None,
                 for m in idx_comp:  # neurons
                     ind_pixels = ind_A[m - nb]
                     tmp = np.maximum(Ab.data[Ab.indptr[m]:Ab.indptr[m + 1]] +
-                        ((CY[m, ind_pixels] - L[m, ind_pixels] - Ab.dot(CC[m])[ind_pixels]) / CC[m, m]), 0)
+                        ((CY[m, ind_pixels] - L[m, ind_pixels] - Ab.dot(CC[m])[ind_pixels]) / (CC[m, m] + np.finfo(CC.dtype).eps)), 0)
 
                     if tmp.dot(tmp) > 0:
                         tmp *= 1e-3 / \
@@ -1307,7 +1850,7 @@ def update_shapes(CY, CC, Ab, ind_A, sn=None, q=0.5, indicator_components=None,
                     ind_pixels = ind_A[m - nb]
                     tmp = np.maximum(Ab_dense[ind_pixels, m] + ((CY[m, ind_pixels] - L[m, ind_pixels] -
                                                                  Ab_dense[ind_pixels].dot(CC[m])) /
-                                                                CC[m, m]), 0)
+                                                                (CC[m, m] + np.finfo(CC.dtype).eps)), 0)
                     # normalize
                     if tmp.dot(tmp) > 0:
                         tmp *= 1e-3 / \
@@ -1326,7 +1869,7 @@ def update_shapes(CY, CC, Ab, ind_A, sn=None, q=0.5, indicator_components=None,
                     sl = slice(Ab.indptr[m], Ab.indptr[m + 1])
                     ind_pixels = Ab.indices[sl]
                     Ab.data[sl] = np.maximum(
-                        Ab.data[sl] + ((CY[m, ind_pixels] - Ab.dot(CC[m])[ind_pixels]) / CC[m, m]), 0)
+                        Ab.data[sl] + ((CY[m, ind_pixels] - Ab.dot(CC[m])[ind_pixels]) / (CC[m, m] + np.finfo(CC.dtype).eps)), 0)
                     if Ab_dense is not None:
                         Ab_dense[ind_pixels, m] = Ab.data[sl]
 
@@ -1374,13 +1917,22 @@ class RingBuffer(np.ndarray):
 #%%
 def csc_append(a, b):
     """ Takes in 2 csc_matrices and appends the second one to the right of the first one.
-    Much faster than scipy.sparse.vstack but assumes the type to be csc and overwrites
+    Much faster than scipy.sparse.hstack but assumes the type to be csc and overwrites
     the first matrix instead of copying it. The data, indices, and indptr still get copied."""
-
     a.data = np.concatenate((a.data, b.data))
     a.indices = np.concatenate((a.indices, b.indices))
     a.indptr = np.concatenate((a.indptr, (b.indptr + a.nnz)[1:]))
     a._shape = (a.shape[0], a.shape[1] + b.shape[1])
+
+
+def csr_append(a, b):
+    """ Takes in 2 csr_matrices and appends the second one below the first one.
+    Much faster than scipy.sparse.vstack but assumes the type to be csr and overwrites
+    the first matrix instead of copying it. The data, indices, and indptr still get copied."""
+    a.data = np.concatenate((a.data, b.data))
+    a.indices = np.concatenate((a.indices, b.indices))
+    a.indptr = np.concatenate((a.indptr, (b.indptr + a.nnz)[1:]))
+    a._shape = (a.shape[0] + b.shape[0], a.shape[1])
 
 
 def corr(a, b):
@@ -1403,7 +1955,7 @@ def rank1nmf(Ypx, ain):
         cin = np.maximum(cin_res, 0)
         ain = np.maximum(Ypx.dot(cin.T), 0)
         try:
-            ain /= sqrt(ain.dot(ain))
+            ain /= (sqrt(ain.dot(ain)) + np.finfo(np.float32).eps)
         except:
             break
         # nc = cin.dot(cin)
@@ -1415,7 +1967,6 @@ def rank1nmf(Ypx, ain):
     cin_res = ain.T.dot(Ypx)  # / ain.dot(ain)
     cin = np.maximum(cin_res, 0)
     return ain, cin, cin_res
-
 
 #%%
 @profile
@@ -1454,7 +2005,7 @@ def get_candidate_components(sv, dims, Yres_buf, min_num_trial=3, gSig=(5, 5),
         img_select_peaks = cv2.GaussianBlur(img_select_peaks , ksize=ksize, sigmaX=gSig[0],
                                                         sigmaY=gSig[1], borderType=cv2.BORDER_REPLICATE) \
                     - cv2.boxFilter(img_select_peaks, ddepth=-1, ksize=ksize, borderType=cv2.BORDER_REPLICATE)
-        thresh_img_sel = np.median(img_select_peaks) + thresh_std_peak_resid  * np.std(img_select_peaks)
+        thresh_img_sel = 0 #np.median(img_select_peaks) + thresh_std_peak_resid  * np.std(img_select_peaks)
 
 #        plt.subplot(1,3,2)
 #        plt.cla()
@@ -1532,7 +2083,6 @@ def get_candidate_components(sv, dims, Yres_buf, min_num_trial=3, gSig=(5, 5),
         else:
             predictions = loaded_model.run(tf_out, feed_dict={tf_in: Ain2[:, :, :, np.newaxis]})
         keep_cnn = list(np.where(predictions[:, 0] > thresh_CNN_noisy)[0])
-        discard = list(np.where(predictions[:, 0] <= thresh_CNN_noisy)[0])
         cnn_pos = Ain2[keep_cnn]
     else:
         keep_cnn = []  # list(range(len(Ain_cnn)))
@@ -1579,8 +2129,11 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                           sn=None, g=None, thresh_s_min=None, s_min=None,
                           Ab_dense=None, max_num_added=1, min_num_trial=1,
                           loaded_model=None, thresh_CNN_noisy=0.99,
-                          sniper_mode=False, use_peak_max=False,
-                          test_both=False, mean_buff=None, tf_in=None,
+                          sniper_mode=False, use_peak_max=False, test_both=False,
+                          mean_buff=None, ssub_B=1, W=None, b0=None,
+                          corr_img=None, first_moment=None, second_moment=None,
+                          crosscorr=None, col_ind=None, row_ind=None, corr_img_mode=None,
+                          max_img=None, downscale_matrix=None, tf_in=None,
                           tf_out=None):
     """
     Checks for new components in the residual buffer and incorporates them if they pass the acceptance tests
@@ -1593,28 +2146,96 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
     M = np.shape(Ab)[-1]
     N = M - gnb                 # number of coponents (without background)
 
-    sv -= rho_buf.get_first()
-    # update variance of residual buffer
-    sv += rho_buf.get_last_frames(1).squeeze()
-    sv = np.maximum(sv, 0)
+    if corr_img is None:
+        sv -= rho_buf.get_first()
+        # update variance of residual buffer
+        sv += rho_buf.get_last_frames(1).squeeze()
+        sv = np.maximum(sv, 0)
+
+    if max_img is not None:
+        # pnr_img = max_img.ravel(order='F') / np.sqrt(second_moment - first_moment**2)
+        # pnr_img = max_img / np.sqrt(second_moment - first_moment**2).reshape(dims, order='F')
+        pnr_img = max_img / sn.reshape(dims, order='F')
+        pnr_img[pnr_img<2] = 0
 
     Ains, Cins, Cins_res, inds, ijsig_all, cnn_pos, local_max = get_candidate_components(
-        sv, dims, Yres_buf=Yres_buf, min_num_trial=min_num_trial, gSig=gSig,
-        gHalf=gHalf, sniper_mode=sniper_mode, rval_thr=rval_thr, patch_size=50,
+        sv if corr_img is None else corr_img*pnr_img, dims, Yres_buf=Yres_buf,
+        min_num_trial=min_num_trial, gSig=gSig, gHalf=gHalf,
+        sniper_mode=sniper_mode, rval_thr=rval_thr, patch_size=50,
         loaded_model=loaded_model, thresh_CNN_noisy=thresh_CNN_noisy,
         use_peak_max=use_peak_max, test_both=test_both, mean_buff=mean_buff,
         tf_in=tf_in, tf_out=tf_out)
 
+    # cn, pnr = caiman.summary_images.correlation_pnr(Yres_buf.reshape((-1,) + dims, order='F'),
+    #                                                 gSig=1, center_psf=False, swap_dim=False)
+    # Y_filter = Yres_buf.reshape((-1,) + dims, order='F').copy()
+    # for i in range(len(Y_filter)):
+    #      # Y_filter[i] = cv2.GaussianBlur(Y_filter[i], tuple(gSiz), gSig[0])  #, Y_filter[i], gSig[1], cv2.BORDER_CONSTANT)
+    #      Y_filter[i] = cv2.GaussianBlur(Y_filter[i], tuple(gSiz), 1)  #, Y_filter[i], 1, cv2.BORDER_CONSTANT)
+
+    # cn = caiman.summary_images.local_correlations_fft(#Y_filter, swap_dim=False)
+    #     Yres_buf.reshape((-1,) + dims, order='F'), swap_dim=False)
+
+    # foo = get_candidate_components(
+    #     # corr_img, dims, Yres_buf=Yres_buf, min_num_trial=min_num_trial, gSig=gSig,
+    #     cn, dims, Yres_buf=Yres_buf, min_num_trial=min_num_trial, gSig=gSig,
+    #     gHalf=gHalf, sniper_mode=sniper_mode, rval_thr=rval_thr, patch_size=50,
+    #     loaded_model=loaded_model, thresh_CNN_noisy=thresh_CNN_noisy,
+    #     use_peak_max=use_peak_max, test_both=test_both, mean_buff=mean_buff)
+    # Ains, Cins, Cins_res, inds, ijsig_all, cnn_pos, local_max = foo
+
+    # if not t%100:
+    #     import matplotlib.pyplot as plt
+    #     from scipy.io import loadmat
+    #     from caiman.utils.visualization import plot_contours
+    #     A = loadmat('/mnt/home/jfriedrich/CNMF_E/eLife_submission/code/' +
+    #                 'scripts_figures/fig_striatum/results_bk.mat')['A']
+    #     A = csc_matrix(A.toarray().reshape(
+    #         dims + (-1,), order='F').reshape((-1, A.shape[-1]), order='C'))
+    #     # plt.figure(figsize=(20, 20))
+    #     # plt.subplot(221)
+    #     # plt.colorbar(plt.imshow(pnr_img))
+    #     # plt.subplot(222)
+    #     # # plt.colorbar(plt.imshow(corr_img))
+    #     # plot_contours(A, corr_img, thr=.6, colors='w', display_numbers=False)
+    #     # plt.scatter(*foo[-1].T[::-1], c='r')
+    #     # plt.subplot(223)
+    #     # plt.colorbar(plt.imshow(pnr_img * corr_img))
+    #     # plt.subplot(224)
+    #     # # plt.colorbar(plt.imshow(sv.reshape(dims)))
+    #     # plot_contours(A, sv.reshape(dims), thr=.6, colors='w', display_numbers=False)
+    #     # plt.scatter(*local_max.T[::-1], c='r')
+    #     # plt.show()
+    #     plt.figure(figsize=(20, 20))
+    #     plt.subplot(331)
+    #     plt.colorbar(plt.imshow(pnr_img))
+    #     plt.subplot(332)
+    #     plot_contours(A, corr_img, thr=.6, colors='w', display_numbers=False)
+    #     plt.scatter(*foo[-1].T[::-1], c='r')
+    #     plt.subplot(333)
+    #     plt.colorbar(plt.imshow(pnr_img * corr_img))
+    #     plt.subplot(334)
+    #     plt.colorbar(plt.imshow(pnr))
+    #     plt.subplot(335)
+    #     plot_contours(A, cn, thr=.6, colors='w', display_numbers=False)
+    #     # plt.scatter(*foo[-1].T[::-1], c='r')
+    #     plt.subplot(336)
+    #     plt.colorbar(plt.imshow(pnr * cn))
+    #     plt.subplot(337)
+    #     plot_contours(A, sv.reshape(dims), thr=.6, colors='w', display_numbers=False)
+    #     plt.scatter(*local_max.T[::-1], c='r')
+    #     plt.show()
+    #     import pdb;pdb.set_trace()
+
     ind_new_all = ijsig_all
 
-    num_added = len(inds)
+    num_added = 0  # len(inds)
     cnt = 0
     for ind, ain, cin, cin_res in zip(inds, Ains, Cins, Cins_res):
         cnt += 1
         ij = np.unravel_index(ind, dims)
 
         ijSig = [[max(i - temp_g, 0), min(i + temp_g + 1, d)] for i, temp_g, d in zip(ij, gHalf, dims)]
-        dims_ain = (np.abs(np.diff(ijSig[1])[0]), np.abs(np.diff(ijSig[0])[0]))
 
         indices = np.ravel_multi_index(
                 np.ix_(*[np.arange(ij[0], ij[1])
@@ -1706,84 +2327,117 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
             ind_A.append(Ab.indices[Ab.indptr[M]:Ab.indptr[M + 1]])
 
             tt = t * 1.
-            Y_buf_ = Y_buf
-            cin_ = cin
-            Cf_ = Cf
-            cin_circ_ = cin_circ
-
-            CY[M, indices] = cin_.dot(Y_buf_[:, indices]) / tt
 
             # preallocate memory for speed up?
-            CC1 = np.hstack([CC, Cf_.dot(cin_circ_ / tt)[:, None]])
+            CC1 = np.hstack([CC, Cf.dot(cin_circ / tt)[:, None]])
             CC2 = np.hstack(
-                [(Cf_.dot(cin_circ_)).T, cin_circ_.dot(cin_circ_)]) / tt
+                [(Cf.dot(cin_circ)).T, cin_circ.dot(cin_circ)]) / tt
             CC = np.vstack([CC1, CC2])
             Cf = np.vstack([Cf, cin_circ])
+
+            if W is not None:  # 1p data, subtract background
+                y = Y_buf.get_ordered()
+                if ssub_B == 1:
+                    x = (y - Ab.dot(Cf).T - b0).T
+                    y = y[:, indices] - W[indices].dot(x).T - b0[indices]
+                else:
+                    d1, d2 = dims
+                    x = downscale_matrix.dot(y.T - Ab.dot(Cf) - b0[:, None])
+                    # restrict to region where component is located already at this step?
+                    y -= np.repeat(np.repeat(
+                        W.dot(x).T.reshape((-1, (d1 - 1) // ssub_B + 1,
+                                            (d2 - 1) // ssub_B + 1), order='F'),
+                        ssub_B, 1), ssub_B, 2)[:, :d1, :d2].reshape((len(y), -1), order='F')
+                    y = y[:, indices] - b0[indices]
+                CY[M, indices] = cin_circ.dot(y) / tt
+            else:
+                CY[M, indices] = cin.dot(Y_buf[:, indices]) / tt
 
             N = N + 1
             M = M + 1
 
+            if crosscorr is not None:
+                # TODO: restrict to indices where component is located
+                if Ab_dense is None:
+                    Ain = np.zeros(np.prod(dims), dtype=np.float32)
+                    Ain[indices] = ain
+                else:
+                    Ain = Ab_dense[:, M - 1]
+                if corr_img_mode == 'cumulative':
+                    # first_moment[indices] = 0
+                    # second_moment[indices] = 0
+                    first_moment[Ain > 0] = 0
+                    second_moment[Ain > 0] = 0
+                    crosscorr *= (Ain[row_ind]==0) * (Ain[col_ind]==0)
+                else:
+                    div = t if corr_img_mode == 'cumulative' else len(cin)
+                    first_moment[indices] -= cin.sum() / div * ain
+                    # (Y-ac')^2 = Y.^2 + (ac'.^2 - 2Y.ac)
+                    second_moment[indices] += (ain**2 * cin.dot(cin) -
+                                               2 * cin.dot(Yres_buf[:, indices]) * ain) / div
+                    crosscorr += (Ain[row_ind] * Ain[col_ind] * cin.dot(cin) -
+                                  cin.dot(Yres_buf[:, row_ind]) * Ain[col_ind] -
+                                  cin.dot(Yres_buf[:, col_ind]) * Ain[row_ind]) / div
+                max_img[Ain.reshape(dims, order='F') > 0] = 0
+                # # max_img[[slice(*i) for i in ijSig]] = first_moment[indices].reshape(
+                # #     np.diff(ijSig).ravel(), order='F')
+
+                
             Yres_buf[:, indices] -= np.outer(cin, ain)
 
-            # restrict blurring to region where component is located
-            # update bigger region than neural patch to avoid boundary effects
-            slices_update = tuple(slice(max(0, ijs[0] - sg // 2), min(d, ijs[1] + sg // 2))
-                                  for ijs, sg, d in zip(ijSig, gSiz, dims))
-            # filter even bigger region to avoid boundary effects
-            slices_filter = tuple(slice(max(0, ijs[0] - sg), min(d, ijs[1] + sg))
-                                  for ijs, sg, d in zip(ijSig, gSiz, dims))
+            
+            if corr_img is None:
+                # restrict blurring to region where component is located
+                # update bigger region than neural patch to avoid boundary effects
+                slices_update = tuple(slice(max(0, ijs[0] - sg // 2), min(d, ijs[1] + sg // 2))
+                                      for ijs, sg, d in zip(ijSig, gSiz, dims))
+                # filter even bigger region to avoid boundary effects
+                slices_filter = tuple(slice(max(0, ijs[0] - sg), min(d, ijs[1] + sg))
+                                      for ijs, sg, d in zip(ijSig, gSiz, dims))
 
-            ind_vb = np.ravel_multi_index(
-                np.ix_(*[np.arange(sl.start, sl.stop)
-                         for sl in slices_update]), dims, order='C').ravel()
+                ind_vb = np.ravel_multi_index(
+                    np.ix_(*[np.arange(sl.start, sl.stop)
+                             for sl in slices_update]), dims, order='C').ravel()
 
-            if len(dims) == 3:
-                rho_buf[:, ind_vb] = np.stack([imblur(
-                    vb.reshape(dims, order='F')[slices_filter], sig=gSig, siz=gSiz,
-                    nDimBlur=len(dims))[tuple([slice(
-                        slices_update[i].start - slices_filter[i].start,
-                        slices_update[i].stop - slices_filter[i].start)
-                        for i in range(len(dims))])].ravel() for vb in Yres_buf])**2
-            else:
-                # faster than looping over frames:
-                # transform all frames into one, blur all simultaneously, transform back
-                Y_filter = Yres_buf.reshape((-1,) + dims, order='F'
-                                            )[:, slices_filter[0], slices_filter[1]]
-                T, d0, d1 = Y_filter.shape
-                dg = gHalf[0] + d0
-                tmp = np.concatenate((Y_filter, np.zeros((T, gHalf[0], d1), dtype=np.float32)),
-                                     axis=1).reshape(-1, d1)
-                cv2.GaussianBlur(tmp, tuple(gSiz), gSig[0], tmp, gSig[1], cv2.BORDER_CONSTANT)
-                slices = tuple([slice(slices_update[i].start - slices_filter[i].start,
-                                      slices_update[i].stop - slices_filter[i].start)
-                                for i in range(len(dims))])
-                rho_buf[:, ind_vb] = tmp.reshape(T, -1, d1)[
-                    (slice(None),) + slices].reshape(T, -1)**2
+                if len(dims) == 3:
+                    rho_buf[:, ind_vb] = np.stack([imblur(
+                        vb.reshape(dims, order='F')[slices_filter], sig=gSig, siz=gSiz,
+                        nDimBlur=len(dims))[tuple([slice(
+                            slices_update[i].start - slices_filter[i].start,
+                            slices_update[i].stop - slices_filter[i].start)
+                            for i in range(len(dims))])].ravel() for vb in Yres_buf])**2
+                else:
+                    # faster than looping over frames:
+                    # transform all frames into one, blur all simultaneously, transform back
+                    Y_filter = Yres_buf.reshape((-1,) + dims, order='F'
+                                                )[:, slices_filter[0], slices_filter[1]]
+                    T, d0, d1 = Y_filter.shape
+                    tmp = np.concatenate((Y_filter, np.zeros((T, gHalf[0], d1), dtype=np.float32)),
+                                         axis=1).reshape(-1, d1)
+                    cv2.GaussianBlur(tmp, tuple(gSiz), gSig[0], tmp, gSig[1], cv2.BORDER_CONSTANT)
+                    slices = tuple([slice(slices_update[i].start - slices_filter[i].start,
+                                          slices_update[i].stop - slices_filter[i].start)
+                                    for i in range(len(dims))])
+                    rho_buf[:, ind_vb] = tmp.reshape(T, -1, d1)[
+                        (slice(None),) + slices].reshape(T, -1)**2
 
-            sv[ind_vb] = np.sum(rho_buf[:, ind_vb], 0)
-#            sv = np.sum([imblur(vb.reshape(dims,order='F'), sig=gSig, siz=gSiz, nDimBlur=len(dims))**2 for vb in Yres_buf], 0).reshape(-1)
-#            plt.subplot(1,5,4)
-#            plt.cla()
-#            plt.imshow(sv.reshape(dims), vmax=30)
-#            plt.pause(.05)
-#            plt.subplot(1,5,5)
-#            plt.cla()
-#            plt.imshow(Yres_buf.mean(0).reshape(dims,order='F'))
-#            plt.imshow(np.sum([imblur(vb.reshape(dims,order='F'),\
-#                                       sig=gSig, siz=gSiz, nDimBlur=len(dims))**2\
-#                                        for vb in Yres_buf],axis=0), vmax=30)
-#            plt.pause(.05)
+                # import matplotlib.pyplot as plt
+                # plt.figure(figsize=(15, 10))
+                # plt.subplot(231)
+                # plt.colorbar(plt.imshow(pnr_img))
+                # plt.subplot(232)
+                # plt.colorbar(plt.imshow(corr_img))
+                # plt.subplot(233)
+                # plt.colorbar(plt.imshow(pnr_img*corr_img))
+                # plt.subplot(234)
+                # plt.colorbar(plt.imshow(sv.reshape(dims)))
 
-    #print(np.min(sv))
-#    plt.subplot(1,3,3)
-#    plt.cla()
-#    plt.imshow(Yres_buf.mean(0).reshape(dims, order = 'F'))
-#    plt.pause(.05)
+                sv[ind_vb] = np.sum(rho_buf[:, ind_vb], 0)
+
     return Ab, Cf, Yres_buf, rho_buf, CC, CY, ind_A, sv, groups, ind_new, ind_new_all, sv, cnn_pos
 
 
 #%% remove components online
-
 def remove_components_online(ind_rem, gnb, Ab, use_dense, Ab_dense, AtA, CY,
                              CC, M, N, noisyC, OASISinstances, C_on, exp_comps):
 
@@ -1902,7 +2556,7 @@ def initialize_movie_online(Y, K, gSig, rf, stride, base_name,
 
     cnm_refine = cnm_refine.fit(images)
     #%
-    A, C, b, f, YrA, sn = cnm_refine.A, cnm_refine.C, cnm_refine.b, cnm_refine.f, cnm_refine.YrA, cnm_refine.sn
+    A, C, b, f, YrA = cnm_refine.A, cnm_refine.C, cnm_refine.b, cnm_refine.f, cnm_refine.YrA
     #%
     final_frate = 10
     Npeaks = 10
@@ -1925,6 +2579,7 @@ def initialize_movie_online(Y, K, gSig, rf, stride, base_name,
     print((len(traces)))
     print((len(idx_components)))
     #%
+    cnm_refine.sn = sn # FIXME: There is no sn in scope here
     cnm_refine.idx_components = idx_components
     cnm_refine.idx_components_bad = idx_components_bad
     cnm_refine.r_values = r_values
@@ -1945,7 +2600,7 @@ def load_OnlineCNMF(filename, dview = None):
     Args:
         filename: str
             hdf5 file name containing the saved object
-        dview: multiprocessingor ipyparallel object
+        dview: multiprocessing or ipyparallel object
             useful to set up parllelization in the objects
     """
 
@@ -1979,3 +2634,6 @@ def load_OnlineCNMF(filename, dview = None):
                 setattr(new_obj, key, val)
 
     return new_obj
+
+def inv_mat_vec(A):
+    return np.linalg.solve(A[0], A[1])

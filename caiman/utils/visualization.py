@@ -30,6 +30,8 @@ import sys
 from tempfile import NamedTemporaryFile
 from typing import Dict
 from warnings import warn
+import holoviews as hv
+import functools as fct
 
 from ..base.rois import com
 from ..summary_images import local_correlations
@@ -246,6 +248,76 @@ def nb_view_patches(Yr, A, C, b, f, d1, d2, YrA=None, image_neurons=None, thr=0.
         bpl.show(bokeh.layouts.row(plot1, plot))
 
     return Y_r
+
+
+def hv_view_patches(Yr, A, C, b, f, d1, d2, YrA=None, image_neurons=None, denoised_color=None, cmap='viridis'):
+    """
+    Interactive plotting utility for ipython notebook
+
+    Args:
+        Yr: np.ndarray
+            movie
+
+        A,C,b,f: np.ndarrays
+            outputs of matrix factorization algorithm
+
+        d1,d2: floats
+            dimensions of movie (x and y)
+
+        YrA:   np.ndarray
+            ROI filtered residual as it is given from update_temporal_components
+            If not given, then it is computed (K x T)
+
+        image_neurons: np.ndarray
+            image to be overlaid to neurons (for instance the average)
+
+        denoised_color: string or None
+            color name (e.g. 'red') or hex color code (e.g. '#F0027F')
+
+        cmap: string
+            name of colormap (e.g. 'viridis') used to plot image_neurons
+    """
+
+    nr, T = C.shape
+    nA2 = np.ravel(np.power(A, 2).sum(0)) if type(
+        A) == np.ndarray else np.ravel(A.power(2).sum(0))
+    b = np.squeeze(b)
+    f = np.squeeze(f)
+    if YrA is None:
+        Y_r = np.array(
+            spdiags(old_div(1, nA2), 0, nr, nr) *
+            (A.T * np.matrix(Yr) -
+             (A.T * np.matrix(b[:, np.newaxis])) * np.matrix(f[np.newaxis]) -
+             A.T.dot(A) * np.matrix(C)) + C)
+    else:
+        Y_r = C + YrA
+    if image_neurons is None:
+        image_neurons = A.mean(1).reshape((d1, d2), order='F')
+    smp = cm.ScalarMappable(cmap=cmap)
+    im_rgb = smp.to_rgba(image_neurons)[:, :, :3]
+    im_hsv = mpl.colors.rgb_to_hsv(im_rgb)
+
+    def norm(a, rg=(0, 1)):
+        a_norm = (a - a.min()) / (a.max() - a.min())
+        return a_norm * (rg[1] - rg[0]) + rg[0]
+
+    Ad = np.asarray(A.todense()).reshape((d1, d2, -1), order='F')
+
+    def plot_unit(uid, scl):
+        trace = (
+            hv.Curve(Y_r[uid, :], kdims='frame #').opts(framewise=True)
+            * (hv.Curve(C[uid, :], kdims='frame #')
+               .opts(color=denoised_color, framewise=True))
+        ).opts(aspect=3, frame_height=200)
+        A_scl = norm(Ad[:, :, uid], (scl, 1))
+        im_hsv_scl = im_hsv.copy()
+        im_hsv_scl[:, :, 2] = im_hsv[:, :, 2] * A_scl
+        im_u = (hv.HSV(im_hsv_scl, kdims=['height', 'width'])
+                .opts(aspect='equal', frame_height=200))
+        return hv.Layout([im_u] + [trace]).cols(1) #im_u + trace
+
+    return (hv.DynamicMap(plot_unit, kdims=['unit_id', 'scale'])
+            .redim.range(unit_id=(0, nr-1), scale=(0.0, 1.0)))
 
 
 def get_contours(A, dims, thr=0.9, thr_method='nrg', swap_dim=False):
@@ -940,6 +1012,11 @@ def plot_contours(A, Cn, thr=None, thr_method='max', maxthr=0.2, nrgthr=0.9, dis
         thr_method = 'nrg'
 
 
+    for key in ['c', 'colors', 'line_color']:
+        if key in kwargs.keys():
+            color = kwargs[key]
+            kwargs.pop(key)
+
     ax = pl.gca()
     if vmax is None and vmin is None:
         pl.imshow(Cn, interpolation=None, cmap=cmap,
@@ -991,6 +1068,36 @@ def plot_shapes(Ab, dims, num_comps=15, size=(15, 15), comps_per_row=None,
                   cmap=cmap, interpolation='nearest')
         ax.axis('off')
     pl.subplots_adjust(0, 0, 1, 1, .06, .06)
+
+
+def nb_inspect_correlation_pnr(corr, pnr):
+    """
+    inspect correlation and pnr images to infer the min_corr, min_pnr
+
+    Args:
+        corr: ndarray
+            correlation image created with caiman.summary_images.correlation_pnr
+
+        pnr: ndarray
+            peak-to-noise image created with caiman.summary_images.correlation_pnr
+    """
+    hv_corr = hv.Image(corr, vdims='corr', label='correlation')
+    hv_pnr = hv.Image(pnr, vdims='pnr', label='pnr')
+
+    def hist(im, rx, ry):
+        obj = im.select(x=rx, y=ry) if rx and ry else im
+        return hv.operation.histogram(obj)
+
+    str_corr = (hv.streams.RangeXY(source=hv_corr)
+                .rename(x_range='rx', y_range='ry'))
+    str_pnr = (hv.streams.RangeXY(source=hv_pnr)
+               .rename(x_range='rx', y_range='ry'))
+    hist_corr = hv.DynamicMap(
+        fct.partial(hist, im=hv_corr), streams=[str_corr])
+    hist_pnr = hv.DynamicMap(
+        fct.partial(hist, im=hv_pnr), streams=[str_pnr])
+    return (hv_corr << hist_corr) + (hv_pnr << hist_pnr)
+
 
 def inspect_correlation_pnr(correlation_image_pnr, pnr_image):
     """

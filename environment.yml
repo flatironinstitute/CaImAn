@@ -4,9 +4,11 @@ dependencies:
 - python=3.7
 - tensorflow # Must list before keras to preempt default keras backend
 - bokeh
+- coverage
 - cython
 - future
 - h5py
+- holoviews
 - ipykernel=4.10
 - ipython
 - ipyparallel
@@ -15,14 +17,18 @@ dependencies:
 - mypy
 - nose
 - numpy
+- numpydoc
 - opencv
 - peakutils
 - pims
-- scipy
+- pynwb
+- pyqtgraph
 - scikit-image
 - scikit-learn
-- spyder
-- tifffile
+- scipy
+- tensorflow
+- tifffile=0.15.1
+- tk=8.6.8
 - tqdm
 - pyfftw
-
+- yapf

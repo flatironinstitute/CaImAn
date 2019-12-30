@@ -20,17 +20,15 @@ import logging
 from math import sqrt
 import matplotlib.animation as animation
 import matplotlib.pyplot as plt
+from multiprocessing import current_process
 import numpy as np
 from past.utils import old_div
 import scipy
-from scipy.linalg.lapack import dpotrf, dpotrs
 import scipy.ndimage as nd
 from scipy.ndimage.measurements import center_of_mass
 from scipy.ndimage.filters import correlate
 import scipy.sparse as spr
 from skimage.morphology import disk
-from skimage.transform import downscale_local_mean
-from skimage.transform import resize as resize_sk
 from sklearn.decomposition import NMF, FastICA
 from sklearn.utils.extmath import randomized_svd, squared_norm
 import sys
@@ -38,8 +36,11 @@ from typing import List
 
 import caiman
 from .deconvolution import constrained_foopsi
+#from .utilities import fast_graph_Laplacian_patches
 from .pre_processing import get_noise_fft, get_noise_welch
 from .spatial import circular_constraint, connectivity_constraint
+from ...utils.utils import parmap
+from ...utils.stats import pd_solve
 
 try:
     cv2.setNumThreads(0)
@@ -65,6 +66,14 @@ def resize(Y, size, interpolation=cv2.INTER_LINEAR):
         raise NotImplementedError
 
 #%%
+def decimate_last_axis(y, sub):
+    q = y.shape[-1] // sub
+    r = y.shape[-1] % sub
+    Y_ds = np.zeros(y.shape[:-1] + (q + (r > 0),), dtype=y.dtype)
+    Y_ds[..., :q] = y[..., :q * sub].reshape(y.shape[:-1] + (-1, sub)).mean(-1)
+    if r > 0:
+        Y_ds[..., -1] = y[..., -r:].mean(-1)
+    return Y_ds
 
 
 def downscale(Y, ds, opencv=False):
@@ -78,8 +87,8 @@ def downscale(Y, ds, opencv=False):
             Y = Y[..., None]
             ds = tuple(ds) + (1,)
         else:
-            Y_ds = movie(Y).resize(fx=1. / ds[0], fy=1. / ds[1], fz=1. / ds[2],
-                                   interpolation=cv2.INTER_AREA)
+            Y_ds = movie(Y.transpose(2, 0, 1)).resize(fx=1. / ds[0], fy=1. / ds[1], fz=1. / ds[2],
+                                                      interpolation=cv2.INTER_AREA).transpose(1, 2, 0)
         logging.info('Downscaling using OpenCV')
     else:
         if d > 3:
@@ -88,45 +97,53 @@ def downscale(Y, ds, opencv=False):
             from skimage.transform._warps import block_reduce
             return block_reduce(Y, ds, np.nanmean, np.nan)
         elif d == 1:
-            Y = Y[:, None, None]
-            ds = (ds, 1, 1)
+            return decimate_last_axis(Y, ds)
         elif d == 2:
             Y = Y[..., None]
             ds = tuple(ds) + (1,)
-        q = np.array(Y.shape) // np.array(ds)
-        r = np.array(Y.shape) % np.array(ds)
-        s = q * np.array(ds)
-        Y_ds = np.zeros(q + (r > 0), dtype=Y.dtype)
-        Y_ds[:q[0], :q[1], :q[2]] = (Y[:s[0], :s[1], :s[2]]
-                                     .reshape(q[0], ds[0], q[1], ds[1], q[2], ds[2])
-                                     .mean(1).mean(2).mean(3))
-        if r[0]:
-            Y_ds[-1, :q[1], :q[2]] = (Y[-r[0]:, :s[1], :s[2]]
-                                      .reshape(r[0], q[1], ds[1], q[2], ds[2])
-                                      .mean(0).mean(1).mean(2))
-            if r[1]:
-                Y_ds[-1, -1, :q[2]] = (Y[-r[0]:, -r[1]:, :s[2]]
-                                       .reshape(r[0], r[1], q[2], ds[2])
-                                       .mean(0).mean(0).mean(1))
+
+        if d == 3 and Y.shape[-1] > 1 and ds[0] == ds[1]:
+            ds_mat = caiman.source_extraction.cnmf.utilities.decimation_matrix(Y.shape[:2], ds[0])
+            Y_ds = ds_mat.dot(Y.reshape((-1, Y.shape[-1]), order='F')).reshape(
+                (1 + (Y.shape[0] - 1) // ds[0], 1 + (Y.shape[1] - 1) // ds[0], -1), order='F')
+            if ds[2] > 1:
+                Y_ds = decimate_last_axis(Y_ds, ds[2])
+        else:
+            q = np.array(Y.shape) // np.array(ds)
+            r = np.array(Y.shape) % np.array(ds)
+            s = q * np.array(ds)
+            Y_ds = np.zeros(q + (r > 0), dtype=Y.dtype)
+            Y_ds[:q[0], :q[1], :q[2]] = (Y[:s[0], :s[1], :s[2]]
+                                         .reshape(q[0], ds[0], q[1], ds[1], q[2], ds[2])
+                                         .mean(1).mean(2).mean(3))
+            if r[0]:
+                Y_ds[-1, :q[1], :q[2]] = (Y[-r[0]:, :s[1], :s[2]]
+                                          .reshape(r[0], q[1], ds[1], q[2], ds[2])
+                                          .mean(0).mean(1).mean(2))
+                if r[1]:
+                    Y_ds[-1, -1, :q[2]] = (Y[-r[0]:, -r[1]:, :s[2]]
+                                           .reshape(r[0], r[1], q[2], ds[2])
+                                           .mean(0).mean(0).mean(1))
+                    if r[2]:
+                        Y_ds[-1, -1, -1] = Y[-r[0]:, -r[1]:, -r[2]:].mean()
                 if r[2]:
-                    Y_ds[-1, -1, -1] = Y[-r[0]:, -r[1]:, -r[2]:].mean()
+                    Y_ds[-1, :q[1], -1] = (Y[-r[0]:, :s[1]:, -r[2]:]
+                                           .reshape(r[0], q[1], ds[1], r[2])
+                                           .mean(0).mean(1).mean(1))
+            if r[1]:
+                Y_ds[:q[0], -1, :q[2]] = (Y[:s[0], -r[1]:, :s[2]]
+                                          .reshape(q[0], ds[0], r[1], q[2], ds[2])
+                                          .mean(1).mean(1).mean(2))
+                if r[2]:
+                    Y_ds[:q[0], -1, -1] = (Y[:s[0]:, -r[1]:, -r[2]:]
+                                           .reshape(q[0], ds[0], r[1], r[2])
+                                           .mean(1).mean(1).mean(1))
             if r[2]:
-                Y_ds[-1, :q[1], -1] = (Y[-r[0]:, :s[1]:, -r[2]:]
-                                       .reshape(r[0], q[1], ds[1], r[2])
-                                       .mean(0).mean(1).mean(1))
-        if r[1]:
-            Y_ds[:q[0], -1, :q[2]] = (Y[:s[0], -r[1]:, :s[2]]
-                                      .reshape(q[0], ds[0], r[1], q[2], ds[2])
-                                      .mean(1).mean(1).mean(2))
-            if r[2]:
-                Y_ds[:q[0], -1, -1] = (Y[:s[0]:, -r[1]:, -r[2]:]
-                                       .reshape(q[0], ds[0], r[1], r[2])
-                                       .mean(1).mean(1).mean(1))
-        if r[2]:
-            Y_ds[:q[0], :q[1], -1] = (Y[:s[0], :s[1], -r[2]:]
-                                      .reshape(q[0], ds[0], q[1], ds[1], r[2])
-                                      .mean(1).mean(2).mean(2))
-    return Y_ds if d == 3 else (Y_ds[:, :, 0] if d == 2 else Y_ds[:, 0, 0])
+                Y_ds[:q[0], :q[1], -1] = (Y[:s[0], :s[1], -r[2]:]
+                                          .reshape(q[0], ds[0], q[1], ds[1], r[2])
+                                          .mean(1).mean(2).mean(2))
+    return Y_ds if d == 3 else Y_ds[:, :, 0]
+
 
 
 #%%
@@ -140,11 +157,25 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
                           max_iter_snmf=500, alpha_snmf=10e2, sigma_smooth_snmf=(.5, .5, .5),
                           perc_baseline_snmf=20, options_local_NMF=None, rolling_sum=False,
                           rolling_length=100, sn=None, options_total=None, min_corr=0.8, min_pnr=10,
-                          ring_size_factor=1.5, center_psf=False, ssub_B=2, init_iter=2, remove_baseline = True):
+                          ring_size_factor=1.5, center_psf=False, ssub_B=2, init_iter=2, remove_baseline = True,
+                          SC_kernel='heat', SC_sigma=1, SC_thr=0, SC_normalize=True, SC_use_NN=False,
+                          SC_nnn=20, lambda_gnmf=1):
     """
-    Initalize components
+    Initalize components. This function initializes the spatial footprints, temporal components,
+    and background which are then further refined by the CNMF iterations. There are four
+    different initialization methods depending on the data you're processing:
+        'greedy_roi': GreedyROI method used in standard 2p processing (default)
+        'corr_pnr': GreedyCorr method used for processing 1p data
+        'sparse_nmf': Sparse NMF method suitable for dendritic/axonal imaging
+        'graph_nmf': Graph NMF method also suitable for dendritic/axonal imaging
 
-    This method uses a greedy approach followed by hierarchical alternative least squares (HALS) NMF.
+    The GreedyROI method by default is not using the RollingGreedyROI method. This can
+    be changed through the binary flag 'rolling_sum'.
+
+    All the methods can be used for volumetric data except 'corr_pnr' which is only
+    available for 2D data.
+
+    It is also by default followed by hierarchical alternative least squares (HALS) NMF.
     Optional use of spatio-temporal downsampling to boost speed.
 
     Args:
@@ -185,8 +216,8 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
         img: optional [np 2d array]
             Image with which to normalize. If not present use the mean + offset
 
-        method_init: str
-            Initialization method 'greedy_roi', 'corr_pnr'. The latter can only be used for 2D data and it is compulsory for endoscopic one-photon data.
+        method_init: {'greedy_roi', 'corr_pnr', 'sparse_nmf', 'graph_nmf', 'pca_ica'}
+            Initialization method (default: 'greedy_roi')
 
         max_iter_snmf: int
             Maximum number of sparse NMF iterations
@@ -195,7 +226,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
             Sparsity penalty
 
         rolling_sum: boolean
-            Detect new components based on a rolling sum of pixel activity (default: True)
+            Detect new components based on a rolling sum of pixel activity (default: False)
 
         rolling_length: int
             Length of rolling window (default: 100)
@@ -283,15 +314,15 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
     if ssub != 1 or tsub != 1:
 
         if method == 'corr_pnr':
-            logging.info("Spatial downsampling 1-photon")
+            logging.info("Spatial/Temporal downsampling 1-photon")
             # this icrements the performance against ground truth and solves border problems
             Y_ds = downscale(Y, tuple([ssub] * len(d) + [tsub]), opencv=False)
         else:
-            logging.info("Spatial downsampling 2-photon")
+            logging.info("Spatial/Temporal downsampling 2-photon")
             # this icrements the performance against ground truth and solves border problems
             Y_ds = downscale(Y, tuple([ssub] * len(d) + [tsub]), opencv=True)
 #            mean_val = np.mean(Y)
-#            Y_ds = downscale_local_mean(Y, tuple([ssub] * len(d) + [tsub]), cval=mean_val) # this gives better results against ground truth for 2-photon datasets
+#            Y_ds = downscale_local_mean(Y, tuple([ssub] * len(d) + [tsub]), cval=mean_val)
     else:
         Y_ds = Y
 
@@ -319,6 +350,19 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
         Ain, Cin, _, b_in, f_in = sparseNMF(
             Y_ds, nr=K, nb=nb, max_iter_snmf=max_iter_snmf, alpha=alpha_snmf,
             sigma_smooth=sigma_smooth_snmf, remove_baseline=remove_baseline, perc_baseline=perc_baseline_snmf)
+
+    elif method == 'compressed_nmf':
+        Ain, Cin, _, b_in, f_in = compressedNMF(
+            Y_ds, nr=K, nb=nb, max_iter_snmf=max_iter_snmf,
+            sigma_smooth=sigma_smooth_snmf, remove_baseline=remove_baseline, perc_baseline=perc_baseline_snmf)
+
+    elif method == 'graph_nmf':
+        Ain, Cin, _, b_in, f_in = graphNMF(
+            Y_ds, nr=K, nb=nb, max_iter_snmf=max_iter_snmf, lambda_gnmf=lambda_gnmf,
+            sigma_smooth=sigma_smooth_snmf, remove_baseline=remove_baseline,
+            perc_baseline=perc_baseline_snmf, SC_kernel=SC_kernel,
+            SC_sigma=SC_sigma, SC_use_NN=SC_use_NN, SC_nnn=SC_nnn,
+            SC_normalize=SC_normalize, SC_thr=SC_thr)
 
     elif method == 'pca_ica':
         Ain, Cin, _, b_in, f_in = ICA_PCA(
@@ -393,7 +437,6 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
 
     if Ain.size > 0:
         Cin = resize(Cin, [K, T])
-
         center = np.asarray(
             [center_of_mass(a.reshape(d, order='F')) for a in Ain.T])
     else:
@@ -475,7 +518,6 @@ def ICA_PCA(Y_ds, nr, sigma_smooth=(.5, .5, .5), truncate=2, fun='logcosh',
 
     model = NMF(n_components=nb, init='random', random_state=0)
 
-
     b_in = model.fit_transform(np.maximum(m1, 0)).astype(np.float32)
     f_in = model.components_.astype(np.float32)
 
@@ -489,6 +531,12 @@ def sparseNMF(Y_ds, nr, max_iter_snmf=500, alpha=10e2, sigma_smooth=(.5, .5, .5)
     Initialization using sparse NMF
 
     Args:
+        Y_ds: nd.array or movie (T, x, y [,z])
+            data
+
+        nr: int
+            number of components
+
         max_iter_snm: int
             number of iterations
 
@@ -506,8 +554,8 @@ def sparseNMF(Y_ds, nr, max_iter_snmf=500, alpha=10e2, sigma_smooth=(.5, .5, .5)
 
     Returns:
         A: np.array
-            2d array of size (# of pixels) x nr with the spatial components. Each column is
-            ordered columnwise (matlab format, order='F')
+            2d array of size (# of pixels) x nr with the spatial components.
+            Each column is ordered columnwise (matlab format, order='F')
 
         C: np.array
             2d array of size nr X T with the temporal components
@@ -517,7 +565,8 @@ def sparseNMF(Y_ds, nr, max_iter_snmf=500, alpha=10e2, sigma_smooth=(.5, .5, .5)
     """
 
     m = scipy.ndimage.gaussian_filter(np.transpose(
-        Y_ds, [2, 0, 1]), sigma=sigma_smooth, mode='nearest', truncate=truncate)
+        Y_ds, np.roll(np.arange(Y_ds.ndim), 1)), sigma=sigma_smooth,
+        mode='nearest', truncate=truncate)
     if remove_baseline:
         logging.info('REMOVING BASELINE')
         bl = np.percentile(m, perc_baseline, axis=0)
@@ -527,11 +576,11 @@ def sparseNMF(Y_ds, nr, max_iter_snmf=500, alpha=10e2, sigma_smooth=(.5, .5, .5)
         bl = np.zeros(m.shape[1:])
         m1 = m
 
-    T, d1, d2 = np.shape(m1)
-    d = d1 * d2
+    T, dims = m1.shape[0], m1.shape[1:]
+    d = np.prod(dims)
     yr = np.reshape(m1, [T, d], order='F')
     mdl = NMF(n_components=nr, verbose=False, init='nndsvd', tol=1e-10,
-          max_iter=max_iter_snmf, shuffle=False, alpha=alpha, l1_ratio=1)
+              max_iter=max_iter_snmf, shuffle=False, alpha=alpha, l1_ratio=1)
     C = mdl.fit_transform(yr).T
     A = mdl.components_.T
     A_in = A
@@ -542,7 +591,122 @@ def sparseNMF(Y_ds, nr, max_iter_snmf=500, alpha=10e2, sigma_smooth=(.5, .5, .5)
                 random_state=0, max_iter=max_iter_snmf)
     b_in = model.fit_transform(np.maximum(m1, 0)).astype(np.float32)
     f_in = model.components_.astype(np.float32)
-    center = caiman.base.rois.com(A_in, d1, d2)
+    center = caiman.base.rois.com(A_in, *dims)
+
+    return A_in, C_in, center, b_in, f_in
+
+
+def compressedNMF(Y_ds, nr, r_ov=10, max_iter_snmf=500,
+                  sigma_smooth=(.5, .5, .5), remove_baseline=True,
+                  perc_baseline=20, nb=1, truncate=2, tol=1e-3):
+    m = scipy.ndimage.gaussian_filter(np.transpose(
+            Y_ds, np.roll(np.arange(Y_ds.ndim), 1)), sigma=sigma_smooth,
+            mode='nearest', truncate=truncate)
+    if remove_baseline:
+        logging.info('REMOVING BASELINE')
+        bl = np.percentile(m, perc_baseline, axis=0)
+        m = np.maximum(0, m - bl)
+    else:
+        logging.info('NOT REMOVING BASELINE')
+        bl = np.zeros(m.shape[1:])
+
+    T, dims = m.shape[0], m.shape[1:]
+    d = np.prod(dims)
+    yr = np.reshape(m, [T, d], order='F')
+    A, C, USV = nnsvd_init(yr, nr, r_ov=r_ov)    
+    W_r = np.random.randn(d, nr + r_ov)
+    W_l = np.random.randn(T, nr + r_ov)
+    US = USV[0]*USV[1]
+    YYt = US.dot(USV[2].dot(USV[2].T)).dot(US.T)
+#    YYt = yr.dot(yr.T)
+
+    B = YYt.dot(YYt.dot(US.dot(USV[2].dot(W_r))))
+    PC, _ = np.linalg.qr(B)
+
+    B = USV[2].T.dot(US.T.dot(YYt.dot(YYt.dot(W_l))))
+    PA, _ = np.linalg.qr(B)
+#    mdl = NMF(n_components=nr, verbose=False, init='nndsvd', tol=1e-10,
+#              max_iter=1)
+#    C = mdl.fit_transform(yr).T
+#    A = mdl.components_.T
+
+    yrPA = yr.dot(PA)
+    yrPC = PC.T.dot(yr)
+    for it in range(max_iter_snmf):
+
+        C__ = C.copy()
+        A__ = A.copy()
+        C_ = C.dot(PC)
+        A_ = PA.T.dot(A)
+
+        C = C*(yrPA.dot(A_)/(C.T.dot(A_.T.dot(A_))+np.finfo(C.dtype).eps)).T
+        A = A*(yrPC.T.dot(C_.T))/(A.dot(C_.dot(C_.T)) +  np.finfo(C.dtype).eps)
+        nA = np.sqrt((A**2).sum(0))
+        A /= nA
+        C *= nA[:, np.newaxis]
+        if (np.linalg.norm(C - C__)/np.linalg.norm(C__) < tol) & (np.linalg.norm(A - A__)/np.linalg.norm(A__) < tol):
+            logging.info('Graph NMF converged after {} iterations'.format(it+1))
+            break
+    A_in = A
+    C_in = C
+
+    m1 = yr.T - A_in.dot(C_in) + np.maximum(0, bl.flatten(order='F'))[:, np.newaxis]
+    model = NMF(n_components=nb, init='random',
+                random_state=0, max_iter=max_iter_snmf)
+    b_in = model.fit_transform(np.maximum(m1, 0)).astype(np.float32)
+    f_in = model.components_.astype(np.float32)
+    center = caiman.base.rois.com(A_in, *dims)
+
+    return A_in, C_in, center, b_in, f_in
+
+
+def graphNMF(Y_ds, nr, max_iter_snmf=500, lambda_gnmf=1,
+             sigma_smooth=(.5, .5, .5), remove_baseline=True,
+             perc_baseline=20, nb=1, truncate=2, tol=1e-3, SC_kernel='heat',
+             SC_normalize=True, SC_thr=0, SC_sigma=1, SC_use_NN=False,
+             SC_nnn=20):
+    m = scipy.ndimage.gaussian_filter(np.transpose(
+    Y_ds, np.roll(np.arange(Y_ds.ndim), 1)), sigma=sigma_smooth,
+    mode='nearest', truncate=truncate)
+    if remove_baseline:
+        logging.info('REMOVING BASELINE')
+        bl = np.percentile(m, perc_baseline, axis=0)
+        m1 = np.maximum(0, m - bl)
+    else:
+        logging.info('NOT REMOVING BASELINE')
+        bl = np.zeros(m.shape[1:])
+        m1 = m
+    T, dims = m1.shape[0], m1.shape[1:]
+    d = np.prod(dims)
+    yr = np.reshape(m1, [T, d], order='F')
+    mdl = NMF(n_components=nr, verbose=False, init='nndsvd', tol=1e-10,
+              max_iter=5)
+    C = mdl.fit_transform(yr).T
+    A = mdl.components_.T
+    W = caiman.source_extraction.cnmf.utilities.fast_graph_Laplacian_patches(
+            [np.reshape(m, [T, d], order='F').T, [], 'heat', SC_sigma, SC_thr,
+             SC_nnn, SC_normalize, SC_use_NN])
+    D = scipy.sparse.spdiags(W.sum(0), 0, W.shape[0], W.shape[0])
+    for it in range(max_iter_snmf):
+        C_ = C.copy()
+        A_ = A.copy()
+        C = C*(yr.dot(A)/(C.T.dot(A.T.dot(A))+np.finfo(C.dtype).eps)).T
+        A = A*(yr.T.dot(C.T) + lambda_gnmf*(W.dot(A)))/(A.dot(C.dot(C.T)) + lambda_gnmf*D.dot(A) + np.finfo(C.dtype).eps)
+        nA = np.sqrt((A**2).sum(0))
+        A /= nA
+        C *= nA[:, np.newaxis]
+        if (np.linalg.norm(C - C_)/np.linalg.norm(C_) < tol) & (np.linalg.norm(A - A_)/np.linalg.norm(A_) < tol):
+            logging.info('Graph NMF converged after {} iterations'.format(it+1))
+            break
+    A_in = A
+    C_in = C
+
+    m1 = yr.T - A_in.dot(C_in) + np.maximum(0, bl.flatten(order='F'))[:, np.newaxis]
+    model = NMF(n_components=nb, init='random',
+                random_state=0, max_iter=max_iter_snmf)
+    b_in = model.fit_transform(np.maximum(m1, 0)).astype(np.float32)
+    f_in = model.components_.astype(np.float32)
+    center = caiman.base.rois.com(A_in, *dims)
 
     return A_in, C_in, center, b_in, f_in
 
@@ -687,10 +851,10 @@ def finetune(Y, cin, nIter=5):
 
     Args:
         Y:  D1*d2*T*K patches
-    
+
         c: array T*K
             the inital calcium traces
-    
+
         nIter: int
             True indicates that time is listed in the last axis of Y (matlab format)
             and moves it in the front
@@ -837,7 +1001,7 @@ def hals(Y, A, C, b, f, bSiz=3, maxIter=5):
     nb = b.shape[1]  # number of background components
     if bSiz is not None:
         if isinstance(bSiz, (int, float)):
-	   	     bSiz = [bSiz] * len(dims)
+             bSiz = [bSiz] * len(dims)
         ind_A = nd.filters.uniform_filter(np.reshape(A,
                 dims + (K,), order='F'), size=bSiz + [0])
         ind_A = np.reshape(ind_A > 1e-10, (np.prod(dims), K), order='F')
@@ -999,7 +1163,7 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
         # 1st iteration on decimated data
         logging.info('Merging components')
         A, C = caiman.source_extraction.cnmf.merging.merge_components(
-            B, A, [], C, [], C, [], o, options['spatial_params'],
+            B, A, [], C, None, [], C, [], o, options['spatial_params'],
             dview=None, thr=options['merging']['merge_thr'], mx=np.Inf, fast_merge=True)[:2]
         A = A.astype(np.float32)
         C = C.astype(np.float32)
@@ -1021,7 +1185,7 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
         logging.info('Recomputing background')
         # background according to ringmodel
         W, b0 = compute_W(Y_ds.reshape((-1, total_frames), order='F'),
-                          A.toarray(), C, (d1, d2), ring_size_factor * gSiz, ssub=ssub_B)
+                          A, C, (d1, d2), ring_size_factor * gSiz, ssub=ssub_B)
 
         # 2nd iteration on non-decimated data
         K = C.shape[0]
@@ -1048,7 +1212,7 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
 
         logging.info('Merging components')
         A, C = caiman.source_extraction.cnmf.merging.merge_components(
-            B, A, [], C, [], C, [], o, options['spatial_params'],
+            B, A, [], C, None, [], C, [], o, options['spatial_params'],
             dview=None, thr=options['merging']['merge_thr'], mx=np.Inf, fast_merge=True)[:2]
         A = A.astype(np.float32)
         C = C.astype(np.float32)
@@ -1091,13 +1255,13 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
         if nb == 0:
             logging.info('Returning background as b0 and W')
             return (A, C, center.T, b_in.astype(np.float32), f_in.astype(np.float32),
-                    (S.astype(np.float32), bl, c1, neurons_sn, g1, YrA,
+                    (S.astype(np.float32), bl, c1, neurons_sn, g1, YrA, lam__,
                      W, b0))
         else:
             logging.info("Not returning background")
     return (A, C, center.T, b_in.astype(np.float32), f_in.astype(np.float32),
             None if ring_size_factor is None else
-            (S.astype(np.float32), bl, c1, neurons_sn, g1, YrA))
+            (S.astype(np.float32), bl, c1, neurons_sn, g1, YrA, lam__))
 
 
 @profile
@@ -1495,6 +1659,7 @@ def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
     return A, C, C_raw, S, center
 
 
+@profile
 def extract_ac(data_filtered, data_raw, ind_ctr, patch_dims):
     # parameters
     min_corr_neuron = 0.9  # 7
@@ -1529,7 +1694,8 @@ def extract_ac(data_filtered, data_raw, ind_ctr, patch_dims):
     Xy = np.dot(X.T, data_raw)
     try:
         #ai = np.linalg.inv(XX).dot(Xy)[0]
-        ai = np.linalg.solve(XX, Xy)[0]
+        # ai = np.linalg.solve(XX, Xy)[0]
+        ai = pd_solve(XX, Xy)[0]
     except:
         ai = scipy.linalg.lstsq(XX, Xy)[0][0]
     ai = ai.reshape(patch_dims)
@@ -1551,7 +1717,7 @@ def extract_ac(data_filtered, data_raw, ind_ctr, patch_dims):
 
 
 @profile
-def compute_W(Y, A, C, dims, radius, data_fits_in_memory=True, ssub=1, tsub=1):
+def compute_W(Y, A, C, dims, radius, data_fits_in_memory=True, ssub=1, tsub=1, parallel=False):
     """compute background according to ring model
     solves the problem
         min_{W,b0} ||X-W*X|| with X = Y - A*C - b0*1'
@@ -1577,6 +1743,8 @@ def compute_W(Y, A, C, dims, radius, data_fits_in_memory=True, ssub=1, tsub=1):
             spatial downscale factor
         tsub: int
             temporal downscale factor
+        parallel: bool
+            If true, use multiprocessing to process pixels in parallel
 
     Returns:
         W: scipy.sparse.csr_matrix (pixels x pixels)
@@ -1585,6 +1753,11 @@ def compute_W(Y, A, C, dims, radius, data_fits_in_memory=True, ssub=1, tsub=1):
             estimate of constant background baselines
     """
 
+    if current_process().name != 'MainProcess':
+        # no parallelization over pixels if already processing patches in parallel
+        parallel = False
+
+    T = Y.shape[1]
     d1 = (dims[0] - 1) // ssub + 1
     d2 = (dims[1] - 1) // ssub + 1
 
@@ -1611,8 +1784,8 @@ def compute_W(Y, A, C, dims, radius, data_fits_in_memory=True, ssub=1, tsub=1):
         if ssub == 1 and tsub == 1:
             X = Y - A.dot(C) - b0[:, None]
         else:
-            X = downscale(ds(Y), (1, tsub)) - \
-                (ds(A).dot(downscale(C, (1, tsub))) if A.size > 0 else 0) - \
+            X = decimate_last_axis(ds(Y), tsub) - \
+                (ds(A).dot(decimate_last_axis(C, tsub)) if A.size > 0 else 0) - \
                 ds(b0).reshape((-1, 1), order='F')
 
         def process_pixel(p):
@@ -1621,7 +1794,7 @@ def compute_W(Y, A, C, dims, radius, data_fits_in_memory=True, ssub=1, tsub=1):
             tmp = np.array(B.dot(B.T))
             tmp[np.diag_indices(len(tmp))] += np.trace(tmp) * 1e-5
             tmp2 = X[p]
-            data = dpotrs(dpotrf(tmp)[0], B.dot(tmp2))[0]
+            data = pd_solve(tmp, B.dot(tmp2))
             return index, data
     else:
 
@@ -1630,21 +1803,21 @@ def compute_W(Y, A, C, dims, radius, data_fits_in_memory=True, ssub=1, tsub=1):
             if ssub == 1 and tsub == 1:
                 B = Y[index] - A[index].dot(C) - b0[index, None]
             else:
-                B = downscale(ds(Y), (1, tsub))[index] - \
-                    (ds(A)[index].dot(downscale(C, (1, tsub))) if A.size > 0 else 0) - \
+                B = decimate_last_axis(ds(Y), tsub)[index] - \
+                    (ds(A)[index].dot(decimate_last_axis(C, tsub)) if A.size > 0 else 0) - \
                     ds(b0).reshape((-1, 1), order='F')[index]
             tmp = np.array(B.dot(B.T))
             tmp[np.diag_indices(len(tmp))] += np.trace(tmp) * 1e-5
             if ssub == 1 and tsub == 1:
                 tmp2 = Y[p] - A[p].dot(C).ravel() - b0[p]
             else:
-                tmp2 = downscale(ds(Y), (1, tsub))[p] - \
-                    (ds(A)[p].dot(downscale(C, (1, tsub))) if A.size > 0 else 0) - \
+                tmp2 = decimate_last_axis(ds(Y), tsub)[p] - \
+                    (ds(A)[p].dot(decimate_last_axis(C, tsub)) if A.size > 0 else 0) - \
                     ds(b0).reshape((-1, 1), order='F')[p]
-            data = dpotrs(dpotrf(tmp)[0], B.dot(tmp2))[0]
+            data = pd_solve(tmp, B.dot(tmp2))
             return index, data
 
-    Q = list(map(process_pixel, range(d1 * d2)))
+    Q = list((parmap if parallel else map)(process_pixel, range(d1 * d2)))
     indices, data = np.transpose(Q)
     indptr = np.concatenate([[0], np.cumsum(list(map(len, indices)))])
     indices = np.concatenate(indices)
@@ -1652,9 +1825,9 @@ def compute_W(Y, A, C, dims, radius, data_fits_in_memory=True, ssub=1, tsub=1):
     return spr.csr_matrix((data, indices, indptr), dtype='float32'), b0.astype(np.float32)
 
 #%%
-def nnsvd_init(X,n_components,eps=1e-6,random_state=None):
-    # NNDSVD initialization from scikit learn package
-    U, S, V = randomized_svd(X, n_components, random_state=random_state)
+def nnsvd_init(X, n_components, r_ov=10, eps=1e-6, random_state=42):
+    # NNDSVD initialization from scikit learn package (modified)
+    U, S, V = randomized_svd(X, n_components + r_ov, random_state=random_state)
     W, H = np.zeros(U.shape), np.zeros(V.shape)
 
     # The leading singular triplet is non-negative
@@ -1694,7 +1867,7 @@ def nnsvd_init(X,n_components,eps=1e-6,random_state=None):
 
     C = W.T
     A = H.T
-    return A,C #
+    return A[:, 1:n_components], C[:n_components], (U, S, V) #
 #%%
 def norm(x):
     """Dot product-based Euclidean norm implementation

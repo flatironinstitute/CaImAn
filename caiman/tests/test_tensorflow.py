@@ -12,7 +12,7 @@ import os
 import numpy as np
 try:
     os.environ["KERAS_BACKEND"] = "tensorflow"
-    from keras.models import model_from_json
+    from tensorflow.keras.models import model_from_json
     use_keras = True
 except(ModuleNotFoundError):
     import tensorflow as tf
@@ -36,7 +36,7 @@ def test_tf():
             model_file = model_name + ".h5.pb"
             loaded_model = load_graph(model_file)
     except:
-        raise('NN model could not be loaded. use_keras = ' + str(use_keras))
+        raise Exception('NN model could not be loaded. use_keras = ' + str(use_keras))
 
     A = np.random.randn(10, 50, 50, 1)
     try:
@@ -49,4 +49,4 @@ def test_tf():
                 predictions = sess.run(tf_out, feed_dict={tf_in: A})
         pass
     except:
-        raise('NN model could not be deployed. use_keras = ' + str(use_keras))
+        raise Exception('NN model could not be deployed. use_keras = ' + str(use_keras))

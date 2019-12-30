@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-
 """
 Spyder Editor
 
@@ -74,14 +73,12 @@ class trace(ts.timeseries):
         window = int(window_sec * self.fr)
         logging.debug(window)
         if window >= T:
-            raise ValueError(
-                "The window must be shorter than the total length")
+            raise ValueError("The window must be shorter than the total length")
 
         tracesDFF = []
         for tr in self.T:
             logging.debug("TR Shape is " + str(tr.shape))
-            traceBL = [np.percentile(tr[i:i + window], minQuantile)
-                       for i in range(1, len(tr) - window)]
+            traceBL = [np.percentile(tr[i:i + window], minQuantile) for i in range(1, len(tr) - window)]
             missing = np.percentile(tr[-window:], minQuantile)
             missing = np.repeat(missing, window + 1)
             traceBL = np.concatenate((traceBL, missing))
@@ -139,6 +136,7 @@ class trace(ts.timeseries):
 
     def extract_epochs(self, trigs=None, tb=1, ta=1):
         raise Exception('Not Implemented. Look at movie resize')
+
 
 if __name__ == "__main__":
     tracedata = trace(3 + np.random.random((2000, 4)), fr=30, start_time=0)

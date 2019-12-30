@@ -7,7 +7,7 @@ Created on Mon Oct  2 16:02:27 2017
 @author: agiovann
 """
 
-% % LOAD DATA
+#% % LOAD DATA
 params_display = {
     'downsample_ratio': .2,
     'thr_plot': 0.8

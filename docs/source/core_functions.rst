@@ -6,29 +6,17 @@ Functions that are required to operate the package at a basic level
 .. autosummary::
 
    caiman.source_extraction.cnmf.CNMF
-
    caiman.source_extraction.cnmf.CNMF.fit
-
    caiman.source_extraction.cnmf.online_cnmf.OnACID
-
    caiman.source_extraction.cnmf.online_cnmf.OnACID.fit_online
-
-   caiman.source_extraction.cnmf.params.CNMFParams.__init__
-
+   caiman.source_extraction.cnmf.params.CNMFParams
    caiman.source_extraction.cnmf.estimates.Estimates
-
    caiman.motion_correction.MotionCorrect
-
    caiman.motion_correction.MotionCorrect.motion_correct
-
    caiman.base.movies.load
-
    caiman.base.movies.movie.play
-
    caiman.base.rois.register_ROIs
-
    caiman.base.rois.register_multisession
-
    caiman.source_extraction.cnmf.utilities.detrend_df_f
 
 
@@ -51,37 +39,6 @@ Timeseries Handling
 
 .. autoclass:: timeseries
 .. automethod:: timeseries.save
-.. autofunction:: concatenate
-
-ROIs
----------------
-
-.. currentmodule:: caiman.base.rois
-
-.. autofunction:: register_ROIs
-.. autofunction:: register_multisession
-.. autofunction:: com
-.. autofunction:: extract_binary_masks_from_structural_channel
-
-
-Memory mapping
----------------
-
-.. currentmodule:: caiman.mmapping
-
-.. autofunction:: load_memmap
-.. autofunction:: save_memmap_join
-.. autofunction:: save_memmap
-
-
-Image statistics
------------------
-
-.. currentmodule:: caiman.summary_images
-
-.. autofunction:: local_correlations
-.. autofunction:: max_correlation_image
-.. autofunction:: correlation_pnr
 
 
 Motion Correction
@@ -94,8 +51,8 @@ Motion Correction
 .. automethod:: MotionCorrect.motion_correct_rigid
 .. automethod:: MotionCorrect.motion_correct_pwrigid
 .. automethod:: MotionCorrect.apply_shifts_movie
-.. autofunction:: motion_correct_oneP_rigid
-.. autofunction:: motion_correct_oneP_nonrigid
+.. automethod:: motion_correct_oneP_rigid
+.. automethod:: motion_correct_oneP_nonrigid
 
 
 Estimates
@@ -105,10 +62,12 @@ Estimates
 
 .. autoclass:: Estimates
 .. automethod:: Estimates.compute_residuals
+.. automethod:: Estimates.deconvolve
 .. automethod:: Estimates.detrend_df_f
 .. automethod:: Estimates.evaluate_components
 .. automethod:: Estimates.evaluate_components_CNN
 .. automethod:: Estimates.filter_components
+.. automethod:: Estimates.hv_view_components
 .. automethod:: Estimates.nb_view_components
 .. automethod:: Estimates.nb_view_components_3d
 .. automethod:: Estimates.normalize_components
@@ -116,7 +75,10 @@ Estimates
 .. automethod:: Estimates.plot_contours
 .. automethod:: Estimates.plot_contours_nb
 .. automethod:: Estimates.remove_duplicates
+.. automethod:: Estimates.remove_small_large_neurons
 .. automethod:: Estimates.select_components
+.. automethod:: Estimates.restore_discarded_components
+.. automethod:: Estimates.save_NWB
 .. automethod:: Estimates.view_components
 
 Deconvolution
@@ -134,10 +96,13 @@ Parameter Setting
 .. currentmodule:: caiman.source_extraction.cnmf.params
 
 .. autoclass:: CNMFParams
+.. automethod:: CNMFParams.__init__
 .. automethod:: CNMFParams.set
 .. automethod:: CNMFParams.get
 .. automethod:: CNMFParams.get_group
 .. automethod:: CNMFParams.change_params
+.. automethod:: CNMFParams.to_dict
+
 
 CNMF
 ---------------
@@ -174,6 +139,7 @@ Online CNMF (OnACID)
 .. automethod:: OnACID.initialize_online
 .. autofunction:: load_OnlineCNMF
 
+
 Preprocessing
 ---------------
 .. currentmodule:: caiman.source_extraction.cnmf.pre_processing
@@ -186,6 +152,10 @@ Initialization
 .. currentmodule:: caiman.source_extraction.cnmf.initialization
 
 .. autofunction:: initialize_components
+.. autofunction:: greedyROI
+.. autofunction:: greedyROI_corr
+.. autofunction:: graphNMF
+.. autofunction:: sparseNMF
 
 
 Spatial Components
@@ -216,6 +186,37 @@ Utilities
 .. autofunction:: detrend_df_f
 .. autofunction:: update_order
 .. autofunction:: get_file_size
+
+
+ROIs
+---------------
+
+.. currentmodule:: caiman.base.rois
+
+.. autofunction:: register_ROIs
+.. autofunction:: register_multisession
+.. autofunction:: com
+.. autofunction:: extract_binary_masks_from_structural_channel
+
+
+Memory mapping
+---------------
+
+.. currentmodule:: caiman.mmapping
+
+.. autofunction:: load_memmap
+.. autofunction:: save_memmap_join
+.. autofunction:: save_memmap
+
+
+Image statistics
+-----------------
+
+.. currentmodule:: caiman.summary_images
+
+.. autofunction:: local_correlations
+.. autofunction:: max_correlation_image
+.. autofunction:: correlation_pnr
 
 
 Parallel Processing functions

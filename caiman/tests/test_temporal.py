@@ -10,6 +10,7 @@ def test_make_G_matrix():
     T = 6
     G = cnmf.temporal.make_G_matrix(T, g)
     G = G.todense()
+    # yapf: disable
     true_G = np.matrix(
         [[1., 0., 0., 0., 0., 0.],
          [-1., 1., 0., 0., 0., 0.],
@@ -17,5 +18,6 @@ def test_make_G_matrix():
          [-3., -2., -1., 1., 0., 0.],
          [0., -3., -2., -1., 1., 0.],
          [0., 0., -3., -2., -1., 1.]])
+    # yapf: enable
 
     npt.assert_allclose(G, true_G)
