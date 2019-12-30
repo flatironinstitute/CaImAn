@@ -37,9 +37,9 @@ A paper explaining most of the implementation details and benchmarking can be fo
 
 All the results and figures of the paper can be regenerated using this package. For more information visit this [page](https://github.com/flatironinstitute/CaImAn/tree/master/use_cases/eLife_scripts).
 
-## New: Voltage Imaging (June 2019)
+## New: Analysis of Voltage Imaging data (December 2019)
 
-We recently added the code for analyzing voltage imaging data. The analysis is based on following objects:
+We recently added VolPy for analyzing voltage imaging data. The analysis is based on following objects:
 
 * `volparams`: An object for setting parameters of voltage imaging. It can be set and changed easily and is passed into the algorithms.
 * `MotionCorrect`: An object for motion correction which can be used for both rigid and piece-wise rigid motion correction.

@@ -193,7 +193,7 @@ class MotionCorrect(object):
         self.num_splits_to_process_rig = num_splits_to_process_rig
         self.strides = strides
         self.overlaps = overlaps
-        self.splits_els = splits_els 
+        self.splits_els = splits_els
         self.num_splits_to_process_els = num_splits_to_process_els
         self.upsample_factor_grid = upsample_factor_grid
         self.max_deviation_rigid = max_deviation_rigid

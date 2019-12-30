@@ -186,7 +186,6 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
         Y, A_in, b_in, C, f, nb, method_exp, dims, min_size, max_size, dist, expandCore, dview)
     
     # remove components that have a nan
-
     ff = np.where(np.isnan(np.sum(C, axis=1)))
     if np.size(ff) > 0:
         logging.info("Eliminating nan components: {}".format(ff))
@@ -202,7 +201,6 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
         A_in = csc_column_remove(A_in, list(ff))
         C = np.delete(C, list(ff), 0)
 
-
     if normalize_yyt_one and C is not None:
         C = np.array(C)
         nr_C = np.shape(C)[0]
@@ -212,13 +210,6 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
         C = C + np.ones(C.shape) * 0.000001
         C = old_div(C, np.sqrt(np.sum(C ** 2, 1)[:, np.newaxis]))
 
-
-    print(C.shape)
-#    if np.isnan(C.sum()):
-#        import pdb
-#        pdb.set_trace()
-    
-    
     if b_in is None:
         b_in = b_
 
@@ -230,9 +221,6 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
     # we create a pixel group array (chunks for the cnmf)for the parrallelization of the process
     logging.info('Updating Spatial Components using lasso lars')
     cct = np.diag(C.dot(C.T))
-#    if np.isnan(cct.sum()):
-#        import pdb
-#        pdb.set_trace()
     pixel_groups = []
     for i in range(0, np.prod(dims) - n_pixels_per_process + 1, n_pixels_per_process):
         pixel_groups.append([Y_name, C_name, sn, ind2_[i:i + n_pixels_per_process], list(
@@ -250,12 +238,6 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
                 regression_ipyparallel, pixel_groups)
             dview.results.clear()
     else:
-        try:
-            list(map(regression_ipyparallel, pixel_groups))
-        except:
-            import pdb
-            pdb.set_trace()
-
         parallel_result = list(map(regression_ipyparallel, pixel_groups))
     data:List = []
     rows:List = []
@@ -409,12 +391,6 @@ def regression_ipyparallel(pars):
     _, T = np.shape(C)  # initialize values
     As = []
     for y, px, idx_px_from_0 in zip(Y, idxs_Y, range(len(idxs_C))):
-        try:
-            c = C[idxs_C[idx_px_from_0], :]
-        except:
-            import pdb
-            pdb.set_trace()
-
         c = C[idxs_C[idx_px_from_0], :]
         idx_only_neurons = idxs_C[idx_px_from_0]
         if len(idx_only_neurons) > 0:
@@ -439,7 +415,6 @@ def regression_ipyparallel(pars):
 #                clf = linear_model.Lasso(alpha=lambda_lasso, positive=True,
 #                                         fit_intercept=True, normalize=True,
 #                                         selection='random')
-
                 a_lrs = clf.fit(np.array(c.T), np.ravel(y))
                 a = a_lrs.coef_
 

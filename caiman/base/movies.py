@@ -702,25 +702,7 @@ class movie(ts.timeseries):
     def compute_BL(self, secsWindow: int = 5, quantilMin: int = 8, method: str = 'only_baseline', order: str = 'F') -> \
     Tuple[Any, Any]:
         """
-        compute the DFF of the movie or remove baseline
-
-        In order to compute the baseline frames are binned according to the window length parameter
-        and then the intermediate values are interpolated.
-
-        Args:
-            secsWindow: length of the windows used to compute the quantile
-
-            quantilMin : value of the quantile
-
-            method='only_baseline','delta_f_over_f','delta_f_over_sqrt_f'
-
-        Returns:
-            self: DF or DF/F or DF/sqrt(F) movies
-
-            movBL=baseline movie
-
-        Raises:
-            Exception 'Unknown method'
+        compute the baseline of the movie using less memory
         """
         logging.debug("computing minimum ...")
         sys.stdout.flush()
@@ -1788,8 +1770,7 @@ def load(file_name: Union[str, List[str]],
                 input_arr = np.array(dataset.sequences[0])[subindices, :, :, :, :].squeeze()
 
         else:
-
-            raise Exception('Unknown file type:' )
+            raise Exception('Unknown file type')
     else:
         logging.error(f"File request:[{file_name}] not found!")
         raise Exception('File not found!')
@@ -1836,7 +1817,6 @@ def load_movie_chain(file_list: List[str],
 
     """
     mov = []
-
     for f in tqdm(file_list):
         m = load(f,
                  fr=fr,
