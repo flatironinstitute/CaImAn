@@ -222,8 +222,8 @@ def volspike(pars):
     # output
     output['cellN'] = cellN
     output['spikeTimes'] = super_times1 if not_active else super_times2
-    output['num_spikes'] = output['spikeTimes'].shape[0]
-    output['yFilt'] = np.zeros(norm_tcourse1.shape) if not_active else norm_tcourse2
+    output['num_spikes'] = 0 if not_active else output['spikeTimes'].shape[0]
+    output['yFilt'] = np.zeros(norm_tcourse1.shape) if not_active else 1 - norm_tcourse2
     output['templates'] = kernel1 if not_active else kernel2
     output['snr'] = 0. if not_active else SN[1]
     output['weights'] = np.zeros(weight_init.shape) if not_active else W
@@ -476,7 +476,7 @@ def get_kernel(trace, spiketimes, windowLength, spikesizes=None, superfactor=1, 
         #     indptr[tau4lastspike:] -= np.arange(len(indptr[tau4lastspike:]))
         ss = csr_matrix((data, indices, indptr), (tau * superfactor,
                                                   t + windowLength), dtype=np.float32)
-        ssm = ss - ss.mean() if b else ss
+        ssm = ss.toarray() - ss.mean() if b else ss
         return lsqr(ssm.T, np.hstack([np.zeros(windowLength, dtype=np.float32),
                                       trace.astype(np.float32)]))[0]
 
