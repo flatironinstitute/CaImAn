@@ -216,13 +216,12 @@ def main():
     
     # %% set to rois
         opts.change_params(params_dict={'ROIs':ROIs_mrcnn,
-                                        'method':'SpikePursuit',
-                                        'Ridge_bg_coef':0.5,  
-                                        'index':list(range(ROIs_mrcnn.shape[0]))})
+                                        'index':list(range(ROIs_mrcnn.shape[0])),
+                                        'method':'SpikePursuit'})
 
-    # %% SpikePursuit
+    # %% Spike Extraction
     c, dview, n_processes = cm.cluster.setup_cluster(
-            backend='local', n_processes=n_processes, single_thread=False)
+            backend='local', n_processes=n_processes, single_thread=False, maxtasksperchild=1)
     vpy = VOLPY(n_processes=n_processes, dview=dview, params=opts)
     vpy.fit(n_processes=n_processes, dview=dview)
 

@@ -605,12 +605,7 @@ class Estimates(object):
         Y_rec = Y_rec.transpose([2, 0, 1])
         if self.W is not None:
             ssub_B = int(round(np.sqrt(np.prod(dims) / self.W.shape[0])))
-<<<<<<< HEAD
-            B = imgs[frame_range].reshape((-1, np.prod(dims)), order='F').T - \
-                self.A.dot(self.C[:, frame_range]+self.YrA[:, frame_range])
-=======
             B = imgs.reshape((-1, np.prod(dims)), order='F').T - AC
->>>>>>> 7148a1c5f9de4726706c50fa92ae48e65dd3f282
             if ssub_B == 1:
                 B = self.b0[:, None] + self.W.dot(B - self.b0[:, None])
             else:

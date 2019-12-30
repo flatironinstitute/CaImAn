@@ -302,12 +302,15 @@ def volspike(pars):
             else:
                 b = LinearRegression(fit_intercept=False).fit(Ub, X).coef_
             
+            """
             if doPlot:
                 plt.figure()
                 plt.plot(X)
                 plt.plot(np.matmul(Ub, b))
                 plt.title('Denoised trace vs background')
                 plt.show()
+            """
+            
             X = X - np.matmul(Ub, b)
        
             # correct shrinkage

@@ -434,16 +434,12 @@ def regression_ipyparallel(pars):
             elif method_least_square == 'lasso_lars':  # lasso lars function from scikit learn
                 lambda_lasso = 0 if np.size(cct_) == 0 else \
                     .5 * noise_sn[px] * np.sqrt(np.max(cct_)) / T
-<<<<<<< HEAD
-                clf = linear_model.LassoLars(alpha=lambda_lasso, positive=True, fit_intercept=True)
-
-=======
                 clf = linear_model.LassoLars(alpha=lambda_lasso, positive=True,
                                              fit_intercept=True)
 #                clf = linear_model.Lasso(alpha=lambda_lasso, positive=True,
 #                                         fit_intercept=True, normalize=True,
 #                                         selection='random')
->>>>>>> 7148a1c5f9de4726706c50fa92ae48e65dd3f282
+
                 a_lrs = clf.fit(np.array(c.T), np.ravel(y))
                 a = a_lrs.coef_
 
