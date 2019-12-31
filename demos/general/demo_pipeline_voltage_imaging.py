@@ -178,6 +178,7 @@ def main():
         del m
         del m1
         
+#%%
         # Mask R-CNN       
         config = neurons.NeuronsConfig()
         class InferenceConfig(config.__class__):
@@ -199,8 +200,7 @@ def main():
                                       config=config)
         weights_path = model_dir + '/mrcnn/mask_rcnn_neurons_0040.h5'
         model.load_weights(weights_path, by_name=True)
-        
-        
+                
         results = model.detect([summary_image], verbose=1)
         r = results[0]
         ROIs_mrcnn = r['masks'].transpose([2,0,1])

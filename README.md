@@ -41,11 +41,13 @@ All the results and figures of the paper can be regenerated using this package. 
 
 We recently added VolPy for analyzing voltage imaging data. The analysis is based on following objects:
 
-* `volparams`: An object for setting parameters of voltage imaging. It can be set and changed easily and is passed into the algorithms.
 * `MotionCorrect`: An object for motion correction which can be used for both rigid and piece-wise rigid motion correction.
+* `volparams`: An object for setting parameters of voltage imaging. It can be set and changed easily and is passed into the algorithms.
 * `VOLPY`: An object for running the spike detection algorithm and saving results.
+
+If you utilize VolPy for neurons segmentation, please make sure model and relevant files are in your caiman_data folder.
    
-To see examples of how these methods are used, please consult the demo_pipeline_voltage_imaging.py in demos. 
+To see examples of how these methods are used, please consult the demo_pipeline_voltage_imaging.py in demos/general folder. 
 
 ## New: Installation through conda-forge (August 2019)
 
