@@ -24,7 +24,7 @@ dependencies:
 - pyqtgraph
 - scikit-image
 - scikit-learn
-- scipy=1.3.0
+- scipy
 - tensorflow
 - keras
 - tifffile=0.15.1
