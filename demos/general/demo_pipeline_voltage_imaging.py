@@ -62,7 +62,7 @@ def main():
     n_processes = 8
     
     # %% Load demo movie and ROIs
-    file_path = '/home/nel/Code/Voltage_imaging/exampledata/403106_3min/demo_voltage_imaging.npz'
+    file_path = '/home/nel/Code/VolPy/Paper/demo_voltage_imaging.npz'
     m = np.load(file_path)
     mv = cm.movie(m.f.arr_0)
     ROIs = m.f.arr_1
