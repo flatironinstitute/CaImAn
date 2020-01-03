@@ -29,7 +29,7 @@ except NameError:
 
 import caiman as cm
 from caiman.motion_correction import MotionCorrect
-from caiman.utils.utils import download_demo
+from caiman.utils.utils import download_demo, download_model
 from caiman.source_extraction.volpy.Volparams import volparams
 from caiman.source_extraction.volpy.volpy import VOLPY
 
@@ -57,12 +57,10 @@ logging.basicConfig(format=
 def main():
     pass  # For compatibility between running under Spyder and the CLI
    
-    # %% Please download the .npz file manually to your file path. Example datasets.
-    url = 'https://www.dropbox.com/s/av3223dred7h5tb/demo_voltage_imaging.npz?dl=0'
     n_processes = 8
     
     # %% Load demo movie and ROIs
-    file_path = '/home/nel/Code/VolPy/Paper/demo_voltage_imaging.npz'
+    file_path = download_demo('demo_voltage_imaging.npz')
     m = np.load(file_path)
     mv = cm.movie(m.f.arr_0)
     ROIs = m.f.arr_1
@@ -198,7 +196,7 @@ def main():
         with tf.device(DEVICE):
             model = modellib.MaskRCNN(mode="inference", model_dir=model_dir,
                                       config=config)
-        weights_path = model_dir + '/mrcnn/mask_rcnn_neurons_0040.h5'
+        weights_path = download_model('mask_rcnn')
         model.load_weights(weights_path, by_name=True)
                 
         results = model.detect([summary_image], verbose=1)
