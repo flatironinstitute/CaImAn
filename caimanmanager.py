@@ -17,6 +17,12 @@ from caiman.paths import caiman_datadir
 
 sourcedir_base = os.path.join(sys.prefix, "share", "caiman")   # Setuptools will drop our datadir off here
 
+# The below are needed to deal with clashes between some threading models and
+# some backends that some math libraries use that are not thread-safe. On other
+# platforms, these environment variables won't be consulted and will be safe.
+os.environ['VECLIB_MAXIMUM_THREADS'] = '1'
+os.environ['OMP_NUM_THREADS'] = '1'
+
 ###############
 # caimanmanager - A tool to manage the caiman install
 #
@@ -97,7 +103,7 @@ def do_check_install(targdir: str, inplace: bool = False) -> None:
 
 
 def do_run_nosetests(targdir: str) -> None:
-    out, err, ret = runcmd(["nosetests", "--traverse-namespace", "caiman"])
+    out, err, ret = runcmd(["nosetests", "--verbose", "--traverse-namespace", "caiman"])
     if ret != 0:
         print("Nosetests failed with return code " + str(ret))
         sys.exit(ret)
@@ -112,7 +118,7 @@ def do_run_coverage_nosetests(targdir: str) -> None:
     #
     # This command will not function from the conda package, because there would be no reason to use it in that case.
     # If we ever change our mind on this, it's a simple addition of the coverage package to the feedstock.
-    out, err, ret = runcmd(["nosetests", "--with-coverage", "--cover-package=caiman", "--cover-erase", "--traverse-namespace", "caiman"])
+    out, err, ret = runcmd(["nosetests", "--verbose", "--with-coverage", "--cover-package=caiman", "--cover-erase", "--traverse-namespace", "caiman"])
     if ret != 0:
         print("Nosetests failed with return code " + str(ret))
         print("If it failed due to a message like the following, it is a known issue:")
