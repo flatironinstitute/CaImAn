@@ -116,8 +116,7 @@ class VOLPY(object):
                 li = [k for k in range(j*n_processes, (j+1)*n_processes)]
             else:
                 li = [k for k in range(j*n_processes, N )]
-            print(li)
-            
+       
             args_in = []
                 
             for i in li:
