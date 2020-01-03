@@ -1107,7 +1107,7 @@ class OnACID(object):
             if self.params.get('ring_CNN', 'lr_scheduler') is None:
                 sch = None
             else:
-                sch = rate_scheduler(**self.params.get('ring_CNN', 'lr_scheduler'))
+                sch = rate_scheduler(*self.params.get('ring_CNN', 'lr_scheduler'))
             Y = caiman.base.movies.load(fls[0], subindices=slice(init_batch),
                                         var_name_hdf5=self.params.get('data', 'var_name_hdf5'))
             shape = Y.shape[1:] + (1,)
