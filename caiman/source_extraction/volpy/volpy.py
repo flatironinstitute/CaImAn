@@ -1,25 +1,10 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-# from builtins import object
-# from builtins import str
-
-# import cv2
-# import inspect
-# import logging
 import numpy as np
-# import os
-# import psutil
-# import scipy
-# import sys
 from . import atm
 from . import spikePursuit
 from .Volparams import volparams
-
-# try:
-#     cv2.setNumThreads(0)
-# except:
-#     pass
 
 try:
     profile
@@ -89,7 +74,6 @@ class VOLPY(object):
                                     tau_lp=tau_lp, tau_pred=tau_pred, sigmas=sigmas, nIter=nIter,
                                     localAlign=localAlign, globalAlign=globalAlign,
                                     highPassRegression=highPassRegression)
-
         else:
             self.params = params
             # params.set('patch', {'n_processes': n_processes})
@@ -102,13 +86,13 @@ class VOLPY(object):
         results = []
         fnames = self.params.data['fnames']
         fr = self.params.data['fr']
-        
+
         if self.params.volspike['method'] == 'SpikePursuit':
             volspike = spikePursuit.volspike
         elif self.params.volspike['method'] == 'atm':
             volspike = atm.volspike
-        
-       
+    
+   
         N = len(self.params.data['index'])
         times = int(np.ceil(N/n_processes))
         for j in range(times):
@@ -116,9 +100,9 @@ class VOLPY(object):
                 li = [k for k in range(j*n_processes, (j+1)*n_processes)]
             else:
                 li = [k for k in range(j*n_processes, N )]
-       
+   
             args_in = []
-                
+            
             for i in li:
                 ROIs = self.params.data['ROIs'][i]
                 if self.params.data['weights'] is None:
@@ -126,7 +110,7 @@ class VOLPY(object):
                 else:
                     weights = self.params.data['weights'][i]
                 args_in.append([fnames, fr, i, ROIs, weights, self.params.volspike])
-    
+
             if 'multiprocessing' in str(type(dview)):
                 results_part = dview.map_async(volspike, args_in).get(4294967)
             elif dview is not None:
@@ -135,8 +119,6 @@ class VOLPY(object):
                 results_part = list(map(volspike, args_in))
                     
             results = results + results_part
-            
-                 
         
         N = len(results)
         print(N)
@@ -153,25 +135,4 @@ class VOLPY(object):
         
 
         return self
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
 
