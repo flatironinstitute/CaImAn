@@ -55,7 +55,7 @@ class volparams(object):
             'niter_rig': 1,  # number of iterations rigid motion correction
             'nonneg_movie': True,  # flag for producing a non-negative movie
             'num_frames_split': 80,  # split across time every x frames
-            'num_splits_to_process_els': [7, None],
+            'num_splits_to_process_els': None,
             'num_splits_to_process_rig': None,
             'overlaps': (32, 32),  # overlap between patches in pw-rigid motion correction
             'pw_rigid': False,  # flag for performing pw-rigid motion correction
