@@ -14,7 +14,6 @@ from sklearn.linear_model import Ridge
 from scipy import signal
 from scipy import stats    
 from scipy.sparse.linalg import svds
-import pyfftw
 import cv2
 from caiman.base.movies import movie
 import caiman as cm
@@ -590,12 +589,11 @@ def whitenedMatchedFilter(data, locs, window):
     _, pxx = signal.welch(noise, fs=2 * np.pi, window=signal.get_window('hamming', 1000), nfft=2 ** N, detrend=False,
                           nperseg=1000)
     Nf2 = np.concatenate([pxx, np.flipud(pxx[1:-1])])
-    scaling = 1 / np.sqrt(Nf2)
+    scaling_vector = 1 / np.sqrt(Nf2)
 
-    # Use pyfftw for fast fourier transform
-    a = pyfftw.empty_aligned(data.shape[0], dtype='float64')
-    a[:] = data
-    dataScaled = np.real(pyfftw.interfaces.scipy_fftpack.ifft(pyfftw.interfaces.scipy_fftpack.fft(a, 2 ** N) * scaling))
+    cc = np.pad(data.copy(),(0,np.int(2**N-len(data))),'constant')    
+    dd = (cv2.dft(cc,flags=cv2.DFT_SCALE+cv2.DFT_COMPLEX_OUTPUT)[:,0,:]*scaling_vector[:,np.newaxis])[:,np.newaxis,:]
+    dataScaled = cv2.idft(dd)[:,0,0]
     PTDscaled = dataScaled[(locs[:, np.newaxis] + window)]
     PTAscaled = np.mean(PTDscaled, 0)
     datafilt = np.convolve(dataScaled, np.flipud(PTAscaled), 'same')

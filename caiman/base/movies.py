@@ -572,9 +572,6 @@ class movie(ts.timeseries):
         t, h, w = self.shape
         self[:, :, :] = self[crop_begin:t - crop_end, crop_top:h - crop_bottom, crop_left:w - crop_right]
     
-
-           
-    
     def removeBL(self, windowSize:int=100, quantilMin:int=8, in_place:bool=False, returnBL:bool=False):                   
         """
         Remove baseline from movie using percentiles over a window
@@ -603,9 +600,6 @@ class movie(ts.timeseries):
         else:
             self -= cm.movie(cv2.resize(res,pixs.shape[::-1]),fr=self.fr).to3DFromPixelxTime(self.shape) 
             return self
-            
-        
-        
     
     def to2DPixelxTime(self, order='F'):
         """
@@ -613,17 +607,13 @@ class movie(ts.timeseries):
         """
         return self.transpose([2,1,0]).reshape((-1,self.shape[0]),order=order)  
 
-
     def to3DFromPixelxTime(self, shape, order='F'):
         """
             Transform 2D movie into 3D
         """
         return to_3D(self,shape[::-1],order=order).transpose([2,1,0])
     
-
-        
-
-    def computeDFF(self, secsWindow: int = 5, quantilMin: int = 8, method: str = 'only_baseline',
+    def computeDFF(self, secsWindow: int = 5, quantilMin: int = 8, method: str = 'only_baseline', in_place: bool = False,
                    order: str = 'F') -> Tuple[Any, Any]:
         """
         compute the DFF of the movie or remove baseline
@@ -646,7 +636,6 @@ class movie(ts.timeseries):
         Raises:
             Exception 'Unknown method'
         """
-
         logging.debug("computing minimum ...")
         sys.stdout.flush()
         if np.min(self) <= 0 and method != 'only_baseline':
@@ -668,9 +657,16 @@ class movie(ts.timeseries):
         #% compute baseline quickly
         logging.debug("binning data ...")
         sys.stdout.flush()
-        movBL = np.reshape(mov_out.copy(),
-                           (downsampfact, int(old_div(numFramesNew, downsampfact)), linePerFrame, pixPerLine),
-                           order=order)
+        
+        if not in_place:
+            movBL = np.reshape(mov_out.copy(),
+                               (downsampfact, int(old_div(numFramesNew, downsampfact)), linePerFrame, pixPerLine),
+                               order=order)
+        else:
+            movBL = np.reshape(mov_out,
+                               (downsampfact, int(old_div(numFramesNew, downsampfact)), linePerFrame, pixPerLine),
+                               order=order)
+            
         movBL = np.percentile(movBL, quantilMin, axis=0)
         logging.debug("interpolating data ...")
         sys.stdout.flush()
@@ -682,15 +678,18 @@ class movie(ts.timeseries):
                                    prefilter=False)
 
         #% compute DF/F
-        if method == 'delta_f_over_sqrt_f':
-            mov_out = old_div((mov_out - movBL), np.sqrt(movBL))
-        elif method == 'delta_f_over_f':
-            mov_out = old_div((mov_out - movBL), movBL)
-        elif method == 'only_baseline':
-            mov_out = (mov_out - movBL)
+        if not in_place:
+            if method == 'delta_f_over_sqrt_f':
+                mov_out = old_div((mov_out - movBL), np.sqrt(movBL))
+            elif method == 'delta_f_over_f':
+                mov_out = old_div((mov_out - movBL), movBL)
+            elif method == 'only_baseline':
+                mov_out = (mov_out - movBL)
+            else:
+                raise Exception('Unknown method')
         else:
-            raise Exception('Unknown method')
-
+            mov_out = movBL
+            
         mov_out = mov_out[padbefore:len(movBL) - padafter, :, :]
         logging.debug('Final Size Movie:' + np.str(self.shape))
         return mov_out, movie(movBL,
@@ -698,51 +697,6 @@ class movie(ts.timeseries):
                               start_time=self.start_time,
                               meta_data=self.meta_data,
                               file_name=self.file_name)
-
-    def compute_BL(self, secsWindow: int = 5, quantilMin: int = 8, method: str = 'only_baseline', order: str = 'F') -> \
-    Tuple[Any, Any]:
-        """
-        compute the baseline of the movie using less memory
-        """
-        logging.debug("computing minimum ...")
-        sys.stdout.flush()
-        if np.min(self) <= 0 and method != 'only_baseline':
-            raise ValueError("All pixels must be positive")
-
-        numFrames, linePerFrame, pixPerLine = np.shape(self)
-        downsampfact = int(secsWindow * self.fr)
-        logging.debug("Downsample factor: " + str(downsampfact))
-        elm_missing = int(np.ceil(numFrames * 1.0 / downsampfact)
-                          * downsampfact - numFrames)
-        padbefore = int(np.floor(old_div(elm_missing, 2.0)))
-        padafter = int(np.ceil(old_div(elm_missing, 2.0)))
-
-        logging.debug('Initial Size Image:' + np.str(np.shape(self)))
-        sys.stdout.flush()
-
-        self = np.pad(self.astype(np.float32), ((
-                                                    padbefore, padafter), (0, 0), (0, 0)), mode='reflect')
-        # mov_out[:padbefore] = mov_out[padbefore+1]
-        # mov_out[-padafter:] = mov_out[-padafter-1]
-        numFramesNew, linePerFrame, pixPerLine = np.shape(self)
-
-        # % compute baseline quickly
-        logging.debug("binning data ...")
-        sys.stdout.flush()
-        movBL = np.reshape(self, (downsampfact, int(
-            old_div(numFramesNew, downsampfact)), linePerFrame, pixPerLine), order=order)
-        movBL = np.percentile(movBL, quantilMin, axis=0)
-        logging.debug("interpolating data ...")
-        sys.stdout.flush()
-        logging.debug("movBL shape is " + str(movBL.shape))
-
-        movBL = scipy.ndimage.zoom(np.array(movBL, dtype=np.float32), [
-            downsampfact, 1, 1], order=1, mode='constant', cval=0.0, prefilter=False)
-
-        movBL = movBL[padbefore:len(movBL) - padafter, :, :]
-        logging.debug('Final Size Movie:' + np.str(self.shape))
-
-        return movBL
 
     def NonnegativeMatrixFactorization(self,
                                        n_components: int = 30,

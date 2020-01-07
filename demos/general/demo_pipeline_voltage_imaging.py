@@ -10,8 +10,7 @@ import glob
 import logging
 import matplotlib.pyplot as plt
 import numpy as np
-import scipy.io
-import sys
+import tensorflow as tf
 
 try:
     cv2.setNumThreads(0)
@@ -32,17 +31,11 @@ from caiman.motion_correction import MotionCorrect
 from caiman.utils.utils import download_demo, download_model
 from caiman.source_extraction.volpy.Volparams import volparams
 from caiman.source_extraction.volpy.volpy import VOLPY
+from caiman.source_extraction.volpy.mrcnn import visualize,neurons
+import caiman.source_extraction.volpy.mrcnn.model as modellib
+from caiman.paths import caiman_datadir
+model_dir = caiman_datadir()+'/model'
 
-use_maskrcnn = True
-if use_maskrcnn:
-    from caiman.paths import caiman_datadir
-    model_dir = caiman_datadir()+'/model'
-    sys.path.append(model_dir) 
-    import mrcnn.model as modellib
-    from mrcnn import visualize
-    from mrcnn import neurons
-    import tensorflow as tf
-    
 # %%
 # Set up the logger (optional); change this if you like.
 # You can log to a file using the filename parameter, or make the output more
@@ -56,10 +49,8 @@ logging.basicConfig(format=
 # %%
 def main():
     pass  # For compatibility between running under Spyder and the CLI
-   
-    n_processes = 8
     
-    # %% Load demo movie and ROIs
+    #%%  Load demo movie and ROIs
     file_path = download_demo('demo_voltage_imaging.npz')
     m = np.load(file_path)
     mv = cm.movie(m.f.arr_0)
@@ -71,9 +62,10 @@ def main():
 
     # %% Setup some parameters for data and motion correction    
     # dataset parameters
+    n_processes = 8    
     fr = 400                                        # sample rate of the movie
-    ROIs = ROIs
-    index = list(range(ROIs.shape[0]))              # index of neurons
+    ROIs = None                                     # Region of interests
+    index = None                                    # index of neurons
     weights = None                                  # reuse spatial weights by 
                                                     # opts.change_params(params_dict={'weights':vpy.estimates['weights']})
     # motion correction parameters
@@ -116,6 +108,7 @@ def main():
         moviehandle.play(q_max=99.5, fr=60, magnification=2)
    
     # %% start a cluster for parallel processing
+    
     c, dview, n_processes = cm.cluster.setup_cluster(
         backend='local', n_processes=n_processes, single_thread=False)
 
@@ -160,15 +153,19 @@ def main():
     #%% SEGMENTATION
     # Create mean and correlation image
     use_maskrcnn = True
-    if use_maskrcnn:        
+    if not use_maskrcnn:                 # use manual annotations
+        opts.change_params(params_dict={'ROIs':ROIs,
+                                        'index':list(range(ROIs.shape[0])),
+                                        'method':'SpikePursuit'})    
+    else:
         m = cm.load(mc.mmap_file[0])
         if m.shape[0] > 20000:
             m = m[:20000,:,:]
         
-        m = cm.movie(np.array(m), fr=400)
+        m = cm.movie(np.array(m), fr=fr)
         img = m.mean(axis=0)
-        img = (img-np.mean(img))/np.std(img)   
-        m1 = m.compute_BL(secsWindow=1)    
+        img = (img-np.mean(img))/np.std(img)
+        m1 = m.computeDFF(secsWindow=1,in_place=True)[0]
         m = m - m1       
         Cn = m.local_correlations(swap_dim=False, eight_neighbours=True)
         img_corr = (Cn-np.mean(Cn))/np.std(Cn)
@@ -197,8 +194,7 @@ def main():
             model = modellib.MaskRCNN(mode="inference", model_dir=model_dir,
                                       config=config)
         weights_path = download_model('mask_rcnn')
-        model.load_weights(weights_path, by_name=True)
-                
+        model.load_weights(weights_path, by_name=True)                
         results = model.detect([summary_image], verbose=1)
         r = results[0]
         ROIs_mrcnn = r['masks'].transpose([2,0,1])
