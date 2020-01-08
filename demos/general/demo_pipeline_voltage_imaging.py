@@ -34,7 +34,6 @@ from caiman.source_extraction.volpy.volpy import VOLPY
 from caiman.source_extraction.volpy.mrcnn import visualize,neurons
 import caiman.source_extraction.volpy.mrcnn.model as modellib
 from caiman.paths import caiman_datadir
-model_dir = caiman_datadir()+'/model'
 
 # %%
 # Set up the logger (optional); change this if you like.
@@ -51,10 +50,11 @@ def main():
     pass  # For compatibility between running under Spyder and the CLI
     
     #%%  Load demo movie and ROIs
-    file_path = download_demo('demo_voltage_imaging.npz')
-    m = np.load(file_path)
-    mv = cm.movie(m.f.arr_0)
-    ROIs = m.f.arr_1
+    fnames = download_demo('demo_voltage_imaging.hdf5', 'volpy')  # file path to movie file (will download if not present)
+    path_ROIs = download_demo('demo_voltage_imaging_ROIs.hdf5', 'volpy')  # file path to ROIs file (will download if not present)
+    model_dir = os.path.join(caiman_datadir(), 'model')
+
+#    ROIs = m.f.arr_1
     
     # %%
     fnames = '/home/nel/Code/Voltage_imaging/exampledata/403106_3min/demo_voltage_imaging.hdf5'
@@ -69,7 +69,6 @@ def main():
     weights = None                                  # reuse spatial weights by 
                                                     # opts.change_params(params_dict={'weights':vpy.estimates['weights']})
     # motion correction parameters
-    motion_correct = True                           # flag for motion correction
     pw_rigid = False                                # flag for pw-rigid motion correction
     gSig_filt = (3, 3)                              # size of filter, in general gSig (see below),
                                                     # change this one if algorithm does not work
