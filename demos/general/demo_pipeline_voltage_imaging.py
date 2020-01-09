@@ -11,6 +11,7 @@ import logging
 import matplotlib.pyplot as plt
 import numpy as np
 import tensorflow as tf
+import h5py
 
 try:
     cv2.setNumThreads(0)
@@ -31,10 +32,9 @@ from caiman.motion_correction import MotionCorrect
 from caiman.utils.utils import download_demo, download_model
 from caiman.source_extraction.volpy.Volparams import volparams
 from caiman.source_extraction.volpy.volpy import VOLPY
-from caiman.source_extraction.volpy.mrcnn import visualize,neurons
+from caiman.source_extraction.volpy.mrcnn import visualize, neurons
 import caiman.source_extraction.volpy.mrcnn.model as modellib
 from caiman.paths import caiman_datadir
-model_dir = caiman_datadir()+'/model'
 
 # %%
 # Set up the logger (optional); change this if you like.
@@ -49,27 +49,19 @@ logging.basicConfig(format=
 # %%
 def main():
     pass  # For compatibility between running under Spyder and the CLI
-    
-    #%%  Load demo movie and ROIs
-    file_path = download_demo('demo_voltage_imaging.npz')
-    m = np.load(file_path)
-    mv = cm.movie(m.f.arr_0)
-    ROIs = m.f.arr_1
-    
-    # %%
-    fnames = '/home/nel/Code/Voltage_imaging/exampledata/403106_3min/demo_voltage_imaging.hdf5'
-    mv.save(fnames)
 
-    # %% Setup some parameters for data and motion correction    
+    # %%  Load demo movie and ROIs
+    fnames = download_demo('demo_voltage_imaging.hdf5', 'volpy')  # file path to movie file (will download if not present)
+    path_ROIs = download_demo('demo_voltage_imaging_ROIs.hdf5', 'volpy')  # file path to ROIs file (will download if not present)
+
+    # %% Setup some parameters for data and motion correction
     # dataset parameters
-    n_processes = 8    
     fr = 400                                        # sample rate of the movie
     ROIs = None                                     # Region of interests
     index = None                                    # index of neurons
     weights = None                                  # reuse spatial weights by 
                                                     # opts.change_params(params_dict={'weights':vpy.estimates['weights']})
     # motion correction parameters
-    motion_correct = True                           # flag for motion correction
     pw_rigid = False                                # flag for pw-rigid motion correction
     gSig_filt = (3, 3)                              # size of filter, in general gSig (see below),
                                                     # change this one if algorithm does not work
@@ -79,12 +71,12 @@ def main():
     max_deviation_rigid = 3                         # maximum deviation allowed for patch with respect to rigid shifts
     border_nan = 'copy'
 
-    mc_dict = {
+    opts_dict = {
         'fnames': fnames,
         'fr': fr,
         'index': index,
-        'ROIs':ROIs,
-        'weights':weights,              
+        'ROIs': ROIs,
+        'weights': weights,
         'pw_rigid': pw_rigid,
         'max_shifts': max_shifts,
         'gSig_filt': gSig_filt,
@@ -94,11 +86,11 @@ def main():
         'border_nan': border_nan
     }
 
-    opts = volparams(params_dict=mc_dict)
+    opts = volparams(params_dict=opts_dict)
 
     # %% play the movie (optional)
     # playing the movie using opencv. It requires loading the movie in memory.
-    # To close the video press q    
+    # To close the video press q
     display_images = False
 
     if display_images:
@@ -106,17 +98,17 @@ def main():
         ds_ratio = 0.2
         moviehandle = m_orig.resize(1, 1, ds_ratio)
         moviehandle.play(q_max=99.5, fr=60, magnification=2)
-   
+
     # %% start a cluster for parallel processing
-    
+
     c, dview, n_processes = cm.cluster.setup_cluster(
-        backend='local', n_processes=n_processes, single_thread=False)
+        backend='local', n_processes=None, single_thread=False)
 
     # %%% MOTION CORRECTION
     # Create a motion correction object with the specified parameters
     mc = MotionCorrect(fnames, dview=dview, **opts.get_group('motion'))
-    # Run piecewise rigid motion correction 
-    mc.motion_correct(save_movie=True)    
+    # Run piecewise rigid motion correction
+    mc.motion_correct(save_movie=True)
     dview.terminate()
 
     # %% motion correction compared with original movie
@@ -135,79 +127,79 @@ def main():
         m_rig2 = (m_rig - np.mean(m_rig, axis=0))
         moviehandle1 = cm.concatenate([m_orig2.resize(1, 1, ds_ratio),
                                        m_rig2.resize(1, 1, ds_ratio)], axis=2)
-        moviehandle1.play(fr=60, q_max=99.5, magnification=2) 
+        moviehandle1.play(fr=60, q_max=99.5, magnification=2)
 
-   # %% MEMORY mAPPING
+   # %% Memory Mapping
     c, dview, n_processes = cm.cluster.setup_cluster(
-        backend='local', n_processes=n_processes, single_thread=False)
-    
-    border_to_0 = 0 if mc.border_nan is 'copy' else mc.border_to_0
+        backend='local', n_processes=None, single_thread=False)
+
+    border_to_0 = 0 if mc.border_nan == 'copy' else mc.border_to_0
     fname_new = cm.save_memmap_join(mc.mmap_file, base_name='memmap_',
                                add_to_mov=border_to_0, dview=dview, n_chunks=10)
-    
-    dview.terminate() 
-    
-   # %% change fnames to the new motion corrected one
-    opts.change_params(params_dict={'fnames':fname_new})
-   
-    #%% SEGMENTATION
+
+    dview.terminate()
+
+    # %% change fnames to the new motion corrected one
+    opts.change_params(params_dict={'fnames': fname_new})
+
+    # %% SEGMENTATION
     # Create mean and correlation image
-    use_maskrcnn = True
+    use_maskrcnn = False  # set to True to predict the ROIs using the mask R-CNN
     if not use_maskrcnn:                 # use manual annotations
-        opts.change_params(params_dict={'ROIs':ROIs,
-                                        'index':list(range(ROIs.shape[0])),
-                                        'method':'SpikePursuit'})    
+        with h5py.File(path_ROIs, 'r') as fl:
+            ROIs = fl['mov'][()]  # load ROIs
+        opts.change_params(params_dict={'ROIs': ROIs,
+                                        'index': list(range(ROIs.shape[0])),
+                                        'method': 'SpikePursuit'})
     else:
-        m = cm.load(mc.mmap_file[0])
-        if m.shape[0] > 20000:
-            m = m[:20000,:,:]
-        
-        m = cm.movie(np.array(m), fr=fr)
+        m = cm.load(mc.mmap_file[0], subindices=slice(0, 20000))
+        m.fr = fr
         img = m.mean(axis=0)
         img = (img-np.mean(img))/np.std(img)
-        m1 = m.computeDFF(secsWindow=1,in_place=True)[0]
-        m = m - m1       
+        m1 = m.computeDFF(secsWindow=1, in_place=True)[0]
+        m = m - m1
         Cn = m.local_correlations(swap_dim=False, eight_neighbours=True)
         img_corr = (Cn-np.mean(Cn))/np.std(Cn)
-        summary_image = np.stack([img,img,img_corr],axis=2).astype(np.float32)
+        summary_image = np.stack([img, img, img_corr], axis=2).astype(np.float32)
         del m
         del m1
-        
-#%%
-        # Mask R-CNN       
+
+        # %%
+        # Mask R-CNN
         config = neurons.NeuronsConfig()
+
         class InferenceConfig(config.__class__):
             # Run detection on one image at a time
             GPU_COUNT = 1
             IMAGES_PER_GPU = 1
             DETECTION_MIN_CONFIDENCE = 0.7
             IMAGE_RESIZE_MODE = "pad64"
-            IMAGE_MAX_DIM=512
+            IMAGE_MAX_DIM = 512
             RPN_NMS_THRESHOLD = 0.7
             POST_NMS_ROIS_INFERENCE = 1000
 
         config = InferenceConfig()
         config.display()
-        
+        model_dir = os.path.join(caiman_datadir(), 'model')
         DEVICE = "/cpu:0"  # /cpu:0 or /gpu:0
         with tf.device(DEVICE):
             model = modellib.MaskRCNN(mode="inference", model_dir=model_dir,
                                       config=config)
         weights_path = download_model('mask_rcnn')
-        model.load_weights(weights_path, by_name=True)                
+        model.load_weights(weights_path, by_name=True)
         results = model.detect([summary_image], verbose=1)
         r = results[0]
-        ROIs_mrcnn = r['masks'].transpose([2,0,1])
-        
+        ROIs_mrcnn = r['masks'].transpose([2, 0, 1])
+
     # %% visualize the result
         display_result = True
-        
-        if display_result:  
+
+        if display_result:
             _, ax = plt.subplots(1,1, figsize=(16,16))
             visualize.display_instances(summary_image, r['rois'], r['masks'], r['class_ids'], 
                                     ['BG', 'neurons'], r['scores'], ax=ax,
                                     title="Predictions")
-    
+
     # %% set to rois
         opts.change_params(params_dict={'ROIs':ROIs_mrcnn,
                                         'index':list(range(ROIs_mrcnn.shape[0])),
@@ -215,16 +207,17 @@ def main():
 
     # %% Spike Extraction
     c, dview, n_processes = cm.cluster.setup_cluster(
-            backend='local', n_processes=n_processes, single_thread=False, maxtasksperchild=1)
+            backend='local', n_processes=None, single_thread=False, maxtasksperchild=1)
     vpy = VOLPY(n_processes=n_processes, dview=dview, params=opts)
     vpy.fit(n_processes=n_processes, dview=dview)
 
     # %% some visualization
-    vpy.estimates['cellN']
-    n = 0  
+    vpy.estimates['cellN']  # show available neurons
+    n = 0
     plt.figure()
     plt.plot(vpy.estimates['trace'][n])
-    plt.plot(vpy.estimates['spikeTimes'][n], np.max(vpy.estimates['trace'][n]) * 1 * np.ones(vpy.estimates['spikeTimes'][n].shape),
+    plt.plot(vpy.estimates['spikeTimes'][n],
+             np.max(vpy.estimates['trace'][n]) * np.ones(vpy.estimates['spikeTimes'][n].shape),
              color='g', marker='o', fillstyle='none', linestyle='none')
     plt.title('signal and spike times')
     plt.show()
@@ -240,7 +233,7 @@ def main():
     log_files = glob.glob('*_LOG_*')
     for log_file in log_files:
         os.remove(log_file)
-    
+
 
 # %%
 # This is to mask the differences between running this demo in Spyder
