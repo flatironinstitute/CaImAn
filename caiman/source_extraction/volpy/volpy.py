@@ -124,7 +124,9 @@ class VOLPY(object):
         print(N)
         self.estimates['spikeTimes'] = [results[i]['spikeTimes'] for i in range(N)]
         self.estimates['trace'] = [results[i]['yFilt'] for i in range(N)]
+        self.estimates['recons_signal'] = [results[i]['recons_signal'] for i in range(N)]
         self.estimates['spatialFilter'] = [results[i]['spatialFilter'] for i in range(N)]
+        self.estimates['templates'] = [results[i]['templates'] for i in range(N)]
         self.estimates['cellN'] = [results[i]['cellN'] for i in range(N)]
         self.estimates['templates'] = [results[i]['templates'] for i in range(N)]
         self.estimates['snr'] = [results[i]['snr'] for i in range(N)]
@@ -132,6 +134,7 @@ class VOLPY(object):
         self.estimates['passedLocalityTest'] = [results[i]['passedLocalityTest'] for i in range(N)]
         self.estimates['low_spk'] = [results[i]['low_spk'] for i in range(N)]
         self.estimates['weights'] = [results[i]['weights'] for i in range(N)]
+        self.estimates['bwexp'] = [results[i]['bwexp'] for i in range(N)]
         
 
         return self

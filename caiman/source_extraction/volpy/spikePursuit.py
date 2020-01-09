@@ -130,6 +130,8 @@ def volspike(pars):
     bw = (bw > 0)
     notbw = (notbw > 0)
     ref = np.median(data[:500, :, :], axis=0)
+    bwexp[Xinds[0]:Xinds[-1] + 1, Yinds[0]:Yinds[-1] + 1] = True
+    output['bwexp'] = bwexp
 
     # visualize ROI
     # fig = plt.figure()
@@ -358,6 +360,7 @@ def volspike(pars):
     output['yFilt'] = -Xspikes
     output['ROI'] = np.transpose(np.vstack((Xinds[[0, -1]], Yinds[[0, -1]])))
     output['ROIbw'] = bw
+    output['recons_signal'] = guessData        
     output['spatialFilter'] = spatialFilter
     output['falsePosRate'] = falsePosRate
     output['detectionRate'] = detectionRate
