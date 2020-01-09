@@ -628,6 +628,8 @@ class movie(ts.timeseries):
 
             method='only_baseline','delta_f_over_f','delta_f_over_sqrt_f'
 
+            in_place: compute baseline in a memory efficient way by updating movie in place
+
         Returns:
             self: DF or DF/F or DF/sqrt(F) movies
 
