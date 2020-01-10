@@ -192,7 +192,7 @@ def main():
         ROIs_mrcnn = r['masks'].transpose([2, 0, 1])
 
     # %% visualize the result
-        display_result = True
+        display_result = False
 
         if display_result:
             _, ax = plt.subplots(1,1, figsize=(16,16))
