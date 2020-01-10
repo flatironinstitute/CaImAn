@@ -5,10 +5,8 @@ includes motion correction, memory mapping, segmentation, denoising and source
 extraction. The demo shows how to construct the params, MotionCorrect and VOLPY 
 objects and call the relevant functions. See inside for detail.
 
-Dataset courtesy of Karel Svoboda (Janelia Research Campus).
+Dataset courtesy of Karel Svoboda Lab (Janelia Research Campus).
 
-copyright GNU General Public License v2.0
-authors: @caichangjia
 """
 
 import os
@@ -207,19 +205,22 @@ def main():
                                     ['BG', 'neurons'], r['scores'], ax=ax,
                                     title="Predictions")
 
-    # %% set to rois
+    # %% set rois
         opts.change_params(params_dict={'ROIs':ROIs_mrcnn,
                                         'index':list(range(ROIs_mrcnn.shape[0])),
                                         'method':'SpikePursuit'})
 
-    # %% Spike Extraction
+    # %% Trace Denoising and Spike Extraction
     c, dview, n_processes = cm.cluster.setup_cluster(
             backend='local', n_processes=None, single_thread=False, maxtasksperchild=1)
     vpy = VOLPY(n_processes=n_processes, dview=dview, params=opts)
     vpy.fit(n_processes=n_processes, dview=dview)
 
     # %% some visualization
+    print(np.where(vpy.estimates['passedLocalityTest'])[0])    # neurons that pass locality test
     n = 0
+    
+    # Processed signal and spikes of neurons
     plt.figure()
     plt.plot(vpy.estimates['trace'][n])
     plt.plot(vpy.estimates['spikeTimes'][n],
@@ -228,11 +229,23 @@ def main():
     plt.title('signal and spike times')
     plt.show()
 
+    # Location of neurons by Mask R-CNN or manual annotation
+    plt.figure()
+    if use_maskrcnn:
+        plt.imshow(ROIs_mrcnn[n])
+    else:
+        plt.imshow(ROIs[n])
+    mv = cm.load(fname_new)
+    plt.imshow(mv.mean(axis=0),alpha=0.5)
+    
+    # Spatial filter created by algorithm
     plt.figure()
     plt.imshow(vpy.estimates['spatialFilter'][n])
     plt.colorbar()
     plt.title('spatial filter')
     plt.show()
+    
+    
 
     # %% STOP CLUSTER and clean up log files
     cm.stop_server(dview=dview)
