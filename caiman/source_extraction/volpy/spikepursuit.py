@@ -3,7 +3,7 @@
 """
 Created on Fri Apr 19 14:50:09 2019
 
-@author: Changjia Cai based on Matlab code provided by Kaspar and Amrita
+@author: @caichangjia based on Matlab code provided by Kaspar Podgorski and Amrita Singh
 """
 import numpy as np
 import matplotlib.pyplot as plt
@@ -80,10 +80,83 @@ def volspike(pars):
                     highPassRegression: boolean
                         whether to regress on a high-passed version of the data. Slightly improves detection of spikes,
                         but makes subthreshold unreliable
+                        
+                    use_ridge: boolean
+                        whether use ridge regression for removing background signal. If not, the algorithm will use 
+                        linear regression
+                        
+                    Ridge_bg_coef: float
+                        regularization strength for ridge regression in background removal. 
 
         Returns:
-            output: a dictionary
-                output including spike times, spatial filters etc
+            output: dictionary
+                
+                rawROI: dictionary
+                    including the result after the first spike extraction
+                    
+                bwexp: 2-d array
+                    expansion area of ROI, used for reconstructing signal
+                    
+                meanIM: 1-d array
+                    trace after high-pass filter
+                    
+                num_spikes: list
+                    number of spikes in each iteration
+                    
+                passedLocalityTest: boolean
+                    False if the maximum of spatial filter is not in the initial ROI
+                    
+                snr: float
+                    signal to noise ratio of the processed signal
+                    
+                y: 1-d array
+                    processed signal of the video
+                
+                yFilt: 1-d array
+                    spike train of the signal
+                    
+                ROIbw: 2-d array
+                    region of interest
+                    
+                recons_signal: 1-d array
+                    reconstructed signal of the neuron
+                    
+                spatialFilter: 2-d array
+                    spatial filter of the neuron
+                    
+                falsePosRate: float
+                    possibility of misclassify noise as real spikes
+
+                detectionRate: float
+                    possibility of real spikes being detected
+                    
+                template: 1-d array
+                    spike template of the neuron
+                    
+                spikeTimes: 1-d array
+                    spike time of the neuron
+                    
+                thresh: float
+                    threshold of the signal
+                    
+                F0: 1-d array
+                    initial signal 
+                    
+                dFF: 1-d array
+                    scaled signal
+                
+                bg_pc: 2-d array
+                    background principal components extracted from svd
+                    
+                low_spk: boolean
+                    whether there are few spikes(less than 30) in the signal
+                    
+                weights: 2-d array
+                    ridge regression coefficient for updating spatial filter
+                                        
+                cellN: int
+                    index of cell            
+                
     """
     fnames = pars[0]
     sampleRate = pars[1]
@@ -361,7 +434,7 @@ def volspike(pars):
     output['ROI'] = np.transpose(np.vstack((Xinds[[0, -1]], Yinds[[0, -1]])))
     output['ROIbw'] = bw
     output['recons_signal'] = guessData        
-    output['spatialFilter'] = spatialFilter
+    output['spatialFilter'] = -spatialFilter
     output['falsePosRate'] = falsePosRate
     output['detectionRate'] = detectionRate
     output['templates'] = templates

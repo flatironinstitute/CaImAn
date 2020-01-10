@@ -1,7 +1,14 @@
 #!/usr/bin/env python
 """
 Demo pipeline for processing voltage imaging data. The processing pipeline
-includes motion correction and spike detection with given ROIs.
+includes motion correction, memory mapping, segmentation, denoising and source
+extraction. The demo shows how to construct the params, MotionCorrect and VOLPY 
+objects and call the relevant functions. See inside for detail.
+
+Dataset courtesy of Karel Svoboda (Janelia Research Campus).
+
+copyright GNU General Public License v2.0
+authors: @caichangjia
 """
 
 import os
@@ -30,7 +37,7 @@ except NameError:
 import caiman as cm
 from caiman.motion_correction import MotionCorrect
 from caiman.utils.utils import download_demo, download_model
-from caiman.source_extraction.volpy.Volparams import volparams
+from caiman.source_extraction.volpy.volparams import volparams
 from caiman.source_extraction.volpy.volpy import VOLPY
 from caiman.source_extraction.volpy.mrcnn import visualize, neurons
 import caiman.source_extraction.volpy.mrcnn.model as modellib
@@ -212,7 +219,6 @@ def main():
     vpy.fit(n_processes=n_processes, dview=dview)
 
     # %% some visualization
-    vpy.estimates['cellN']  # show available neurons
     n = 0
     plt.figure()
     plt.plot(vpy.estimates['trace'][n])
@@ -223,7 +229,7 @@ def main():
     plt.show()
 
     plt.figure()
-    plt.imshow(-vpy.estimates['spatialFilter'][n])
+    plt.imshow(vpy.estimates['spatialFilter'][n])
     plt.colorbar()
     plt.title('spatial filter')
     plt.show()

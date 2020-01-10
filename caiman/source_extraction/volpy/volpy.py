@@ -3,8 +3,8 @@
 
 import numpy as np
 from . import atm
-from . import spikePursuit
-from .Volparams import volparams
+from . import spikepursuit
+from .volparams import volparams
 
 try:
     profile
@@ -88,7 +88,7 @@ class VOLPY(object):
         fr = self.params.data['fr']
 
         if self.params.volspike['method'] == 'SpikePursuit':
-            volspike = spikePursuit.volspike
+            volspike = spikepursuit.volspike
         elif self.params.volspike['method'] == 'atm':
             volspike = atm.volspike
     

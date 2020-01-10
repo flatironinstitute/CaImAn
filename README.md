@@ -45,8 +45,6 @@ We recently added VolPy for analyzing voltage imaging data. The analysis is base
 * `volparams`: An object for setting parameters of voltage imaging. It can be set and changed easily and is passed into the algorithms.
 * `VOLPY`: An object for running the spike detection algorithm and saving results.
 
-If you utilize VolPy for neurons segmentation, please make sure model and relevant files are in your caiman_data folder.
-   
 To see examples of how these methods are used, please consult the demo_pipeline_voltage_imaging.py in demos/general folder. 
 
 ## New: Installation through conda-forge (August 2019)
@@ -137,6 +135,10 @@ If you use this code please cite the corresponding papers where original methods
 ### Variance Stabilization
 
 <a name="vst"></a>[9] Tepper, M., Giovannucci, A., and Pnevmatikakis, E (2018). Anscombe meets Hough: Noise variance stabilization via parametric model estimation. In ICASSP, 2018. [[paper]](https://marianotepper.github.io/papers/anscombe-meets-hough.pdf). [[Github repository]](https://github.com/marianotepper/hough-anscombe)
+
+### Voltage Imaging
+
+<a name="vst"></a>[9] Cai, C. , Friedrich, J. , Pnevmatikakis, E. A. , Podgorski, K. , Giovannucci, A.(2020). VolPy: automated and scalable analysis pipelines for voltage imaging datasets. bioRxiv preprint bioRxiv 2020.01.02.892323 [[paper]](https://www.biorxiv.org/content/10.1101/2020.01.02.892323v1).
 
 
 ## Other docs in this repo
