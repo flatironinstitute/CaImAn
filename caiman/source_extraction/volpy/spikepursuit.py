@@ -332,7 +332,7 @@ def volspike(pars):
         for iteration in range(nIter):
             doPlot = False
             if iteration == nIter - 1:
-                doPlot = True
+                doPlot = False
 
             # print('Identifying spatial filters')
             # print(iteration)
@@ -393,7 +393,7 @@ def volspike(pars):
             # generate the new trace and the new denoised trace
             Xspikes, spikeTimes, guessData, falsePosRate, detectionRate, templates, _, thresh = denoiseSpikes(-X,
                                                                                                       windowLength,
-                                                                                                      sampleRate, doPlot)
+                                                                                                      sampleRate, doPlot=False)
 
             selectSpikes = np.zeros(Xspikes.shape)
             selectSpikes[spikeTimes] = 1

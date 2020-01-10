@@ -149,7 +149,7 @@ def main():
 
     # %% SEGMENTATION
     # Create mean and correlation image
-    use_maskrcnn = False  # set to True to predict the ROIs using the mask R-CNN
+    use_maskrcnn = True  # set to True to predict the ROIs using the mask R-CNN
     if not use_maskrcnn:                 # use manual annotations
         with h5py.File(path_ROIs, 'r') as fl:
             ROIs = fl['mov'][()]  # load ROIs
@@ -197,7 +197,7 @@ def main():
         ROIs_mrcnn = r['masks'].transpose([2, 0, 1])
 
     # %% visualize the result
-        display_result = True
+        display_result = False
 
         if display_result:
             _, ax = plt.subplots(1,1, figsize=(16,16))
