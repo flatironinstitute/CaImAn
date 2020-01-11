@@ -37,6 +37,16 @@ A paper explaining most of the implementation details and benchmarking can be fo
 
 All the results and figures of the paper can be regenerated using this package. For more information visit this [page](https://github.com/flatironinstitute/CaImAn/tree/master/use_cases/eLife_scripts).
 
+## New: Analysis of Voltage Imaging data (December 2019)
+
+We recently added VolPy for analyzing voltage imaging data. The analysis is based on following objects:
+
+* `MotionCorrect`: An object for motion correction which can be used for both rigid and piece-wise rigid motion correction.
+* `volparams`: An object for setting parameters of voltage imaging. It can be set and changed easily and is passed into the algorithms.
+* `VOLPY`: An object for running the spike detection algorithm and saving results.
+
+To see examples of how these methods are used, please consult the demo_pipeline_voltage_imaging.py in demos/general folder. 
+
 ## New: Installation through conda-forge (August 2019)
 
 Beginning in August 2019 we have an experimental binary release of the software in the conda-forge package repos. This is intended for people who can use CaImAn as a library, interacting with it as the demos do. It also does not need a compiler. It is not suitable for people intending to change the CaImAn codebase. Comfort with conda is still required. If you wish to use the binary package, you do not need the sources (including this repo) at all. Installation and updating instructions can be found [here](./docs/source/Installation.rst).
@@ -125,6 +135,10 @@ If you use this code please cite the corresponding papers where original methods
 ### Variance Stabilization
 
 <a name="vst"></a>[9] Tepper, M., Giovannucci, A., and Pnevmatikakis, E (2018). Anscombe meets Hough: Noise variance stabilization via parametric model estimation. In ICASSP, 2018. [[paper]](https://marianotepper.github.io/papers/anscombe-meets-hough.pdf). [[Github repository]](https://github.com/marianotepper/hough-anscombe)
+
+### Voltage Imaging
+
+<a name="vst"></a>[9] Cai, C. , Friedrich, J. , Pnevmatikakis, E. A. , Podgorski, K. , Giovannucci, A.(2020). VolPy: automated and scalable analysis pipelines for voltage imaging datasets. bioRxiv preprint bioRxiv 2020.01.02.892323 [[paper]](https://www.biorxiv.org/content/10.1101/2020.01.02.892323v1).
 
 
 ## Other docs in this repo

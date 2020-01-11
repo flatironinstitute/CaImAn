@@ -437,8 +437,7 @@ def fast_prct_filt(input_data, level=8, frames_window=1000):
 
     tr_BL = np.reshape(tr_tmp, (downsampfact, int(numFramesNew / downsampfact),
                                 num_traces), order='F')
-    #import pdb
-    #pdb.set_trace()
+
     tr_BL = np.percentile(tr_BL, level, axis=0)
     tr_BL = scipy.ndimage.zoom(np.array(tr_BL, dtype=np.float32),
                                [downsampfact, 1], order=3, mode='nearest',
@@ -1040,16 +1039,17 @@ def get_file_size(file_name, var_name_hdf5='mov'):
             dims = tuple(dims)
         else:
             raise Exception('File not found!')
+    elif isinstance(file_name, tuple):
+        from ...base.movies import load
+        dims = load(file_name[0], var_name_hdf5=var_name_hdf5).shape
+        T = len(file_name)
+
     elif isinstance(file_name, list):
         if len(file_name) == 1:
             dims, T = get_file_size(file_name[0], var_name_hdf5=var_name_hdf5)
         else:
             dims, T = zip(*[get_file_size(fn, var_name_hdf5=var_name_hdf5)
                 for fn in file_name])
-            if len(list(set(dims))) > 1:
-                raise Exception("Files have different FOV sizes.")
-            else:
-                dims = dims[0]
     else:
         raise Exception('Unknown input type')
     return dims, T

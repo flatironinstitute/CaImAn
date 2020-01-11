@@ -364,7 +364,8 @@ def stop_server(ipcluster: str = 'ipcluster', pdir: str = None, profile: str = N
 def setup_cluster(backend: str = 'multiprocessing',
                   n_processes: int = None,
                   single_thread: bool = False,
-                  ignore_preexisting: bool = False) -> Tuple[Any, Any, Optional[int]]:
+                  ignore_preexisting: bool = False,
+                  maxtasksperchild: int = None) -> Tuple[Any, Any, Optional[int]]:
     """Setup and/or restart a parallel cluster.
     Args:
         backend: str
@@ -437,7 +438,7 @@ def setup_cluster(backend: str = 'multiprocessing',
                     pass
             c = None
 
-            dview = Pool(n_processes)
+            dview = Pool(n_processes, maxtasksperchild=maxtasksperchild)
         else:
             raise Exception('Unknown Backend')
 
