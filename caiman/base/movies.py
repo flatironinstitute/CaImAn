@@ -915,27 +915,34 @@ class movie(ts.timeseries):
 
     def local_correlations(self,
                            eight_neighbours: bool = False,
-                           swap_dim: bool = True,
+                           swap_dim: bool = False,
                            frames_per_chunk: int = 1500,
-                           order_mean=1) -> np.ndarray:
-        """Computes the correlation image for the input dataset Y
+                           do_plot: bool = False,
+                           order_mean: int =1) -> np.ndarray:
+        """Computes the correlation image (CI) for the input movie. If the movie has
+        length more than 3000 frames it will automatically compute the max-CI
+        taken over chunks of a user specified length.
 
             Args:
                 self:  np.ndarray (3D or 4D)
                     Input movie data in 3D or 4D format
-    
+
                 eight_neighbours: Boolean
                     Use 8 neighbors if true, and 4 if false for 3D data (default = True)
                     Use 6 neighbors for 4D data, irrespectively
-    
+
                 swap_dim: Boolean
                     True indicates that time is listed in the last axis of Y (matlab format)
-                    and moves it in the front
+                    and moves it in the front (default: False)
 
-                frames_per_chunk: int (undocumented)
+                frames_per_chunk: int
+                    Length of chunks to split the file into (default: 1500)
 
-                order_mean: (undocumented)
-                
+                do_plot: Boolean (False)
+                    Display a plot that updates the CI when computed in chunks
+
+                order_mean: int (1)
+                    Norm used to average correlations over neighborhood (default: 1).
 
             Returns:
                 rho: d1 x d2 [x d3] matrix, cross-correlation with adjacent pixels
@@ -959,8 +966,9 @@ class movie(ts.timeseries):
                                             swap_dim=swap_dim,
                                             order_mean=order_mean)
                 Cn = np.maximum(Cn, rho)
-                pl.imshow(Cn, cmap='gray')
-                pl.pause(.1)
+                if do_plot:
+                    pl.imshow(Cn, cmap='gray')
+                    pl.pause(.1)
 
             logging.debug('number of chunks:' + str(n_chunks - 1) + ' frames: ' +
                           str([(n_chunks - 1) * frames_per_chunk, T]))
@@ -969,8 +977,9 @@ class movie(ts.timeseries):
                                         swap_dim=swap_dim,
                                         order_mean=order_mean)
             Cn = np.maximum(Cn, rho)
-            pl.imshow(Cn, cmap='gray')
-            pl.pause(.1)
+            if do_plot:
+                pl.imshow(Cn, cmap='gray')
+                pl.pause(.1)
 
         return Cn
 
