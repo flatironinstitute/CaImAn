@@ -1094,9 +1094,7 @@ class OnACID(object):
         init_batch = self.params.get('online', 'init_batch')
         if self.params.get('online', 'ring_CNN'):
             logging.info('Using Ring CNN model')
-            from caiman.utils.nn_models import (get_run_logdir, fit_NL_model,
-                                    create_LN_model, quantile_loss, get_mask, total_variation_loss,
-                                    rate_scheduler)
+            from caiman.utils.nn_models import (fit_NL_model, create_LN_model, quantile_loss, rate_scheduler)
             gSig = self.params.get('init', 'gSig')[0]
             width = self.params.get('ring_CNN', 'width')
             nch = self.params.get('ring_CNN', 'n_channels')
@@ -1128,23 +1126,6 @@ class OnACID(object):
                                                                 schedule=sch)
                 logging.info('Training complete. Model saved in {}.'.format(path_to_model))
                 self.params.set('ring_CNN', {'path_to_model': path_to_model})
-#            new_fl = []
-#            for fl in fls:
-#                Y = caiman.load(fl, var_name_hdf5=self.params.get('data', 'var_name_hdf5'))
-#                logging.info('Extracting background from file {}'.format(fl))
-#                B = np.squeeze(model_LN.predict(np.expand_dims(Y, -1)))
-#                logging.info('Complete')
-#                D = Y - B
-#                if self.params.get('ring_CNN', 'loss_fn') == 'pct':
-#                    D -= np.quantile(D, self.params.get('ring_CNN', 'pct'), axis=0)
-#                fname, extension = os.path.splitext(fl)[:2]
-#                fname_new = fname + '_bck_removed.h5'
-#                logging.info('Saving file as {}'.format(fname_new))
-#                caiman.movie(D).save(fname_new, var_name_hdf5=self.params.get('data', 'var_name_hdf5'))
-#                logging.info('done')
-#                new_fl.append(fname_new)
-#            fls = new_fl
-#            self.params.set('data', {'fnames': fls})
         else:
             model_LN = None
         epochs = self.params.get('online', 'epochs')
@@ -1199,7 +1180,14 @@ class OnACID(object):
                     try:
                         frame = next(Y_)
                         if model_LN is not None:
-                            frame = frame - np.squeeze(model_LN.predict(np.expand_dims(np.expand_dims(frame.astype(np.float32), 0), -1)))
+                            if self.params.get('ring_CNN', 'remove_activity'):
+                                activity = self.estimates.Ab[:,:self.N].dot(self.estimates.C_on[:self.N, t-1]).reshape(self.params.get('data', 'dims'), order='F')
+                                if self.params.get('online', 'normalize'):
+                                    activity *= self.img_norm
+                            else:
+                                activity = 0.
+#                                frame = frame.astype(np.float32) - activity
+                            frame = frame - np.squeeze(model_LN.predict(np.expand_dims(np.expand_dims(frame.astype(np.float32) - activity, 0), -1)))
                             frame = np.maximum(frame, 0)
                         frame_count += 1
                         t_frame_start = time()

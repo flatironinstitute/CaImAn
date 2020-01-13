@@ -581,7 +581,49 @@ class CNMFParams(object):
                 flag for using a GPU.
 
             indices: tuple(slice), default: (slice(None), slice(None))
-               Use that to apply motion correction only on a part of the FOV
+                Use that to apply motion correction only on a part of the FOV
+
+        RING CNN PARAMETERS (CNMFParams.ring_CNN)
+
+            n_channels: int, default: 2
+                Number of "ring" kernels
+
+            use_bias: bool, default: False
+                Flag for using bias in the convolutions
+
+            use_add: bool, default: False
+                Flag for using an additive layer
+
+            pct: float between 0 and 1, default: 0.01
+                Quantile used during training with quantile loss function
+
+            patience: int, default: 3
+                Number of epochs to wait before early stopping
+
+            max_epochs: int, default: 100
+                Maximum number of epochs to be used during training
+
+            width: int, default: 5
+                Width of "ring" kernel
+
+            loss_fn: str, default: 'pct'
+                Loss function specification ('pct' for quantile loss function,
+                'mse' for mean squared error)
+
+            lr: float, default: 1e-3
+                (initial) learning rate
+
+            lr_scheduler: function, default: None
+                Learning rate scheduler function
+
+            path_to_model: str, default: None
+                Path to saved weights (if training then path to saved model weights)
+
+            remove_activity: bool, default: False
+                Flag for removing activity of last frame prior to background extraction
+
+            reuse_model: bool, default: False
+                Flag for reusing an already trained model (saved in path to model)
         """
 
         self.data = {
@@ -813,18 +855,20 @@ class CNMFParams(object):
         }
 
         self.ring_CNN = {
-            'n_channels' : 2,
-            'use_bias' : False,
-            'use_add' : False,
-            'pct' : 0.01,
-            'patience' : 3,
-            'max_epochs': 100,
-            'width': 5,
-            'loss_fn': 'pct',
-            'lr': 1e-3,
-            'lr_scheduler': None,
-            'path_to_model': None,
-            'reuse_model': False}
+            'n_channels' : 2,                   # number of "ring" kernels   
+            'use_bias' : False,                 # use bias in the convolutions
+            'use_add' : False,                  # use an additive layer
+            'pct' : 0.01,                       # quantile loss specification
+            'patience' : 3,                     # patience for early stopping
+            'max_epochs': 100,                  # maximum number of epochs
+            'width': 5,                         # width of "ring" kernel
+            'loss_fn': 'pct',                   # loss function
+            'lr': 1e-3,                         # (initial) learning rate
+            'lr_scheduler': None,               # learning rate scheduler function
+            'path_to_model': None,              # path to saved weights
+            'remove_activity': False,           # remove activity of last frame prior to background extraction
+            'reuse_model': False                # reuse an already trained model
+        }
 
         self.change_params(params_dict)
 
