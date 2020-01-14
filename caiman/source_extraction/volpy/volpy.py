@@ -17,7 +17,7 @@ class VOLPY(object):
         The general file class which is used to find spikes of voltage imaging.
         Its architecture is similar to the one of scikit-learn calling the function fit
         to run everything which is part of the structure of the class.
-        The output will be recorded in self.estimate.
+        The output will be recorded in self.estimates.
     """
 
     def __init__(self, n_processes, dview=None, doCrossVal=False, doGlobalSubtract=False,
@@ -81,7 +81,7 @@ class VOLPY(object):
 
     def fit(self, n_processes=None, dview=None):
         """Run the volspike function to detect spikes and save the result
-        into self.estimate
+        into self.estimates
         """
         results = []
         fnames = self.params.data['fnames']
