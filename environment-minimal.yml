@@ -13,7 +13,6 @@ dependencies:
 - numpy
 - numpydoc
 - opencv
-- peakutils
 - pims
 - pyqtgraph
 - scikit-image
