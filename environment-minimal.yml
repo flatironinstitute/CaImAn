@@ -6,7 +6,6 @@ dependencies:
 - future
 - h5py
 - holoviews
-- ipython
 - ipyparallel
 - keras
 - matplotlib
@@ -14,6 +13,7 @@ dependencies:
 - numpydoc
 - opencv
 - pims
+- pynwb
 - pyqtgraph
 - scikit-image
 - scikit-learn
