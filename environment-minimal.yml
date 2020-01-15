@@ -1,0 +1,25 @@
+channels:
+- conda-forge
+dependencies:
+- python=3.7
+- cython
+- future
+- h5py
+- holoviews
+- ipython
+- ipyparallel
+- keras
+- matplotlib
+- numpy
+- numpydoc
+- opencv
+- peakutils
+- pims
+- pyqtgraph
+- scikit-image
+- scikit-learn
+- scipy
+- tensorflow
+- tifffile
+- tk
+- tqdm
