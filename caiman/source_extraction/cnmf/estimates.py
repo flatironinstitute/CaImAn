@@ -17,10 +17,10 @@ import caiman
 from .utilities import detrend_df_f
 from .spatial import threshold_components
 from .temporal import constrained_foopsi_parallel
-from .merging import merge_iteration
+from .merging import merge_iteration, merge_components
 from ...components_evaluation import (
         evaluate_components_CNN, estimate_components_quality_auto,
-        select_components_from_metrics)
+        select_components_from_metrics, compute_eccentricity)
 from ...base.rois import (
         detect_duplicates_and_subsets, nf_match_neurons_in_binary_masks,
         nf_masks_to_neurof_dict)
@@ -103,6 +103,9 @@ class Estimates(object):
 
             cnn_preds: np.ndarray
                 CNN predictions for each component
+
+            ecc: np.ndarray
+                eccentricity values
         """
         # variables related to the estimates of traces, footprints, deconvolution and background
         self.A = A
@@ -133,6 +136,7 @@ class Estimates(object):
         self.SNR_comp = None
         self.r_values = None
         self.cnn_preds = None
+        self.ecc = None
 
         # online
 
@@ -163,7 +167,8 @@ class Estimates(object):
 
 
     def plot_contours(self, img=None, idx=None, crd=None, thr_method='max',
-                      thr='0.2', display_numbers=True, params=None):
+                      thr=0.2, display_numbers=True, params=None,
+                      cmap='viridis'):
         """view contours of all spatial footprints.
 
         Args:
@@ -197,7 +202,8 @@ class Estimates(object):
                            int(params.quality['use_cnn'])))
         if idx is None:
             caiman.utils.visualization.plot_contours(self.A, img, coordinates=self.coordinates,
-                                                     display_numbers=display_numbers)
+                                                     display_numbers=display_numbers,
+                                                     cmap=cmap)
         else:
             if not isinstance(idx, list):
                 idx = idx.tolist()
@@ -207,18 +213,20 @@ class Estimates(object):
             plt.subplot(1, 2, 1)
             caiman.utils.visualization.plot_contours(self.A[:, idx], img,
                                                      coordinates=coor_g,
-                                                     display_numbers=display_numbers)
+                                                     display_numbers=display_numbers,
+                                                     cmap=cmap)
             plt.title('Accepted Components')
             bad = list(set(range(self.A.shape[1])) - set(idx))
             plt.subplot(1, 2, 2)
             caiman.utils.visualization.plot_contours(self.A[:, bad], img,
                                                      coordinates=coor_b,
-                                                     display_numbers=display_numbers)
+                                                     display_numbers=display_numbers,
+                                                     cmap=cmap)
             plt.title('Rejected Components')
         return self
 
     def plot_contours_nb(self, img=None, idx=None, crd=None, thr_method='max',
-                         thr='0.2', params=None):
+                         thr=0.2, params=None, line_color='white', cmap='viridis'):
         """view contours of all spatial footprints (notebook environment).
 
         Args:
@@ -248,7 +256,8 @@ class Estimates(object):
             if idx is None:
                 p = caiman.utils.visualization.nb_plot_contour(img, self.A, self.dims[0],
                                 self.dims[1], coordinates=self.coordinates,
-                                thr_method=thr_method, thr=thr, show=False)
+                                thr_method=thr_method, thr=thr, show=False,
+                                line_color=line_color, cmap=cmap)
                 p.title.text = 'Contour plots of found components'
                 if params is not None:
                     p.xaxis.axis_label = '''\
@@ -265,7 +274,8 @@ class Estimates(object):
                 coor_b = [self.coordinates[cr] for cr in bad]
                 p1 = caiman.utils.visualization.nb_plot_contour(img, self.A[:, idx],
                                 self.dims[0], self.dims[1], coordinates=coor_g,
-                                thr_method=thr_method, thr=thr, show=False)
+                                thr_method=thr_method, thr=thr, show=False,
+                                line_color=line_color, cmap=cmap)
                 p1.plot_width = 450
                 p1.plot_height = 450 * self.dims[0] // self.dims[1]
                 p1.title.text = "Accepted Components"
@@ -278,7 +288,8 @@ class Estimates(object):
                 bad = list(set(range(self.A.shape[1])) - set(idx))
                 p2 = caiman.utils.visualization.nb_plot_contour(img, self.A[:, bad],
                                 self.dims[0], self.dims[1], coordinates=coor_b,
-                                thr_method=thr_method, thr=thr, show=False)
+                                thr_method=thr_method, thr=thr, show=False,
+                                line_color=line_color, cmap=cmap)
                 p2.plot_width = 450
                 p2.plot_height = 450 * self.dims[0] // self.dims[1]
                 p2.title.text = 'Rejected Components'
@@ -293,7 +304,7 @@ class Estimates(object):
             print("Bokeh could not be loaded. Either it is not installed or you are not running within a notebook")
             print("Using non-interactive plot as fallback")
             self.plot_contours(img=img, idx=idx, crd=crd, thr_method=thr_method,
-                         thr=thr, params=params)
+                               thr=thr, params=params, cmap=cmap)
         return self
 
     def view_components(self, Yr=None, img=None, idx=None):
@@ -994,7 +1005,13 @@ class Estimates(object):
         self.SNR_comp = SNR_comp
         self.r_values = r_values
         self.cnn_preds = cnn_preds
-
+        if opts['use_ecc']:
+            self.ecc = compute_eccentricity(self.A, dims)
+            idx_ecc = np.where(self.ecc < opts['max_ecc'])[0]
+            self.idx_components_bad = np.union1d(self.idx_components_bad,
+                                                 np.setdiff1d(self.idx_components,
+                                                              idx_ecc))
+            self.idx_components = np.intersect1d(self.idx_components, idx_ecc)
         return self
 
     def filter_components(self, imgs, params, new_dict={}, dview=None, select_mode='All'):
@@ -1077,6 +1094,12 @@ class Estimates(object):
                                            thresh_cnn_lowest=opts['cnn_lowest'],
                                            use_cnn=opts['use_cnn'],
                                            gSig_range=opts['gSig_range'])
+            if opts['use_ecc']:
+                idx_ecc = np.where(self.ecc < opts['max_ecc'])[0]
+                self.idx_components_bad = np.union1d(self.idx_components_bad,
+                                                     np.setdiff1d(self.idx_components,
+                                                                  idx_ecc))
+                self.idx_components = np.intersect1d(self.idx_components, idx_ecc)
 
         if select_mode == 'Accepted':
            self.idx_components = np.array(np.intersect1d(self.idx_components,self.accepted_list))
@@ -1162,6 +1185,20 @@ class Estimates(object):
                 self.F_dff_dec = np.stack([results[0][i] for i in order])
                 self.S_dff = np.stack([results[1][i] for i in order])
 
+    def merge_components(self, Y, params, mx=50, fast_merge=True,
+                         dview=None, max_merge_area=None):
+            """merges components
+            """
+            self.A, self.C, self.nr, self.merged_ROIs, self.S, \
+            self.bl, self.c1, self.neurons_sn, self.g, empty_merged, \
+            self.YrA =\
+                merge_components(Y, self.A, self.b, self.C, self.YrA,
+                                 self.f, self.S, self.sn, params.get_group('temporal'),
+                                 params.get_group('spatial'), dview=dview,
+                                 bl=self.bl, c1=self.c1, sn=self.neurons_sn,
+                                 g=self.g, thr=params.get('merging', 'merge_thr'), mx=mx,
+                                 fast_merge=fast_merge, merge_parallel=params.get('merging', 'merge_parallel'),
+                                 max_merge_area=max_merge_area)
 
     def manual_merge(self, components, params):
         ''' merge a given list of components. The indices

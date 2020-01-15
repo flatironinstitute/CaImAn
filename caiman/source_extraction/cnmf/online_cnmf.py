@@ -468,6 +468,7 @@ class OnACID(object):
         self.estimates.sn = np.sqrt(self.estimates.vr)
         
         t_new = time()
+        num_added = 0
         if self.params.get('online', 'update_num_comps'):
 
             if self.params.get('online', 'use_corr_img'):
@@ -926,11 +927,14 @@ class OnACID(object):
 
         return self
 
-    def initialize_online(self):
+    def initialize_online(self, model_LN=None):
         fls = self.params.get('data', 'fnames')
         opts = self.params.get_group('online')
         Y = caiman.load(fls[0], subindices=slice(0, opts['init_batch'],
                  None), var_name_hdf5=self.params.get('data', 'var_name_hdf5')).astype(np.float32)
+        if model_LN is not None:
+            Y = Y - caiman.movie(np.squeeze(model_LN.predict(np.expand_dims(Y, -1))))
+            Y = np.maximum(Y, 0)
         # Downsample if needed
         ds_factor = np.maximum(opts['ds_factor'], 1)
         if ds_factor > 1:
@@ -1031,7 +1035,7 @@ class OnACID(object):
             self.estimates.lam = np.zeros(nr)
         else:
             raise Exception('Unknown initialization method!')
-        dims, Ts = get_file_size(fls)
+        dims, Ts = get_file_size(fls, var_name_hdf5=self.params.get('data', 'var_name_hdf5'))
         dims = Y.shape[1:]
         self.params.set('data', {'dims': dims})
         T1 = np.array(Ts).sum()*self.params.get('online', 'epochs')
@@ -1085,12 +1089,47 @@ class OnACID(object):
         Returns:
             self (results of caiman online)
         """
-
+        self.t_init = -time()
         fls = self.params.get('data', 'fnames')
         init_batch = self.params.get('online', 'init_batch')
+        if self.params.get('online', 'ring_CNN'):
+            logging.info('Using Ring CNN model')
+            from caiman.utils.nn_models import (fit_NL_model, create_LN_model, quantile_loss, rate_scheduler)
+            gSig = self.params.get('init', 'gSig')[0]
+            width = self.params.get('ring_CNN', 'width')
+            nch = self.params.get('ring_CNN', 'n_channels')
+            if self.params.get('ring_CNN', 'loss_fn') == 'pct':
+                loss_fn = quantile_loss(self.params.get('ring_CNN', 'pct'))
+            else:
+                loss_fn = self.params.get('ring_CNN', 'loss_fn')
+            if self.params.get('ring_CNN', 'lr_scheduler') is None:
+                sch = None
+            else:
+                sch = rate_scheduler(*self.params.get('ring_CNN', 'lr_scheduler'))
+            Y = caiman.base.movies.load(fls[0], subindices=slice(init_batch),
+                                        var_name_hdf5=self.params.get('data', 'var_name_hdf5'))
+            shape = Y.shape[1:] + (1,)
+            logging.info('Starting background model training.')
+            model_LN = create_LN_model(Y, shape=shape, n_channels=nch,
+                                       lr=self.params.get('ring_CNN', 'lr'), gSig=gSig,
+                                       loss=loss_fn, width=width,
+                                       use_add=self.params.get('ring_CNN', 'use_add'),
+                                       use_bias=self.params.get('ring_CNN', 'use_bias'))
+            if self.params.get('ring_CNN', 'reuse_model'):
+                logging.info('Using existing model from {}'.format(self.params.get('ring_CNN', 'path_to_model')))
+                model_LN.load_weights(self.params.get('ring_CNN', 'path_to_model'))
+            else:
+                logging.info('Estimating model from scratch, starting training.')
+                model_LN, history, path_to_model = fit_NL_model(model_LN, Y,
+                                                                epochs=self.params.get('ring_CNN', 'max_epochs'),
+                                                                patience=self.params.get('ring_CNN', 'patience'),
+                                                                schedule=sch)
+                logging.info('Training complete. Model saved in {}.'.format(path_to_model))
+                self.params.set('ring_CNN', {'path_to_model': path_to_model})
+        else:
+            model_LN = None
         epochs = self.params.get('online', 'epochs')
-        self.t_init = -time()
-        self.initialize_online()
+        self.initialize_online(model_LN=model_LN)
         self.t_init += time()
         extra_files = len(fls) - 1
         init_files = 1
@@ -1120,6 +1159,9 @@ class OnACID(object):
                                   True)
         # Iterate through the epochs
         for iter in range(epochs):
+            if iter == epochs - 1 and self.params.get('online', 'stop_detection'):
+                self.params.set('online', {'update_num_comps': False})
+            logging.info('Searching for new components set to: {}'.format(self.params.get('online', 'update_num_comps')))
             if iter > 0:
                 # if not on first epoch process all files from scratch
                 process_files = fls[:init_files + extra_files]
@@ -1137,12 +1179,22 @@ class OnACID(object):
                 while True:   # process each file
                     try:
                         frame = next(Y_)
+                        if model_LN is not None:
+                            if self.params.get('ring_CNN', 'remove_activity'):
+                                activity = self.estimates.Ab[:,:self.N].dot(self.estimates.C_on[:self.N, t-1]).reshape(self.params.get('data', 'dims'), order='F')
+                                if self.params.get('online', 'normalize'):
+                                    activity *= self.img_norm
+                            else:
+                                activity = 0.
+#                                frame = frame.astype(np.float32) - activity
+                            frame = frame - np.squeeze(model_LN.predict(np.expand_dims(np.expand_dims(frame.astype(np.float32) - activity, 0), -1)))
+                            frame = np.maximum(frame, 0)
                         frame_count += 1
                         t_frame_start = time()
                         if np.isnan(np.sum(frame)):
                             raise Exception('Frame ' + str(frame_count) +
                                             ' contains NaN')
-                        if t % 100 == 0:
+                        if t % 500 == 0:
                             logging.info('Epoch: ' + str(iter + 1) + '. ' + str(t) +
                                          ' frames have beeen processed in total. ' +
                                          str(self.N - old_comps) +
@@ -1298,9 +1350,15 @@ class OnACID(object):
         comps_frame = (comps_frame.copy() - self.bnd_AC[0])/np.diff(self.bnd_AC)
 
         if show_residuals:
-            #all_comps = np.reshape(self.Yres_buf.mean(0), self.dims, order='F')
-            all_comps = np.reshape(est.mean_buff, self.dims, order='F')
-            fac = 1. / np.percentile(est.mean_buff, 99.995)
+            if self.params.get('online', 'use_corr_img'):
+                pnr_img = est.max_img / est.sn.reshape(est.dims, order='F')
+                pnr_img[pnr_img<2] = 0
+                all_comps = np.nan_to_num(est.corr_img * pnr_img)
+                fac = 1. / self.params.get('init', 'min_corr') / self.params.get('init', 'min_pnr')
+            else:
+                #all_comps = np.reshape(self.Yres_buf.mean(0), self.dims, order='F')
+                all_comps = np.reshape(est.mean_buff, self.dims, order='F')
+                fac = 1. / np.percentile(est.mean_buff, 99.995)
         else:
             all_comps = np.array(A.sum(-1)).reshape(self.dims, order='F')
             fac = 2
@@ -2166,67 +2224,6 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
         use_peak_max=use_peak_max, test_both=test_both, mean_buff=mean_buff,
         tf_in=tf_in, tf_out=tf_out)
 
-    # cn, pnr = caiman.summary_images.correlation_pnr(Yres_buf.reshape((-1,) + dims, order='F'),
-    #                                                 gSig=1, center_psf=False, swap_dim=False)
-    # Y_filter = Yres_buf.reshape((-1,) + dims, order='F').copy()
-    # for i in range(len(Y_filter)):
-    #      # Y_filter[i] = cv2.GaussianBlur(Y_filter[i], tuple(gSiz), gSig[0])  #, Y_filter[i], gSig[1], cv2.BORDER_CONSTANT)
-    #      Y_filter[i] = cv2.GaussianBlur(Y_filter[i], tuple(gSiz), 1)  #, Y_filter[i], 1, cv2.BORDER_CONSTANT)
-
-    # cn = caiman.summary_images.local_correlations_fft(#Y_filter, swap_dim=False)
-    #     Yres_buf.reshape((-1,) + dims, order='F'), swap_dim=False)
-
-    # foo = get_candidate_components(
-    #     # corr_img, dims, Yres_buf=Yres_buf, min_num_trial=min_num_trial, gSig=gSig,
-    #     cn, dims, Yres_buf=Yres_buf, min_num_trial=min_num_trial, gSig=gSig,
-    #     gHalf=gHalf, sniper_mode=sniper_mode, rval_thr=rval_thr, patch_size=50,
-    #     loaded_model=loaded_model, thresh_CNN_noisy=thresh_CNN_noisy,
-    #     use_peak_max=use_peak_max, test_both=test_both, mean_buff=mean_buff)
-    # Ains, Cins, Cins_res, inds, ijsig_all, cnn_pos, local_max = foo
-
-    # if not t%100:
-    #     import matplotlib.pyplot as plt
-    #     from scipy.io import loadmat
-    #     from caiman.utils.visualization import plot_contours
-    #     A = loadmat('/mnt/home/jfriedrich/CNMF_E/eLife_submission/code/' +
-    #                 'scripts_figures/fig_striatum/results_bk.mat')['A']
-    #     A = csc_matrix(A.toarray().reshape(
-    #         dims + (-1,), order='F').reshape((-1, A.shape[-1]), order='C'))
-    #     # plt.figure(figsize=(20, 20))
-    #     # plt.subplot(221)
-    #     # plt.colorbar(plt.imshow(pnr_img))
-    #     # plt.subplot(222)
-    #     # # plt.colorbar(plt.imshow(corr_img))
-    #     # plot_contours(A, corr_img, thr=.6, colors='w', display_numbers=False)
-    #     # plt.scatter(*foo[-1].T[::-1], c='r')
-    #     # plt.subplot(223)
-    #     # plt.colorbar(plt.imshow(pnr_img * corr_img))
-    #     # plt.subplot(224)
-    #     # # plt.colorbar(plt.imshow(sv.reshape(dims)))
-    #     # plot_contours(A, sv.reshape(dims), thr=.6, colors='w', display_numbers=False)
-    #     # plt.scatter(*local_max.T[::-1], c='r')
-    #     # plt.show()
-    #     plt.figure(figsize=(20, 20))
-    #     plt.subplot(331)
-    #     plt.colorbar(plt.imshow(pnr_img))
-    #     plt.subplot(332)
-    #     plot_contours(A, corr_img, thr=.6, colors='w', display_numbers=False)
-    #     plt.scatter(*foo[-1].T[::-1], c='r')
-    #     plt.subplot(333)
-    #     plt.colorbar(plt.imshow(pnr_img * corr_img))
-    #     plt.subplot(334)
-    #     plt.colorbar(plt.imshow(pnr))
-    #     plt.subplot(335)
-    #     plot_contours(A, cn, thr=.6, colors='w', display_numbers=False)
-    #     # plt.scatter(*foo[-1].T[::-1], c='r')
-    #     plt.subplot(336)
-    #     plt.colorbar(plt.imshow(pnr * cn))
-    #     plt.subplot(337)
-    #     plot_contours(A, sv.reshape(dims), thr=.6, colors='w', display_numbers=False)
-    #     plt.scatter(*local_max.T[::-1], c='r')
-    #     plt.show()
-    #     import pdb;pdb.set_trace()
-
     ind_new_all = ijsig_all
 
     num_added = 0  # len(inds)
@@ -2421,17 +2418,6 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                     rho_buf[:, ind_vb] = tmp.reshape(T, -1, d1)[
                         (slice(None),) + slices].reshape(T, -1)**2
 
-                # import matplotlib.pyplot as plt
-                # plt.figure(figsize=(15, 10))
-                # plt.subplot(231)
-                # plt.colorbar(plt.imshow(pnr_img))
-                # plt.subplot(232)
-                # plt.colorbar(plt.imshow(corr_img))
-                # plt.subplot(233)
-                # plt.colorbar(plt.imshow(pnr_img*corr_img))
-                # plt.subplot(234)
-                # plt.colorbar(plt.imshow(sv.reshape(dims)))
-
                 sv[ind_vb] = np.sum(rho_buf[:, ind_vb], 0)
 
     return Ab, Cf, Yres_buf, rho_buf, CC, CY, ind_A, sv, groups, ind_new, ind_new_all, sv, cnn_pos
@@ -2604,20 +2590,11 @@ def load_OnlineCNMF(filename, dview = None):
             useful to set up parllelization in the objects
     """
 
-    #load params
-
     for key,val in load_dict_from_hdf5(filename).items():
         if key == 'params':
             prms = CNMFParams()
-            prms.data = val['data']
-            prms.patch = val['patch']
-            prms.preprocess = val['preprocess']
-            prms.init = val['init']
-            prms.spatial = val['spatial']
-            prms.temporal = val['temporal']
-            prms.merging = val['merging']
-            prms.quality = val['quality']
-            prms.quality = val['online']
+            for subdict in val.keys():
+                prms.set(subdict, val[subdict])
 
     new_obj = OnACID(params=prms)
 

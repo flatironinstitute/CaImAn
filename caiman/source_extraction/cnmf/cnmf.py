@@ -1006,16 +1006,8 @@ def load_CNMF(filename, n_processes=1, dview=None):
         for key, val in load_dict_from_hdf5(filename).items():
             if key == 'params':
                 prms = CNMFParams()
-                prms.spatial = val['spatial']
-                prms.temporal = val['temporal']
-                prms.patch = val['patch']
-                prms.preprocess = val['preprocess']
-                prms.init = val['init']
-                prms.merging = val['merging']
-                prms.quality = val['quality']
-                prms.data = val['data']
-                prms.online = val['online']
-                prms.motion = val['motion']
+                for subdict in val.keys():
+                    prms.set(subdict, val[subdict])
                 setattr(new_obj, key, prms)
             elif key == 'dview':
                 setattr(new_obj, key, dview)

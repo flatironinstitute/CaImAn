@@ -1,9 +1,3 @@
-Position available
-======
-
-The CaImAn team is hiring! We're looking for a data scientist/software engineer with a strong research component. For more information please follow [this link](https://simonsfoundation.wd1.myworkdayjobs.com/en-US/simonsfoundationcareers/job/162-Fifth-Avenue/Software-Engineer_R0000500).
-
-
 CaImAn
 ======
 <img src="https://github.com/flatironinstitute/CaImAn/blob/master/docs/LOGOS/Caiman_logo_FI.png" width="500" align="right">
@@ -37,15 +31,20 @@ A paper explaining most of the implementation details and benchmarking can be fo
 
 All the results and figures of the paper can be regenerated using this package. For more information visit this [page](https://github.com/flatironinstitute/CaImAn/tree/master/use_cases/eLife_scripts).
 
-## New: Analysis of Voltage Imaging data (December 2019)
+## New: Online analysis for microendoscopic 1p data (January 2020)
 
-We recently added VolPy for analyzing voltage imaging data. The analysis is based on following objects:
+We developed two approaches for analyzing streaming microendoscopic 1p data with hihg speed and low memory requirements. 
+The first approach (OnACID-E) features a direct implementation of the CNMF-E algorithm in an online setup. An example can be shown in the notebook `demos/notebooks/demo_online_CNMFE.ipynb`. The second approach first extracts the background by modeling it with a simple convolutional neural network (Ring-CNN) and proceeds with the analysis using the OnACID algorithm.
+
+## New: Analysis pipeline for Voltage Imaging data (December 2019)
+
+We recently added VolPy an analysis pipeline for voltage imaging data. The analysis is based on following objects:
 
 * `MotionCorrect`: An object for motion correction which can be used for both rigid and piece-wise rigid motion correction.
 * `volparams`: An object for setting parameters of voltage imaging. It can be set and changed easily and is passed into the algorithms.
 * `VOLPY`: An object for running the spike detection algorithm and saving results.
 
-To see examples of how these methods are used, please consult the demo_pipeline_voltage_imaging.py in demos/general folder. 
+To see examples of how these methods are used, please consult the `demo_pipeline_voltage_imaging.py` script in the `demos/general` folder. For more information about the approach check the [preprint](https://www.biorxiv.org/content/10.1101/2020.01.02.892323v1).
 
 ## New: Installation through conda-forge (August 2019)
 
@@ -132,14 +131,13 @@ If you use this code please cite the corresponding papers where original methods
 
 <a name="behavior"></a>[8] Giovannucci, A., Pnevmatikakis, E. A., Deverett, B., Pereira, T., Fondriest, J., Brady, M. J., ... & Masip, D. (2017). Automated gesture tracking in head-fixed mice. Journal of Neuroscience Methods, 300:184-195. [[paper]](https://doi.org/10.1016/j.jneumeth.2017.07.014).
 
-### Variance Stabilization
-
-<a name="vst"></a>[9] Tepper, M., Giovannucci, A., and Pnevmatikakis, E (2018). Anscombe meets Hough: Noise variance stabilization via parametric model estimation. In ICASSP, 2018. [[paper]](https://marianotepper.github.io/papers/anscombe-meets-hough.pdf). [[Github repository]](https://github.com/marianotepper/hough-anscombe)
-
 ### Voltage Imaging
 
-<a name="vst"></a>[9] Cai, C. , Friedrich, J. , Pnevmatikakis, E. A. , Podgorski, K. , Giovannucci, A.(2020). VolPy: automated and scalable analysis pipelines for voltage imaging datasets. bioRxiv preprint bioRxiv 2020.01.02.892323 [[paper]](https://www.biorxiv.org/content/10.1101/2020.01.02.892323v1).
+<a name="vol"></a>[9] Cai, C. , Friedrich, J. , Pnevmatikakis, E. A. , Podgorski, K. , Giovannucci, A.(2020). VolPy: automated and scalable analysis pipelines for voltage imaging datasets. bioRxiv preprint bioRxiv 2020.01.02.892323 [[paper]](https://www.biorxiv.org/content/10.1101/2020.01.02.892323v1).
 
+### Variance Stabilization
+
+<a name="vst"></a>[10] Tepper, M., Giovannucci, A., and Pnevmatikakis, E (2018). Anscombe meets Hough: Noise variance stabilization via parametric model estimation. In ICASSP, 2018. [[paper]](https://marianotepper.github.io/papers/anscombe-meets-hough.pdf). [[Github repository]](https://github.com/marianotepper/hough-anscombe)
 
 ## Other docs in this repo
 * [Running CaImAn on a Cluster](docs/CLUSTER.md)

@@ -129,6 +129,16 @@ def compute_event_exceptionality(traces: np.ndarray,
 
     return fitness, erfc, sd_r, md
 
+def compute_eccentricity(A, dims, order='F'):
+    """computes eccentricity of components (currently only for 2D)"""
+    ecc = []
+    for i in range(A.shape[-1]):
+        a = A[:,i].reshape(dims, order=order).toarray()
+        M = cv2.moments(a)
+        cov = np.array([[M['mu20'], M['mu11']], [M['mu11'], M['mu02']]])/(M['m00'] + np.finfo(np.float32).eps)
+        eigs = np.sort(np.linalg.eigvals(cov))
+        ecc.append(np.sqrt(eigs[1]/(eigs[0] + np.finfo(np.float32).eps)))
+    return np.array(ecc)
 
 #%%
 def find_activity_intervals(C, Npeaks: int = 5, tB=-3, tA=10, thres: float = 0.3) -> List:

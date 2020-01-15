@@ -83,6 +83,7 @@ def save_memmap_each(fnames: List[str],
                      resize_fact=(1, 1, 1),
                      remove_init: int = 0,
                      idx_xy=None,
+                     var_name_hdf5='mov',
                      xy_shifts=None,
                      add_to_movie: float = 0,
                      border_to_0: int = 0,
@@ -139,14 +140,14 @@ def save_memmap_each(fnames: List[str],
     for idx, f in enumerate(fnames):
         if base_name is not None:
             pars.append([
-                f, base_name + '{:04d}'.format(idx), resize_fact[idx], remove_init, idx_xy, order, xy_shifts[idx],
-                add_to_movie, border_to_0, slices
+                f, base_name + '{:04d}'.format(idx), resize_fact[idx], remove_init, idx_xy, order,
+                var_name_hdf5, xy_shifts[idx], add_to_movie, border_to_0, slices
             ])
         else:
             pars.append([
                 f,
-                os.path.splitext(f)[0], resize_fact[idx], remove_init, idx_xy, order, xy_shifts[idx], add_to_movie,
-                border_to_0, slices
+                os.path.splitext(f)[0], resize_fact[idx], remove_init, idx_xy, order, var_name_hdf5,
+                xy_shifts[idx], add_to_movie, border_to_0, slices
             ])
 
     # Perform the job using whatever computing framework we're set to use
@@ -318,7 +319,7 @@ def save_place_holder(pars: List) -> str:
     """
     # todo: todocument
 
-    (f, base_name, resize_fact, remove_init, idx_xy, order, xy_shifts, add_to_movie, border_to_0, slices) = pars
+    (f, base_name, resize_fact, remove_init, idx_xy, order, var_name_hdf5, xy_shifts, add_to_movie, border_to_0, slices) = pars
 
     return save_memmap([f],
                        base_name=base_name,
@@ -326,6 +327,7 @@ def save_place_holder(pars: List) -> str:
                        remove_init=remove_init,
                        idx_xy=idx_xy,
                        order=order,
+                       var_name_hdf5=var_name_hdf5,
                        xy_shifts=xy_shifts,
                        add_to_movie=add_to_movie,
                        border_to_0=border_to_0,
@@ -339,6 +341,7 @@ def save_memmap(filenames: List[str],
                 remove_init: int = 0,
                 idx_xy: Tuple = None,
                 order: str = 'F',
+                var_name_hdf5: str = 'mov',
                 xy_shifts: Optional[List] = None,
                 is_3D: bool = False,
                 add_to_movie: float = 0,
@@ -418,6 +421,7 @@ def save_memmap(filenames: List[str],
                                               order=order,
                                               border_to_0=border_to_0,
                                               dview=dview,
+                                              var_name_hdf5=var_name_hdf5,
                                               resize_fact=resize_fact,
                                               remove_init=remove_init,
                                               idx_xy=idx_xy,
@@ -431,7 +435,9 @@ def save_memmap(filenames: List[str],
         if order == 'F':
             raise Exception('You cannot merge files in F order, they must be in C order for CaImAn')
 
-        fname_new = cm.save_memmap_join(fname_parts, base_name=base_name, dview=dview, n_chunks=n_chunks)
+        fname_new = cm.save_memmap_join(fname_parts, base_name=base_name,
+                                        var_name_hdf5=var_name_hdf5,
+                                        dview=dview, n_chunks=n_chunks)
 
     else:
         # TODO: can be done online
@@ -454,7 +460,7 @@ def save_memmap(filenames: List[str],
 
             else:
                 if isinstance(f, basestring) or isinstance(f, list):
-                    Yr = cm.load(f, fr=1, in_memory=True)
+                    Yr = cm.load(f, fr=1, in_memory=True, var_name_hdf5=var_name_hdf5)
                 else:
                     Yr = cm.movie(f)
                 if xy_shifts is not None:
