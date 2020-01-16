@@ -11,6 +11,8 @@ dependencies:
 - numpy
 - numpydoc
 - opencv
+- peakutils
+- psutil
 - pynwb
 - scikit-image
 - scikit-learn
