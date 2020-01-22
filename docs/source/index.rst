@@ -13,9 +13,11 @@ Contents:
 
    Overview
    Installation
+   news
    Getting_Started
    Handling_Movies
    CaImAn_Tips
    On_file_types_and_sizes
+   GUI
    CaImAn_features_and_references
    core_functions
