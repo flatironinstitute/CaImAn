@@ -19,6 +19,7 @@ except:
     pass
 
 from scipy.linalg.lapack import dpotrf, dpotrs
+from scipy import fftpack
 
 #%%
 
@@ -264,7 +265,7 @@ def kde(data, N=None, MIN=None, MAX=None):
     M = len(data)
     DataHist, bins = scipy.histogram(data, bins=N, range=(MIN, MAX))
     DataHist = DataHist / M
-    DCTData = scipy.fftpack.dct(DataHist, norm=None)
+    DCTData = fftpack.dct(DataHist, norm=None)
 
     I = [iN * iN for iN in range(1, N)]
     SqDCTData = (DCTData[1:] / 2)**2
@@ -280,7 +281,7 @@ def kde(data, N=None, MIN=None, MAX=None):
     # Smooth the DCTransformed data using t_star
     SmDCTData = DCTData * scipy.exp(-scipy.arange(N)**2 * scipy.pi**2 * t_star / 2)
     # Inverse DCT to get density
-    density = scipy.fftpack.idct(SmDCTData, norm=None) * N / R
+    density = fftpack.idct(SmDCTData, norm=None) * N / R
     mesh = [(bins[i] + bins[i + 1]) / 2 for i in range(N)]
     bandwidth = scipy.sqrt(t_star) * R
 
