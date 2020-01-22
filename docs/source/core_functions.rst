@@ -227,3 +227,39 @@ Parallel Processing functions
 .. autofunction:: apply_to_patch
 .. autofunction:: start_server
 .. autofunction:: stop_server
+
+Ring-CNN functions
+------------------
+
+.. currentmodule:: caiman.utils.nn_models
+
+.. autoclass:: Masked_Conv2D
+.. autoclass:: Hadamard
+.. autoclass:: Additive
+.. autofunction:: create_LN_model
+.. autofunction:: fit_NL_model
+.. autofunction:: quantile_loss
+
+VolPy
+-----
+
+.. currentmodule:: caiman.source_extraction.volpy.volpy
+.. autoclass:: VOLPY
+.. automethod:: VOLPY.__init__
+.. automethod:: VOLPY.fit
+
+.. currentmodule:: caiman.source_extraction.volpy.volparams
+.. autoclass:: volparams
+.. automethod:: volparams.__init__
+.. automethod:: volparams.set
+.. automethod:: volparams.get
+.. automethod:: volparams.get_group
+.. automethod:: volparams.change_params
+
+.. currentmodule:: caiman.source_extraction.volpy.spikepursuit
+.. autofunction:: volspike
+.. autofunction:: denoiseSpikes
+.. autofunction:: getThresh
+.. autofunction:: whitenedMathcedFilter
+.. autofunction:: highpassVideo
+

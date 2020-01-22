@@ -83,7 +83,11 @@ def download_demo(name:str='Sue_2x_3000_40_-46.tif', save_folder:str='') -> str:
                  'gmc_960_30mw_00001_green.tif': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/gmc_960_30mw_00001_green.tif',
                  'msCam13.avi': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/msCam13.avi',
                  'alignment.pickle': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/alignment.pickle',
-                 'data_dendritic.tif': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/2014-04-05-003.tif'}
+                 'data_dendritic.tif': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/2014-04-05-003.tif',
+                 'blood_vessel_10Hz.mat': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/blood_vessel_10Hz.mat',
+                 'online_vs_offline.npz': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/online_vs_offline.npz',
+                 'demo_voltage_imaging_ROIs.hdf5': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/demo_voltage_imaging_ROIs.hdf5',
+                 'demo_voltage_imaging.hdf5': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/demo_voltage_imaging.hdf5'}
     #          ,['./example_movies/demoMovie.tif','https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/demoMovie.tif']]
     base_folder = os.path.join(caiman_datadir(), 'example_movies')
     if os.path.exists(base_folder):
@@ -111,6 +115,56 @@ def download_demo(name:str='Sue_2x_3000_40_-46.tif', save_folder:str='') -> str:
     else:
         raise Exception('Cannot find the example_movies folder in your caiman_datadir - did you make one with caimanmanager.py?')
     return path_movie
+
+
+def download_model(name:str='mask_rcnn', save_folder:str='') -> str:
+    """download a NN model from the file list with the url of its location
+
+
+    using urllib, you can add you own name and location in this global parameter
+
+        Args:
+            name: str
+                the path of the file correspondong to a file in the filelist
+    
+            save_folder: str
+                folder inside caiman_data/model to which the files will be saved. Will be created if it doesn't exist
+        Returns:
+            Path of the saved file
+    Raise:
+        WrongFolder Exception
+    """
+
+    #\bug
+    #\warning
+
+    file_dict = {'mask_rcnn': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/model/mask_rcnn_neurons_0040.h5'}
+    base_folder = os.path.join(caiman_datadir(), 'model')
+    if os.path.exists(base_folder):
+        if not os.path.isdir(os.path.join(base_folder, save_folder)):
+            os.makedirs(os.path.join(base_folder, save_folder))
+        path_movie = os.path.join(base_folder, save_folder, name)
+        if not os.path.exists(path_movie):
+            url = file_dict[name]
+            logging.info(f"downloading {name} with urllib")
+            logging.info(f"GET {url} HTTP/1.1")
+            try:
+                f = urlopen(url)
+            except:
+                logging.info(f"Trying to set user agent to download demo")
+                from urllib.request import Request
+                req = Request(url, headers={'User-Agent': 'Mozilla/5.0'})
+                f = urlopen(req)
+                                
+            data = f.read()
+            with open(path_movie, "wb") as code:
+                code.write(data)
+        else:
+            logging.info("File " + str(name) + " already downloaded")
+    else:
+        raise Exception('Cannot find the model folder in your caiman_datadir - did you make one with caimanmanager.py?')
+    return path_movie
+
 
 def val_parse(v):
     """parse values from si tags into python objects if possible from si parse
@@ -423,13 +477,15 @@ def recursively_save_dict_contents_to_group(h5file:h5py.File, path:str, dic:Dict
             item = np.asarray(item, dtype=np.float)
         if key in ['groups', 'idx_tot', 'ind_A', 'Ab_epoch', 'coordinates',
                    'loaded_model', 'optional_outputs', 'merged_ROIs', 'tf_in',
-                   'tf_out']:
-            logging.info(['groups', 'idx_tot', 'ind_A', 'Ab_epoch', 'coordinates', 'loaded_model', 'optional_outputs', 'merged_ROIs',
-                   '** not saved'])
+                   'tf_out', 'empty_merged']:
+            logging.info('Key {} is not saved.'.format(key))
             continue
 
         if isinstance(item, list) or isinstance(item, tuple):
-            item = np.array(item)
+            if len(item) > 0 and all(isinstance(elem, str) for elem in item):
+                item = np.string_(item)
+            else:
+                item = np.array(item)
         if not isinstance(key, str):
             raise ValueError("dict keys must be strings to save to hdf5")
         # save strings, numpy.int64, numpy.int32, and numpy.float64 types
@@ -489,6 +545,7 @@ def recursively_load_dict_contents_from_group(h5file:h5py.File, path:str) -> Dic
                     ans[key] = None
                 else:
                     ans[key] = item[()]
+
             elif key in ['dims', 'medw', 'sigma_smooth_snmf', 'dxy', 'max_shifts', 'strides', 'overlaps']:
 
                 if type(item[()]) == np.ndarray:

@@ -572,9 +572,6 @@ class movie(ts.timeseries):
         t, h, w = self.shape
         self[:, :, :] = self[crop_begin:t - crop_end, crop_top:h - crop_bottom, crop_left:w - crop_right]
     
-
-           
-    
     def removeBL(self, windowSize:int=100, quantilMin:int=8, in_place:bool=False, returnBL:bool=False):                   
         """
         Remove baseline from movie using percentiles over a window
@@ -603,9 +600,6 @@ class movie(ts.timeseries):
         else:
             self -= cm.movie(cv2.resize(res,pixs.shape[::-1]),fr=self.fr).to3DFromPixelxTime(self.shape) 
             return self
-            
-        
-        
     
     def to2DPixelxTime(self, order='F'):
         """
@@ -613,17 +607,13 @@ class movie(ts.timeseries):
         """
         return self.transpose([2,1,0]).reshape((-1,self.shape[0]),order=order)  
 
-
     def to3DFromPixelxTime(self, shape, order='F'):
         """
             Transform 2D movie into 3D
         """
         return to_3D(self,shape[::-1],order=order).transpose([2,1,0])
     
-
-        
-
-    def computeDFF(self, secsWindow: int = 5, quantilMin: int = 8, method: str = 'only_baseline',
+    def computeDFF(self, secsWindow: int = 5, quantilMin: int = 8, method: str = 'only_baseline', in_place: bool = False,
                    order: str = 'F') -> Tuple[Any, Any]:
         """
         compute the DFF of the movie or remove baseline
@@ -638,6 +628,8 @@ class movie(ts.timeseries):
 
             method='only_baseline','delta_f_over_f','delta_f_over_sqrt_f'
 
+            in_place: compute baseline in a memory efficient way by updating movie in place
+
         Returns:
             self: DF or DF/F or DF/sqrt(F) movies
 
@@ -646,7 +638,6 @@ class movie(ts.timeseries):
         Raises:
             Exception 'Unknown method'
         """
-
         logging.debug("computing minimum ...")
         sys.stdout.flush()
         if np.min(self) <= 0 and method != 'only_baseline':
@@ -668,9 +659,16 @@ class movie(ts.timeseries):
         #% compute baseline quickly
         logging.debug("binning data ...")
         sys.stdout.flush()
-        movBL = np.reshape(mov_out.copy(),
-                           (downsampfact, int(old_div(numFramesNew, downsampfact)), linePerFrame, pixPerLine),
-                           order=order)
+        
+        if not in_place:
+            movBL = np.reshape(mov_out.copy(),
+                               (downsampfact, int(old_div(numFramesNew, downsampfact)), linePerFrame, pixPerLine),
+                               order=order)
+        else:
+            movBL = np.reshape(mov_out,
+                               (downsampfact, int(old_div(numFramesNew, downsampfact)), linePerFrame, pixPerLine),
+                               order=order)
+            
         movBL = np.percentile(movBL, quantilMin, axis=0)
         logging.debug("interpolating data ...")
         sys.stdout.flush()
@@ -682,15 +680,18 @@ class movie(ts.timeseries):
                                    prefilter=False)
 
         #% compute DF/F
-        if method == 'delta_f_over_sqrt_f':
-            mov_out = old_div((mov_out - movBL), np.sqrt(movBL))
-        elif method == 'delta_f_over_f':
-            mov_out = old_div((mov_out - movBL), movBL)
-        elif method == 'only_baseline':
-            mov_out = (mov_out - movBL)
+        if not in_place:
+            if method == 'delta_f_over_sqrt_f':
+                mov_out = old_div((mov_out - movBL), np.sqrt(movBL))
+            elif method == 'delta_f_over_f':
+                mov_out = old_div((mov_out - movBL), movBL)
+            elif method == 'only_baseline':
+                mov_out = (mov_out - movBL)
+            else:
+                raise Exception('Unknown method')
         else:
-            raise Exception('Unknown method')
-
+            mov_out = movBL
+            
         mov_out = mov_out[padbefore:len(movBL) - padafter, :, :]
         logging.debug('Final Size Movie:' + np.str(self.shape))
         return mov_out, movie(movBL,
@@ -914,27 +915,34 @@ class movie(ts.timeseries):
 
     def local_correlations(self,
                            eight_neighbours: bool = False,
-                           swap_dim: bool = True,
+                           swap_dim: bool = False,
                            frames_per_chunk: int = 1500,
-                           order_mean=1) -> np.ndarray:
-        """Computes the correlation image for the input dataset Y
+                           do_plot: bool = False,
+                           order_mean: int =1) -> np.ndarray:
+        """Computes the correlation image (CI) for the input movie. If the movie has
+        length more than 3000 frames it will automatically compute the max-CI
+        taken over chunks of a user specified length.
 
             Args:
                 self:  np.ndarray (3D or 4D)
                     Input movie data in 3D or 4D format
-    
+
                 eight_neighbours: Boolean
                     Use 8 neighbors if true, and 4 if false for 3D data (default = True)
                     Use 6 neighbors for 4D data, irrespectively
-    
+
                 swap_dim: Boolean
                     True indicates that time is listed in the last axis of Y (matlab format)
-                    and moves it in the front
+                    and moves it in the front (default: False)
 
-                frames_per_chunk: int (undocumented)
+                frames_per_chunk: int
+                    Length of chunks to split the file into (default: 1500)
 
-                order_mean: (undocumented)
-                
+                do_plot: Boolean (False)
+                    Display a plot that updates the CI when computed in chunks
+
+                order_mean: int (1)
+                    Norm used to average correlations over neighborhood (default: 1).
 
             Returns:
                 rho: d1 x d2 [x d3] matrix, cross-correlation with adjacent pixels
@@ -958,8 +966,9 @@ class movie(ts.timeseries):
                                             swap_dim=swap_dim,
                                             order_mean=order_mean)
                 Cn = np.maximum(Cn, rho)
-                pl.imshow(Cn, cmap='gray')
-                pl.pause(.1)
+                if do_plot:
+                    pl.imshow(Cn, cmap='gray')
+                    pl.pause(.1)
 
             logging.debug('number of chunks:' + str(n_chunks - 1) + ' frames: ' +
                           str([(n_chunks - 1) * frames_per_chunk, T]))
@@ -968,8 +977,9 @@ class movie(ts.timeseries):
                                         swap_dim=swap_dim,
                                         order_mean=order_mean)
             Cn = np.maximum(Cn, rho)
-            pl.imshow(Cn, cmap='gray')
-            pl.pause(.1)
+            if do_plot:
+                pl.imshow(Cn, cmap='gray')
+                pl.pause(.1)
 
         return Cn
 
@@ -1480,6 +1490,17 @@ def load(file_name: Union[str, List[str]],
                                 outtype=outtype,
                                 var_name_hdf5=var_name_hdf5,
                                 is3D=is3D)
+
+    elif isinstance(file_name,tuple):
+        print('**** PROCESSING AS SINGLE FRAMES *****')
+        if shape is not None:
+            logging.error('shape not supported for multiple movie input')
+        else:
+            return load_movie_chain(tuple([iidd for iidd in np.array(file_name)[subindices]]),
+                     fr=fr, start_time=start_time,
+                     meta_data=meta_data, subindices=None,
+                     bottom=bottom, top=top, left=left, right=right,
+                     channel = channel, outtype=outtype)
 
     if max(top, bottom, left, right) > 0:
         logging.error('top bottom etc... not supported for single movie input')
@@ -2180,9 +2201,10 @@ def load_iter(file_name, subindices=None, var_name_hdf5: str = 'mov'):
                         return
                         #raise StopIteration
                 cap.release()
+
                 return
                 #raise StopIteration
-        elif extension in ('.hdf5', '.h5'):
+        elif extension in ('.hdf5', '.h5', '.mat'):
             with h5py.File(file_name, "r") as f:
                 Y = f.get(var_name_hdf5)
                 if subindices is None:
@@ -2196,7 +2218,8 @@ def load_iter(file_name, subindices=None, var_name_hdf5: str = 'mov'):
                     for ind in subindices:
                         yield Y[ind]
         else:  # fall back to memory inefficient version
-            for y in load(file_name, subindices=subindices):
+            for y in load(file_name, var_name_hdf5=var_name_hdf5,
+                          subindices=subindices):
                 yield y
     else:
         logging.error(f"File request:[{file_name}] not found!")

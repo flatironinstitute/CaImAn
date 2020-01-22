@@ -139,6 +139,40 @@ def _hsm(data):
         return _hsm(data[j:j + N])
 
 
+def compressive_nmf(A, L, R, r, X=None, Y=None, max_iter=100, ls=0):
+    """Implements compressive NMF using an ADMM method as described in 
+    Tepper and Shapiro, IEEE TSP 2015
+    min_{U,V,X,Y} ||A - XY||_F^2 s.t. U = LX >= 0 and V = YR >=0
+    """
+    #r_ov = L.shape[1]
+    m = L.shape[0]
+    n = R.shape[1]
+    U = np.random.rand(m, r)
+    V = np.random.rand(r, n)
+    Y = V.dot(R.T)
+    Lam = np.zeros(U.shape)
+    Phi = np.zeros(V.shape)
+    l = 1
+    f = 1
+    x = 1
+    I = np.eye(r)
+    it = 0
+    while it < max_iter:
+        it += 1
+        X = np.linalg.solve(Y.dot(Y.T) + l*I, Y.dot(A.T) + (l*U.T - Lam.T).dot(L)).T
+        Y = np.linalg.solve(X.T.dot(X) + f*I, X.T.dot(A) + (f*V - Phi - ls).dot(R.T))
+        LX = L.dot(X)
+        U = LX + Lam/l
+        U = np.where(U>0, U, 0)
+        YR = Y.dot(R)
+        V = YR + Phi/f
+        V = np.where(V>0, V, 0)
+        Lam += x*l*(LX - U)
+        Phi += x*f*(YR - V)
+        print(it)
+
+    return X, Y
+
 #%% kernel density estimation
 
 

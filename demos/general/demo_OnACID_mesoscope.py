@@ -47,15 +47,10 @@ def main():
 
     # folder inside ./example_movies where files will be saved
     fld_name = 'Mesoscope'
-    download_demo('Tolias_mesoscope_1.hdf5', fld_name)
-    download_demo('Tolias_mesoscope_2.hdf5', fld_name)
-    download_demo('Tolias_mesoscope_3.hdf5', fld_name)
-
-    # folder where files are located
-    folder_name = os.path.join(caiman_datadir(), 'example_movies', fld_name)
-    extension = 'hdf5'                                  # extension of files
-    # read all files to be processed
-    fnames = glob.glob(folder_name + '/*' + extension)
+    fnames = []
+    fnames.append(download_demo('Tolias_mesoscope_1.hdf5', fld_name))
+    fnames.append(download_demo('Tolias_mesoscope_2.hdf5', fld_name))
+    fnames.append(download_demo('Tolias_mesoscope_3.hdf5', fld_name))
 
     # your list of files should look something like this
     logging.info(fnames)

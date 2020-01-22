@@ -207,7 +207,7 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
         d_ = scipy.sparse.lil_matrix((nr_C, nr_C))
         d_.setdiag(np.sqrt(np.sum(C ** 2, 1)))
         A_in = A_in * d_
-        C = old_div(C, np.sqrt(np.sum(C ** 2, 1)[:, np.newaxis]))
+        C = C/(np.sqrt((C**2).sum(1))[:, np.newaxis] + np.finfo(np.float32).eps)
 
     if b_in is None:
         b_in = b_
