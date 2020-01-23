@@ -155,7 +155,8 @@ def main():
             ROIs = fl['mov'][()]  # load ROIs
         opts.change_params(params_dict={'ROIs': ROIs,
                                         'index': list(range(ROIs.shape[0])),
-                                        'method': 'SpikePursuit'})
+                                        'method': 'atm',
+                                        'weight_update':'aaa'})
     else:
         m = cm.load(mc.mmap_file[0], subindices=slice(0, 20000))
         m.fr = fr
@@ -208,19 +209,21 @@ def main():
     # %% set rois
         opts.change_params(params_dict={'ROIs':ROIs_mrcnn,
                                         'index':list(range(ROIs_mrcnn.shape[0])),
-                                        'method':'SpikePursuit'})
+                                        'method':'SpikePursuit',
+                                        'weight_update':'aaa'})
 
     # %% Trace Denoising and Spike Extraction
     c, dview, n_processes = cm.cluster.setup_cluster(
-            backend='local', n_processes=None, single_thread=False, maxtasksperchild=1)
+            backend='local', n_processes=None, single_thread=True, maxtasksperchild=1)
     vpy = VOLPY(n_processes=n_processes, dview=dview, params=opts)
     vpy.fit(n_processes=n_processes, dview=dview)
 
     # %% some visualization
     print(np.where(vpy.estimates['passedLocalityTest'])[0])    # neurons that pass locality test
-    n = 0
+    n = 3
     
     # Processed signal and spikes of neurons
+    
     plt.figure()
     plt.plot(vpy.estimates['trace'][n])
     plt.plot(vpy.estimates['spikeTimes'][n],
@@ -228,7 +231,7 @@ def main():
              color='g', marker='o', fillstyle='none', linestyle='none')
     plt.title('signal and spike times')
     plt.show()
-
+    
     # Location of neurons by Mask R-CNN or manual annotation
     plt.figure()
     if use_maskrcnn:
@@ -244,6 +247,9 @@ def main():
     plt.colorbar()
     plt.title('spatial filter')
     plt.show()
+    
+    # Template
+    plt.plot(vpy.estimates['templates'][n])
     
     
 
