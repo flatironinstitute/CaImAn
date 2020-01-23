@@ -4,7 +4,7 @@ cython
 future
 h5py
 holoviews
-ipykernel==4.10
+ipykernel
 ipython
 ipyparallel
 jupyter
@@ -21,8 +21,8 @@ pyqtgraph
 scikit-image
 scikit-learn
 scipy
-tensorflow==2.0.0
-tifffile==0.15.1
+tensorflow
+tifffile
 tk
 tqdm
 yapf
