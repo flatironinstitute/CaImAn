@@ -2833,9 +2833,9 @@ def motion_correct_batch_pwrigid(fname, max_shifts, strides, overlaps, add_to_mo
             if save_movie:
 
                 if isinstance(fname, tuple):
-                    logging.debug('saving mmap of ' + fname[0] + 'to' +fname[-1])
+                    logging.debug(f'saving mmap of {fname[0]} to {fname[-1]}')
                 else:
-                    logging.debug('saving mmap of ' + fname)
+                    logging.debug(f'saving mmap of {fname}')
 
         if isinstance(fname, tuple):
             base_name=os.path.split(fname[0])[-1][:-4] + '_els_'

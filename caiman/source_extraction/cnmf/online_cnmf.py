@@ -1166,7 +1166,7 @@ class OnACID(object):
         for iter in range(epochs):
             if iter == epochs - 1 and self.params.get('online', 'stop_detection'):
                 self.params.set('online', {'update_num_comps': False})
-            logging.info('Searching for new components set to: {}'.format(self.params.get('online', 'update_num_comps')))
+            logging.info(f"Searching for new components set to: {self.params.get('online', 'update_num_comps')}")
             if iter > 0:
                 # if not on first epoch process all files from scratch
                 process_files = fls[:init_files + extra_files]
