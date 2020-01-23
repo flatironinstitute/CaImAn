@@ -30,7 +30,7 @@ from scipy.ndimage.filters import correlate
 import scipy.sparse as spr
 from skimage.morphology import disk
 from sklearn.decomposition import NMF, FastICA
-from sklearn.utils.extmath import randomized_svd, squared_norm
+from sklearn.utils.extmath import randomized_svd, squared_norm, randomized_range_finder
 import sys
 from typing import List
 
@@ -40,7 +40,7 @@ from .deconvolution import constrained_foopsi
 from .pre_processing import get_noise_fft, get_noise_welch
 from .spatial import circular_constraint, connectivity_constraint
 from ...utils.utils import parmap
-from ...utils.stats import pd_solve
+from ...utils.stats import pd_solve, compressive_nmf
 
 try:
     cv2.setNumThreads(0)
@@ -597,7 +597,7 @@ def sparseNMF(Y_ds, nr, max_iter_snmf=500, alpha=10e2, sigma_smooth=(.5, .5, .5)
 
 
 def compressedNMF(Y_ds, nr, r_ov=10, max_iter_snmf=500,
-                  sigma_smooth=(.5, .5, .5), remove_baseline=True,
+                  sigma_smooth=(.5, .5, .5), remove_baseline=False,
                   perc_baseline=20, nb=1, truncate=2, tol=1e-3):
     m = scipy.ndimage.gaussian_filter(np.transpose(
             Y_ds, np.roll(np.arange(Y_ds.ndim), 1)), sigma=sigma_smooth,
@@ -613,7 +613,15 @@ def compressedNMF(Y_ds, nr, r_ov=10, max_iter_snmf=500,
     T, dims = m.shape[0], m.shape[1:]
     d = np.prod(dims)
     yr = np.reshape(m, [T, d], order='F')
-    A, C, USV = nnsvd_init(yr, nr, r_ov=r_ov)    
+#    L = randomized_range_finder(yr, nr + r_ov, 3)
+#    R = randomized_range_finder(yr.T, nr + r_ov, 3)
+#    Yt = L.T.dot(yr).dot(R)
+#    c_in, a_in = compressive_nmf(Yt, L, R.T, nr)
+#    C_in = L.dot(c_in)
+#    A_in = a_in.dot(R.T)
+#    A_in = A_in.T
+#    C_in = C_in.T
+    A, C, USV = nnsvd_init(yr, nr, r_ov=r_ov)
     W_r = np.random.randn(d, nr + r_ov)
     W_l = np.random.randn(T, nr + r_ov)
     US = USV[0]*USV[1]

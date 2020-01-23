@@ -943,16 +943,21 @@ class OnACID(object):
         self.estimates.time_new_comp = []
         if self.params.get('online', 'motion_correct'):
             max_shifts_online = self.params.get('online', 'max_shifts_online')
-            mc = Y.motion_correct(max_shifts_online, max_shifts_online)
-            Y = mc[0].astype(np.float32)
+            if self.params.get('motion', 'gSig_filt') is None:
+                mc = Y.motion_correct(max_shifts_online, max_shifts_online)
+                Y = mc[0].astype(np.float32)
+            else:
+                Y_filt = np.stack([high_pass_filter_space(yf, self.params.motion['gSig_filt']) for yf in Y], axis=0)
+                Y_filt = caiman.movie(Y_filt)
+                mc = Y_filt.motion_correct(max_shifts_online, max_shifts_online)
+                Y = Y.apply_shifts(mc[1])
             if self.params.get('motion', 'pw_rigid'):
                 n_p = len([(it[0], it[1])
-                 for it in sliding_window(Y[0], self.params.get('motion', 'overlaps'), self.params.get('motion', 'strides'))])
+                     for it in sliding_window(Y[0], self.params.get('motion', 'overlaps'), self.params.get('motion', 'strides'))])
                 for sh in mc[1]:
                     self.estimates.shifts.append([tuple(sh) for i in range(n_p)])
             else:
                 self.estimates.shifts.extend(mc[1])                
-
         img_min = Y.min()
 
         if self.params.get('online', 'normalize'):
