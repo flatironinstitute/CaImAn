@@ -21,7 +21,7 @@ pyqtgraph
 scikit-image
 scikit-learn
 scipy
-tensorflow
+tensorflow==1.13.1
 tifffile
 tk
 tqdm
