@@ -248,7 +248,7 @@ class Estimates(object):
             import bokeh
             if 'csc_matrix' not in str(type(self.A)):
                 self.A = scipy.sparse.csc_matrix(self.A)
-            if self.dims in None:
+            if self.dims is None:
                 self.dims = img.shape
             if img is None:
                 img = np.reshape(np.array(self.A.mean(1)), self.dims, order='F')
@@ -522,7 +522,7 @@ class Estimates(object):
                         np.expand_dims(self.f[:, frame_range], -1)*cols_f))
         AC = np.tensordot(np.hstack((self.A.toarray(), self.b)), Cs, axes=(1, 0))
         AC = AC.reshape((dims) + (-1, 3)).transpose(2, 0, 1, 3)
-        
+
         AC /= np.percentile(AC, 99.75, axis=(0, 1, 2))
         mov = caiman.movie(np.concatenate((np.repeat(np.expand_dims(imgs[frame_range]/np.percentile(imgs[:1000], 99.75), -1), 3, 3),
                                            AC), axis=2))
@@ -695,7 +695,7 @@ class Estimates(object):
             if save_movie:
                 out.release()
             cv2.destroyAllWindows()
-            
+
         else:
             mov.play(q_min=q_min, q_max=q_max, magnification=magnification,
                      save_movie=save_movie, movie_name=movie_name)
@@ -1386,7 +1386,7 @@ class Estimates(object):
     def remove_duplicates(self, predictions=None, r_values=None, dist_thr=0.1,
                           min_dist=10, thresh_subset=0.6, plot_duplicates=False,
                           select_comp=False):
-        ''' remove neurons that heavily overlap and might be duplicates. 
+        ''' remove neurons that heavily overlap and might be duplicates.
 
         Args:
             predictions
@@ -1603,7 +1603,7 @@ class Estimates(object):
                 for i, (roi, snr, r, cnn) in enumerate(zip(self.A.T, self.SNR_comp, self.r_values, self.cnn_preds)):
                     ps.add_roi(image_mask=roi.T.toarray().reshape(self.dims), r=r, snr=snr, cnn=cnn,
                                keep=i in self.idx_components, accepted=i in self.accepted_list, rejected=i in self.rejected_list)
-            
+
             for bg in self.b.T:  # Backgrounds
                 ps.add_roi(image_mask=bg.reshape(self.dims), r=np.nan, snr=np.nan, cnn=np.nan, keep=False, accepted=False, rejected=False)
             # Add Traces
@@ -1620,7 +1620,7 @@ class Estimates(object):
             # Neurons
             fl.create_roi_response_series(name='RoiResponseSeries', data=self.C.T, rois=rt_region_roi, unit='lumens', timestamps=timestamps)
             # Background
-            fl.create_roi_response_series(name='Background_Fluorescence_Response', data=self.f.T, rois=rt_region_bg, unit='lumens', 
+            fl.create_roi_response_series(name='Background_Fluorescence_Response', data=self.f.T, rois=rt_region_bg, unit='lumens',
                                           timestamps=timestamps)
 
             mod.add(TimeSeries(name='residuals', description='residuals', data=self.YrA.T, timestamps=timestamps,
