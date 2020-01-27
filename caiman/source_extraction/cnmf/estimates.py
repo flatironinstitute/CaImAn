@@ -248,6 +248,8 @@ class Estimates(object):
             import bokeh
             if 'csc_matrix' not in str(type(self.A)):
                 self.A = scipy.sparse.csc_matrix(self.A)
+            if self.dims in None:
+                self.dims = img.shape
             if img is None:
                 img = np.reshape(np.array(self.A.mean(1)), self.dims, order='F')
             if self.coordinates is None:  # not hasattr(self, 'coordinates'):
