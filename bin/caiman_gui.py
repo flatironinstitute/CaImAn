@@ -1,4 +1,8 @@
+#!/usr/bin/env python
+
 import cv2
+from datetime import datetime
+from dateutil.tz import tzlocal
 import numpy as np
 import pyqtgraph as pg
 import scipy
@@ -7,8 +11,6 @@ from pyqtgraph import FileDialog
 from pyqtgraph.Qt import QtGui
 from pyqtgraph.parametertree import Parameter, ParameterTree
 from scipy.sparse import csc_matrix
-from datetime import datetime
-from dateutil.tz import tzlocal
 
 import caiman as cm
 from caiman.source_extraction.cnmf.cnmf import load_CNMF

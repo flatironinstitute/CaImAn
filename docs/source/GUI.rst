@@ -18,7 +18,7 @@ and issuing the following command:
 
 ::
 
-   ipython caiman_gui.py
+   python caiman_gui.py
 
 You will then be asked to load the file that is generated at the end of
 each file (ending in .hdf5) The associated .mmap files also need to be
