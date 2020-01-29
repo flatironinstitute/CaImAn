@@ -13,7 +13,7 @@ how use it, first load and run either \* demo_OnACID_mesoscope.py \*
 demo_caiman_basic.py \* demo_pipeline.py
 
 Each of these demos will save a results file. You can then start the
-visual interface by visiting the caiman_data folder, under the gui folder,
+visual interface by visiting the caiman_data folder, under the bin folder,
 and issuing the following command:
 
 ::
