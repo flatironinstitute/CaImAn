@@ -41,14 +41,18 @@ os.environ['OMP_NUM_THREADS'] = '1'
 # focused around the data directory.
 extra_files = ['test_demos.sh', 'README.md', 'LICENSE.txt']
 extra_dirs = ['demos', 'docs', 'model', 'testdata']
+
+# standard_movies: These are needed by the demo
 standard_movies = [
     os.path.join('example_movies', 'data_endoscope.tif'),
     os.path.join('example_movies', 'demoMovie.tif')
 ]
 
+# extra_vdirs: These directories do not exist at all in the source tree, and are populated 
+extra_vdirs = [ ['gui', ['bin/caiman_gui.py']] ]
+
 ###############
 # commands
-
 
 def do_install_to(targdir: str, inplace: bool = False, force: bool = False) -> None:
     global sourcedir_base
@@ -59,17 +63,29 @@ def do_install_to(targdir: str, inplace: bool = False, force: bool = False) -> N
             shutil.copytree(sourcedir_base, targdir)
         else:
             distutils.dir_util.copy_tree(sourcedir_base, targdir)
-    else:              # here we recreate the other logical path here. Maintenance concern: Keep these reasonably in sync with what's in setup.py
+        for vdir in extra_vdirs:
+            vdir_resolved = os.path.join(targdir, vdir[0])
+            if not os.path.isdir(vdir_resolved):
+                os.mkdir(vdir_resolved)
+            for vdir_srcfile in vdir[1]:
+                shutil.copy(os.path.join(sourcedir_base, vdir_srcfile), os.path.join(vdir_resolved, os.path.split(vdir_srcfile)[-1]))
+    else:          # here we recreate the other logical path here. Maintenance concern: Keep these reasonably in sync with what's in setup.py
         for copydir in extra_dirs:
             if not force:
                 shutil.copytree(copydir, os.path.join(targdir, copydir))
             else:
                 distutils.dir_util.copy_tree(copydir, os.path.join(targdir, copydir))
-        os.makedirs(os.path.join(targdir, 'example_movies'), exist_ok=True)
+        os.makedirs(os.path.join(targdir, 'example_ovies'), exist_ok=True)
         for stdmovie in standard_movies:
             shutil.copy(stdmovie, os.path.join(targdir, 'example_movies'))
         for extrafile in extra_files:
             shutil.copy(extrafile, targdir)
+        for vdir in extra_vdirs:
+            vdir_resolved = os.path.join(targdir, vdir[0])
+            if not os.path.isdir(vdir_resolved):
+                os.mkdir(vdir_resolved)
+            for vdir_srcfile in vdir[1]:
+                shutil.copy(vdir_srcfile, os.path.join(vdir_resolved, os.path.split(vdir_srcfile)[-1]))
     print("Installed " + targdir)
 
 
