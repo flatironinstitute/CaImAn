@@ -66,7 +66,7 @@ def do_install_to(targdir: str, inplace: bool = False, force: bool = False) -> N
                 shutil.copytree(copydir, os.path.join(targdir, copydir))
             else:
                 distutils.dir_util.copy_tree(copydir, os.path.join(targdir, copydir))
-        os.makedirs(os.path.join(targdir, 'example_ovies'), exist_ok=True)
+        os.makedirs(os.path.join(targdir, 'example_movies'), exist_ok=True)
         for stdmovie in standard_movies:
             shutil.copy(stdmovie, os.path.join(targdir, 'example_movies'))
         for extrafile in extra_files:
