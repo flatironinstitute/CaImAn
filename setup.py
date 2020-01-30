@@ -33,10 +33,10 @@ with open('VERSION', 'r') as verfile:
 # package that made them, we can switch to using the pkg_resources API.
 
 binaries = ['caimanmanager.py']
-extra_dirs = ['demos', 'docs', 'model']
+extra_dirs = ['bin', 'demos', 'docs', 'model']
 data_files = [('share/caiman', ['LICENSE.txt', 'README.md', 'test_demos.sh', 'VERSION']),
               ('share/caiman/example_movies', ['example_movies/data_endoscope.tif', 'example_movies/demoMovie.tif']),
-              ('share/caiman/testdata', ['testdata/groundtruth.npz', 'testdata/example.npz'])
+              ('share/caiman/testdata', ['testdata/groundtruth.npz', 'testdata/example.npz']),
              ]
 for part in extra_dirs:
 	newpart = [("share/caiman/" + d, [os.path.join(d,f) for f in files]) for d, folders, files in os.walk(part)]
@@ -44,6 +44,7 @@ for part in extra_dirs:
 		data_files.append(newcomponent)
 
 data_files.append(['bin', binaries])
+
 ############
 
 # compile with:     python setup.py build_ext -i

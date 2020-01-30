@@ -40,7 +40,9 @@ os.environ['OMP_NUM_THREADS'] = '1'
 # to come up with a similar subset of files that setup.py would install for a normal pip install,
 # focused around the data directory.
 extra_files = ['test_demos.sh', 'README.md', 'LICENSE.txt']
-extra_dirs = ['demos', 'docs', 'model', 'testdata']
+extra_dirs = ['bin', 'demos', 'docs', 'model', 'testdata']
+
+# standard_movies: These are needed by the demo
 standard_movies = [
     os.path.join('example_movies', 'data_endoscope.tif'),
     os.path.join('example_movies', 'demoMovie.tif')
@@ -48,7 +50,6 @@ standard_movies = [
 
 ###############
 # commands
-
 
 def do_install_to(targdir: str, inplace: bool = False, force: bool = False) -> None:
     global sourcedir_base
@@ -59,7 +60,7 @@ def do_install_to(targdir: str, inplace: bool = False, force: bool = False) -> N
             shutil.copytree(sourcedir_base, targdir)
         else:
             distutils.dir_util.copy_tree(sourcedir_base, targdir)
-    else:              # here we recreate the other logical path here. Maintenance concern: Keep these reasonably in sync with what's in setup.py
+    else:          # here we recreate the other logical path here. Maintenance concern: Keep these reasonably in sync with what's in setup.py
         for copydir in extra_dirs:
             if not force:
                 shutil.copytree(copydir, os.path.join(targdir, copydir))
