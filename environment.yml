@@ -12,7 +12,6 @@ dependencies:
 - ipython
 - ipyparallel
 - jupyter
-- keras
 - matplotlib
 - mypy
 - nose

@@ -48,6 +48,8 @@ We recently added VolPy, an analysis pipeline for voltage imaging data. The anal
 * `volparams`: An object for setting parameters of voltage imaging. It can be set and changed easily and is passed into the algorithms.
 * `VOLPY`: An object for running the spike detection algorithm and saving results.
 
+In order to use VolPy, you must install Keras into your conda environment. You can do this by activating your environment, and then issuing the command "conda install -c conda-forge keras".
+
 To see examples of how these methods are used, please consult the `demo_pipeline_voltage_imaging.py` script in the `demos/general` folder. For more information about the approach check the [preprint](https://www.biorxiv.org/content/10.1101/2020.01.02.892323v1).
 
 ## New: Installation through conda-forge (August 2019)
