@@ -150,6 +150,8 @@ def do_nt_run_demotests(targdir: str) -> None:
         print("Testing " + str(demo))
         if "demo_behavior.py" in demo:
             print("  Skipping tests on " + demo + ": This is interactive")
+        elif "demo_pipeline_voltage_imaging.py" in demo:
+            print("  Skipping tests on " + demo + ": This needs Keras, an optional dependency")
         else:
             out, err, ret = runcmd(["python", demo], ignore_error=False)
             if ret != 0:
