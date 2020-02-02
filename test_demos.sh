@@ -40,6 +40,8 @@ cd `dirname ${BASH_SOURCE[0]}`
 for demo in demos/general/*; do
 	if [ $demo == "demos/general/demo_behavior.py" ]; then
 		echo "	Skipping tests on $demo: This is interactive"
+	elif [ $demo == "demos/general/demo_pipeline_voltage_imaging.py" ]; then
+		echo "	Skipping tests on $demo: This uses Keras, an optional install"
 	elif [ -d $demo ]; then
 		true
 	else
