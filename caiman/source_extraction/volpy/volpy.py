@@ -18,6 +18,9 @@ class VOLPY(object):
         Its architecture is similar to the one of scikit-learn calling the function fit
         to run everything which is part of the structure of the class.
         The output will be recorded in self.estimates.
+        In order to use VolPy within CaImAn, you must install Keras into your conda environment. 
+        You can do this by activating your environment, and then issuing the command 
+        "conda install -c conda-forge keras".
     """
 
     def __init__(self, n_processes, dview=None, doCrossVal=False, doGlobalSubtract=False,
