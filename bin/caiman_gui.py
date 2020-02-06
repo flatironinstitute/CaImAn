@@ -511,7 +511,7 @@ def show_neurons_update():
     nr_index = int(nr_vline.value())
     if nr_index > 0 and nr_index < mov[:,0,0].shape[0]:
         # upper left compoenent scrolls through the raw movie        
-        raw_mov = mov[nr_index,:,:]
+        raw_mov = rotate90(mov[nr_index,:,:], right=True, vector=False)
         raw_mov_scaled = make_color_img(raw_mov, min_max=(min_mov,max_mov))
         img.setImage(raw_mov_scaled, autoLevels=False)
         draw_contours_update(raw_mov_scaled, img)
