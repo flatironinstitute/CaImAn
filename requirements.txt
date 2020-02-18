@@ -16,6 +16,7 @@ numpydoc
 opencv-python
 peakutils
 pims
+psutil
 pynwb==1.1
 pyqtgraph
 scikit-image
