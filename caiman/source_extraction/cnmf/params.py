@@ -928,11 +928,14 @@ class CNMFParams(object):
                             "normalize_init in group init automatically to False.")
             self.set('init', {'normalize_init': False})
         if self.motion['is3D']:
-            if len(self.motion['indices']) != 3:
-                self.motion['indices'] = (slice(None), slice(None), slice(None))
-            for a in ('max_shifts', 'strides', 'overlaps'):
+            for a in ('indices', 'max_shifts', 'strides', 'overlaps'):
                 if len(self.motion[a]) != 3:
-                    raise ValueError(a + ' has to be a tuple of length 3 for volumetric 3D data')
+                    if self.motion[a][0] == self.motion[a][1]:
+                        self.motion[a] = (self.motion[a][0],) * 3
+                        logging.warning("is3D=True, hence setting key " + a +
+                            " automatically to " + str(self.motion[a]))
+                    else:
+                        raise ValueError(a + ' has to be a tuple of length 3 for volumetric 3D data')
 
     def set(self, group, val_dict, set_if_not_exists=False, verbose=False):
         """ Add key-value pairs to a group. Existing key-value pairs will be overwritten
