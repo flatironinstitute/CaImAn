@@ -20,6 +20,7 @@ dependencies:
 - opencv
 - peakutils
 - pims
+- psutil
 - pynwb
 - pyqtgraph
 - scikit-image
