@@ -2924,7 +2924,7 @@ def tile_and_correct_wrapper(params):
         if count % 10 == 0:
             logging.debug(count)
         if is3D:
-            mc[count], total_shift, start_step, xyz_grid = tile_and_correct_3d(img[indices], template, strides, overlaps, max_shifts,
+            mc[count], total_shift, start_step, xyz_grid = tile_and_correct_3d(img, template, strides, overlaps, max_shifts,
                                                                        add_to_movie=add_to_movie, newoverlaps=newoverlaps,
                                                                        newstrides=newstrides,
                                                                        upsample_factor_grid=upsample_factor_grid,
