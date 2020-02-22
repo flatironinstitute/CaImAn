@@ -197,15 +197,15 @@ class MotionCorrect(object):
         self.num_splits_to_process_els = num_splits_to_process_els
         self.upsample_factor_grid = upsample_factor_grid
         self.max_deviation_rigid = max_deviation_rigid
-        self.shifts_opencv = shifts_opencv
+        self.shifts_opencv = bool(shifts_opencv)
         self.min_mov = min_mov
         self.nonneg_movie = nonneg_movie
         self.gSig_filt = gSig_filt
-        self.use_cuda = use_cuda
+        self.use_cuda = bool(use_cuda)
         self.border_nan = border_nan
-        self.pw_rigid = pw_rigid
+        self.pw_rigid = bool(pw_rigid)
         self.var_name_hdf5 = var_name_hdf5
-        self.is3D = is3D
+        self.is3D = bool(is3D)
         self.indices = indices
         if self.use_cuda and not HAS_CUDA:
             logging.debug("pycuda is unavailable. Falling back to default FFT.")
