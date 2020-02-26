@@ -436,7 +436,6 @@ def save_memmap(filenames: List[str],
             raise Exception('You cannot merge files in F order, they must be in C order for CaImAn')
 
         fname_new = cm.save_memmap_join(fname_parts, base_name=base_name,
-                                        var_name_hdf5=var_name_hdf5,
                                         dview=dview, n_chunks=n_chunks)
 
     else:
