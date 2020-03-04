@@ -645,7 +645,7 @@ class movie(ts.timeseries):
 
         numFrames, linePerFrame, pixPerLine = np.shape(self)
         downsampfact = int(secsWindow * self.fr)
-        logging.debug(f"Downsample factor: {downsampfact}")
+        logging.debug("Downsample factor: {downsampfact}")
         elm_missing = int(np.ceil(numFrames * 1.0 / downsampfact) * downsampfact - numFrames)
         padbefore = int(np.floor(old_div(elm_missing, 2.0)))
         padafter = int(np.ceil(old_div(elm_missing, 2.0)))
@@ -669,14 +669,15 @@ class movie(ts.timeseries):
                                (downsampfact, int(old_div(numFramesNew, downsampfact)), linePerFrame, pixPerLine),
                                order=order)
             
+                   
         movBL = np.percentile(movBL, quantilMin, axis=0)
+        
         logging.debug("interpolating data ...")
         sys.stdout.flush()
         logging.debug("movBL shape is " + str(movBL.shape))
         movBL = scipy.ndimage.zoom(np.array(movBL, dtype=np.float32), [downsampfact, 1, 1],
                                    order=1,
-                                   mode='constant',
-                                   cval=0.0,
+                                   mode='nearest',
                                    prefilter=False)
 
         #% compute DF/F

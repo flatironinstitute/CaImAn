@@ -87,7 +87,10 @@ def volspike(pars):
                         
                     Ridge_bg_coef: float
                         regularization strength for ridge regression in background removal. 
-
+                        
+                    flip_signal: boolean
+                        whether or not to flip signal upside down to find spikes 
+                        for example voltron need to flip the signal
         Returns:
             output: dictionary
                 
@@ -181,6 +184,7 @@ def volspike(pars):
     highPassRegression = args['highPassRegression']
     use_Ridge = args['use_Ridge']
     Ridge_bg_coef = args['Ridge_bg_coef']
+    flip_signal = args['flip_signal']
     windowLength = sampleRate * 0.02 # window length for spike templates
     output = {}
     output['rawROI'] = {}
@@ -213,6 +217,11 @@ def volspike(pars):
     # plt.subplot(133);plt.imshow(notbw);plt.axis('image');plt.xlabel('background')
     # fig.suptitle('ROI selection')
     # plt.show()
+    
+    if flip_signal==True:
+        data = -data
+    else:
+        pass
 
     output['meanIM'] = np.mean(data, axis=0)
     data = np.reshape(data, (data.shape[0], -1))
@@ -220,9 +229,17 @@ def volspike(pars):
     data = data - np.mean(data, 0)
 
     # remove low frequency components
-    data_hp = highpassVideo(data.T, 1 / tau_lp, sampleRate).T    
+    data_hp = highpassVideo(data.T, 1 / tau_lp, sampleRate).T  
+    data_lp = data - data_hp
     
     
+   # import pdb
+   # pdb.set_trace()
+    
+    """
+    mm = cm.movie(data, fr=sampleRate)
+    data_hp, data_lp = mm.computeDFF(secsWindow=0.1)
+    """
     """
     data_pred = np.empty_like(data_hp)
     if highPassRegression:
@@ -235,7 +252,7 @@ def volspike(pars):
     if weights_init is None:
         t = np.nanmean(data_hp[:, bw.ravel()], 1)
     else:
-        t = -np.matmul(data_hp, weights_init[1:])    # weights are negative 
+        t = np.matmul(data_hp, weights_init[1:])    # weights are negative 
     t = t - np.mean(t)
 
     # remove any variance in trace that can be predicted from the background principal components
@@ -247,15 +264,29 @@ def volspike(pars):
     else:
         reg = LinearRegression(fit_intercept=False).fit(Ub, t)
         
-    
     t = np.double(t - np.matmul(Ub, reg.coef_))
-    
 
+    
+    t = cm.movie(t[:,np.newaxis,np.newaxis], fr=sampleRate)
+    t, lp = t.computeDFF(secsWindow=0.015)
+    """
+    import pdb
+    pdb.set_trace()
+    """
+    t = np.array(t).flatten()
+    lp = np.array(lp).flatten()
+    
+    plt.plot(lp)
+    
+    from scipy.ndimage.filters import gaussian_filter1d
+    t = gaussian_filter1d(t, 2)
+    
+    
     # find out spikes of initial trace
     Xspikes, spikeTimes, guessData, output['rawROI']['falsePosRate'], output['rawROI']['detectionRate'], \
-    output['rawROI']['templates'], low_spk, _ = denoiseSpikes(-t, windowLength, sampleRate, False, 100)
+    output['rawROI']['templates'], low_spk, _ = denoiseSpikes(t, windowLength, sampleRate, True, 100)
 
-    Xspikes = -Xspikes
+    Xspikes = Xspikes
     output['rawROI']['X'] = t.copy()
     output['rawROI']['Xspikes'] = Xspikes.copy()
     output['rawROI']['spikeTimes'] = spikeTimes.copy()
@@ -324,98 +355,100 @@ def volspike(pars):
                             borderType=cv2.BORDER_REPLICATE), data_hp.shape)))
 
     # Identify spatial filters with regularized regression
-    for j in range(3 if args['weight_update'] == 'NMF' else 1):
-        if j==0:
-            initialGuess = guessData[:]
-        else:
-            guessData = initialGuess[:]
-        for iteration in range(nIter):
+    #flag=0
+    #for j in range(3 if args['weight_update'] == 'NMF' else 1):
+        #if j==0:
+        #    initialGuess = guessData[:]
+        #else:
+        #    guessData = initialGuess[:]
+    for iteration in range(nIter):
+        doPlot = False
+        if iteration == nIter - 1:
             doPlot = False
-            if iteration == nIter - 1:
-                doPlot = False
-
-            # print('Identifying spatial filters')
-            # print(iteration)
-         
-            gD = np.single(guessData[selectPred>0])
-            if args['weight_update'] == 'NMF':
-                C = np.array([gD, np.ones_like(gD)])  # constant baselines as 2nd component
-                CCt = C.dot(C.T)
-                CY = C.dot(recon[:, 1:])
-                A = np.minimum(np.linalg.inv(CCt).dot(CY), 0)
-                for _ in range(5):
-                    for m in range(2):
-                        A[m] += (CY[m] - CCt[m].dot(A)) / CCt[m, m]
-                        if m == 0:
-                            A[m] = np.minimum(A[m], 0)
-                weights = np.concatenate([[0], A[0]])
-            else:
-                Ri = Ridge(alpha=lambdas[l_max], fit_intercept=True, solver='lsqr')
-                Ri.fit(recon, gD)
-                weights = Ri.coef_
-                weights[0] = Ri.intercept_
-
-            X = np.matmul(recon, weights)
-            X = X - np.mean(X)
-
-            # for i in np.where(np.array([np.corrcoef(X, Ub[:,i])[0,1] for i in range(nPC_bg)]) > .4)[0]:
-            #     Ub[:, i] -= Ub[:, i].dot(X) / X.dot(X) * X
-
-            spatialFilter = np.empty_like(weights)
-            spatialFilter[:] = weights
-            spatialFilter = movie.gaussian_blur_2D(np.reshape(spatialFilter[1:],
-                                                              ref.shape, order='C')[np.newaxis, :, :],
-                                                   kernel_size_x=np.int(2 * np.ceil(2 * sigma) + 1),
-                                                   kernel_size_y=np.int(2 * np.ceil(2 * sigma) + 1),
-                                                   kernel_std_x=sigma, kernel_std_y=sigma,
-                                                   borderType=cv2.BORDER_REPLICATE)[0]
-
-            if use_Ridge:
-                #alpha = np.single(np.linalg.norm(Ub, ord='fro') ** 2) * 0.01
-                b = Ridge(alpha=alpha, fit_intercept=False, solver='lsqr').fit(Ub, X).coef_
-            else:
-                b = LinearRegression(fit_intercept=False).fit(Ub, X).coef_
+        # print('Identifying spatial filters')
+        # print(iteration)
+     
+        gD = np.single(guessData[selectPred>0])
+        if args['weight_update'] == 'NMF':
+            C = np.array([gD, np.ones_like(gD)])  # constant baselines as 2nd component
+            CCt = C.dot(C.T)
+            CY = C.dot(recon[:, 1:])
+            A = np.minimum(np.linalg.inv(CCt).dot(CY), 0)
+            for _ in range(5):
+                for m in range(2):
+                    A[m] += (CY[m] - CCt[m].dot(A)) / CCt[m, m]
+                    if m == 0:
+                        A[m] = np.minimum(A[m], 0)
+            weights = np.concatenate([[0], A[0]])
+            #import pdb
+            #pdb.set_trace()
             
-            """
-            if doPlot:
-                plt.figure()
-                plt.plot(X)
-                plt.plot(np.matmul(Ub, b))
-                plt.title('Denoised trace vs background')
-                plt.show()
-            """
-            
-            X = X - np.matmul(Ub, b)
-       
-            # correct shrinkage
-            X = np.double(X * np.mean(t[spikeTimes]) / np.mean(X[spikeTimes]))
-
-            # generate the new trace and the new denoised trace
-            Xspikes, spikeTimes, guessData, falsePosRate, detectionRate, templates, _, thresh = denoiseSpikes(-X,
-                                                                                                      windowLength,
-                                                                                                      sampleRate, doPlot=False)
-
-            selectSpikes = np.zeros(Xspikes.shape)
-            selectSpikes[spikeTimes] = 1
-            sgn = np.mean(Xspikes[selectSpikes > 0])
-            noise = np.std(Xspikes[selectSpikes == 0])
-            snr = sgn / noise
-
-            output['num_spikes'].append(spikeTimes.shape[0])
-
-            # ensure that the maximum of the spatial filter is within the ROI
-        matrix = np.matmul(np.transpose(pred[:, 1:]), -guessData)
-        sigmax = np.sqrt(np.sum(np.multiply(pred[:, 1:], pred[:, 1:]), axis=0))
-        sigmay = np.sqrt(np.dot(guessData, guessData))
-        IMcorr = matrix / sigmax / sigmay
-        maxCorrInROI = np.max(IMcorr[bw.ravel()])
-        if np.any(IMcorr[notbw.ravel()] > maxCorrInROI):
-            output['passedLocalityTest'] = False
-            recon -= np.outer(recon.dot(weights), weights) / weights.dot(weights)
         else:
-            output['passedLocalityTest'] = True
-            break
+            Ri = Ridge(alpha=lambdas[l_max], fit_intercept=True, solver='lsqr')
+            Ri.fit(recon, gD)
+            weights = Ri.coef_
+            weights[0] = Ri.intercept_
+            #import pdb
+            #pdb.set_trace()
+            
+        X = np.matmul(recon, weights)
+        X = X - np.mean(X)
 
+        spatialFilter = np.empty_like(weights)
+        spatialFilter[:] = weights
+        spatialFilter = movie.gaussian_blur_2D(np.reshape(spatialFilter[1:],
+                                                          ref.shape, order='C')[np.newaxis, :, :],
+                                               kernel_size_x=np.int(2 * np.ceil(2 * sigma) + 1),
+                                               kernel_size_y=np.int(2 * np.ceil(2 * sigma) + 1),
+                                               kernel_std_x=sigma, kernel_std_y=sigma,
+                                               borderType=cv2.BORDER_REPLICATE)[0]
+
+        if use_Ridge:
+            #alpha = np.single(np.linalg.norm(Ub, ord='fro') ** 2) * 0.01
+            b = Ridge(alpha=alpha, fit_intercept=False, solver='lsqr').fit(Ub, X).coef_
+        else:
+            b = LinearRegression(fit_intercept=False).fit(Ub, X).coef_
+        
+        """
+        if doPlot:
+            plt.figure()
+            plt.plot(X)
+            plt.plot(np.matmul(Ub, b))
+            plt.title('Denoised trace vs background')
+            plt.show()
+        """
+        
+        X = X - np.matmul(Ub, b)
+   
+        # correct shrinkage
+        X = np.double(X * np.mean(t[spikeTimes]) / np.mean(X[spikeTimes]))
+
+        # generate the new trace and the new denoised trace
+        Xspikes, spikeTimes, guessData, falsePosRate, detectionRate, templates, _, thresh = denoiseSpikes(X,
+                                                                                                  windowLength,
+                                                                                                  sampleRate, doPlot=doPlot)
+
+        selectSpikes = np.zeros(Xspikes.shape)
+        selectSpikes[spikeTimes] = 1
+        sgn = np.mean(Xspikes[selectSpikes > 0])
+        noise = np.std(Xspikes[selectSpikes == 0])
+        snr = sgn / noise
+
+        output['num_spikes'].append(spikeTimes.shape[0])
+
+        # ensure that the maximum of the spatial filter is within the ROI
+    matrix = np.matmul(np.transpose(pred[:, 1:]), guessData)
+    sigmax = np.sqrt(np.sum(np.multiply(pred[:, 1:], pred[:, 1:]), axis=0))
+    sigmay = np.sqrt(np.dot(guessData, guessData))
+    IMcorr = matrix / sigmax / sigmay
+    maxCorrInROI = np.max(IMcorr[bw.ravel()])
+    
+    if np.any(IMcorr[notbw.ravel()] > maxCorrInROI):
+        output['passedLocalityTest'] = False
+        recon -= np.outer(recon.dot(weights), weights) / weights.dot(weights)
+    else:
+        output['passedLocalityTest'] = True
+        
     # compute SNR
     selectSpikes = np.zeros(Xspikes.shape)
     selectSpikes[spikeTimes] = 1
@@ -426,15 +459,14 @@ def volspike(pars):
 
     del pred
     del recon
-    data_lp = data - data_hp
-
+    
     # output
     output['y'] = X
-    output['yFilt'] = -Xspikes
+    output['yFilt'] = Xspikes
     output['ROI'] = np.transpose(np.vstack((Xinds[[0, -1]], Yinds[[0, -1]])))
     output['ROIbw'] = bw
     output['recons_signal'] = guessData        
-    output['spatialFilter'] = -spatialFilter
+    output['spatialFilter'] = spatialFilter
     output['falsePosRate'] = falsePosRate
     output['detectionRate'] = detectionRate
     output['templates'] = templates
@@ -633,11 +665,11 @@ def getThresh(pks, doClip, pnorm=0.5):
     maxind = np.argmax(obj)
     thresh = xi[maxind]
 
-    if np.sum(pks > thresh) < 30:
+    if np.sum(pks > thresh) < 5:
         low_spk = True
         print(
             'Very few spikes were detected at the desired sensitivity/specificity tradeoff. Adjusting threshold to take 30 largest spikes')
-        thresh = np.percentile(pks, 100 * (1 - 30 / len(pks)))
+        thresh = np.percentile(pks, 100 * (1 - 5 / len(pks)))
     elif ((np.sum(pks > thresh) > doClip) & (doClip > 0)):
         print('Selecting top', doClip, 'spikes for template')
         thresh = np.percentile(pks, 100 * (1 - doClip / len(pks)))
@@ -686,11 +718,3 @@ def highpassVideo(video, freq, sampleRate):
     videoFilt = np.single(signal.filtfilt(b, a, video, padtype='odd', padlen=3 * (max(len(b), len(a)) - 1)))
     del video
     return videoFilt
-
-
-
-
-
-
-
-

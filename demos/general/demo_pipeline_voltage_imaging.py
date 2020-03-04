@@ -58,10 +58,12 @@ def main():
     # %%  Load demo movie and ROIs
     fnames = download_demo('demo_voltage_imaging.hdf5', 'volpy')  # file path to movie file (will download if not present)
     path_ROIs = download_demo('demo_voltage_imaging_ROIs.hdf5', 'volpy')  # file path to ROIs file (will download if not present)
+    fnames = '/home/nel/data/voltage_data/voltage/peyman_golshani/movie6.hdf5'
+    path_ROIs = '/home/nel/data/voltage_data/voltage/peyman_golshani/ROIs.hdf5'
 
     # %% Setup some parameters for data and motion correction
     # dataset parameters
-    fr = 400                                        # sample rate of the movie
+    fr = 1000                                        # sample rate of the movie
     ROIs = None                                     # Region of interests
     index = None                                    # index of neurons
     weights = None                                  # reuse spatial weights by 
@@ -145,18 +147,18 @@ def main():
     dview.terminate()
 
     # %% change fnames to the new motion corrected one
+    fname_new = '/home/nel/data/voltage_data/voltage/peyman_golshani/memmap__d1_128_d2_128_d3_1_order_C_frames_3000_.mmap'
     opts.change_params(params_dict={'fnames': fname_new})
 
     # %% SEGMENTATION
     # Create mean and correlation image
-    use_maskrcnn = True  # set to True to predict the ROIs using the mask R-CNN
+    use_maskrcnn = False  # set to True to predict the ROIs using the mask R-CNN
     if not use_maskrcnn:                 # use manual annotations
         with h5py.File(path_ROIs, 'r') as fl:
             ROIs = fl['mov'][()]  # load ROIs
         opts.change_params(params_dict={'ROIs': ROIs,
                                         'index': list(range(ROIs.shape[0])),
-                                        'method': 'atm',
-                                        'weight_update':'aaa'})
+                                        'method': 'SpikePursuit'})
     else:
         m = cm.load(mc.mmap_file[0], subindices=slice(0, 20000))
         m.fr = fr
@@ -209,18 +211,23 @@ def main():
     # %% set rois
         opts.change_params(params_dict={'ROIs':ROIs_mrcnn,
                                         'index':list(range(ROIs_mrcnn.shape[0])),
-                                        'method':'SpikePursuit',
-                                        'weight_update':'aaa'})
+                                        'method':'SpikePursuit'})
 
     # %% Trace Denoising and Spike Extraction
+    opts.change_params(params_dict={'ROIs': ROIs[:],
+                                    'index':[0,1,2],
+                                    'weight_update':'aaa',
+            'contextSize':20,
+            'flip_signal':False})
     c, dview, n_processes = cm.cluster.setup_cluster(
             backend='local', n_processes=None, single_thread=True, maxtasksperchild=1)
     vpy = VOLPY(n_processes=n_processes, dview=dview, params=opts)
     vpy.fit(n_processes=n_processes, dview=dview)
+    cm.stop_server(dview=dview)
 
     # %% some visualization
     print(np.where(vpy.estimates['passedLocalityTest'])[0])    # neurons that pass locality test
-    n = 3
+    n = 0
     
     # Processed signal and spikes of neurons
     
