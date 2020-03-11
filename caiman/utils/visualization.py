@@ -199,23 +199,23 @@ def nb_view_patches(Yr, A, C, b, f, d1, d2, YrA=None, image_neurons=None, thr=0.
             var data = source.data
             var data_ = source_.data
             var f = cb_obj.value - 1
-            x = data['x']
-            y = data['y']
-            y2 = data['y2']
+            var x = data['x']
+            var y = data['y']
+            var y2 = data['y2']
 
-            for (i = 0; i < x.length; i++) {
+            for (var i = 0; i < x.length; i++) {
                 y[i] = data_['z'][i+f*x.length]
                 y2[i] = data_['z2'][i+f*x.length]
             }
 
             var data2_ = source2_.data;
             var data2 = source2.data;
-            c1 = data2['c1'];
-            c2 = data2['c2'];
-            cc1 = data2_['cc1'];
-            cc2 = data2_['cc2'];
+            var c1 = data2['c1'];
+            var c2 = data2['c2'];
+            var cc1 = data2_['cc1'];
+            var cc2 = data2_['cc2'];
 
-            for (i = 0; i < c1.length; i++) {
+            for (var i = 0; i < c1.length; i++) {
                    c1[i] = cc1[f][i]
                    c2[i] = cc2[f][i]
             }
@@ -230,7 +230,8 @@ def nb_view_patches(Yr, A, C, b, f, d1, d2, YrA=None, image_neurons=None, thr=0.
                   line_alpha=0.6, color=denoised_color)
 
     slider = bokeh.models.Slider(start=1, end=Y_r.shape[0], value=1, step=1,
-                                 title="Neuron Number", callback=callback)
+                                 title="Neuron Number")
+    slider.js_on_change('value', callback)
     xr = Range1d(start=0, end=image_neurons.shape[1])
     yr = Range1d(start=image_neurons.shape[0], end=0)
     plot1 = bpl.figure(x_range=xr, y_range=yr,
@@ -534,24 +535,24 @@ def nb_view_patches3d(Y_r, A, C, dims, image_type='mean', Yr=None,
                 var data = source.data;
                 var data_ = source_.data;
                 var f = cb_obj.value - 1
-                x = data['x']
-                y = data['y']
-                y2 = data['y2']
-                for (i = 0; i < x.length; i++) {
+                var x = data['x']
+                var y = data['y']
+                var y2 = data['y2']
+                for (var i = 0; i < x.length; i++) {
                     y[i] = data_['z'][i+f*x.length]
                     y2[i] = data_['z2'][i+f*x.length]
                 }
 
                 var data2_ = source2_.data;
                 var data2 = source2.data;
-                c1x = data2['c1x'];
-                c2x = data2['c2x'];
-                c1y = data2['c1y'];
-                c2y = data2['c2y'];
-                c1z = data2['c1z'];
-                c2z = data2['c2z'];
-                cc1 = data2_['cc1'];
-                cc2 = data2_['cc2'];
+                var c1x = data2['c1x'];
+                var c2x = data2['c2x'];
+                var c1y = data2['c1y'];
+                var c2y = data2['c2y'];
+                var c1z = data2['c1z'];
+                var c2z = data2['c2z'];
+                var cc1 = data2_['cc1'];
+                var cc2 = data2_['cc2'];
                 var N = sourceN.data['N'][0];
                 for (i = 0; i < c1x.length; i++) {
                        c1x[i] = cc1[f*c1x.length + i]
@@ -616,10 +617,10 @@ def nb_view_patches3d(Y_r, A, C, dims, image_type='mean', Yr=None,
                 var data_ = source_.data;
                 var f = slider_neuron.value-1;
                 var l = slider_layer.value-1;
-                x = data['x']
-                y = data['y']
-                y2 = data['y2']
-                for (i = 0; i < x.length; i++) {
+                var x = data['x']
+                var y = data['y']
+                var y2 = data['y2']
+                for (var i = 0; i < x.length; i++) {
                     y[i] = data_['z'][i+f*x.length]
                     y2[i] = data_['z2'][i+f*x.length]
                 }
@@ -628,8 +629,8 @@ def nb_view_patches3d(Y_r, A, C, dims, image_type='mean', Yr=None,
                 var data2_ = source2_.data;
                 var data2_idx = source2_idx.data;
                 var idx = data2_idx['idx'];
-                c1 = data2['c1'];
-                c2 = data2['c2'];
+                var c1 = data2['c1'];
+                var c2 = data2['c2'];
                 var nz = idx.length / sourceN.data['N'][0];
                 var nan = sourceN.data['nan'][0];
                 for (i = 0; i < c1.length; i++) {
@@ -652,8 +653,8 @@ def nb_view_patches3d(Y_r, A, C, dims, image_type='mean', Yr=None,
                 var dw = source.data['dw'][0];
                 var image = source.data['image'][0];
                 var images = source.data['im'][0];
-                for (var i = 0; i < x.length; i++) {
-                    for (var j = 0; j < dw; j++){
+                for (var i = 0; i < dw; i++) {
+                    for (var j = 0; j < dh; j++){
                         image[i*dh+j] = images[l*dh*dw + i*dh + j];
                     }
                 }
@@ -662,8 +663,8 @@ def nb_view_patches3d(Y_r, A, C, dims, image_type='mean', Yr=None,
                 var data2_ = source2_.data;
                 var data2_idx = source2_idx.data;
                 var idx = data2_idx['idx']
-                c1 = data2['c1'];
-                c2 = data2['c2'];
+                var c1 = data2['c1'];
+                var c2 = data2['c2'];
                 var nz = idx.length / sourceN.data['N'][0];
                 var nan = sourceN.data['nan'][0];
                 for (i = 0; i < c1.length; i++) {
@@ -684,7 +685,8 @@ def nb_view_patches3d(Y_r, A, C, dims, image_type='mean', Yr=None,
         plot.line('x', 'y2', source=source, line_width=1,
                   line_alpha=0.6, color=denoised_color)
     slider = bokeh.models.Slider(start=1, end=Y_r.shape[0], value=1, step=1,
-                                 title="Neuron Number", callback=callback)
+                                 title="Neuron Number")
+    slider.js_on_change('value', callback)
     xr = Range1d(start=0, end=image_neurons.shape[1] if max_projection else d3)
     yr = Range1d(start=image_neurons.shape[0] if max_projection else d2, end=0)
     plot1 = bpl.figure(x_range=xr, y_range=yr, plot_width=300, plot_height=300)
@@ -702,7 +704,8 @@ def nb_view_patches3d(Y_r, A, C, dims, image_type='mean', Yr=None,
                                       sizing_mode="scale_width")
     else:
         slider_layer = bokeh.models.Slider(start=1, end=d1, value=linit + 1, step=1,
-                                           title="Layer", callback=callback_layer)
+                                           title="Layer")
+        slider_layer.js_on_change('value', callback_layer)
         callback.args['slider_neuron'] = slider
         callback.args['slider_layer'] = slider_layer
         callback_layer.args['slider_neuron'] = slider
