@@ -58,7 +58,7 @@ def main():
     # %%  Load demo movie and ROIs
     fnames = download_demo('demo_voltage_imaging.hdf5', 'volpy')  # file path to movie file (will download if not present)
     path_ROIs = download_demo('demo_voltage_imaging_ROIs.hdf5', 'volpy')  # file path to ROIs file (will download if not present)
-    fnames = '/home/nel/data/voltage_data/voltage/peyman_golshani/movie6.hdf5'
+    fnames = '/home/nel/data/voltage_data/voltage/peyman_golshani/movie3.hdf5'
     path_ROIs = '/home/nel/data/voltage_data/voltage/peyman_golshani/ROIs.hdf5'
 
     # %% Setup some parameters for data and motion correction
@@ -214,8 +214,8 @@ def main():
                                         'method':'SpikePursuit'})
 
     # %% Trace Denoising and Spike Extraction
-    opts.change_params(params_dict={'ROIs': ROIs[:],
-                                    'index':[0,1,2],
+    opts.change_params(params_dict={'ROIs': ROIs[0:],
+                                    'index':[0],
                                     'weight_update':'aaa',
             'contextSize':20,
             'flip_signal':False})
@@ -226,11 +226,13 @@ def main():
     cm.stop_server(dview=dview)
 
     # %% some visualization
+    import matplotlib
+    matplotlib.rcParams['pdf.fonttype'] = 42
+    matplotlib.rcParams['ps.fonttype'] = 42
     print(np.where(vpy.estimates['passedLocalityTest'])[0])    # neurons that pass locality test
     n = 0
-    
+    """
     # Processed signal and spikes of neurons
-    
     plt.figure()
     plt.plot(vpy.estimates['trace'][n])
     plt.plot(vpy.estimates['spikeTimes'][n],
@@ -238,7 +240,7 @@ def main():
              color='g', marker='o', fillstyle='none', linestyle='none')
     plt.title('signal and spike times')
     plt.show()
-    
+    """
     # Location of neurons by Mask R-CNN or manual annotation
     plt.figure()
     if use_maskrcnn:
@@ -254,9 +256,21 @@ def main():
     plt.colorbar()
     plt.title('spatial filter')
     plt.show()
-    
+    plt.savefig('/home/nel/data/voltage_data/voltage/peyman_golshani/pictures/neuron{}_filter.pdf'.format(n))
+    """
     # Template
+    plt.figure()
     plt.plot(vpy.estimates['templates'][n])
+    """
+    import peakutils
+    t = vpy.estimates['trace'][n]
+    from peakutils.plot import plot as pplot
+    x = np.linspace(0, len(t)-1, len(t))
+    indexes = peakutils.indexes(t, thres=0.6, min_dist=30)
+    plt.figure()
+    pplot(x, t, indexes)
+    plt.savefig('/home/nel/data/voltage_data/voltage/peyman_golshani/pictures/neuron{}_trace.pdf'.format(n))
+    
     
     
 

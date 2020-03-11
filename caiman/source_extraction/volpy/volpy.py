@@ -132,7 +132,7 @@ class VOLPY(object):
         self.estimates['snr'] = [results[i]['snr'] for i in range(N)]
         self.estimates['num_spikes'] = [results[i]['num_spikes'] for i in range(N)]
         self.estimates['passedLocalityTest'] = [results[i]['passedLocalityTest'] for i in range(N)]
-        self.estimates['low_spk'] = [results[i]['low_spk'] for i in range(N)]
+        self.estimates['no_spike'] = [results[i]['no_spike'] for i in range(N)]
         self.estimates['weights'] = [results[i]['weights'] for i in range(N)]
         #self.estimates['bwexp'] = [results[i]['bwexp'] for i in range(N)]
         

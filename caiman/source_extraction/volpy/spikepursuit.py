@@ -17,6 +17,7 @@ from scipy.sparse.linalg import svds
 import cv2
 from caiman.base.movies import movie
 import caiman as cm
+from scipy.ndimage.filters import gaussian_filter1d
 
 
 # %%
@@ -159,7 +160,6 @@ def volspike(pars):
                                         
                 cellN: int
                     index of cell            
-                
     """
     fnames = pars[0]
     sampleRate = pars[1]
@@ -232,22 +232,6 @@ def volspike(pars):
     data_hp = highpassVideo(data.T, 1 / tau_lp, sampleRate).T  
     data_lp = data - data_hp
     
-    
-   # import pdb
-   # pdb.set_trace()
-    
-    """
-    mm = cm.movie(data, fr=sampleRate)
-    data_hp, data_lp = mm.computeDFF(secsWindow=0.1)
-    """
-    """
-    data_pred = np.empty_like(data_hp)
-    if highPassRegression:
-        data_pred[:] = highpassVideo(data, 1 / tau_pred, sampleRate)
-    else:
-        data_pred[:] = data_hp
-    """
-    
     # initial trace
     if weights_init is None:
         t = np.nanmean(data_hp[:, bw.ravel()], 1)
@@ -265,26 +249,10 @@ def volspike(pars):
         reg = LinearRegression(fit_intercept=False).fit(Ub, t)
         
     t = np.double(t - np.matmul(Ub, reg.coef_))
-
-    
-    t = cm.movie(t[:,np.newaxis,np.newaxis], fr=sampleRate)
-    t, lp = t.computeDFF(secsWindow=0.015)
-    """
-    import pdb
-    pdb.set_trace()
-    """
-    t = np.array(t).flatten()
-    lp = np.array(lp).flatten()
-    
-    plt.plot(lp)
-    
-    from scipy.ndimage.filters import gaussian_filter1d
-    t = gaussian_filter1d(t, 2)
-    
     
     # find out spikes of initial trace
-    Xspikes, spikeTimes, guessData, output['rawROI']['falsePosRate'], output['rawROI']['detectionRate'], \
-    output['rawROI']['templates'], low_spk, _ = denoiseSpikes(t, windowLength, sampleRate, True, 100)
+    Xspikes, spikeTimes, guessData, output['rawROI']['templates'], _, _, _ = denoiseSpikes(t, 
+                                          windowLength, sampleRate, do_plot=False, last_round=False, thresh_opt='high')
 
     Xspikes = Xspikes
     output['rawROI']['X'] = t.copy()
@@ -323,9 +291,7 @@ def volspike(pars):
     else:
         s_max = 1
         l_max = 2
-        lambd = lambdas[l_max]
         sigma = sigmas[s_max]
-        lambda_ix = l_max
 
     selectPred = np.ones(data_hp.shape[0])
     if highPassRegression:
@@ -361,13 +327,16 @@ def volspike(pars):
         #    initialGuess = guessData[:]
         #else:
         #    guessData = initialGuess[:]
+    last_round = False
     for iteration in range(nIter):
-        doPlot = False
+        do_plot = False
         if iteration == nIter - 1:
-            doPlot = False
+            do_plot = True
+            last_round = True
         # print('Identifying spatial filters')
         # print(iteration)
-     
+
+        
         gD = np.single(guessData[selectPred>0])
         if args['weight_update'] == 'NMF':
             C = np.array([gD, np.ones_like(gD)])  # constant baselines as 2nd component
@@ -380,9 +349,6 @@ def volspike(pars):
                     if m == 0:
                         A[m] = np.minimum(A[m], 0)
             weights = np.concatenate([[0], A[0]])
-            #import pdb
-            #pdb.set_trace()
-            
         else:
             Ri = Ridge(alpha=lambdas[l_max], fit_intercept=True, solver='lsqr')
             Ri.fit(recon, gD)
@@ -408,35 +374,18 @@ def volspike(pars):
             b = Ridge(alpha=alpha, fit_intercept=False, solver='lsqr').fit(Ub, X).coef_
         else:
             b = LinearRegression(fit_intercept=False).fit(Ub, X).coef_
-        
-        """
-        if doPlot:
-            plt.figure()
-            plt.plot(X)
-            plt.plot(np.matmul(Ub, b))
-            plt.title('Denoised trace vs background')
-            plt.show()
-        """
-        
+
         X = X - np.matmul(Ub, b)
    
         # correct shrinkage
         X = np.double(X * np.mean(t[spikeTimes]) / np.mean(X[spikeTimes]))
 
         # generate the new trace and the new denoised trace
-        Xspikes, spikeTimes, guessData, falsePosRate, detectionRate, templates, _, thresh = denoiseSpikes(X,
-                                                                                                  windowLength,
-                                                                                                  sampleRate, doPlot=doPlot)
-
-        selectSpikes = np.zeros(Xspikes.shape)
-        selectSpikes[spikeTimes] = 1
-        sgn = np.mean(Xspikes[selectSpikes > 0])
-        noise = np.std(Xspikes[selectSpikes == 0])
-        snr = sgn / noise
-
+        Xspikes, spikeTimes, guessData, templates, no_spike, thresh, data_lp = denoiseSpikes(X, windowLength, sampleRate, do_plot=do_plot, last_round=last_round)
+        
         output['num_spikes'].append(spikeTimes.shape[0])
 
-        # ensure that the maximum of the spatial filter is within the ROI
+    # ensure that the maximum of the spatial filter is within the ROI
     matrix = np.matmul(np.transpose(pred[:, 1:]), guessData)
     sigmax = np.sqrt(np.sum(np.multiply(pred[:, 1:], pred[:, 1:]), axis=0))
     sigmay = np.sqrt(np.dot(guessData, guessData))
@@ -450,12 +399,15 @@ def volspike(pars):
         output['passedLocalityTest'] = True
         
     # compute SNR
-    selectSpikes = np.zeros(Xspikes.shape)
-    selectSpikes[spikeTimes] = 1
-    sgn = np.mean(Xspikes[selectSpikes > 0])
-    noise = np.std(Xspikes[selectSpikes == 0])
-    snr = sgn / noise
-    output['snr'] = snr
+    if len(spikeTimes)>0:
+        selectSpikes = np.zeros(Xspikes.shape)
+        selectSpikes[spikeTimes] = 1
+        sgn = np.mean(Xspikes[selectSpikes > 0])
+        noise = np.std(Xspikes[selectSpikes == 0])
+        snr = sgn / noise
+        output['snr'] = snr
+    else:
+        output['snr'] = 0
 
     del pred
     del recon
@@ -467,23 +419,21 @@ def volspike(pars):
     output['ROIbw'] = bw
     output['recons_signal'] = guessData        
     output['spatialFilter'] = spatialFilter
-    output['falsePosRate'] = falsePosRate
-    output['detectionRate'] = detectionRate
     output['templates'] = templates
     output['spikeTimes'] = spikeTimes
     output['thresh'] = thresh
-    output['F0'] = np.nanmean(data_lp[:, bw.flatten()] + output['meanIM'][bw][np.newaxis, :], 1)
-    output['dFF'] = X / output['F0']
-    output['rawROI']['dFF'] = output['rawROI']['X'] / output['F0']
+    #output['F0'] = np.nanmean(data_lp[:, bw.flatten()] + output['meanIM'][bw][np.newaxis, :], 1)
+    #output['dFF'] = X / output['F0']
+    #output['rawROI']['dFF'] = output['rawROI']['X'] / output['F0']
     output['bg_pc'] = Ub  # background components
-    output['low_spk'] = low_spk
+    output['no_spike'] = no_spike
     output['weights'] = weights
     output['cellN'] = cellN
 
     return output
 
 
-def denoiseSpikes(data, windowLength, sampleRate=400, doPlot=True, doClip=150):
+def denoiseSpikes(data, windowLength, sampleRate=400, do_plot=True, last_round=False, thresh_opt = 'high'):
     """ Function for finding spikes and the temporal filter given one dimensional signals.
         Use function whitenedMatchedFilter to denoise spikes. Function getThresh
         helps to find the best threshold given height of spikes.
@@ -498,7 +448,7 @@ def denoiseSpikes(data, windowLength, sampleRate=400, doPlot=True, doClip=150):
         sampleRate: int, default 400
             number of samples per second in the video
 
-        doPlot: boolean, default:True
+        do_plot: boolean, default:True
             if Ture, will plot trace of signals and spiketimes, peak triggered
             average, histogram of heights,
 
@@ -527,47 +477,67 @@ def denoiseSpikes(data, windowLength, sampleRate=400, doPlot=True, doClip=150):
         low_spk: boolean
             true if number of spikes is smaller than 30
     """
+    # high-pass filtered the signal
+    data = cm.movie(data[:,np.newaxis,np.newaxis], fr=sampleRate)
+    data_hp, data_lp = data.computeDFF(secsWindow=0.015)
+    data_hp = np.array(data_hp).flatten()
+    data_lp = np.array(data_lp).flatten()
+    data_hp = gaussian_filter1d(data_hp, sampleRate/500)
 
-    # highpass filter and threshold
-    bb, aa = signal.butter(1, 1 / (sampleRate / 2), 'high')  # 1Hz filter
-    dataHP = signal.filtfilt(bb, aa, data, padtype='odd', padlen=3 * (max(len(bb), len(aa)) - 1)).flatten()
-
-    pks = dataHP[signal.find_peaks(dataHP, height=None)[0]]
-
-    thresh, _, _, low_spk = getThresh(pks, doClip, 0.25)
-
-    locs = signal.find_peaks(dataHP, height=thresh)[0]
+    no_spike = False
+    data_hp = data_hp - np.median(data_hp)
+    pks = data_hp[signal.find_peaks(data_hp, height=None)[0]]
+    std = np.std(data_hp[data_hp < -np.min(data_hp)])      # good estimation of noise?
+    thresh = 3.5 * std
+    locs = signal.find_peaks(data_hp, height=thresh)[0]
+    
+    if len(locs) == 0:
+        #print('first spike picking: 0 spike are found in first finding, pick top 5 spikes')
+        thresh = np.percentile(pks, 100 * (1 - 5 / len(pks)))
+        locs = signal.find_peaks(data_hp, height=thresh)[0]
 
     # peak-traiggered average
     window = np.int64(np.arange(-windowLength, windowLength + 1, 1))
-
-    locs = locs[np.logical_and(locs > (-window[0]), locs < (len(data) - window[-1]))]
-    PTD = data[(locs[:, np.newaxis] + window)]
+    locs = locs[np.logical_and(locs > (-window[0]), locs < (len(data_hp) - window[-1]))]
+    PTD = data_hp[(locs[:, np.newaxis] + window)]
     PTA = np.mean(PTD, 0)
+    templates = PTA
 
     # matched filter
-    datafilt = whitenedMatchedFilter(data, locs, window)     # Note in this step we use convolution(or template matching) to make spikes more prominent
+    #datafilt = whitenedMatchedFilter(data_hp, locs, window)     # Note in this step we use convolution(or template matching) to make spikes more prominent
+    datafilt = np.convolve(data_hp, np.flipud(PTA), 'same')
 
     # spikes detected after filter
     pks2 = datafilt[signal.find_peaks(datafilt, height=None)[0]]
-
-    thresh2, falsePosRate, detectionRate, _ = getThresh(pks2, doClip=0, pnorm=0.5)  # doClip=0 means no clipping
+    datafilt = datafilt - np.median(datafilt)
+    std2 = np.std(datafilt[datafilt < -np.min(datafilt)])    
+    thresh_mode = {'high':3.5, 'medium':3.2,'low':2.8}
+    thresh2 = thresh_mode[thresh_opt] * std2
     spikeTimes = signal.find_peaks(datafilt, height=thresh2)[0]
+    
+    if len(spikeTimes) == 0:
+        if last_round == True:
+            print('last iteration: 0 spikes are found')
+            no_spike = True
+        else:
+            #print('second spike picking: 0 spikes are found, pick top 5 spikes')
+            thresh2 = np.percentile(pks2, 100 * (1 - 5 / len(pks2)))
+            spikeTimes = signal.find_peaks(datafilt, height=thresh2)[0]
+    if no_spike == False:
+        guessData = np.zeros(data_hp.shape)
+        guessData[spikeTimes] = 1
+        guessData = np.convolve(guessData, PTA, 'same')    
+        # filtering shrinks the data;
+        # rescale so that the mean value at the peaks is same as in the input
+        datafilt = datafilt * np.mean(data_hp[spikeTimes]) / np.mean(datafilt[spikeTimes])
+        thresh2 = thresh2 * np.mean(data_hp[spikeTimes]) / np.mean(datafilt[spikeTimes])
+    else:
+        guessData = np.zeros(data_hp.shape)
 
-    guessData = np.zeros(data.shape)
-    guessData[spikeTimes] = 1
-    guessData = np.convolve(guessData, PTA, 'same')
+    # subthreshold activity?
+    data_sub = data_hp - guessData
 
-    # filtering shrinks the data;
-    # rescale so that the mean value at the peaks is same as in the input
-    datafilt = datafilt * np.mean(data[spikeTimes]) / np.mean(datafilt[spikeTimes])
-    thresh2 = thresh2 * np.mean(data[spikeTimes]) / np.mean(datafilt[spikeTimes])
-
-    # output templates
-    templates = PTA
-
-    # plot three graphs
-    if doPlot:
+    if do_plot:
         plt.figure()
         plt.subplot(211)
         plt.hist(pks, 500)
@@ -588,7 +558,7 @@ def denoiseSpikes(data, windowLength, sampleRate=400, doPlot=True, doClip=150):
 
         plt.figure()
         plt.subplot(211)
-        plt.plot(data)
+        plt.plot(data_hp)
         plt.plot(locs, np.max(datafilt) * 1.1 * np.ones(locs.shape), color='r', marker='o', fillstyle='none',
                  linestyle='none')
         plt.plot(spikeTimes, np.max(datafilt) * 1 * np.ones(spikeTimes.shape), color='g', marker='o', fillstyle='none',
@@ -600,8 +570,12 @@ def denoiseSpikes(data, windowLength, sampleRate=400, doPlot=True, doClip=150):
         plt.plot(spikeTimes, np.max(datafilt) * 1 * np.ones(spikeTimes.shape), color='g', marker='o', fillstyle='none',
                  linestyle='none')
         plt.show()
+        
+        plt.figure()
+        plt.plot(data.flatten())
+        plt.plot(data_lp)
 
-    return datafilt, spikeTimes, guessData, falsePosRate, detectionRate, templates, low_spk, thresh2
+    return datafilt, spikeTimes, guessData, templates, no_spike, thresh2, data_lp
 
 
 def getThresh(pks, doClip, pnorm=0.5):
