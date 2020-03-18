@@ -66,16 +66,20 @@ def main():
     fnames = ['Sue_2x_3000_40_-46.tif']  # filename to be processed
     if fnames[0] in ['Sue_2x_3000_40_-46.tif', 'demoMovie.tif']:
         fnames = [download_demo(fnames[0])]
+        
+    #fnames = ['/home/nel/data/voltage_data/voltage/guoxun_tsinghua/IVQ38_S1_FOV5_176_92_65000_3000.tif']
+    #fnames = ['/home/nel/data/voltage_data/voltage/guoxun_tsinghua/IVQ32_S2_FOV1_256_96_65000_3000.tif']
+    #fnames = ['/home/nel/data/calcium_data/spencer_santa_barbara/1-Combo3-A.avi']
 
 #%% First setup some parameters for data and motion correction
-
+"""
     # dataset dependent parameters
-    fr = 30             # imaging rate in frames per second
+    fr = 1000             # imaging rate in frames per second
     decay_time = 0.4    # length of a typical transient in seconds
     dxy = (2., 2.)      # spatial resolution in x and y in (um per pixel)
     # note the lower than usual spatial resolution here
     max_shift_um = (12., 12.)       # maximum shift in um
-    patch_motion_um = (100., 100.)  # patch size for non-rigid correction in um
+    patch_motion_um = (40., 40.)  # patch size for non-rigid correction in um
 
     # motion correction parameters
     pw_rigid = True       # flag to select rigid vs pw_rigid motion correction
@@ -86,7 +90,9 @@ def main():
     # overlap between pathes (size of patch in pixels: strides+overlaps)
     overlaps = (24, 24)
     # maximum deviation allowed for patch with respect to rigid shifts
-    max_deviation_rigid = 3
+    max_deviation_rigid = 10
+    
+    gSig_filt = (10, 10)
 
     mc_dict = {
         'fnames': fnames,
@@ -98,15 +104,54 @@ def main():
         'strides': strides,
         'overlaps': overlaps,
         'max_deviation_rigid': max_deviation_rigid,
-        'border_nan': 'copy'
+        'border_nan': 'copy',
+        'gSig_filt': gSig_filt
     }
 
+    opts = params.CNMFParams(params_dict=mc_dict)
+"""
+    
+#%% dataset dependent parameters
+    # dataset dependent parameters
+    fr = 30             # imaging rate in frames per second
+    decay_time = 0.4    # length of a typical transient in seconds
+    dxy = (2., 2.)      # spatial resolution in x and y in (um per pixel)
+    # note the lower than usual spatial resolution here
+    max_shift_um = (24., 24.)       # maximum shift in um
+    patch_motion_um = (100., 100.)  # patch size for non-rigid correction in um
+​
+    # motion correction parameters
+    pw_rigid = False       # flag to select rigid vs pw_rigid motion correction
+    # maximum allowed rigid shift in pixels
+    max_shifts = [int(a/b) for a, b in zip(max_shift_um, dxy)]
+    # start a new patch for pw-rigid motion correction every x pixels
+    strides = tuple([int(a/b) for a, b in zip(patch_motion_um, dxy)])
+    # overlap between pathes (size of patch in pixels: strides+overlaps)
+    overlaps = (24, 24)
+    # maximum deviation allowed for patch with respect to rigid shifts
+    max_deviation_rigid = 3
+​
+    mc_dict = {
+        'fnames': fnames,
+        'gSig_filt': [8,8],
+        'fr': fr,
+        'decay_time': decay_time,
+        'dxy': dxy,
+        'pw_rigid': pw_rigid,
+        'max_shifts': max_shifts,
+        'strides': strides,
+        'overlaps': overlaps,
+        'max_deviation_rigid': max_deviation_rigid,
+        'border_nan': 'copy',
+        'num_frames_split': 100
+    }
+​
     opts = params.CNMFParams(params_dict=mc_dict)
 
 # %% play the movie (optional)
     # playing the movie using opencv. It requires loading the movie in memory.
     # To close the video press q
-    display_images = False
+    display_images = True
 
     if display_images:
         m_orig = cm.load_movie_chain(fnames)
@@ -133,7 +178,7 @@ def main():
         ds_ratio = 0.2
         moviehandle = cm.concatenate([m_orig.resize(1, 1, ds_ratio) - mc.min_mov*mc.nonneg_movie,
                                       m_els.resize(1, 1, ds_ratio)], axis=2)
-        moviehandle.play(fr=60, q_max=99.5, magnification=2)  # press q to exit
+        moviehandle.play(fr=60, q_max=99.5, magnification=3)  # press q to exit
 
 # %% MEMORY MAPPING
     border_to_0 = 0 if mc.border_nan is 'copy' else mc.border_to_0
