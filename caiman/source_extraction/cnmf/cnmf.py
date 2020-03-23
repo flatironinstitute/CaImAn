@@ -411,6 +411,7 @@ class CNMF(object):
         cnm.params.patch['only_init'] = False
         estimates = deepcopy(self.estimates)
         estimates.select_components(use_object=True)
+        estimates.coordinates = None
         cnm.estimates = estimates
         cnm.mmap_file = self.mmap_file
         return cnm.fit(images)
