@@ -368,11 +368,20 @@ def get_contours(A, dims, thr=0.9, thr_method='nrg', swap_dim=False):
         indx = np.argsort(patch_data)[::-1]
         if thr_method == 'nrg':
             cumEn = np.cumsum(patch_data[indx]**2)
-            # we work with normalized values
-            cumEn /= cumEn[-1]
-            Bvec = np.ones(d)
-            # we put it in a similar matrix
-            Bvec[A.indices[A.indptr[i]:A.indptr[i + 1]][indx]] = cumEn
+            if len(cumEn) == 0:
+                pars = dict(
+                    coordinates=np.array([]),
+                    CoM=np.array([np.NaN, np.NaN]),
+                    neuron_id=i + 1,
+                )
+                coordinates.append(pars)
+                continue
+            else:
+                # we work with normalized values
+                cumEn /= cumEn[-1]
+                Bvec = np.ones(d)
+                # we put it in a similar matrix
+                Bvec[A.indices[A.indptr[i]:A.indptr[i + 1]][indx]] = cumEn
         else:
             if thr_method != 'max':
                 warn("Unknown threshold method. Choosing max")
