@@ -1,4 +1,4 @@
-bokeh==2.0
+bokeh
 coverage
 cython
 future
@@ -17,8 +17,6 @@ opencv-python
 peakutils
 pims
 psutil
-pynwb
-pyqtgraph
 scikit-image
 scikit-learn
 scipy
