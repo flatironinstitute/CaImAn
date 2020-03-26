@@ -18,7 +18,6 @@ peakutils
 pims
 psutil
 pynwb
-pyqtgraph
 scikit-image
 scikit-learn
 scipy
