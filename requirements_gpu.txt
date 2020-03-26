@@ -21,7 +21,6 @@ pynwb
 scikit-image
 scikit-learn
 scipy
-tensorflow-gpu==1.15.2
 tifffile
 tk
 tqdm
