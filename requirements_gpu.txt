@@ -17,10 +17,12 @@ opencv-python
 peakutils
 pims
 psutil
-pynwb
+pynwb==1.1
+pyqtgraph
 scikit-image
 scikit-learn
 scipy
+tensorflow-gpu==1.15.2
 tifffile
 tk
 tqdm
