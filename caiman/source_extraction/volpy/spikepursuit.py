@@ -181,6 +181,7 @@ def volspike(pars):
     weight_update = args['weight_update']
     hp_freq = args['hp_freq']
     min_spikes = args['min_spikes']
+    sub_freq = args['sub_freq']
     windowLength = sampleRate * 0.02 # window length for spike templates
     output = {}
     output['rawROI'] = {}
@@ -385,7 +386,7 @@ def volspike(pars):
 
     # Subthreshold activity extraction    
     data_sub = Xraw.copy() - guessData
-    data_sub = signal_filter(data_sub, 100, sampleRate, order=5, mode='low') 
+    data_sub = signal_filter(data_sub, sub_freq, sampleRate, order=5, mode='low') 
 
     del pred
     del recon

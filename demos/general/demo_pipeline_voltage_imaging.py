@@ -59,8 +59,8 @@ def main():
     pass  # For compatibility between running under Spyder and the CLI
 
     # %%  Load demo movie and ROIs
-    #fnames = download_demo('demo_voltage_imaging.hdf5', 'volpy')  # file path to movie file (will download if not present)
-    #path_ROIs = download_demo('demo_voltage_imaging_ROIs.hdf5', 'volpy')  # file path to ROIs file (will download if not present)
+    fnames = download_demo('demo_voltage_imaging.hdf5', 'volpy')  # file path to movie file (will download if not present)
+    path_ROIs = download_demo('demo_voltage_imaging_ROIs.hdf5', 'volpy')  # file path to ROIs file (will download if not present)
     #fnames = '/home/nel/data/voltage_data/voltage/peyman_golshani/movie3.hdf5'
     #path_ROIs = '/home/nel/data/voltage_data/voltage/peyman_golshani/ROIs.hdf5'
     #fnames = '/home/nel/data/voltage_data/simul_electr/johannes/09212017Fish1-1/registered.hdf5'
@@ -75,7 +75,7 @@ def main():
     #fnames = '/home/nel/data/voltage_data/simul_electr/kaspar/Ground truth data/Session1/Session1.hdf5'
     #fnames = '/home/nel/data/voltage_data/volpy_paper/memory/403106_3min_10000.hdf5'
     #path_ROIs = '/home/nel/data/voltage_data/volpy_paper/memory/ROI.npz'
-    fnames = '/home/nel/data/voltage_data/volpy_paper/figure1/FOV4_50um.hdf5'
+    #fnames = '/home/nel/data/voltage_data/volpy_paper/figure1/FOV4_50um.hdf5'
 
 #%% dataset dependent parameters
     # dataset dependent parameters
@@ -168,7 +168,7 @@ def main():
     methods_list = ['manual_annotation',        # manual annotation needs user to prepare annotated datasets same format as demo ROIs 
                     'quick_annotation',         # quick annotation annotates data with simple interface in python
                     'maskrcnn' ]                # maskrcnn is a convolutional network trained for finding neurons using summary images
-    method = methods_list[2]
+    method = methods_list[0]
     if method == 'manual_annotation':                
         with h5py.File(path_ROIs, 'r') as fl:
             ROIs = fl['mov'][()]  # load ROIs
@@ -222,6 +222,7 @@ def main():
     threshold = 4                                 # threshold for finding spikes, increase threshold to find less spikes
     contextSize = 35                              # number of pixels surrounding the ROI to censor from the background PCA
     flip_signal = True                            # Important! Flip signal or not, True for Voltron indicator, False for others
+    sub_freq = 50                                 # frequency for subthreshold extraction
 
     opts_dict={'fnames': fnames,
                'ROIs': ROIs,
@@ -230,7 +231,8 @@ def main():
                'tau_lp': tau_lp,
                'threshold': threshold,
                'contextSize': contextSize,
-               'flip_signal': flip_signal}
+               'flip_signal': flip_signal,
+               'sub_freq': sub_freq}
 
     opts.change_params(params_dict=opts_dict);          
 
