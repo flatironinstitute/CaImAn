@@ -6,9 +6,8 @@ extraction. The demo shows how to construct the params, MotionCorrect and VOLPY
 objects and call the relevant functions. See inside for detail.
 
 Dataset courtesy of Karel Svoboda Lab (Janelia Research Campus).
-
+author: @caichangjia
 """
-
 import os
 import cv2
 import glob
@@ -40,8 +39,10 @@ from caiman.source_extraction.volpy.volpy import VOLPY
 from caiman.source_extraction.volpy.mrcnn import visualize, neurons
 import caiman.source_extraction.volpy.mrcnn.model as modellib
 from caiman.paths import caiman_datadir
-from caiman.external.cell_magic_wand import cell_magic_wand_single_point
-    
+from caiman.summary_images import local_correlations_movie_offline
+from caiman.summary_images import mean_image
+from caiman.source_extraction.volpy.utils import quick_annotation
+
 
 # %%
 # Set up the logger (optional); change this if you like.
@@ -58,8 +59,8 @@ def main():
     pass  # For compatibility between running under Spyder and the CLI
 
     # %%  Load demo movie and ROIs
-    fnames = download_demo('demo_voltage_imaging.hdf5', 'volpy')  # file path to movie file (will download if not present)
-    path_ROIs = download_demo('demo_voltage_imaging_ROIs.hdf5', 'volpy')  # file path to ROIs file (will download if not present)
+    #fnames = download_demo('demo_voltage_imaging.hdf5', 'volpy')  # file path to movie file (will download if not present)
+    #path_ROIs = download_demo('demo_voltage_imaging_ROIs.hdf5', 'volpy')  # file path to ROIs file (will download if not present)
     #fnames = '/home/nel/data/voltage_data/voltage/peyman_golshani/movie3.hdf5'
     #path_ROIs = '/home/nel/data/voltage_data/voltage/peyman_golshani/ROIs.hdf5'
     #fnames = '/home/nel/data/voltage_data/simul_electr/johannes/09212017Fish1-1/registered.hdf5'
@@ -69,14 +70,17 @@ def main():
     #path_ROIs = '/home/nel/data/voltage_data/volpy_paper/supp/IVQ48_S7_FOV5_15000_ROIs.hdf5'
     #fnames = '/home/nel/data/voltage_data/volpy_paper/supp/06152017Fish1-2_5000.hdf5'
     #path_ROIs = '/home/nel/data/voltage_data/volpy_paper/supp/06152017Fish1-2_ROIs.hdf5'
+    #fnames = '/home/nel/data/voltage_data/simul_electr/johannes/09282017Fish1-1/registered.hdf5'
+    #fnames = '/home/nel/data/voltage_data/simul_electr/johannes/10052017Fish2-2/registered.hdf5'
+    #fnames = '/home/nel/data/voltage_data/simul_electr/kaspar/Ground truth data/Session1/Session1.hdf5'
+    #fnames = '/home/nel/data/voltage_data/volpy_paper/memory/403106_3min_10000.hdf5'
+    #path_ROIs = '/home/nel/data/voltage_data/volpy_paper/memory/ROI.npz'
+    fnames = '/home/nel/data/voltage_data/volpy_paper/figure1/FOV4_50um.hdf5'
 
-    # %% Setup some parameters for data and motion correction
-    # dataset parameters
+#%% dataset dependent parameters
+    # dataset dependent parameters
     fr = 400                                        # sample rate of the movie
-    ROIs = None                                     # Region of interests
-    index = None                                    # index of neurons
-    weights = None                                  # reuse spatial weights by 
-                                                    # opts.change_params(params_dict={'weights':vpy.estimates['weights']})
+                                                   
     # motion correction parameters
     pw_rigid = False                                # flag for pw-rigid motion correction
     gSig_filt = (3, 3)                              # size of filter, in general gSig (see below),
@@ -90,9 +94,6 @@ def main():
     opts_dict = {
         'fnames': fnames,
         'fr': fr,
-        'index': index,
-        'ROIs': ROIs,
-        'weights': weights,
         'pw_rigid': pw_rigid,
         'max_shifts': max_shifts,
         'gSig_filt': gSig_filt,
@@ -104,7 +105,7 @@ def main():
 
     opts = volparams(params_dict=opts_dict)
 
-    # %% play the movie (optional)
+# %% play the movie (optional)
     # playing the movie using opencv. It requires loading the movie in memory.
     # To close the video press q
     display_images = False
@@ -113,49 +114,40 @@ def main():
         m_orig = cm.load(fnames)
         ds_ratio = 0.2
         moviehandle = m_orig.resize(1, 1, ds_ratio)
-        moviehandle.play(q_max=99.5, fr=60, magnification=2)
+        moviehandle.play(q_max=99.5, fr=60, magnification=6)
 
-    # %% start a cluster for parallel processing
+# %% start a cluster for parallel processing
     c, dview, n_processes = cm.cluster.setup_cluster(
         backend='local', n_processes=None, single_thread=False)
 
-    # %%% MOTION CORRECTION
-    # Create a motion correction object with the specified parameters
+# %%% MOTION CORRECTION
+    # first we create a motion correction object with the specified parameters
     mc = MotionCorrect(fnames, dview=dview, **opts.get_group('motion'))
-    # Run piecewise rigid motion correction
+    # Run correction
     mc.motion_correct(save_movie=True)
-    dview.terminate()
 
-    # %% motion correction compared with original movie
-    display_images = True
-
+# %% compare with original movie
     if display_images:
         m_orig = cm.load(fnames)
         m_rig = cm.load(mc.mmap_file)
         ds_ratio = 0.2
         moviehandle = cm.concatenate([m_orig.resize(1, 1, ds_ratio) - mc.min_mov * mc.nonneg_movie,
                                       m_rig.resize(1, 1, ds_ratio)], axis=2)
-        moviehandle.play(fr=60, q_max=99.5, magnification=2)  # press q to exit
+        moviehandle.play(fr=60, q_max=99.5, magnification=4)  # press q to exit
 
-    # % movie subtracted from the mean
-        m_orig2 = (m_orig - np.mean(m_orig, axis=0))
-        m_rig2 = (m_rig - np.mean(m_rig, axis=0))
-        moviehandle1 = cm.concatenate([m_orig2.resize(1, 1, ds_ratio),
-                                       m_rig2.resize(1, 1, ds_ratio)], axis=2)
-        moviehandle1.play(fr=60, q_max=99.5, magnification=2)
-
-   # %% Memory Mapping
-    c, dview, n_processes = cm.cluster.setup_cluster(
-        backend='local', n_processes=None, single_thread=False)
-
+# %% MEMORY MAPPING
     border_to_0 = 0 if mc.border_nan == 'copy' else mc.border_to_0
+    # you can include the boundaries of the FOV if you used the 'copy' option
+    # during motion correction, although be careful about the components near
+    # the boundaries
+    
+    # memory map the file in order 'C'
     fname_new = cm.save_memmap_join(mc.mmap_file, base_name='memmap_',
-                               add_to_mov=border_to_0, dview=dview, n_chunks=10)
+                                    add_to_mov=border_to_0, dview=dview)  # exclude border
 
-    dview.terminate()
-
+    
     # %% change fnames to the new motion corrected one
-    fname_new = '/home/nel/caiman_data/example_movies/volpy/memmap__d1_100_d2_100_d3_1_order_C_frames_20000_.mmap'
+    #fname_new = '/home/nel/caiman_data/example_movies/volpy/memmap__d1_100_d2_100_d3_1_order_C_frames_20000_.mmap'
     #fname_new = '/home/nel/data/voltage_data/voltage/peyman_golshani/memmap__d1_128_d2_128_d3_1_order_C_frames_3000_.mmap'
     #fname_new = '/home/nel/data/voltage_data/simul_electr/johannes/09212017Fish1-1/memmap__d1_44_d2_96_d3_1_order_C_frames_37950_.mmap'
     #fname_new = '/home/nel/data/voltage_data/volpy_paper/figure1/memmap__d1_128_d2_512_d3_1_order_C_frames_20000_.mmap'
@@ -163,67 +155,26 @@ def main():
     #fname_new = '/home/nel/data/voltage_data/volpy_paper/supp/memmap__d1_364_d2_320_d3_1_order_C_frames_5000_.mmap'
     opts.change_params(params_dict={'fnames': fname_new})
 
-    # %% SEGMENTATION
-    # Create mean and correlation image
-    m = cm.load(mc.mmap_file[0], subindices=slice(0, 20000))[1000:]
-    m.fr = fr
-    img = m.mean(axis=0)
+# %% SEGMENTATION
+    # create summary images
+    img = mean_image(mc.mmap_file[0], window = 1000, dview=dview)
     img = (img-np.mean(img))/np.std(img)
-    m1 = m.computeDFF(secsWindow=1, in_place=True)[0]
-    m = m - m1
-    Cn = m.local_correlations(swap_dim=False, eight_neighbours=True)
+    Cn = local_correlations_movie_offline(mc.mmap_file[0], fr=fr, window=1500, 
+                                          stride=1500, winSize_baseline=400, remove_baseline=True, dview=dview).max(axis=0)
     img_corr = (Cn-np.mean(Cn))/np.std(Cn)
-    summary_image = np.stack([img, img, img_corr], axis=2).astype(np.float32)
-    del m
-    del m1
-
-    #%% Three methods for segmentation
-    method_list = ['manual_annotation', 'quick_annotation', 'maskrcnn' ]
-    method = method_list[0]
-    if method == 'manual_annotation':                 # use manual annotations
+    summary_image = np.stack([img, img, img_corr], axis=2).astype(np.float32) 
+    
+    #%% three methods for segmentation
+    methods_list = ['manual_annotation',        # manual annotation needs user to prepare annotated datasets same format as demo ROIs 
+                    'quick_annotation',         # quick annotation annotates data with simple interface in python
+                    'maskrcnn' ]                # maskrcnn is a convolutional network trained for finding neurons using summary images
+    method = methods_list[2]
+    if method == 'manual_annotation':                
         with h5py.File(path_ROIs, 'r') as fl:
             ROIs = fl['mov'][()]  # load ROIs
 
     elif method == 'quick_annotation': 
-        keep_select=True
-        ROIs = []
-        def tellme(s):
-            print(s)
-            plt.title(s, fontsize=16)
-            plt.draw()
-        
-        while keep_select:
-            # Plot image
-            plt.clf()
-            image = summary_image[:,:,2]
-            plt.imshow(image, cmap='gray', vmax=np.percentile(image, 98))            
-            if len(ROIs) == 0:
-                pass
-            elif len(ROIs) == 1:
-                plt.imshow(ROIs[0], alpha=0.3, cmap='Oranges')
-            else:
-                plt.imshow(np.array(ROIs).sum(axis=0), alpha=0.3, cmap='Oranges')
-            
-            # Plot point and ROI
-            tellme('Click center of neuron')
-            center = plt.ginput(1)[0]
-            plt.plot(center[0], center[1], 'r+')
-            ROI = cell_magic_wand_single_point(image, (center[1], center[0]), min_radius=4, max_radius=9, roughness=2, zoom_factor=1)[0]
-            plt.imshow(ROI, alpha=0.3, cmap='Reds')
-    
-            # Select or not
-            tellme('Select? Key click for yes, mouse click for no')
-            select = plt.waitforbuttonpress()
-            if select:
-                ROIs.append(ROI)
-                tellme('You have selected a neuron. \n Keep selecting? Key click for yes, mouse click for no')
-            else:
-                tellme('You did not select a neuron \n Keep selecting? Key click for yes, mouse click for no')
-            keep_select = plt.waitforbuttonpress()
-            
-        plt.close()
-        
-        ROIs = np.array(ROIs)
+        ROIs = quick_annotation(img_corr, min_radius=4, max_radius=10)
 
     elif method == 'maskrcnn':
         config = neurons.NeuronsConfig()
@@ -236,7 +187,6 @@ def main():
             IMAGE_MAX_DIM = 512
             RPN_NMS_THRESHOLD = 0.7
             POST_NMS_ROIS_INFERENCE = 1000
-
         config = InferenceConfig()
         config.display()
         model_dir = os.path.join(caiman_datadir(), 'model')
@@ -256,27 +206,39 @@ def main():
             visualize.display_instances(summary_image, r['rois'], r['masks'], r['class_ids'], 
                                     ['BG', 'neurons'], r['scores'], ax=ax,
                                     title="Predictions")
-        
-        opts.change_params(params_dict={'ROIs':ROIs,
-                                        'index':list(range(ROIs.shape[0])),
-                                        'method':'SpikePursuit'})
 
-    # %% 
+# %% restart cluster to clean up memory
+    cm.stop_server(dview=dview)
     c, dview, n_processes = cm.cluster.setup_cluster(
-            backend='local', n_processes=None, single_thread=False, maxtasksperchild=1)
+        backend='local', n_processes=None, single_thread=False, maxtasksperchild=1)
+
+# %% parameters for trace denoising and spike extraction
+    fnames = fname_new                            # change file
+    ROIs = ROIs                                   # region of interests
+    index = list(range(len(ROIs)))                 # index of neurons
+    weights = None                                # reuse spatial weights 
+
+    tau_lp = 3                                    # parameter for high-pass filter to remove photobleaching
+    threshold = 4                                 # threshold for finding spikes, increase threshold to find less spikes
+    contextSize = 35                              # number of pixels surrounding the ROI to censor from the background PCA
+    flip_signal = True                            # Important! Flip signal or not, True for Voltron indicator, False for others
+
+    opts_dict={'fnames': fnames,
+               'ROIs': ROIs,
+               'index': index,
+               'weights': weights,
+               'tau_lp': tau_lp,
+               'threshold': threshold,
+               'contextSize': contextSize,
+               'flip_signal': flip_signal}
+
+    opts.change_params(params_dict=opts_dict);          
+
 #%% Trace Denoising and Spike Extraction
-    opts.change_params(params_dict={'ROIs': ROIs,
-                                    'index':list(range(ROIs.shape[0])),
-                                    'weight_update':'RidgeRegression',    
-                                    'tau_lp':5,                   # Parameter for filtering photobleaching 
-                                    'threshold':4,                # Threshold for selecting spikes
-                                    'contextSize':30,             # Size of context region
-                                    'flip_signal':True})          # Flip signal or not, True for voltron, False for others
     vpy = VOLPY(n_processes=n_processes, dview=dview, params=opts)
     vpy.fit(n_processes=n_processes, dview=dview)
 
-
-#%%   Visualization
+#%% visualization
     print(np.where(vpy.estimates['locality'])[0])    # neurons that pass locality test
     import matplotlib.pyplot as plt
     from matplotlib.widgets import Slider
@@ -321,18 +283,18 @@ def main():
             
             ax2.cla()
             ax2.plot(vpy.estimates['trace_raw'][i], alpha=0.8)
-            ax2.plot(vpy.estimates['trace_sub'][i])
-            
+            ax2.plot(vpy.estimates['trace_sub'][i])            
             ax2.plot(vpy.estimates['trace_recons'][i], alpha = 0.4, color='red')
+            ax2.plot(vpy.estimates['trace_lp'][i], alpha = 0.4, color='green')
+
             ax2.plot(vpy.estimates['spikes'][i],
                      1.05 * np.max(vpy.estimates['trace_raw'][i]) * np.ones(vpy.estimates['spikes'][i].shape),
                      color='r', marker='.', fillstyle='none', linestyle='none')
             ax2.set_title('Signal and spike times' + str(i + 1))
-            ax2.legend(labels=['Raw signal', 'Subthreshold activity', 'Reconstructed signal', 'Spike time'])
+            ax2.legend(labels=['Raw signal', 'Subthreshold activity', 'Reconstructed signal', 'Low pass signal''Spike time'])
             ax2.text(0.1, 0.1,'snr:'+str(round(vpy.estimates['snr'][i],2)), horizontalalignment='center', verticalalignment='center', transform = ax2.transAxes)
             ax2.text(0.1, 0.07,'num_spikes:'+str(len(vpy.estimates['spikes'][i])), horizontalalignment='center', verticalalignment='center', transform = ax2.transAxes)            
             ax2.text(0.1, 0.04,'locality_test:'+str(vpy.estimates['locality'][i]), horizontalalignment='center', verticalalignment='center', transform = ax2.transAxes)            
-
             
             ax3.cla()
             ax3.imshow(img, interpolation='None', cmap=plt.cm.gray, vmax=vmax)

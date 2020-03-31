@@ -126,13 +126,18 @@ class VOLPY(object):
         self.estimates['trace_processed'] = [results[i]['trace_processed'] for i in range(N)]
         self.estimates['trace_recons'] = [results[i]['trace_recons'] for i in range(N)]
         self.estimates['trace_sub'] = [results[i]['trace_sub'] for i in range(N)]
+        
+        self.estimates['trace_lp'] = [results[i]['trace_lp'] for i in range(N)]
+        
         self.estimates['spikes'] = [results[i]['spikes'] for i in range(N)]
         self.estimates['num_spikes'] = [results[i]['num_spikes'] for i in range(N)]
         self.estimates['spatialFilter'] = [results[i]['spatialFilter'] for i in range(N)]
+        self.estimates['weights'] = [results[i]['weights'] for i in range(N)]
         self.estimates['locality'] = [results[i]['locality'] for i in range(N)]
         self.estimates['snr'] = [results[i]['snr'] for i in range(N)]
         self.estimates['cellN'] = [results[i]['cellN'] for i in range(N)]
-        self.estimates['no_spike'] = [results[i]['no_spike'] for i in range(N)]
+        self.estimates['low_spikes'] = [results[i]['low_spikes'] for i in range(N)]
+        self.estimates['ROI'] = [results[i]['ROI'] for i in range(N)]
 
         
 

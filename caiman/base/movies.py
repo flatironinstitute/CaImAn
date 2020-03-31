@@ -594,7 +594,7 @@ class movie(ts.timeseries):
         myperc = partial(np.percentile, q=quantilMin, axis=-1)
         res = np.array(list(map(myperc,iter_win))).T
         if returnBL:
-                return cm.movie(cv2.resize(res,pixs.shape[::-1]),fr=self.fr).to3DFromPixelxTime(self.shape)           
+                return cm.movie(cv2.resize(res,pixs.shape[::-1]),fr=self.fr).to3DFromPixelxTime(self.shape)
         if (not in_place):            
             return (pixs-cv2.resize(res,pixs.shape[::-1])).to3DFromPixelxTime(self.shape)
         else:
@@ -645,7 +645,7 @@ class movie(ts.timeseries):
 
         numFrames, linePerFrame, pixPerLine = np.shape(self)
         downsampfact = int(secsWindow * self.fr)
-        logging.debug("Downsample factor: {downsampfact}")
+        logging.debug(f"Downsample factor: {downsampfact}")
         elm_missing = int(np.ceil(numFrames * 1.0 / downsampfact) * downsampfact - numFrames)
         padbefore = int(np.floor(old_div(elm_missing, 2.0)))
         padafter = int(np.ceil(old_div(elm_missing, 2.0)))
@@ -668,16 +668,15 @@ class movie(ts.timeseries):
             movBL = np.reshape(mov_out,
                                (downsampfact, int(old_div(numFramesNew, downsampfact)), linePerFrame, pixPerLine),
                                order=order)
-            
-                   
+
         movBL = np.percentile(movBL, quantilMin, axis=0)
-        
         logging.debug("interpolating data ...")
         sys.stdout.flush()
         logging.debug("movBL shape is " + str(movBL.shape))
         movBL = scipy.ndimage.zoom(np.array(movBL, dtype=np.float32), [downsampfact, 1, 1],
                                    order=1,
-                                   mode='nearest',
+                                   mode='constant',
+                                   cval=0.0,
                                    prefilter=False)
 
         #% compute DF/F
@@ -916,27 +915,34 @@ class movie(ts.timeseries):
 
     def local_correlations(self,
                            eight_neighbours: bool = False,
-                           swap_dim: bool = True,
+                           swap_dim: bool = False,
                            frames_per_chunk: int = 1500,
-                           order_mean=1) -> np.ndarray:
-        """Computes the correlation image for the input dataset Y
+                           do_plot: bool = False,
+                           order_mean: int =1) -> np.ndarray:
+        """Computes the correlation image (CI) for the input movie. If the movie has
+        length more than 3000 frames it will automatically compute the max-CI
+        taken over chunks of a user specified length.
 
             Args:
                 self:  np.ndarray (3D or 4D)
                     Input movie data in 3D or 4D format
-    
+
                 eight_neighbours: Boolean
                     Use 8 neighbors if true, and 4 if false for 3D data (default = True)
                     Use 6 neighbors for 4D data, irrespectively
-    
+
                 swap_dim: Boolean
                     True indicates that time is listed in the last axis of Y (matlab format)
-                    and moves it in the front
+                    and moves it in the front (default: False)
 
-                frames_per_chunk: int (undocumented)
+                frames_per_chunk: int
+                    Length of chunks to split the file into (default: 1500)
 
-                order_mean: (undocumented)
-                
+                do_plot: Boolean (False)
+                    Display a plot that updates the CI when computed in chunks
+
+                order_mean: int (1)
+                    Norm used to average correlations over neighborhood (default: 1).
 
             Returns:
                 rho: d1 x d2 [x d3] matrix, cross-correlation with adjacent pixels
@@ -960,8 +966,9 @@ class movie(ts.timeseries):
                                             swap_dim=swap_dim,
                                             order_mean=order_mean)
                 Cn = np.maximum(Cn, rho)
-                pl.imshow(Cn, cmap='gray')
-                pl.pause(.1)
+                if do_plot:
+                    pl.imshow(Cn, cmap='gray')
+                    pl.pause(.1)
 
             logging.debug('number of chunks:' + str(n_chunks - 1) + ' frames: ' +
                           str([(n_chunks - 1) * frames_per_chunk, T]))
@@ -970,8 +977,9 @@ class movie(ts.timeseries):
                                         swap_dim=swap_dim,
                                         order_mean=order_mean)
             Cn = np.maximum(Cn, rho)
-            pl.imshow(Cn, cmap='gray')
-            pl.pause(.1)
+            if do_plot:
+                pl.imshow(Cn, cmap='gray')
+                pl.pause(.1)
 
         return Cn
 
@@ -2193,9 +2201,10 @@ def load_iter(file_name, subindices=None, var_name_hdf5: str = 'mov'):
                         return
                         #raise StopIteration
                 cap.release()
+
                 return
                 #raise StopIteration
-        elif extension in ('.hdf5', '.h5'):
+        elif extension in ('.hdf5', '.h5', '.mat'):
             with h5py.File(file_name, "r") as f:
                 Y = f.get(var_name_hdf5)
                 if subindices is None:
@@ -2209,7 +2218,8 @@ def load_iter(file_name, subindices=None, var_name_hdf5: str = 'mov'):
                     for ind in subindices:
                         yield Y[ind]
         else:  # fall back to memory inefficient version
-            for y in load(file_name, subindices=subindices):
+            for y in load(file_name, var_name_hdf5=var_name_hdf5,
+                          subindices=subindices):
                 yield y
     else:
         logging.error(f"File request:[{file_name}] not found!")

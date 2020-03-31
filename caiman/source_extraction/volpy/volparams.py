@@ -10,8 +10,8 @@ class volparams(object):
     def __init__(self, fnames=None, fr=None, index=None, ROIs=None, weights=None, doCrossVal=False,
                  doGlobalSubtract=False, contextSize=50, censorSize=12, nPC_bg=8, tau_lp=3, tau_pred=1,
                  sigmas=np.array([1, 1.5, 2]), nIter=2, localAlign=False, globalAlign=False,
-                 highPassRegression=False, use_Ridge=True, flip_signal=True, threshold=3.5, Ridge_bg_coef=0.5, method='SpikePursuit',
-                 weight_update='RidgeRegression', superfactor=10, params_dict={}):
+                 highPassRegression=False, use_Ridge=True, flip_signal=True, threshold=3.5, hp_freq=1, min_spikes=5, 
+                 Ridge_bg_coef=0.5, method='SpikePursuit', weight_update='RidgeRegression', superfactor=10, params_dict={}):
         """Class for setting parameters for voltage imaging. Including parameters for the data, motion correction and
         spike detection. The prefered way to set parameters is by using the set function, where a subclass is determined
         and a dictionary is passed. The whole dictionary can also be initialized at once by passing a dictionary
@@ -43,6 +43,8 @@ class volparams(object):
             'Ridge_bg_coef':Ridge_bg_coef, # coefficients for Ridge to remove bg
             'flip_signal': flip_signal, # whether to flip signal to find spikes
             'threshold': threshold, # threshold for finding spikes
+            'hp_freq': hp_freq, #high-pass cutoff frequency to filter the signal after computing the trace
+            'min_spikes': min_spikes, # minimal spikes to be detected
             'method': method, # 'SpikePursuit' or 'atm' (adaptive template matching)
             'weight_update': weight_update, # method for updating spatial weights 'NMF' or 'maxSNR'
             'superfactor': superfactor # factor for temporal super-resolution of spike times, e.g. 10 for 1/(10*framerate)

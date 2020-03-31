@@ -786,3 +786,63 @@ def local_correlations_movie_parallel(params: Tuple) -> np.ndarray:
     else:
         return local_correlations(mv, eight_neighbours=eight_neighbours, swap_dim=swap_dim,
                                   order_mean=order_mean)[None, :, :].astype(np.float32)
+        
+def mean_image(file_name,
+                 Tot_frames=None,
+                 fr: float = 10.,
+                 window: int = 100,
+                 dview=None):
+    """
+    Efficient (parallel) computation of mean image in chunks
+
+    Args:
+        Y:  str
+            path to movie file
+
+        Tot_frames: int
+            Number of total frames considered
+
+        fr: int (100)
+            Frame rate (optional)
+
+        window: int (100)
+            Window length in frames
+
+        dview: map object
+            Use it for parallel computation
+    
+    Returns:
+        mm: cm.movie (2D).
+            mean image
+
+    """
+    if Tot_frames is None:
+        _, Tot_frames = get_file_size(file_name)
+
+    params: List = [[file_name, range(j * window, (j + 1) * window)]
+                    for j in range(int(Tot_frames / window))]
+
+    remain_frames = Tot_frames - int(Tot_frames / window) * window
+    if remain_frames > 0:
+        params.append([file_name, range(int(Tot_frames / window) * window, Tot_frames)])
+
+    if dview is None:
+        parallel_result = list(map(mean_image_parallel, params))
+    else:
+        if 'multiprocessing' in str(type(dview)):
+            parallel_result = dview.map_async(mean_image_parallel, params).get(4294967)
+        else:
+            parallel_result = dview.map_sync(mean_image_parallel, params)
+            dview.results.clear()
+
+    mm = cm.movie(np.concatenate(parallel_result, axis=0), fr=fr/len(parallel_result))
+    if remain_frames > 0:
+        mean_image = (mm[:-1].sum(axis=0) + (remain_frames / window) * mm[-1]) / (len(mm) - 1 + remain_frames / window)  
+    else:
+        mean_image = mm.mean(axis=0)
+    return mean_image
+
+def mean_image_parallel(params: Tuple) -> np.ndarray:
+    mv_name, idx = params
+    mv = cm.load(mv_name, subindices=idx, in_memory=True)
+    return mv.mean(axis=0)[np.newaxis,:,:]
