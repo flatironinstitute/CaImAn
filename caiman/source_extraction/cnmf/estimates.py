@@ -317,7 +317,7 @@ class Estimates(object):
         nr, T = self.C.shape
         if self.R is None:
             self.R = self.YrA
-        if self.R.shape != [nr, T]:
+        if self.R.shape != (nr, T):
             if self.YrA is None:
                 self.compute_residuals(Yr)
             else:
