@@ -14,7 +14,7 @@ from typing import List
 import time
 
 import caiman
-from .utilities import detrend_df_f
+from .utilities import detrend_df_f, decimation_matrix
 from .spatial import threshold_components
 from .temporal import constrained_foopsi_parallel
 from .merging import merge_iteration, merge_components
@@ -701,6 +701,29 @@ class Estimates(object):
                      save_movie=save_movie, movie_name=movie_name)
 
         return mov
+
+    def compute_background(self, Yr):
+        """compute background
+
+         Args:
+             Yr :    np.ndarray
+                 movie in format pixels (d) x frames (T)
+            """
+        if self.f is not None:  # low rank background
+            return self.b.dot(self.f)
+        else:  # ring model background
+            ssub_B = np.round(np.sqrt(Yr.shape[0] / self.W.shape[0])).astype(int)
+            if ssub_B == 1:
+                return self.b0[:, None] + self.W.dot(Yr - self.A.dot(self.C) - self.b0[:, None])
+            else:
+                ds_mat = decimation_matrix(self.dims, ssub_B)
+                B = ds_mat.dot(Yr) - ds_mat.dot(self.A).dot(self.C) - ds_mat.dot(self.b0)[:, None]
+                B = self.W.dot(B).reshape(((self.dims[0] - 1) // ssub_B + 1,
+                                           (self.dims[1] - 1) // ssub_B + 1, -1), order='F')
+                B = self.b0[:, None] + np.repeat(np.repeat(B, ssub_B, 0), ssub_B, 1
+                                                 )[:self.dims[0], :self.dims[1]].reshape(
+                    (-1, B.shape[-1]), order='F')
+                return B
 
     def compute_residuals(self, Yr):
         """compute residual for each component (variable R)
