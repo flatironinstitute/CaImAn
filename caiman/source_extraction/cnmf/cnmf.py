@@ -641,6 +641,7 @@ class CNMF(object):
                             ssub=self.params.get('init', 'ssub_B'))
                     if len(self.estimates.C):
                         self.deconvolve()
+                        self.estimates.C = self.estimates.C.astype(np.float32)
                     else:
                         self.estimates.S = self.estimates.C
             else:

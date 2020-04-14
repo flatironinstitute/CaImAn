@@ -703,12 +703,13 @@ class Estimates(object):
         return mov
 
     def compute_background(self, Yr):
-        """compute background
+        """compute background (has big memory requirements)
 
          Args:
              Yr :    np.ndarray
                  movie in format pixels (d) x frames (T)
             """
+        logging.warning("Computing the full background has big memory requirements!")
         if self.f is not None:  # low rank background
             return self.b.dot(self.f)
         else:  # ring model background
