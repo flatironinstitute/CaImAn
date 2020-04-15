@@ -14,8 +14,6 @@ import numpy as np
 import tensorflow as tf
 import caiman as cm
 from caiman.external.cell_magic_wand import cell_magic_wand_single_point
-from caiman.source_extraction.volpy.mrcnn import visualize, neurons
-import caiman.source_extraction.volpy.mrcnn.model as modellib
 from caiman.paths import caiman_datadir
 
 def correlation_image(fnames, fr):
@@ -118,6 +116,8 @@ def mrcnn_inference(img, weights_path, display_result=True):
             region of interests 
             (# of components * # of pixels in x dim * # of pixels in y dim)
     """
+    from caiman.source_extraction.volpy.mrcnn import visualize, neurons
+    import caiman.source_extraction.volpy.mrcnn.model as modellib
     config = neurons.NeuronsConfig()
     class InferenceConfig(config.__class__):
         # Run detection on one img at a time

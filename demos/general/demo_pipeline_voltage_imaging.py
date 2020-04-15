@@ -130,7 +130,7 @@ def main():
     img = mean_image(mc.mmap_file[0], window = 1000, dview=dview)
     img = (img-np.mean(img))/np.std(img)
     
-    gaussian_blur = False        # Use gaussian blur only when the quality of corr image(Cn) is bad
+    gaussian_blur = False        # Use gaussian blur when the quality of corr image(Cn) is bad
     Cn = local_correlations_movie_offline(mc.mmap_file[0], fr=fr, window=fr*4, 
                                           stride=fr*4, winSize_baseline=fr, 
                                           remove_baseline=True, gaussian_blur=gaussian_blur,
@@ -150,7 +150,7 @@ def main():
     elif method == 'quick_annotation':           
         ROIs = utils.quick_annotation(img, min_radius=4, max_radius=8)
 
-    elif method == 'maskrcnn':
+    elif method == 'maskrcnn':                 # Important!! make sure install keras before using mask rcnn
         weights_path = download_model('mask_rcnn')
         ROIs = utils.mrcnn_inference(img=summary_image, weights_path=weights_path, display_result=True)
             
@@ -170,9 +170,9 @@ def main():
     hp_freq_pb = 1 / 3                            # parameter for high-pass filter to remove photobleaching
     threshold_method = 'simple'                   # 'simple' or 'adaptive_threshold'
     min_spikes= 10                                # minimal spikes to be found
-    threshold = 4                                 # threshold for finding spikes, increase threshold to find less spikes
+    threshold = 3.5                               # threshold for finding spikes, increase threshold to find less spikes
     do_plot = False                               # plot detail of spikes, template for the last iteration
-    ridge_bg= 0.0001                              # ridge regression regularizer strength for background removement
+    ridge_bg= 0.001                               # ridge regression regularizer strength for background removement
     sub_freq = 20                                 # frequency for subthreshold extraction
     weight_update = 'ridge'                       # 'ridge' or 'NMF' for weight update
     
