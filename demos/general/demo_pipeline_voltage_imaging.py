@@ -56,7 +56,7 @@ def main():
     # %%  Load demo movie and ROIs
     fnames = download_demo('demo_voltage_imaging.hdf5', 'volpy')  # file path to movie file (will download if not present)
     path_ROIs = download_demo('demo_voltage_imaging_ROIs.hdf5', 'volpy')  # file path to ROIs file (will download if not present)
-
+    
 #%% dataset dependent parameters
     # dataset dependent parameters
     fr = 400                                        # sample rate of the movie
@@ -87,14 +87,14 @@ def main():
 
 # %% play the movie (optional)
     # playing the movie using opencv. It requires loading the movie in memory.
-    # To close the video press q
+    # To close the movie press q
     display_images = False
 
     if display_images:
         m_orig = cm.load(fnames)
         ds_ratio = 0.2
         moviehandle = m_orig.resize(1, 1, ds_ratio)
-        moviehandle.play(q_max=99.5, fr=60, magnification=6)
+        moviehandle.play(q_max=99.5, fr=40, magnification=6)
 
 # %% start a cluster for parallel processing
     c, dview, n_processes = cm.cluster.setup_cluster(
@@ -129,8 +129,12 @@ def main():
     # create summary images
     img = mean_image(mc.mmap_file[0], window = 1000, dview=dview)
     img = (img-np.mean(img))/np.std(img)
-    Cn = local_correlations_movie_offline(mc.mmap_file[0], fr=fr, window=1500, 
-                                          stride=1500, winSize_baseline=400, remove_baseline=True, dview=dview).max(axis=0)
+    
+    gaussian_blur = False        # Use gaussian blur only when the quality of corr image(Cn) is bad
+    Cn = local_correlations_movie_offline(mc.mmap_file[0], fr=fr, window=fr*4, 
+                                          stride=fr*4, winSize_baseline=fr, 
+                                          remove_baseline=True, gaussian_blur=gaussian_blur,
+                                          dview=dview).max(axis=0)
     img_corr = (Cn-np.mean(Cn))/np.std(Cn)
     summary_image = np.stack([img, img, img_corr], axis=2).astype(np.float32) 
     
@@ -138,13 +142,13 @@ def main():
     methods_list = ['manual_annotation',        # manual annotation needs user to prepare annotated datasets same format as demo ROIs 
                     'quick_annotation',         # quick annotation annotates data with simple interface in python
                     'maskrcnn' ]                # maskrcnn is a convolutional network trained for finding neurons using summary images
-    method = methods_list[2]
+    method = methods_list[0]
     if method == 'manual_annotation':                
         with h5py.File(path_ROIs, 'r') as fl:
-            ROIs = fl['mov'][()]  # load ROIs
+            ROIs = fl['mov'][()]  
 
-    elif method == 'quick_annotation': 
-        ROIs = utils.quick_annotation(img_corr, min_radius=4, max_radius=10)
+    elif method == 'quick_annotation':           
+        ROIs = utils.quick_annotation(img, min_radius=4, max_radius=8)
 
     elif method == 'maskrcnn':
         weights_path = download_model('mask_rcnn')
@@ -158,34 +162,38 @@ def main():
 # %% parameters for trace denoising and spike extraction
     fnames = fname_new                            # change file
     ROIs = ROIs                                   # region of interests
-    index = list(range(len(ROIs)))                 # index of neurons
+    index = list(range(len(ROIs)))                # index of neurons
     weights = None                                # reuse spatial weights 
 
-    hp_freq_pb = 1 / 3                            # parameter for high-pass filter to remove photobleaching
-    threshold = 4                                 # threshold for finding spikes, increase threshold to find less spikes
     context_size = 35                             # number of pixels surrounding the ROI to censor from the background PCA
-    flip_signal = True                            # Important! Flip signal or not, True for Voltron indicator, False for others
-    sub_freq = 75                                 # frequency for subthreshold extraction
-    ridge_bg= 0.0001
-    threshold_method = 'simple'
-    do_plot = False
+    flip_signal = True                            # Important!! Flip signal or not, True for Voltron indicator, False for others
+    hp_freq_pb = 1 / 3                            # parameter for high-pass filter to remove photobleaching
+    threshold_method = 'simple'                   # 'simple' or 'adaptive_threshold'
+    min_spikes= 10                                # minimal spikes to be found
+    threshold = 4                                 # threshold for finding spikes, increase threshold to find less spikes
+    do_plot = False                               # plot detail of spikes, template for the last iteration
+    ridge_bg= 0.0001                              # ridge regression regularizer strength for background removement
+    sub_freq = 20                                 # frequency for subthreshold extraction
+    weight_update = 'ridge'                       # 'ridge' or 'NMF' for weight update
     
     opts_dict={'fnames': fnames,
                'ROIs': ROIs,
                'index': index,
                'weights': weights,
-               'hp_freq_pb': hp_freq_pb,
-               'threshold': threshold,
                'context_size': context_size,
                'flip_signal': flip_signal,
-               'sub_freq': sub_freq,
-               'ridge_bg':ridge_bg,
+               'hp_freq_pb': hp_freq_pb,
                'threshold_method': threshold_method,
-               'do_plot':do_plot}
+               'min_spikes':min_spikes,
+               'threshold': threshold,
+               'do_plot':do_plot,
+               'ridge_bg':ridge_bg,
+               'sub_freq': sub_freq,
+               'weight_update': weight_update}
 
     opts.change_params(params_dict=opts_dict);          
 
-#%% Trace Denoising and Spike Extraction
+#%% TRACE DENOISING AND SPIKE DETECTION
     vpy = VOLPY(n_processes=n_processes, dview=dview, params=opts)
     vpy.fit(n_processes=n_processes, dview=dview)
 
@@ -194,8 +202,10 @@ def main():
     idx = np.where(vpy.estimates['locality'] > 0)[0]
     utils.view_components(vpy.estimates, img_corr, idx)
     
-#%% reconstructed video
-    mv_all = utils.reconstructed_video(vpy.estimates, fnames=mc.mmap_file, idx=idx, scope=(0,1000))
+#%% reconstructed movie
+# note the negative spatial weights is cutoff    
+    mv_all = utils.reconstructed_movie(vpy.estimates, fnames=mc.mmap_file, 
+                                       idx=idx, scope=(0,1000), flip_signal=flip_signal)
     mv_all.play(fr=40)    
     
     # %% STOP CLUSTER and clean up log files

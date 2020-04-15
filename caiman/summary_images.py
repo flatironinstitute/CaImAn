@@ -704,7 +704,8 @@ def local_correlations_movie_offline(file_name,
                                      dview=None,
                                      remove_baseline: bool = False,
                                      winSize_baseline: int = 50,
-                                     quantil_min_baseline: float = 8):
+                                     quantil_min_baseline: float = 8,
+                                     gaussian_blur: bool=False):
     """
     Efficient (parallel) computation of correlation image in shifting windows 
     with option for prior baseline removal
@@ -744,6 +745,9 @@ def local_correlations_movie_offline(file_name,
 
         quantile_min_baseline: float (8)
             Percentile used for baseline computations
+            
+        gaussian_blur: bool (False)
+            Gaussian smooth the signal
 
     Returns:
         mm: cm.movie (3D or 4D).
@@ -755,12 +759,12 @@ def local_correlations_movie_offline(file_name,
 
     params: List = [[file_name, range(j, j + window), eight_neighbours, swap_dim,
                      order_mean, ismulticolor, remove_baseline, winSize_baseline,
-                     quantil_min_baseline]
+                     quantil_min_baseline, gaussian_blur]
                     for j in range(0, Tot_frames - window, stride)]
 
     params.append([file_name, range(Tot_frames - window, Tot_frames), eight_neighbours, swap_dim,
                    order_mean, ismulticolor, remove_baseline, winSize_baseline,
-                   quantil_min_baseline])
+                   quantil_min_baseline, gaussian_blur])
 
     if dview is None:
         parallel_result = list(map(local_correlations_movie_parallel, params))
@@ -776,8 +780,12 @@ def local_correlations_movie_offline(file_name,
 
 
 def local_correlations_movie_parallel(params: Tuple) -> np.ndarray:
-    mv_name, idx, eight_neighbours, swap_dim, order_mean, ismulticolor, remove_baseline, winSize_baseline, quantil_min_baseline  = params
+    mv_name, idx, eight_neighbours, swap_dim, order_mean, ismulticolor, remove_baseline, winSize_baseline, quantil_min_baseline, gaussian_blur = params
     mv = cm.load(mv_name, subindices=idx, in_memory=True)
+    if gaussian_blur:
+        mv = mv.gaussian_blur_2D()
+    else:
+        pass
     if remove_baseline:
         mv.removeBL(quantilMin=quantil_min_baseline, windowSize=winSize_baseline, in_place=True)
 

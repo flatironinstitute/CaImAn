@@ -2,24 +2,63 @@
 # -*- coding: utf-8 -*-
 """
 Created on Mon Mar 23 16:45:00 2020
-
+This file create functions used for demo_pipeline_voltage_imaging
 @author: caichangjia
 """
 #%% 
 import os
+from IPython import get_ipython
 import matplotlib.pyplot as plt
+from matplotlib.widgets import Slider
 import numpy as np
-from caiman.external.cell_magic_wand import cell_magic_wand_single_point
 import tensorflow as tf
+import caiman as cm
+from caiman.external.cell_magic_wand import cell_magic_wand_single_point
 from caiman.source_extraction.volpy.mrcnn import visualize, neurons
 import caiman.source_extraction.volpy.mrcnn.model as modellib
 from caiman.paths import caiman_datadir
-import caiman as cm
-from matplotlib.widgets import Slider
 
+def correlation_image(fnames, fr):
+    """ Compute correlation image with Gaussian Blur. The method is relative slow
+    in speed, but it is suitable for high noise movie.
+    Args:
+        fnames: 3-D array
+            motion corrected movie in F-order memory mapping format
+        
+        fr: int
+            frame rate
+            
+    Return: 
+        Cn: 2-D array
+            correlation image
+    """
+    m = cm.load(fnames, fr=fr)
+    ma = m.computeDFF(secsWindow=1)[0]
+    Cn = ma.copy().gaussian_blur_2D().local_correlations(swap_dim=False, 
+                eight_neighbours=True, frames_per_chunk=1000000000)
+    return Cn
 
-def quick_annotation(image, min_radius, max_radius, roughtness=2):
-    
+def quick_annotation(img, min_radius, max_radius, roughness=2):
+    """ Quick annotation method in VolPy using cell magic wand plugin
+    Args:
+        img: 2-D array
+            img as the background for selection
+            
+        min_radius: float
+            minimum radius of the selection
+            
+        max_radius: float
+            maximum raidus of the selection
+            
+        roughness: int
+            roughness of the selection surface
+            
+    Return:
+        ROIs: 3-D array
+            region of interests 
+            (# of components * # of pixels in x dim * # of pixels in y dim)
+    """
+    get_ipython().run_line_magic('matplotlib', 'auto')
     def tellme(s):
         print(s)
         plt.title(s, fontsize=16)
@@ -28,9 +67,9 @@ def quick_annotation(image, min_radius, max_radius, roughtness=2):
     keep_select=True
     ROIs = []
     while keep_select:
-        # Plot image
+        # Plot img
         plt.clf()
-        plt.imshow(image, cmap='gray', vmax=np.percentile(image, 98))            
+        plt.imshow(img, cmap='gray', vmax=np.percentile(img, 98))            
         if len(ROIs) == 0:
             pass
         elif len(ROIs) == 1:
@@ -42,9 +81,9 @@ def quick_annotation(image, min_radius, max_radius, roughtness=2):
         tellme('Click center of neuron')
         center = plt.ginput(1)[0]
         plt.plot(center[0], center[1], 'r+')
-        ROI = cell_magic_wand_single_point(image, (center[1], center[0]), 
+        ROI = cell_magic_wand_single_point(img, (center[1], center[0]), 
                                            min_radius=min_radius, max_radius=max_radius, 
-                                           roughness=2, zoom_factor=1)[0]
+                                           roughness=roughness, zoom_factor=1)[0]
         plt.imshow(ROI, alpha=0.3, cmap='Reds')
     
         # Select or not
@@ -58,14 +97,30 @@ def quick_annotation(image, min_radius, max_radius, roughtness=2):
         keep_select = plt.waitforbuttonpress()
         
     plt.close()        
-    ROIs = np.array(ROIs)
-    
+    ROIs = np.array(ROIs)   
+    get_ipython().run_line_magic('matplotlib', 'inline')
     return ROIs
 
 def mrcnn_inference(img, weights_path, display_result=True):
+    """ Mask R-CNN inference in VolPy
+    Args: 
+        img: 2-D array
+            summary images for detection
+            
+        weights_path: str
+            path for Mask R-CNN weight
+            
+        display_result: boolean
+            if True, the function will plot the result of inference
+        
+    Return:
+        ROIs: 3-D array
+            region of interests 
+            (# of components * # of pixels in x dim * # of pixels in y dim)
+    """
     config = neurons.NeuronsConfig()
     class InferenceConfig(config.__class__):
-        # Run detection on one image at a time
+        # Run detection on one img at a time
         GPU_COUNT = 1
         IMAGES_PER_GPU = 1
         DETECTION_MIN_CONFIDENCE = 0.7
@@ -85,38 +140,73 @@ def mrcnn_inference(img, weights_path, display_result=True):
     r = results[0]
     ROIs = r['masks'].transpose([2, 0, 1])
 
-    display_result = True
     if display_result:
         _, ax = plt.subplots(1,1, figsize=(16,16))
         visualize.display_instances(img, r['rois'], r['masks'], r['class_ids'], 
                                 ['BG', 'neurons'], r['scores'], ax=ax,
-                                title="Predictions")
-        
+                                title="Predictions")        
     return ROIs
 
-
-def reconstructed_video(estimates, fnames, idx, scope):
+def reconstructed_movie(estimates, fnames, idx, scope, flip_signal):
+    """ Create reconstructed movie in VolPy. The movie has three panels: 
+    motion corrected movie on the left panel, movie removed from the baseline
+    on the mid panel and reconstructed movie on the right panel.
+    Args: 
+        estimates: dict
+            estimates dictionary contain results of VolPy
+            
+        fnames: list
+            motion corrected movie in F-order memory mapping format
+            
+        idx: list
+            index of selected neurons
+            
+        scope: list
+            scope of number of frames in reconstructed movie
+            
+        flip_signal: boolean
+            if True the signal will be flipped (for voltron) 
+    
+    Return:
+        mv_all: 3-D array
+            motion corrected movie, movie removed from baseline, reconstructed movie
+            concatenated into one matrix
+    """
+    # motion corrected movie and movie removed from baseline
     mv = cm.load(fnames, fr=400)[scope[0]:scope[1]]
     dims = (mv.shape[1], mv.shape[2])
     mv_bl = mv.computeDFF(secsWindow=0.1)[0]
     mv = (mv-mv.min())/(mv.max()-mv.min())
-    mv_bl = -mv_bl
+    if flip_signal:
+        mv_bl = -mv_bl
+    else:
+        pass
     mv_bl[mv_bl<np.percentile(mv_bl,3)] = np.percentile(mv_bl,3)
     mv_bl[mv_bl>np.percentile(mv_bl,98)] = np.percentile(mv_bl,98)
     mv_bl = (mv_bl - mv_bl.min())/(mv_bl.max()-mv_bl.min())
 
-    estimates['weights'][estimates['weights']<0] = 0
-    
+    # reconstructed movie
+    estimates['weights'][estimates['weights']<0] = 0    
     A = estimates['weights'][idx].transpose([1,2,0]).reshape((-1,len(idx)))
     C = estimates['t_rec'][idx,scope[0]:scope[1]]
     mv_rec = np.dot(A, C).reshape((dims[0],dims[1],scope[1]-scope[0])).transpose((2,0,1))    
     mv_rec = cm.movie(mv_rec,fr=400)
     mv_rec = (mv_rec - mv_rec.min())/(mv_rec.max()-mv_rec.min())
-    mv_all = cm.concatenate((mv,mv_bl,mv_rec),axis=2)
-    
+    mv_all = cm.concatenate((mv,mv_bl,mv_rec),axis=2)    
     return mv_all
 
 def view_components(estimates, img, idx):
+    """ View spatial and temporal components interactively
+    Args:
+        estimates: dict
+            estimates dictionary contain results of VolPy
+            
+        img: 2-D array
+            summary images for detection
+            
+        idx: list
+            index of selected neurons
+    """
     n = len(idx) 
     fig = plt.figure(figsize=(10, 10))
 
