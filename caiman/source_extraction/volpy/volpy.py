@@ -18,7 +18,10 @@ class VOLPY(object):
         The general file class which is used to find spikes of voltage imaging.
         Its architecture is similar to the one of scikit-learn calling the function fit
         to run everything which is part of the structure of the class.
-        The output will be recorded in self.estimate.
+        The output will be recorded in self.estimates.
+        In order to use VolPy within CaImAn, you must install Keras into your conda environment. 
+        You can do this by activating your environment, and then issuing the command 
+        "conda install -c conda-forge keras".
     """
     def __init__(self, n_processes, dview=None, context_size=35, censor_size=12, 
                  flip_signal=True, hp_freq_pb=1/3, nPC_bg=8, ridge_bg=0.01,  
@@ -107,7 +110,7 @@ class VOLPY(object):
 
     def fit(self, n_processes=None, dview=None):
         """Run the volspike function to detect spikes and save the result
-        into self.estimate
+        into self.estimates
         """
         results = []
         fnames = self.params.data['fnames']

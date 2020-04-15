@@ -197,15 +197,15 @@ class MotionCorrect(object):
         self.num_splits_to_process_els = num_splits_to_process_els
         self.upsample_factor_grid = upsample_factor_grid
         self.max_deviation_rigid = max_deviation_rigid
-        self.shifts_opencv = shifts_opencv
+        self.shifts_opencv = bool(shifts_opencv)
         self.min_mov = min_mov
         self.nonneg_movie = nonneg_movie
         self.gSig_filt = gSig_filt
-        self.use_cuda = use_cuda
+        self.use_cuda = bool(use_cuda)
         self.border_nan = border_nan
-        self.pw_rigid = pw_rigid
+        self.pw_rigid = bool(pw_rigid)
         self.var_name_hdf5 = var_name_hdf5
-        self.is3D = is3D
+        self.is3D = bool(is3D)
         self.indices = indices
         if self.use_cuda and not HAS_CUDA:
             logging.debug("pycuda is unavailable. Falling back to default FFT.")
@@ -2833,9 +2833,9 @@ def motion_correct_batch_pwrigid(fname, max_shifts, strides, overlaps, add_to_mo
             if save_movie:
 
                 if isinstance(fname, tuple):
-                    logging.debug('saving mmap of ' + fname[0] + 'to' +fname[-1])
+                    logging.debug(f'saving mmap of {fname[0]} to {fname[-1]}')
                 else:
-                    logging.debug('saving mmap of ' + fname)
+                    logging.debug(f'saving mmap of {fname}')
 
         if isinstance(fname, tuple):
             base_name=os.path.split(fname[0])[-1][:-4] + '_els_'
@@ -2924,7 +2924,7 @@ def tile_and_correct_wrapper(params):
         if count % 10 == 0:
             logging.debug(count)
         if is3D:
-            mc[count], total_shift, start_step, xyz_grid = tile_and_correct_3d(img[indices], template, strides, overlaps, max_shifts,
+            mc[count], total_shift, start_step, xyz_grid = tile_and_correct_3d(img, template, strides, overlaps, max_shifts,
                                                                        add_to_movie=add_to_movie, newoverlaps=newoverlaps,
                                                                        newstrides=newstrides,
                                                                        upsample_factor_grid=upsample_factor_grid,

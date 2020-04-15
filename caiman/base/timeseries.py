@@ -127,6 +127,8 @@ class timeseries(np.ndarray):
              bigtiff=True,
              excitation_lambda=488.0,
              compress=0,
+             q_max=99.75,
+             q_min=1,
              var_name_hdf5='mov',
              sess_desc='some_description',
              identifier='some identifier',
@@ -156,6 +158,10 @@ class timeseries(np.ndarray):
 
             var_name_hdf5: str
                 Name of hdf5 file subdirectory
+
+            q_max, q_min: float in [0, 100]
+                percentile for maximum/minimum clipping value if saving as avi
+                (If set to None, no automatic scaling to the dynamic range [0, 255] is performed)
 
         Raises:
             Exception 'Extension Unknown'
@@ -193,10 +199,21 @@ class timeseries(np.ndarray):
                 codec = cv2.FOURCC('I', 'Y', 'U', 'V')
             except AttributeError:
                 codec = cv2.VideoWriter_fourcc(*'IYUV')
-            np.clip(self, np.percentile(self, 1), np.percentile(self, 99), self)
-            minn, maxx = np.min(self), np.max(self)
-            data = 255 * (self - minn) / (maxx - minn)
-            data = data.astype(np.uint8)
+            if q_max is None or q_min is None:
+                data = self.astype(np.uint8)
+            else:
+                if q_max < 100:
+                    maxmov = np.nanpercentile(self[::max(1, len(self) // 100)], q_max)
+                else:
+                    maxmov = np.nanmax(self)
+                if q_min > 0:
+                    minmov = np.nanpercentile(self[::max(1, len(self) // 100)], q_min)
+                else:
+                    minmov = np.nanmin(self)
+                data = 255 * (self - minmov) / (maxmov - minmov)
+                np.clip(data, 0, 255, data)
+                data = data.astype(np.uint8)
+                
             y, x = data[0].shape
             vw = cv2.VideoWriter(file_name, codec, self.fr, (x, y), isColor=True)
             for d in data:

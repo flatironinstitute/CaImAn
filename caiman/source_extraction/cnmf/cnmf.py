@@ -411,6 +411,7 @@ class CNMF(object):
         cnm.params.patch['only_init'] = False
         estimates = deepcopy(self.estimates)
         estimates.select_components(use_object=True)
+        estimates.coordinates = None
         cnm.estimates = estimates
         cnm.mmap_file = self.mmap_file
         return cnm.fit(images)
@@ -640,6 +641,7 @@ class CNMF(object):
                             ssub=self.params.get('init', 'ssub_B'))
                     if len(self.estimates.C):
                         self.deconvolve()
+                        self.estimates.C = self.estimates.C.astype(np.float32)
                     else:
                         self.estimates.S = self.estimates.C
             else:
@@ -1006,16 +1008,8 @@ def load_CNMF(filename, n_processes=1, dview=None):
         for key, val in load_dict_from_hdf5(filename).items():
             if key == 'params':
                 prms = CNMFParams()
-                prms.spatial = val['spatial']
-                prms.temporal = val['temporal']
-                prms.patch = val['patch']
-                prms.preprocess = val['preprocess']
-                prms.init = val['init']
-                prms.merging = val['merging']
-                prms.quality = val['quality']
-                prms.data = val['data']
-                prms.online = val['online']
-                prms.motion = val['motion']
+                for subdict in val.keys():
+                    prms.set(subdict, val[subdict])
                 setattr(new_obj, key, prms)
             elif key == 'dview':
                 setattr(new_obj, key, dview)

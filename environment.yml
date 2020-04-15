@@ -12,7 +12,6 @@ dependencies:
 - ipython
 - ipyparallel
 - jupyter
-- keras
 - matplotlib
 - mypy
 - nose
@@ -21,6 +20,7 @@ dependencies:
 - opencv
 - peakutils
 - pims
+- psutil
 - pynwb
 - pyqtgraph
 - scikit-image

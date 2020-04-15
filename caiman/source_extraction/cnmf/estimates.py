@@ -14,13 +14,13 @@ from typing import List
 import time
 
 import caiman
-from .utilities import detrend_df_f
+from .utilities import detrend_df_f, decimation_matrix
 from .spatial import threshold_components
 from .temporal import constrained_foopsi_parallel
-from .merging import merge_iteration
+from .merging import merge_iteration, merge_components
 from ...components_evaluation import (
         evaluate_components_CNN, estimate_components_quality_auto,
-        select_components_from_metrics)
+        select_components_from_metrics, compute_eccentricity)
 from ...base.rois import (
         detect_duplicates_and_subsets, nf_match_neurons_in_binary_masks,
         nf_masks_to_neurof_dict)
@@ -103,6 +103,9 @@ class Estimates(object):
 
             cnn_preds: np.ndarray
                 CNN predictions for each component
+
+            ecc: np.ndarray
+                eccentricity values
         """
         # variables related to the estimates of traces, footprints, deconvolution and background
         self.A = A
@@ -133,6 +136,7 @@ class Estimates(object):
         self.SNR_comp = None
         self.r_values = None
         self.cnn_preds = None
+        self.ecc = None
 
         # online
 
@@ -163,7 +167,8 @@ class Estimates(object):
 
 
     def plot_contours(self, img=None, idx=None, crd=None, thr_method='max',
-                      thr='0.2', display_numbers=True, params=None):
+                      thr=0.2, display_numbers=True, params=None,
+                      cmap='viridis'):
         """view contours of all spatial footprints.
 
         Args:
@@ -197,7 +202,8 @@ class Estimates(object):
                            int(params.quality['use_cnn'])))
         if idx is None:
             caiman.utils.visualization.plot_contours(self.A, img, coordinates=self.coordinates,
-                                                     display_numbers=display_numbers)
+                                                     display_numbers=display_numbers,
+                                                     cmap=cmap)
         else:
             if not isinstance(idx, list):
                 idx = idx.tolist()
@@ -207,18 +213,20 @@ class Estimates(object):
             plt.subplot(1, 2, 1)
             caiman.utils.visualization.plot_contours(self.A[:, idx], img,
                                                      coordinates=coor_g,
-                                                     display_numbers=display_numbers)
+                                                     display_numbers=display_numbers,
+                                                     cmap=cmap)
             plt.title('Accepted Components')
             bad = list(set(range(self.A.shape[1])) - set(idx))
             plt.subplot(1, 2, 2)
             caiman.utils.visualization.plot_contours(self.A[:, bad], img,
                                                      coordinates=coor_b,
-                                                     display_numbers=display_numbers)
+                                                     display_numbers=display_numbers,
+                                                     cmap=cmap)
             plt.title('Rejected Components')
         return self
 
     def plot_contours_nb(self, img=None, idx=None, crd=None, thr_method='max',
-                         thr='0.2', params=None):
+                         thr=0.2, params=None, line_color='white', cmap='viridis'):
         """view contours of all spatial footprints (notebook environment).
 
         Args:
@@ -240,6 +248,8 @@ class Estimates(object):
             import bokeh
             if 'csc_matrix' not in str(type(self.A)):
                 self.A = scipy.sparse.csc_matrix(self.A)
+            if self.dims is None:
+                self.dims = img.shape
             if img is None:
                 img = np.reshape(np.array(self.A.mean(1)), self.dims, order='F')
             if self.coordinates is None:  # not hasattr(self, 'coordinates'):
@@ -248,7 +258,8 @@ class Estimates(object):
             if idx is None:
                 p = caiman.utils.visualization.nb_plot_contour(img, self.A, self.dims[0],
                                 self.dims[1], coordinates=self.coordinates,
-                                thr_method=thr_method, thr=thr, show=False)
+                                thr_method=thr_method, thr=thr, show=False,
+                                line_color=line_color, cmap=cmap)
                 p.title.text = 'Contour plots of found components'
                 if params is not None:
                     p.xaxis.axis_label = '''\
@@ -265,7 +276,8 @@ class Estimates(object):
                 coor_b = [self.coordinates[cr] for cr in bad]
                 p1 = caiman.utils.visualization.nb_plot_contour(img, self.A[:, idx],
                                 self.dims[0], self.dims[1], coordinates=coor_g,
-                                thr_method=thr_method, thr=thr, show=False)
+                                thr_method=thr_method, thr=thr, show=False,
+                                line_color=line_color, cmap=cmap)
                 p1.plot_width = 450
                 p1.plot_height = 450 * self.dims[0] // self.dims[1]
                 p1.title.text = "Accepted Components"
@@ -278,7 +290,8 @@ class Estimates(object):
                 bad = list(set(range(self.A.shape[1])) - set(idx))
                 p2 = caiman.utils.visualization.nb_plot_contour(img, self.A[:, bad],
                                 self.dims[0], self.dims[1], coordinates=coor_b,
-                                thr_method=thr_method, thr=thr, show=False)
+                                thr_method=thr_method, thr=thr, show=False,
+                                line_color=line_color, cmap=cmap)
                 p2.plot_width = 450
                 p2.plot_height = 450 * self.dims[0] // self.dims[1]
                 p2.title.text = 'Rejected Components'
@@ -293,7 +306,7 @@ class Estimates(object):
             print("Bokeh could not be loaded. Either it is not installed or you are not running within a notebook")
             print("Using non-interactive plot as fallback")
             self.plot_contours(img=img, idx=idx, crd=crd, thr_method=thr_method,
-                         thr=thr, params=params)
+                               thr=thr, params=params, cmap=cmap)
         return self
 
     def view_components(self, Yr=None, img=None, idx=None):
@@ -509,7 +522,7 @@ class Estimates(object):
                         np.expand_dims(self.f[:, frame_range], -1)*cols_f))
         AC = np.tensordot(np.hstack((self.A.toarray(), self.b)), Cs, axes=(1, 0))
         AC = AC.reshape((dims) + (-1, 3)).transpose(2, 0, 1, 3)
-        
+
         AC /= np.percentile(AC, 99.75, axis=(0, 1, 2))
         mov = caiman.movie(np.concatenate((np.repeat(np.expand_dims(imgs[frame_range]/np.percentile(imgs[:1000], 99.75), -1), 3, 3),
                                            AC), axis=2))
@@ -682,12 +695,36 @@ class Estimates(object):
             if save_movie:
                 out.release()
             cv2.destroyAllWindows()
-            
+
         else:
             mov.play(q_min=q_min, q_max=q_max, magnification=magnification,
                      save_movie=save_movie, movie_name=movie_name)
 
         return mov
+
+    def compute_background(self, Yr):
+        """compute background (has big memory requirements)
+
+         Args:
+             Yr :    np.ndarray
+                 movie in format pixels (d) x frames (T)
+            """
+        logging.warning("Computing the full background has big memory requirements!")
+        if self.f is not None:  # low rank background
+            return self.b.dot(self.f)
+        else:  # ring model background
+            ssub_B = np.round(np.sqrt(Yr.shape[0] / self.W.shape[0])).astype(int)
+            if ssub_B == 1:
+                return self.b0[:, None] + self.W.dot(Yr - self.A.dot(self.C) - self.b0[:, None])
+            else:
+                ds_mat = decimation_matrix(self.dims, ssub_B)
+                B = ds_mat.dot(Yr) - ds_mat.dot(self.A).dot(self.C) - ds_mat.dot(self.b0)[:, None]
+                B = self.W.dot(B).reshape(((self.dims[0] - 1) // ssub_B + 1,
+                                           (self.dims[1] - 1) // ssub_B + 1, -1), order='F')
+                B = self.b0[:, None] + np.repeat(np.repeat(B, ssub_B, 0), ssub_B, 1
+                                                 )[:self.dims[0], :self.dims[1]].reshape(
+                    (-1, B.shape[-1]), order='F')
+                return B
 
     def compute_residuals(self, Yr):
         """compute residual for each component (variable R)
@@ -994,7 +1031,13 @@ class Estimates(object):
         self.SNR_comp = SNR_comp
         self.r_values = r_values
         self.cnn_preds = cnn_preds
-
+        if opts['use_ecc']:
+            self.ecc = compute_eccentricity(self.A, dims)
+            idx_ecc = np.where(self.ecc < opts['max_ecc'])[0]
+            self.idx_components_bad = np.union1d(self.idx_components_bad,
+                                                 np.setdiff1d(self.idx_components,
+                                                              idx_ecc))
+            self.idx_components = np.intersect1d(self.idx_components, idx_ecc)
         return self
 
     def filter_components(self, imgs, params, new_dict={}, dview=None, select_mode='All'):
@@ -1077,6 +1120,12 @@ class Estimates(object):
                                            thresh_cnn_lowest=opts['cnn_lowest'],
                                            use_cnn=opts['use_cnn'],
                                            gSig_range=opts['gSig_range'])
+            if opts['use_ecc']:
+                idx_ecc = np.where(self.ecc < opts['max_ecc'])[0]
+                self.idx_components_bad = np.union1d(self.idx_components_bad,
+                                                     np.setdiff1d(self.idx_components,
+                                                                  idx_ecc))
+                self.idx_components = np.intersect1d(self.idx_components, idx_ecc)
 
         if select_mode == 'Accepted':
            self.idx_components = np.array(np.intersect1d(self.idx_components,self.accepted_list))
@@ -1162,6 +1211,20 @@ class Estimates(object):
                 self.F_dff_dec = np.stack([results[0][i] for i in order])
                 self.S_dff = np.stack([results[1][i] for i in order])
 
+    def merge_components(self, Y, params, mx=50, fast_merge=True,
+                         dview=None, max_merge_area=None):
+            """merges components
+            """
+            self.A, self.C, self.nr, self.merged_ROIs, self.S, \
+            self.bl, self.c1, self.neurons_sn, self.g, empty_merged, \
+            self.YrA =\
+                merge_components(Y, self.A, self.b, self.C, self.YrA,
+                                 self.f, self.S, self.sn, params.get_group('temporal'),
+                                 params.get_group('spatial'), dview=dview,
+                                 bl=self.bl, c1=self.c1, sn=self.neurons_sn,
+                                 g=self.g, thr=params.get('merging', 'merge_thr'), mx=mx,
+                                 fast_merge=fast_merge, merge_parallel=params.get('merging', 'merge_parallel'),
+                                 max_merge_area=max_merge_area)
 
     def manual_merge(self, components, params):
         ''' merge a given list of components. The indices
@@ -1347,7 +1410,7 @@ class Estimates(object):
     def remove_duplicates(self, predictions=None, r_values=None, dist_thr=0.1,
                           min_dist=10, thresh_subset=0.6, plot_duplicates=False,
                           select_comp=False):
-        ''' remove neurons that heavily overlap and might be duplicates. 
+        ''' remove neurons that heavily overlap and might be duplicates.
 
         Args:
             predictions
@@ -1564,7 +1627,7 @@ class Estimates(object):
                 for i, (roi, snr, r, cnn) in enumerate(zip(self.A.T, self.SNR_comp, self.r_values, self.cnn_preds)):
                     ps.add_roi(image_mask=roi.T.toarray().reshape(self.dims), r=r, snr=snr, cnn=cnn,
                                keep=i in self.idx_components, accepted=i in self.accepted_list, rejected=i in self.rejected_list)
-            
+
             for bg in self.b.T:  # Backgrounds
                 ps.add_roi(image_mask=bg.reshape(self.dims), r=np.nan, snr=np.nan, cnn=np.nan, keep=False, accepted=False, rejected=False)
             # Add Traces
@@ -1581,7 +1644,7 @@ class Estimates(object):
             # Neurons
             fl.create_roi_response_series(name='RoiResponseSeries', data=self.C.T, rois=rt_region_roi, unit='lumens', timestamps=timestamps)
             # Background
-            fl.create_roi_response_series(name='Background_Fluorescence_Response', data=self.f.T, rois=rt_region_bg, unit='lumens', 
+            fl.create_roi_response_series(name='Background_Fluorescence_Response', data=self.f.T, rois=rt_region_bg, unit='lumens',
                                           timestamps=timestamps)
 
             mod.add(TimeSeries(name='residuals', description='residuals', data=self.YrA.T, timestamps=timestamps,

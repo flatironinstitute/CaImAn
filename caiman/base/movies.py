@@ -31,7 +31,7 @@ from skimage.transform import warp, AffineTransform
 from skimage.feature import match_template
 import sklearn
 from sklearn.cluster import KMeans
-from sklearn.decomposition import NMF, incremental_pca, FastICA
+from sklearn.decomposition import NMF, IncrementalPCA, FastICA
 from sklearn.metrics.pairwise import euclidean_distances
 import sys
 import tifffile
@@ -810,7 +810,7 @@ class movie(ts.timeseries):
         frame_samples = np.reshape(self, (num_frames, frame_size)).T
 
         # run IPCA to approxiate the SVD
-        ipca_f = incremental_pca(n_components=components, batch_size=batch)
+        ipca_f = IncrementalPCA(n_components=components, batch_size=batch)
         ipca_f.fit(frame_samples)
 
         # construct the reduced version of the movie vectors using only the

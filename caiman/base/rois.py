@@ -531,6 +531,7 @@ def register_ROIs(A1,
         font = {'family': 'Myriad Pro', 'weight': 'regular', 'size': 10}
         pl.rc('font', **font)
         lp, hp = np.nanpercentile(Cn, [5, 95])
+        pl.figure(figsize=(20, 10))
         pl.subplot(1, 2, 1)
         pl.imshow(Cn, vmin=lp, vmax=hp, cmap=cmap)
         [pl.contour(norm_nrg(mm), levels=[level], colors='w', linewidths=1) for mm in masks_1[matched_ROIs1]]
@@ -732,7 +733,6 @@ def distance_masks(M_s: List, cm_s: List[List], max_dist: float, enclosed_thr: O
     for gt_comp, test_comp, cmgt_comp, cmtest_comp in zip(M_s[:-1], M_s[1:], cm_s[:-1], cm_s[1:]):
 
         # todo : better with a function that calls itself
-        logging.info('New Pair **')
         # not to interfer with M_s
         gt_comp = gt_comp.copy()[:, :]
         test_comp = test_comp.copy()[:, :]

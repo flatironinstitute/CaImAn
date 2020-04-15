@@ -17,6 +17,12 @@ from caiman.paths import caiman_datadir
 
 sourcedir_base = os.path.join(sys.prefix, "share", "caiman")   # Setuptools will drop our datadir off here
 
+# The below are needed to deal with clashes between some threading models and
+# some backends that some math libraries use that are not thread-safe. On other
+# platforms, these environment variables won't be consulted and will be safe.
+os.environ['VECLIB_MAXIMUM_THREADS'] = '1'
+os.environ['OMP_NUM_THREADS'] = '1'
+
 ###############
 # caimanmanager - A tool to manage the caiman install
 #
@@ -34,7 +40,9 @@ sourcedir_base = os.path.join(sys.prefix, "share", "caiman")   # Setuptools will
 # to come up with a similar subset of files that setup.py would install for a normal pip install,
 # focused around the data directory.
 extra_files = ['test_demos.sh', 'README.md', 'LICENSE.txt']
-extra_dirs = ['demos', 'docs', 'model', 'testdata']
+extra_dirs = ['bin', 'demos', 'docs', 'model', 'testdata']
+
+# standard_movies: These are needed by the demo
 standard_movies = [
     os.path.join('example_movies', 'data_endoscope.tif'),
     os.path.join('example_movies', 'demoMovie.tif')
@@ -42,7 +50,6 @@ standard_movies = [
 
 ###############
 # commands
-
 
 def do_install_to(targdir: str, inplace: bool = False, force: bool = False) -> None:
     global sourcedir_base
@@ -53,7 +60,7 @@ def do_install_to(targdir: str, inplace: bool = False, force: bool = False) -> N
             shutil.copytree(sourcedir_base, targdir)
         else:
             distutils.dir_util.copy_tree(sourcedir_base, targdir)
-    else:              # here we recreate the other logical path here. Maintenance concern: Keep these reasonably in sync with what's in setup.py
+    else:          # here we recreate the other logical path here. Maintenance concern: Keep these reasonably in sync with what's in setup.py
         for copydir in extra_dirs:
             if not force:
                 shutil.copytree(copydir, os.path.join(targdir, copydir))
@@ -97,7 +104,7 @@ def do_check_install(targdir: str, inplace: bool = False) -> None:
 
 
 def do_run_nosetests(targdir: str) -> None:
-    out, err, ret = runcmd(["nosetests", "--traverse-namespace", "caiman"])
+    out, err, ret = runcmd(["nosetests", "--verbose", "--traverse-namespace", "caiman"])
     if ret != 0:
         print("Nosetests failed with return code " + str(ret))
         sys.exit(ret)
@@ -112,7 +119,7 @@ def do_run_coverage_nosetests(targdir: str) -> None:
     #
     # This command will not function from the conda package, because there would be no reason to use it in that case.
     # If we ever change our mind on this, it's a simple addition of the coverage package to the feedstock.
-    out, err, ret = runcmd(["nosetests", "--with-coverage", "--cover-package=caiman", "--cover-erase", "--traverse-namespace", "caiman"])
+    out, err, ret = runcmd(["nosetests", "--verbose", "--with-coverage", "--cover-package=caiman", "--cover-erase", "--traverse-namespace", "caiman"])
     if ret != 0:
         print("Nosetests failed with return code " + str(ret))
         print("If it failed due to a message like the following, it is a known issue:")
@@ -143,6 +150,8 @@ def do_nt_run_demotests(targdir: str) -> None:
         print("Testing " + str(demo))
         if "demo_behavior.py" in demo:
             print("  Skipping tests on " + demo + ": This is interactive")
+        elif "demo_pipeline_voltage_imaging.py" in demo:
+            print("  Skipping tests on " + demo + ": This needs Keras, an optional dependency")
         else:
             out, err, ret = runcmd(["python", demo], ignore_error=False)
             if ret != 0:

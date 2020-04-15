@@ -190,6 +190,7 @@ For **Linux (and OSX)** run these commands before launching Python:
 
      export MKL_NUM_THREADS=1
      export OPENBLAS_NUM_THREADS=1
+     export VECLIB_MAXIMUM_THREADS=1
 
 For **Windows** run the same commands, replacing the word ```export``` with the word ```set```.
 

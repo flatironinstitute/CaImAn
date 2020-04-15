@@ -117,7 +117,7 @@ def cnmf_patches(args_in):
 
     images = np.reshape(Yr.T, [timesteps] + list(dims), order='F')
     if params.get('patch', 'in_memory'):
-        images = np.array(images[slices], dtype=np.float32)
+        images = np.array(images[tuple(slices)], dtype=np.float32)
     else:
         images = images[slices]
 

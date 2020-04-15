@@ -3,7 +3,11 @@ build:
   image: latest
 
 python:
-  version: 3.6
+  version: 3.7
+  install: docs/requirements.txt
 
-conda:
-  file: environment.yml
+# The below is disabled for now because ReadTheDocs build hosts
+# do not give the build environment enough RAM for conda to resolve
+# its dependencies (conda's package resolver is very RAM-hungry)
+#conda:
+#  file: environment-minimal.yml
