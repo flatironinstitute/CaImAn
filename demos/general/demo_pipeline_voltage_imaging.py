@@ -198,15 +198,17 @@ def main():
     vpy.fit(n_processes=n_processes, dview=dview)
 
 #%% visualization
-    print(np.where(vpy.estimates['locality'])[0])    # neurons that pass locality test
-    idx = np.where(vpy.estimates['locality'] > 0)[0]
-    utils.view_components(vpy.estimates, img_corr, idx)
+    if display_images:
+        print(np.where(vpy.estimates['locality'])[0])    # neurons that pass locality test
+        idx = np.where(vpy.estimates['locality'] > 0)[0]
+        utils.view_components(vpy.estimates, img_corr, idx)
     
 #%% reconstructed movie
 # note the negative spatial weights is cutoff    
-    mv_all = utils.reconstructed_movie(vpy.estimates, fnames=mc.mmap_file, 
-                                       idx=idx, scope=(0,1000), flip_signal=flip_signal)
-    mv_all.play(fr=40)    
+    if display_images:
+        mv_all = utils.reconstructed_movie(vpy.estimates, fnames=mc.mmap_file,
+                                           idx=idx, scope=(0,1000), flip_signal=flip_signal)
+        mv_all.play(fr=40)
     
     # %% STOP CLUSTER and clean up log files
     cm.stop_server(dview=dview)
