@@ -150,9 +150,6 @@ def volspike(pars):
                 context_coord: 2-d array
                     boundary of context region in x,y coordinates
                 
-                ROIbw: 2-d array
-                    region of interest
-                    
                 mean_im: 1-d array
                     mean of the signal in ROI after removing photobleaching, used for 
                     producing F0
@@ -162,9 +159,6 @@ def volspike(pars):
                     
                 dFF: 1-d array
                     scaled signal
-                
-                bg_pc: 2-d array
-                    background principal components extracted from svd
                     
                 rawROI: dictionary
                     including the result after the first spike extraction
