@@ -161,7 +161,6 @@ def main():
         backend='local', n_processes=None, single_thread=False, maxtasksperchild=1)
 
 # %% parameters for trace denoising and spike extraction
-    fnames = fname_new                            # change file
     ROIs = ROIs                                   # region of interests
     index = list(range(len(ROIs)))                # index of neurons
     weights = None                                # reuse spatial weights 
@@ -177,7 +176,7 @@ def main():
     sub_freq = 20                                 # frequency for subthreshold extraction
     weight_update = 'ridge'                       # 'ridge' or 'NMF' for weight update
     
-    opts_dict={'fnames': fnames,
+    opts_dict={'fnames': fname_new,
                'ROIs': ROIs,
                'index': index,
                'weights': weights,
@@ -211,7 +210,7 @@ def main():
                                            idx=idx, scope=(0,1000), flip_signal=flip_signal)
         mv_all.play(fr=40)
     
-    # %% STOP CLUSTER and clean up log files
+# %% STOP CLUSTER and clean up log files
     cm.stop_server(dview=dview)
     log_files = glob.glob('*_LOG_*')
     for log_file in log_files:

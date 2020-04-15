@@ -11,30 +11,9 @@ from matplotlib.widgets import Slider
 import numpy as np
 import os
 import tensorflow as tf
-
 import caiman as cm
 from caiman.external.cell_magic_wand import cell_magic_wand_single_point
 from caiman.paths import caiman_datadir
-
-def correlation_image(fnames, fr):
-    """ Compute correlation image with Gaussian Blur. The method is relative slow
-    in speed, but it is suitable for high noise movie.
-    Args:
-        fnames: 3-D array
-            motion corrected movie in F-order memory mapping format
-        
-        fr: int
-            frame rate
-            
-    Return: 
-        Cn: 2-D array
-            correlation image
-    """
-    m = cm.load(fnames, fr=fr)
-    ma = m.computeDFF(secsWindow=1)[0]
-    Cn = ma.copy().gaussian_blur_2D().local_correlations(swap_dim=False, 
-                eight_neighbours=True, frames_per_chunk=1000000000)
-    return Cn
 
 def quick_annotation(img, min_radius, max_radius, roughness=2):
     """ Quick annotation method in VolPy using cell magic wand plugin
@@ -56,7 +35,12 @@ def quick_annotation(img, min_radius, max_radius, roughness=2):
             region of interests 
             (# of components * # of pixels in x dim * # of pixels in y dim)
     """
-    get_ipython().run_line_magic('matplotlib', 'auto')
+    try:
+        if __IPYTHON__:
+            get_ipython().run_line_magic('matplotlib', 'auto')
+    except NameError:
+        pass
+
     def tellme(s):
         print(s)
         plt.title(s, fontsize=16)
@@ -96,7 +80,13 @@ def quick_annotation(img, min_radius, max_radius, roughness=2):
         
     plt.close()        
     ROIs = np.array(ROIs)   
-    get_ipython().run_line_magic('matplotlib', 'inline')
+    
+    try:
+        if __IPYTHON__:
+            get_ipython().run_line_magic('matplotlib', 'inline')
+    except NameError:
+        pass
+
     return ROIs
 
 def mrcnn_inference(img, weights_path, display_result=True):
