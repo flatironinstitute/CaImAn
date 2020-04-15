@@ -8,13 +8,14 @@ objects and call the relevant functions. See inside for detail.
 Dataset courtesy of Karel Svoboda Lab (Janelia Research Campus).
 author: @caichangjia
 """
-import os
 import cv2
 import glob
+import h5py
 import logging
 import matplotlib.pyplot as plt
 import numpy as np
-import h5py
+import os
+
 
 try:
     cv2.setNumThreads(0)
@@ -32,12 +33,12 @@ except NameError:
 
 import caiman as cm
 from caiman.motion_correction import MotionCorrect
-from caiman.utils.utils import download_demo, download_model
+from caiman.source_extraction.volpy import utils
 from caiman.source_extraction.volpy.volparams import volparams
 from caiman.source_extraction.volpy.volpy import VOLPY
 from caiman.summary_images import local_correlations_movie_offline
 from caiman.summary_images import mean_image
-from caiman.source_extraction.volpy import utils
+from caiman.utils.utils import download_demo, download_model
 
 # %%
 # Set up the logger (optional); change this if you like.

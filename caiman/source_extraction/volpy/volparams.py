@@ -1,9 +1,5 @@
 import logging
-
 import numpy as np
-import scipy
-from scipy.ndimage.morphology import generate_binary_structure, iterate_structure
-from pprint import pformat
 
 class volparams(object):
 
@@ -41,8 +37,8 @@ class volparams(object):
             'n_iter': n_iter, # number of iterations alternating between estimating temporal and spatial filters
             'weight_update': weight_update, # method for updating spatial weights 'NMF' or 'ridge'
             'do_plot': do_plot, # plot in the last iteration
-            'sub_freq': sub_freq, # frequency for extracting subthreshold osciilation
             'do_cross_val': do_cross_val, # cross-validate to optimize regression regularization parameters
+            'sub_freq': sub_freq, # frequency for extracting subthreshold osciilation
             'method': method, # 'spikepursuit' or 'atm' (adaptive template matching)
             'superfactor': superfactor, # factor for temporal super-resolution of spike times, e.g. 10 for 1/(10*framerate)
         }

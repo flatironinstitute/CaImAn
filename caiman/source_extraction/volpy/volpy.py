@@ -5,7 +5,6 @@ import logging
 import numpy as np
 from . import atm
 from . import spikepursuit
-from .volparams import volparams
 
 try:
     profile
@@ -33,7 +32,7 @@ class VOLPY(object):
         """
         Args:
             n_processes: int
-                number of processed used 
+                number of processes used 
         
             dview: Direct View object
                 for parallelization pruposes when using ipyparallel
@@ -53,7 +52,7 @@ class VOLPY(object):
                 high-pass frequency for removing photobleaching    
             
             nPC_bg: int
-                number of principle components used for background subtraction
+                number of principal components used for background subtraction
                 
             ridge_bg: float
                 regularization strength for ridge regression in background removal 
@@ -71,7 +70,7 @@ class VOLPY(object):
 
             threshold: float
                 threshold for spike detection in 'simple' threshold method 
-                The real threshold is the value multiply estimated noise level
+                The real threshold is the value multiplied by the estimated noise level
 
             sigmas: 1-d array
                 spatial smoothing radius imposed on high-pass filtered 
@@ -147,23 +146,7 @@ class VOLPY(object):
                 results_part = list(map(volspike, args_in))
             results = results + results_part
         
-        self.estimates['cell_n'] = np.array([results[i]['cell_n'] for i in range(N)])
-        self.estimates['t'] = np.array([results[i]['t'] for i in range(N)])
-        self.estimates['ts'] = np.array([results[i]['ts'] for i in range(N)])
-        self.estimates['t_rec'] = np.array([results[i]['t_rec'] for i in range(N)])
-        self.estimates['t_sub'] = np.array([results[i]['t_sub'] for i in range(N)])
-        self.estimates['spikes'] = np.array([results[i]['spikes'] for i in range(N)])
-        self.estimates['low_spikes'] = np.array([results[i]['low_spikes'] for i in range(N)])
-        self.estimates['num_spikes'] = np.array([results[i]['num_spikes'] for i in range(N)])
-        self.estimates['templates'] = np.array([results[i]['templates'] for i in range(N)])
-        self.estimates['snr'] = np.array([results[i]['snr'] for i in range(N)])
-        self.estimates['thresh'] = np.array([results[i]['thresh'] for i in range(N)])
-        self.estimates['spatial_filter'] = np.array([results[i]['spatial_filter'] for i in range(N)])
-        self.estimates['weights'] = np.array([results[i]['weights'] for i in range(N)])
-        self.estimates['locality'] = np.array([results[i]['locality'] for i in range(N)])
-        self.estimates['context_coord'] = np.array([results[i]['context_coord'] for i in range(N)])
-        self.estimates['F0'] = np.array([results[i]['F0'] for i in range(N)])
-        self.estimates['dFF'] = np.array([results[i]['dFF'] for i in range(N)])
+        for i in results[0].keys():
+                self.estimates[i] = np.array([results[j][i] for j in range(N)])
 
         return self
-

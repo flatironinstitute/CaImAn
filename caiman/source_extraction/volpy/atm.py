@@ -12,7 +12,6 @@ from scipy.sparse.linalg import lsqr
 from scipy.stats import ttest_1samp
 import caiman as cm
 import cv2
-import matplotlib.pyplot as plt
 
 
 def volspike(pars):
@@ -364,7 +363,7 @@ def denoise_spikes(trace, sampleRate, windowLength, superfactor, threshs=(.4, .6
             break
 
         kernel = get_kernel(high_freq, spiketimes, windowLength)
-        
+
         # lower threshold, now picking up spikes not merely based on threshold but spike shape
 
         spiketimes = get_spiketimes(high_freq, high_freq_med + (best_thre - 0.5) * high_freq_std,
@@ -375,8 +374,6 @@ def denoise_spikes(trace, sampleRate, windowLength, superfactor, threshs=(.4, .6
         # iteratively remove too small spikes 'slowly' increasing threshold
         for thresh in threshs:
             while np.sum(spikesizes < thresh):
-                import pdb
-                pdb.set_trace()
                 spiketimes = np.where(spiketrain > thresh)[0]
                 spikesizes = get_spikesizes(high_freq, spiketimes, kernel)
                 spiketrain = get_spiketrain(spiketimes, spikesizes, len(trace))

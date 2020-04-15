@@ -5,20 +5,19 @@ Created on Fri Apr 19 14:50:09 2019
 
 @author: @caichangjia adapt based on Matlab code provided by Kaspar Podgorski and Amrita Singh
 """
-import numpy as np
-import matplotlib.pyplot as plt
 import logging
-from skimage.morphology import dilation
-from skimage.morphology import disk
-from sklearn.linear_model import LinearRegression
-from sklearn.linear_model import Ridge
+import matplotlib.pyplot as plt
+import numpy as np
 from scipy import signal
 from scipy import stats    
-from scipy.sparse.linalg import svds
-import cv2
-from caiman.base.movies import movie
-import caiman as cm
 from scipy.ndimage.filters import gaussian_filter1d
+from scipy.sparse.linalg import svds
+from sklearn.linear_model import Ridge
+from skimage.morphology import dilation
+from skimage.morphology import disk
+import cv2
+import caiman as cm
+from caiman.base.movies import movie
 
 # %%
 def volspike(pars):
@@ -79,7 +78,7 @@ def volspike(pars):
 
                     threshold: float
                         threshold for spike detection in 'simple' threshold method 
-                        The real threshold is the value multiply estimated noise level
+                        The real threshold is the value multiplied by the estimated noise level
 
                     sigmas: 1-d array
                         spatial smoothing radius imposed on high-pass filtered 
@@ -173,7 +172,7 @@ def volspike(pars):
     window_length = fr * 0.02 # window length for temporal templates
     output = {}
     output['rawROI'] = {}
-    print('Now processing cell number {0}'.format(cell_n))
+    print(f'Now processing cell number {cell_n}')
     
     # load the movie in C order mmap file
     Yr, dims, T = cm.load_memmap(fnames)
@@ -469,7 +468,7 @@ def denoise_spikes(data, window_length, fr=400,  hp_freq=1, threshold_method='si
         thresh = 3.5 * std
         locs = signal.find_peaks(data, height=thresh, distance=int(fr/100))[0]
         if len(locs) < min_spikes:
-            logging.warning('less than {} spikes are found, pick top {} spikes'.format(min_spikes, min_spikes))
+            logging.warning(f'less than {min_spikes} spikes are found, pick top {min_spikes} spikes')
             thresh = np.percentile(pks, 100 * (1 - min_spikes / len(pks)))
             locs = signal.find_peaks(data, height=thresh, distance=int(fr/100))[0]
             low_spikes = True
@@ -502,9 +501,9 @@ def denoise_spikes(data, window_length, fr=400,  hp_freq=1, threshold_method='si
         if len(spikes) < min_spikes:
             low_spikes = True
             if last_round == True:
-                logging.warning('last round: less than {} spikes are found'.format(min_spikes))
+                logging.warning(f'last round: less than {min_spikes} spikes are found')
             else:
-                logging.warning('less than {} spikes are found, pick top {} spikes'.format(min_spikes, min_spikes))
+                logging.warning(f'less than {min_spikes} spikes are found, pick top {min_spikes} spikes')
                 thresh2 = np.percentile(pks2, 100 * (1 - min_spikes / len(pks2)))
                 spikes = signal.find_peaks(datafilt, height=thresh2, distance=int(fr/100))[0]
     elif threshold_method == 'adaptive_threshold':
@@ -625,10 +624,10 @@ def get_thresh(pks, clip, pnorm=0.5, min_spikes=30):
 
     if np.sum(pks > thresh) < min_spikes:
         low_spikes = True
-        logging.warning('Few spikes were detected. Adjusting threshold to take {} largest spikes'.format(min_spikes))
+        logging.warning(f'Few spikes were detected. Adjusting threshold to take {min_spikes} largest spikes')
         thresh = np.percentile(pks, 100 * (1 - min_spikes / len(pks)))
     elif ((np.sum(pks > thresh) > clip) & (clip > 0)):
-        logging.warning('Selecting top {} spikes for template'.format(clip))
+        logging.warning(f'Selecting top {min_spikes} spikes for template')
         thresh = np.percentile(pks, 100 * (1 - clip / len(pks)))
 
     ix = np.argmin(np.abs(xi - thresh))

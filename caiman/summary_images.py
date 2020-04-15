@@ -784,8 +784,7 @@ def local_correlations_movie_parallel(params: Tuple) -> np.ndarray:
     mv = cm.load(mv_name, subindices=idx, in_memory=True)
     if gaussian_blur:
         mv = mv.gaussian_blur_2D()
-    else:
-        pass
+
     if remove_baseline:
         mv.removeBL(quantilMin=quantil_min_baseline, windowSize=winSize_baseline, in_place=True)
 

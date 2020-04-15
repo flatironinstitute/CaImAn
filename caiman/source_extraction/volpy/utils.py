@@ -1,17 +1,17 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
+#!/usr/bin/env python
 """
 Created on Mon Mar 23 16:45:00 2020
-This file create functions used for demo_pipeline_voltage_imaging
+This file create functions used for demo_pipeline_voltage_imaging.py
 @author: caichangjia
 """
 #%% 
-import os
 from IPython import get_ipython
 import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider
 import numpy as np
+import os
 import tensorflow as tf
+
 import caiman as cm
 from caiman.external.cell_magic_wand import cell_magic_wand_single_point
 from caiman.paths import caiman_datadir
@@ -179,8 +179,6 @@ def reconstructed_movie(estimates, fnames, idx, scope, flip_signal):
     mv = (mv-mv.min())/(mv.max()-mv.min())
     if flip_signal:
         mv_bl = -mv_bl
-    else:
-        pass
     mv_bl[mv_bl<np.percentile(mv_bl,3)] = np.percentile(mv_bl,3)
     mv_bl[mv_bl>np.percentile(mv_bl,98)] = np.percentile(mv_bl,98)
     mv_bl = (mv_bl - mv_bl.min())/(mv_bl.max()-mv_bl.min())
@@ -230,19 +228,17 @@ def view_components(estimates, img, idx):
             if new_val > n :
                 new_val = n  
             s_comp.set_val(new_val)
-        else:
-            pass
         
     def update(val):
         i = np.int(np.round(s_comp.val))
-        print(('Component:' + str(i)))
+        print(f'Component:{i}')
 
         if i < n:
             
             ax1.cla()
             imgtmp = estimates['weights'][idx][i]
             ax1.imshow(imgtmp, interpolation='None', cmap=plt.cm.gray, vmax=np.max(imgtmp)*0.5, vmin=0)
-            ax1.set_title('Spatial component ' + str(i + 1))
+            ax1.set_title(f'Spatial component {i+1}')
             ax1.axis('off')
             
             ax2.cla()
@@ -252,11 +248,11 @@ def view_components(estimates, img, idx):
             ax2.plot(estimates['spikes'][idx][i],
                      1.05 * np.max(estimates['t'][idx][i]) * np.ones(estimates['spikes'][idx][i].shape),
                      color='r', marker='.', fillstyle='none', linestyle='none')
-            ax2.set_title('Signal and spike times' + str(i + 1))
+            ax2.set_title(f'Signal and spike times {i+1}')
             ax2.legend(labels=['t', 't_sub', 't_rec', 'spikes'])
-            ax2.text(0.1, 0.1,'snr:'+str(round(estimates['snr'][idx][i],2)), horizontalalignment='center', verticalalignment='center', transform = ax2.transAxes)
-            ax2.text(0.1, 0.07,'num_spikes:'+str(len(estimates['spikes'][idx][i])), horizontalalignment='center', verticalalignment='center', transform = ax2.transAxes)            
-            ax2.text(0.1, 0.04,'locality_test:'+str(estimates['locality'][idx][i]), horizontalalignment='center', verticalalignment='center', transform = ax2.transAxes)            
+            ax2.text(0.1, 0.1, f'snr:{round(estimates["snr"][idx][i],2)}', horizontalalignment='center', verticalalignment='center', transform = ax2.transAxes)
+            ax2.text(0.1, 0.07, f'num_spikes: {len(estimates["spikes"][idx][i])}', horizontalalignment='center', verticalalignment='center', transform = ax2.transAxes)            
+            ax2.text(0.1, 0.04, f'locality_test: {estimates["locality"][idx][i]}', horizontalalignment='center', verticalalignment='center', transform = ax2.transAxes)            
             
             ax3.cla()
             ax3.imshow(img, interpolation='None', cmap=plt.cm.gray, vmax=vmax)
@@ -265,17 +261,8 @@ def view_components(estimates, img, idx):
             ax3.imshow(imgtmp2, interpolation='None',
                        alpha=0.5, cmap=plt.cm.hot)
             ax3.axis('off')
-            print('snr:{0}'.format(estimates['snr'][idx][i]))
             
     s_comp.on_changed(update)
     s_comp.set_val(0)
     fig.canvas.mpl_connect('key_release_event', arrow_key_image_control)
     plt.show()
-
-
-
-
-
-
-
-
