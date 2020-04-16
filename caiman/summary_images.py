@@ -704,7 +704,8 @@ def local_correlations_movie_offline(file_name,
                                      dview=None,
                                      remove_baseline: bool = False,
                                      winSize_baseline: int = 50,
-                                     quantil_min_baseline: float = 8):
+                                     quantil_min_baseline: float = 8,
+                                     gaussian_blur: bool=False):
     """
     Efficient (parallel) computation of correlation image in shifting windows 
     with option for prior baseline removal
@@ -744,6 +745,9 @@ def local_correlations_movie_offline(file_name,
 
         quantile_min_baseline: float (8)
             Percentile used for baseline computations
+            
+        gaussian_blur: bool (False)
+            Gaussian smooth the signal
 
     Returns:
         mm: cm.movie (3D or 4D).
@@ -755,12 +759,12 @@ def local_correlations_movie_offline(file_name,
 
     params: List = [[file_name, range(j, j + window), eight_neighbours, swap_dim,
                      order_mean, ismulticolor, remove_baseline, winSize_baseline,
-                     quantil_min_baseline]
+                     quantil_min_baseline, gaussian_blur]
                     for j in range(0, Tot_frames - window, stride)]
 
     params.append([file_name, range(Tot_frames - window, Tot_frames), eight_neighbours, swap_dim,
                    order_mean, ismulticolor, remove_baseline, winSize_baseline,
-                   quantil_min_baseline])
+                   quantil_min_baseline, gaussian_blur])
 
     if dview is None:
         parallel_result = list(map(local_correlations_movie_parallel, params))
@@ -776,8 +780,11 @@ def local_correlations_movie_offline(file_name,
 
 
 def local_correlations_movie_parallel(params: Tuple) -> np.ndarray:
-    mv_name, idx, eight_neighbours, swap_dim, order_mean, ismulticolor, remove_baseline, winSize_baseline, quantil_min_baseline  = params
+    mv_name, idx, eight_neighbours, swap_dim, order_mean, ismulticolor, remove_baseline, winSize_baseline, quantil_min_baseline, gaussian_blur = params
     mv = cm.load(mv_name, subindices=idx, in_memory=True)
+    if gaussian_blur:
+        mv = mv.gaussian_blur_2D()
+
     if remove_baseline:
         mv.removeBL(quantilMin=quantil_min_baseline, windowSize=winSize_baseline, in_place=True)
 
@@ -786,3 +793,63 @@ def local_correlations_movie_parallel(params: Tuple) -> np.ndarray:
     else:
         return local_correlations(mv, eight_neighbours=eight_neighbours, swap_dim=swap_dim,
                                   order_mean=order_mean)[None, :, :].astype(np.float32)
+        
+def mean_image(file_name,
+                 Tot_frames=None,
+                 fr: float = 10.,
+                 window: int = 100,
+                 dview=None):
+    """
+    Efficient (parallel) computation of mean image in chunks
+
+    Args:
+        Y:  str
+            path to movie file
+
+        Tot_frames: int
+            Number of total frames considered
+
+        fr: int (100)
+            Frame rate (optional)
+
+        window: int (100)
+            Window length in frames
+
+        dview: map object
+            Use it for parallel computation
+    
+    Returns:
+        mm: cm.movie (2D).
+            mean image
+
+    """
+    if Tot_frames is None:
+        _, Tot_frames = get_file_size(file_name)
+
+    params: List = [[file_name, range(j * window, (j + 1) * window)]
+                    for j in range(int(Tot_frames / window))]
+
+    remain_frames = Tot_frames - int(Tot_frames / window) * window
+    if remain_frames > 0:
+        params.append([file_name, range(int(Tot_frames / window) * window, Tot_frames)])
+
+    if dview is None:
+        parallel_result = list(map(mean_image_parallel, params))
+    else:
+        if 'multiprocessing' in str(type(dview)):
+            parallel_result = dview.map_async(mean_image_parallel, params).get(4294967)
+        else:
+            parallel_result = dview.map_sync(mean_image_parallel, params)
+            dview.results.clear()
+
+    mm = cm.movie(np.concatenate(parallel_result, axis=0), fr=fr/len(parallel_result))
+    if remain_frames > 0:
+        mean_image = (mm[:-1].sum(axis=0) + (remain_frames / window) * mm[-1]) / (len(mm) - 1 + remain_frames / window)  
+    else:
+        mean_image = mm.mean(axis=0)
+    return mean_image
+
+def mean_image_parallel(params: Tuple) -> np.ndarray:
+    mv_name, idx = params
+    mv = cm.load(mv_name, subindices=idx, in_memory=True)
+    return mv.mean(axis=0)[np.newaxis,:,:]

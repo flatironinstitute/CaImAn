@@ -594,7 +594,7 @@ class movie(ts.timeseries):
         myperc = partial(np.percentile, q=quantilMin, axis=-1)
         res = np.array(list(map(myperc,iter_win))).T
         if returnBL:
-                return cm.movie(cv2.resize(res,pixs.shape[::-1]),fr=self.fr).to3DFromPixelxTime(self.shape)           
+                return cm.movie(cv2.resize(res,pixs.shape[::-1]),fr=self.fr).to3DFromPixelxTime(self.shape)
         if (not in_place):            
             return (pixs-cv2.resize(res,pixs.shape[::-1])).to3DFromPixelxTime(self.shape)
         else:
@@ -668,7 +668,7 @@ class movie(ts.timeseries):
             movBL = np.reshape(mov_out,
                                (downsampfact, int(old_div(numFramesNew, downsampfact)), linePerFrame, pixPerLine),
                                order=order)
-            
+
         movBL = np.percentile(movBL, quantilMin, axis=0)
         logging.debug("interpolating data ...")
         sys.stdout.flush()
