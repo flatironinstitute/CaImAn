@@ -153,7 +153,8 @@ def main():
 
     elif method == 'maskrcnn':                 # Important!! make sure install keras before using mask rcnn
         weights_path = download_model('mask_rcnn')
-        ROIs = utils.mrcnn_inference(img=summary_image, weights_path=weights_path, display_result=True)
+        ROIs = utils.mrcnn_inference(img=summary_image, size_range=[12, 22],
+                                     weights_path=weights_path, display_result=True) # size parameter decides size range of masks to be selected
             
 # %% restart cluster to clean up memory
     cm.stop_server(dview=dview)
@@ -172,9 +173,10 @@ def main():
     min_spikes= 10                                # minimal spikes to be found
     threshold = 3.5                               # threshold for finding spikes, increase threshold to find less spikes
     do_plot = False                               # plot detail of spikes, template for the last iteration
-    ridge_bg= 0.001                               # ridge regression regularizer strength for background removement
+    ridge_bg= 0.5                               # ridge regression regularizer strength for background removement
     sub_freq = 20                                 # frequency for subthreshold extraction
     weight_update = 'ridge'                       # 'ridge' or 'NMF' for weight update
+    n_iter = 2
     
     opts_dict={'fnames': fname_new,
                'ROIs': ROIs,
@@ -189,7 +191,8 @@ def main():
                'do_plot':do_plot,
                'ridge_bg':ridge_bg,
                'sub_freq': sub_freq,
-               'weight_update': weight_update}
+               'weight_update': weight_update,
+               'n_iter': n_iter}
 
     opts.change_params(params_dict=opts_dict);          
 
@@ -198,6 +201,7 @@ def main():
     vpy.fit(n_processes=n_processes, dview=dview)
 
 #%% visualization
+    display_images = True
     if display_images:
         print(np.where(vpy.estimates['locality'])[0])    # neurons that pass locality test
         idx = np.where(vpy.estimates['locality'] > 0)[0]
