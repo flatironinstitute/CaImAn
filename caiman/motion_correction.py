@@ -55,7 +55,7 @@ from numpy.fft import ifftshift
 import os
 import pylab as pl
 import tifffile
-from typing import List, Optional
+from typing import List, Optional, Tuple
 from skimage.transform import resize as resize_sk
 from skimage.transform import warp as warp_sk
 
@@ -2241,9 +2241,9 @@ def tile_and_correct(img, template, strides, overlaps, max_shifts, newoverlaps=N
         return new_img - add_to_movie, total_shifts, start_step, xy_grid
 
 #%%        
-def tile_and_correct_3d(img, template, strides, overlaps, max_shifts, newoverlaps=None, newstrides=None, upsample_factor_grid=4,
-                     upsample_factor_fft=10, show_movie=False, max_deviation_rigid=2, add_to_movie=0, shifts_opencv=False, gSig_filt=None,
-                     use_cuda=False, border_nan=True):
+def tile_and_correct_3d(img:np.ndarray, template:np.ndarray, strides:Tuple, overlaps:Tuple, max_shifts:Tuple, newoverlaps:Optional[Tuple]=None, newstrides:Optional[Tuple]=None, upsample_factor_grid:int=4,
+                     upsample_factor_fft:int=10, show_movie:bool=False, max_deviation_rigid:int=2, add_to_movie:int=0, shifts_opencv:bool=True, gSig_filt=None,
+                     use_cuda:bool=False, border_nan:bool=True):
     """ perform piecewise rigid motion correction iteration, by
         1) dividing the FOV in patches
         2) motion correcting each patch separately
