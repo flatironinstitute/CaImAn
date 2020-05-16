@@ -1510,6 +1510,7 @@ def load(file_name: Union[str, List[str]],
 
     if os.path.exists(file_name):
         _, extension = os.path.splitext(file_name)[:2]
+
         extension = extension.lower()
         if extension == '.mat':
             logging.warning('Loading a *.mat file. x- and y- dimensions ' +
@@ -1519,7 +1520,7 @@ def load(file_name: Union[str, List[str]],
             if mjv == 2:
                 extension = '.h5'
 
-        if extension == '.tif' or extension == '.tiff':        # load avi file
+        if extension in ['.tif', '.tiff', '.btf']:  # load avi file
             with tifffile.TiffFile(file_name) as tffl:
                 multi_page = True if tffl.series[0].shape[0] > 1 else False
                 if len(tffl.pages) == 1:
@@ -2159,7 +2160,7 @@ def load_iter(file_name, subindices=None, var_name_hdf5: str = 'mov'):
     """
     if os.path.exists(file_name):
         extension = os.path.splitext(file_name)[1].lower()
-        if extension in ('.tif', '.tiff'):
+        if extension in ('.tif', '.tiff', '.btf'):
             Y = tifffile.TiffFile(file_name).pages
             if subindices is not None:
                 if type(subindices) is range:
@@ -2224,4 +2225,3 @@ def load_iter(file_name, subindices=None, var_name_hdf5: str = 'mov'):
     else:
         logging.error(f"File request:[{file_name}] not found!")
         raise Exception('File not found!')
-
