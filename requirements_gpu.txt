@@ -19,7 +19,7 @@ scikit-image
 scikit-learn
 scipy
 tensorflow-gpu==2.2.0
-tensorflow-addons==0.l0.0
+tensorflow-addons==0.10.0
 tifffile
 tk
 tqdm
