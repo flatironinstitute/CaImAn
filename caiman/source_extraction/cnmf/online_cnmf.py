@@ -1529,6 +1529,7 @@ def seeded_initialization(Y, Ain, dims=None, init_batch=1000, order_init=None, g
         not_px = np.array(not_px).flatten()
     Yr = np.reshape(Y, (Ain.shape[0], Y.shape[-1]), order='F')
     model = NMF(n_components=gnb, init='nndsvdar', max_iter=10)
+    _ = model.fit_transform(np.maximum(Yr[not_px], 0)) # Done to update the model object
     f_in = model.components_.squeeze()
     f_in = np.atleast_2d(f_in)
     Y_resf = np.dot(Yr, f_in.T)
