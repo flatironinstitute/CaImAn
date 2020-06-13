@@ -197,7 +197,7 @@ class Estimates(object):
         plt.figure()
         if params is not None:
             plt.suptitle('min_SNR=%1.2f, rval_thr=%1.2f, use_cnn=%i'
-                         %(params.quality['SNR_lowest'],
+                         %(params.quality['min_SNR'],
                            params.quality['rval_thr'],
                            int(params.quality['use_cnn'])))
         if idx is None:
@@ -264,7 +264,7 @@ class Estimates(object):
                 if params is not None:
                     p.xaxis.axis_label = '''\
                     min_SNR={min_SNR}, rval_thr={rval_thr}, use_cnn={use_cnn}\
-                    '''.format(min_SNR=params.quality['SNR_lowest'],
+                    '''.format(min_SNR=params.quality['min_SNR'],
                                rval_thr=params.quality['rval_thr'],
                                use_cnn=params.quality['use_cnn'])
                 bokeh.plotting.show(p)
@@ -284,7 +284,7 @@ class Estimates(object):
                 if params is not None:
                     p1.xaxis.axis_label = '''\
                     min_SNR={min_SNR}, rval_thr={rval_thr}, use_cnn={use_cnn}\
-                    '''.format(min_SNR=params.quality['SNR_lowest'],
+                    '''.format(min_SNR=params.quality['min_SNR'],
                                rval_thr=params.quality['rval_thr'],
                                use_cnn=params.quality['use_cnn'])
                 bad = list(set(range(self.A.shape[1])) - set(idx))
@@ -298,7 +298,7 @@ class Estimates(object):
                 if params is not None:
                     p2.xaxis.axis_label = '''\
                     min_SNR={min_SNR}, rval_thr={rval_thr}, use_cnn={use_cnn}\
-                    '''.format(min_SNR=params.quality['SNR_lowest'],
+                    '''.format(min_SNR=params.quality['min_SNR'],
                                rval_thr=params.quality['rval_thr'],
                                use_cnn=params.quality['use_cnn'])
                 bokeh.plotting.show(bokeh.layouts.row(p1, p2))
