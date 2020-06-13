@@ -1558,7 +1558,7 @@ class Estimates(object):
                 mod = nwbfile.create_processing_module('ophys', 'contains caiman estimates for the main imaging plane')
 
             img_seg = ImageSegmentation()
-            mod.add_data_interface(img_seg)
+            mod.add(img_seg)
             fl = Fluorescence()
             mod.add_data_interface(fl)
 #            mot_crct = MotionCorrection()
@@ -1585,27 +1585,45 @@ class Estimates(object):
                     raise Exception('There is more than one imaging plane in the file, you need to specify the name'
                                     ' via the "imaging_series_name" parameter')
 
-            ps = img_seg.create_plane_segmentation('CNMF_ROIs', imaging_plane, 'PlaneSegmentation', image_series)
+            ps = img_seg.create_plane_segmentation(
+                name='PlaneSegmentation',
+                description='CNMF_ROIs',
+                imaging_plane=imaging_plane,
+                reference_images=image_series)
 
             ps.add_column('r', 'description of r values')
             ps.add_column('snr', 'signal to noise ratio')
-            ps.add_column('cnn', 'description of CNN')
-            ps.add_column('keep', 'in idx_components')
             ps.add_column('accepted', 'in accepted list')
             ps.add_column('rejected', 'in rejected list')
+            if self.cnn_preds:
+                ps.add_column('cnn', 'description of CNN')
+            if self.idx_components:
+                ps.add_column('keep', 'in idx_components')
 
             # Add ROIs
-            if not hasattr(self, 'accepted_list'):
-                for i, (roi, snr, r, cnn) in enumerate(zip(self.A.T, self.SNR_comp, self.r_values, self.cnn_preds)):
-                    ps.add_roi(image_mask=roi.T.toarray().reshape(self.dims), r=r, snr=snr, cnn=cnn,
-                               keep=i in self.idx_components, accepted=False, rejected=False)
-            else:
-                for i, (roi, snr, r, cnn) in enumerate(zip(self.A.T, self.SNR_comp, self.r_values, self.cnn_preds)):
-                    ps.add_roi(image_mask=roi.T.toarray().reshape(self.dims), r=r, snr=snr, cnn=cnn,
-                               keep=i in self.idx_components, accepted=i in self.accepted_list, rejected=i in self.rejected_list)
+            for i in range(self.A.shape[-1]):
+                add_roi_kwargs = dict(image_mask=self.A.T[i].T.toarray().reshape(self.dims),
+                                      r=self.r_values[i], snr=self.SNR_comp[i], accepted=False, rejected=False)
+                if hasattr(self, 'accepted_list'):
+                    add_roi_kwargs.update(accepted=i in self.accepted_list)
+                if hasattr(self, 'rejected_list'):
+                    add_roi_kwargs.update(rejected=i in self.rejected_list)
+                if self.cnn_preds:
+                    add_roi_kwargs.update(cnn=self.cnn_preds[i])
+                if self.idx_components:
+                    add_roi_kwargs.update(keep=i in self.idx_components)
+
+                ps.add_roi(**add_roi_kwargs)
 
             for bg in self.b.T:  # Backgrounds
-                ps.add_roi(image_mask=bg.reshape(self.dims), r=np.nan, snr=np.nan, cnn=np.nan, keep=False, accepted=False, rejected=False)
+                add_bg_roi_kwargs = dict(image_mask=bg.reshape(self.dims), r=np.nan, snr=np.nan, accepted=False,
+                                         rejected=False)
+                if 'keep' in ps.colnames:
+                    add_bg_roi_kwargs.update(keep=False)
+                if 'cnn' in ps.colnames:
+                    add_bg_roi_kwargs.update(cnn=np.nan)
+                ps.add_roi(**add_bg_roi_kwargs)
+
             # Add Traces
             n_rois = self.A.shape[-1]
             n_bg = len(self.f)
@@ -1618,10 +1636,11 @@ class Estimates(object):
             timestamps = np.arange(self.f.shape[1]) / imaging_rate + starting_time
 
             # Neurons
-            fl.create_roi_response_series(name='RoiResponseSeries', data=self.C.T, rois=rt_region_roi, unit='lumens', timestamps=timestamps)
-            # Background
-            fl.create_roi_response_series(name='Background_Fluorescence_Response', data=self.f.T, rois=rt_region_bg, unit='lumens',
+            fl.create_roi_response_series(name='RoiResponseSeries', data=self.C.T, rois=rt_region_roi, unit='lumens',
                                           timestamps=timestamps)
+            # Background
+            fl.create_roi_response_series(name='Background_Fluorescence_Response', data=self.f.T, rois=rt_region_bg,
+                                          unit='lumens', timestamps=timestamps)
 
             mod.add(TimeSeries(name='residuals', description='residuals', data=self.YrA.T, timestamps=timestamps,
                                unit='NA'))
@@ -1631,7 +1650,7 @@ class Estimates(object):
 
                 # Add MotionCorreciton
     #            create_corrected_image_stack(corrected, original, xy_translation, name='CorrectedImageStack')
-                io.write(nwbfile)
+            io.write(nwbfile)
 
 
 def compare_components(estimate_gt, estimate_cmp,  Cn=None, thresh_cost=.8, min_dist=10, print_assignment=False,
