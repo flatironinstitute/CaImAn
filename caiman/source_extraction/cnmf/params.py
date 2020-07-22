@@ -705,6 +705,7 @@ class CNMFParams(object):
             'ring_size_factor': ring_size_factor,
             'rolling_length': rolling_length,
             'rolling_sum': rolling_sum,
+            'seed_method': 'auto',
             'sigma_smooth_snmf': (.5, .5, .5),
             'ssub': ssub,             # spatial downsampling factor
             'ssub_B': ssub_B,

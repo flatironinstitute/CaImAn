@@ -156,8 +156,9 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
                           kernel=None, use_hals=True, normalize_init=True, img=None, method_init='greedy_roi',
                           max_iter_snmf=500, alpha_snmf=10e2, sigma_smooth_snmf=(.5, .5, .5),
                           perc_baseline_snmf=20, options_local_NMF=None, rolling_sum=False,
-                          rolling_length=100, sn=None, options_total=None, min_corr=0.8, min_pnr=10,
-                          ring_size_factor=1.5, center_psf=False, ssub_B=2, init_iter=2, remove_baseline = True,
+                          rolling_length=100, sn=None, options_total=None,
+                          min_corr=0.8, min_pnr=10, seed_method='auto', ring_size_factor=1.5,
+                          center_psf=False, ssub_B=2, init_iter=2, remove_baseline = True,
                           SC_kernel='heat', SC_sigma=1, SC_thr=0, SC_normalize=True, SC_use_NN=False,
                           SC_nnn=20, lambda_gnmf=1):
     """
@@ -344,7 +345,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
         Ain, Cin, _, b_in, f_in, extra_1p = greedyROI_corr(
             Y, Y_ds, max_number=K, gSiz=gSiz[0], gSig=gSig[0], min_corr=min_corr, min_pnr=min_pnr,
             ring_size_factor=ring_size_factor, center_psf=center_psf, options=options_total,
-            sn=sn, nb=nb, ssub=ssub, ssub_B=ssub_B, init_iter=init_iter)
+            sn=sn, nb=nb, ssub=ssub, ssub_B=ssub_B, init_iter=init_iter, seed_method=seed_method)
 
     elif method == 'sparse_nmf':
         Ain, Cin, _, b_in, f_in = sparseNMF(
@@ -916,7 +917,7 @@ def imblur(Y, sig=5, siz=11, nDimBlur=None, kernel=None, opencv=True):
             if you want to process to the blur using open cv method
 
     Returns:
-	the blurred image
+        the blurred image
     """
     # TODO: document (jerem)
     if kernel is None:
@@ -1085,8 +1086,9 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
             components.
         nb: integer
             number of background components for approximating the background using NMF model
-            for nb=0 no background is returned
-            for nb=-1 the exact background of the ringmodel is returned
+            for nb=0 the exact background of the ringmodel (b0 and W) is returned
+            for nb=-1 the full rank background B is returned
+            for nb<-1 no background is returned
         ssub_B: int, optional
             downsampling factor for 1-photon imaging background computation
         init_iter: int, optional
@@ -1153,10 +1155,12 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
 
         # find more neurons in residual
         # print('Compute Residuals')
-        for _ in range(init_iter - 1):
+        for i in range(init_iter - 1):
             if max_number is not None:
                 max_number -= A.shape[-1]
             if max_number is not 0:
+                if i == init_iter-2 and seed_method.lower()[:4] == 'semi':
+                    seed_method, min_corr, min_pnr = 'manual', 0, 0
                 logging.info('Searching for more neurons in the residual')
                 A_R, C_R, _, _, center_R = init_neurons_corr_pnr(
                     (B - A.dot(C)).reshape(Y_ds.shape, order='F'),
@@ -1456,10 +1460,61 @@ def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
 
         writer.grab_frame()
 
+    all_centers = []
     while continue_searching:
         if seed_method.lower() == 'manual':
-            pass
             # manually pick seed pixels
+            fig = plt.figure(figsize=(14,6))
+            ax = plt.axes([.03, .05, .96, .22])
+            sc_all = []
+            sc_select = []
+            for i in range(3):
+                plt.axes([.01+.34*i, .3, .3, .61])
+                sc_all.append(plt.scatter([],[], color='g'))
+                sc_select.append(plt.scatter([],[], color='r'))
+                title = ('corr*pnr', 'correlation (corr)', 'peak-noise-ratio (pnr)')[i]
+                img = (v_search, cn, pnr)[i]
+                plt.imshow(img, interpolation=None, vmin=np.percentile(img[~np.isnan(img)], 1),
+                           vmax=np.percentile(img[~np.isnan(img)], 99), cmap='gray')
+                if len(all_centers):
+                    plt.scatter(*np.transpose(all_centers), c='b')
+                plt.axis('off')
+                plt.title(title)
+            plt.suptitle('Click to add component. Click again on it to remove it. Press any key to update figure. Add more components, or press any key again when done.')
+            centers = []
+
+            def key_press(event):
+                plt.close(fig)
+
+            def onclick(event):
+                new_center = int(round(event.xdata)), int(round(event.ydata))
+                if new_center in centers:
+                    centers.remove(new_center)
+                else:
+                    centers.append(new_center)
+                print(centers)
+                ax.clear()
+                if len(centers):
+                    ax.plot(data_filtered[:, centers[-1][1], centers[-1][0]], c='r')
+                for sc in sc_all:
+                    sc.set_offsets(centers)
+                for sc in sc_select:
+                    sc.set_offsets(centers[-1:])
+                plt.draw()
+
+            cid = fig.canvas.mpl_connect('key_press_event', key_press)
+            fig.canvas.mpl_connect('button_press_event', onclick)
+            plt.show(block=True)
+
+            if centers == []:
+                break
+            all_centers += centers
+            csub_max, rsub_max = np.transpose(centers)
+            tmp_kernel = np.ones(shape=tuple([int(round(gSiz / 4.))] * 2))
+            v_max = cv2.dilate(v_search, tmp_kernel)
+            local_max = v_max[rsub_max, csub_max]
+            ind_local_max = local_max.argsort()[::-1]
+
         else:
             # local maximum, for identifying seed pixels in following steps
             v_search[(cn < min_corr) | (pnr < min_pnr)] = 0
@@ -1623,8 +1678,8 @@ def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
                 max_box = np.max(data_filtered_box, axis=0)
                 noise_box = noise_pixel[r2_min:r2_max, c2_min:c2_max]
                 pnr_box = np.divide(max_box, noise_box)
-                pnr_box[pnr_box < min_pnr] = 0
                 pnr[r2_min:r2_max, c2_min:c2_max] = pnr_box
+                pnr_box[pnr_box < min_pnr] = 0
 
                 # update correlation image
                 data_filtered_box[data_filtered_box <
