@@ -243,6 +243,12 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
         min_pnr: float
             minimum peak-to-noise ratio for selecting a seed pixel.
 
+        seed_method: str {'auto', 'manual', 'semi'}
+            methods for choosing seed pixels
+            'semi' detects K components automatically and allows to add more manually
+            if running as notebook 'semi' and 'manual' require a backend that does not
+            inline figures, e.g. %matplotlib tk
+
         ring_size_factor: float
             it's the ratio between the ring radius and neuron diameters.
 
@@ -335,7 +341,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
     if method == 'greedy_roi':
         Ain, Cin, _, b_in, f_in = greedyROI(
             Y_ds, nr=K, gSig=gSig, gSiz=gSiz, nIter=nIter, kernel=kernel, nb=nb,
-            rolling_sum=rolling_sum, rolling_length=rolling_length)
+            rolling_sum=rolling_sum, rolling_length=rolling_length, seed_method=seed_method)
 
         if use_hals:
             logging.info('Refining Components using HALS NMF iterations')
@@ -720,7 +726,7 @@ def graphNMF(Y_ds, nr, max_iter_snmf=500, lambda_gnmf=1,
     return A_in, C_in, center, b_in, f_in
 
 def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1,
-              rolling_sum=False, rolling_length=100):
+              rolling_sum=False, rolling_length=100, seed_method='auto'):
     """
     Greedy initialization of spatial and temporal components using spatial Gaussian filtering
 
@@ -752,6 +758,12 @@ def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1,
         rolling_length: int
             Length of rolling window (default: 100)
 
+        seed_method: str {'auto', 'manual', 'semi'}
+            methods for choosing seed pixels
+            'semi' detects nr components automatically and allows to add more manually
+            if running as notebook 'semi' and 'manual' require a backend that does not
+            inline figures, e.g. %matplotlib tk
+
     Returns:
         A: np.array
             2d array of size (# of pixels) x nr with the spatial components. Each column is
@@ -780,9 +792,11 @@ def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1,
     gHalf = np.array(gSiz) // 2
     gSiz = 2 * gHalf + 1
     # we initialize every values to zero
+    if seed_method.lower() == 'manual':
+        nr = 0
     A = np.zeros((np.prod(d[0:-1]), nr), dtype=np.float32)
     C = np.zeros((nr, d[-1]), dtype=np.float32)
-    center = np.zeros((nr, Y.ndim - 1))
+    center = np.zeros((nr, Y.ndim - 1), dtype='uint16')
 
     rho = imblur(Y, sig=gSig, siz=gSiz, nDimBlur=Y.ndim - 1, kernel=kernel)
     if rolling_sum:
@@ -795,53 +809,155 @@ def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1,
         logging.info('Using total sum for initialization (GreedyROI)')
         v = np.sum(rho**2, axis=-1)
 
-    for k in range(nr):
-        # we take the highest value of the blurred total image and we define it as
-        # the center of the neuron
-        ind = np.argmax(v)
-        ij = np.unravel_index(ind, d[0:-1])
-        for c, i in enumerate(ij):
-            center[k, c] = i
+    if seed_method.lower() != 'manual':
+        for k in range(nr):
+            # we take the highest value of the blurred total image and we define it as
+            # the center of the neuron
+            ind = np.argmax(v)
+            ij = np.unravel_index(ind, d[0:-1])
+            for c, i in enumerate(ij):
+                center[k, c] = i
 
-        # we define a squared size around it
-        ijSig = [[np.maximum(ij[c] - gHalf[c], 0), np.minimum(ij[c] + gHalf[c] + 1, d[c])]
-                 for c in range(len(ij))]
-        # we create an array of it (fl like) and compute the trace like the pixel ij trough time
-        dataTemp = np.array(
-            Y[tuple([slice(*a) for a in ijSig])].copy(), dtype=np.float32)
-        traceTemp = np.array(np.squeeze(rho[ij]), dtype=np.float32)
+            # we define a squared size around it
+            ijSig = [[np.maximum(ij[c] - gHalf[c], 0), np.minimum(ij[c] + gHalf[c] + 1, d[c])]
+                     for c in range(len(ij))]
+            # we create an array of it (fl like) and compute the trace like the pixel ij trough time
+            dataTemp = np.array(
+                Y[tuple([slice(*a) for a in ijSig])].copy(), dtype=np.float32)
+            traceTemp = np.array(np.squeeze(rho[ij]), dtype=np.float32)
 
-        coef, score = finetune(dataTemp, traceTemp, nIter=nIter)
-        C[k, :] = np.squeeze(score)
-        dataSig = coef[..., np.newaxis] * \
-            score.reshape([1] * (Y.ndim - 1) + [-1])
-        xySig = np.meshgrid(*[np.arange(s[0], s[1])
-                              for s in ijSig], indexing='xy')
-        arr = np.array([np.reshape(s, (1, np.size(s)), order='F').squeeze()
-                        for s in xySig], dtype=np.int)
-        indices = np.ravel_multi_index(arr, d[0:-1], order='F')
+            coef, score = finetune(dataTemp, traceTemp, nIter=nIter)
+            C[k, :] = np.squeeze(score)
+            dataSig = coef[..., np.newaxis] * \
+                score.reshape([1] * (Y.ndim - 1) + [-1])
+            xySig = np.meshgrid(*[np.arange(s[0], s[1])
+                                  for s in ijSig], indexing='xy')
+            arr = np.array([np.reshape(s, (1, np.size(s)), order='F').squeeze()
+                            for s in xySig], dtype=np.int)
+            indices = np.ravel_multi_index(arr, d[0:-1], order='F')
 
-        A[indices, k] = np.reshape(
-            coef, (1, np.size(coef)), order='C').squeeze()
-        Y[tuple([slice(*a) for a in ijSig])] -= dataSig.copy()
-        if k < nr - 1:
-            Mod = [[np.maximum(ij[c] - 2 * gHalf[c], 0),
-                    np.minimum(ij[c] + 2 * gHalf[c] + 1, d[c])] for c in range(len(ij))]
-            ModLen = [m[1] - m[0] for m in Mod]
-            Lag = [ijSig[c] - Mod[c][0] for c in range(len(ij))]
-            dataTemp = np.zeros(ModLen)
-            dataTemp[tuple([slice(*a) for a in Lag])] = coef
-            dataTemp = imblur(dataTemp[..., np.newaxis],
-                              sig=gSig, siz=gSiz, kernel=kernel)
-            temp = dataTemp * score.reshape([1] * (Y.ndim - 1) + [-1])
-            rho[tuple([slice(*a) for a in Mod])] -= temp.copy()
-            if rolling_sum:
-                rho_filt = scipy.signal.lfilter(
-                    rolling_filter, 1., rho[tuple([slice(*a) for a in Mod])]**2)
-                v[tuple([slice(*a) for a in Mod])] = np.amax(rho_filt, axis=-1)
-            else:
-                v[tuple([slice(*a) for a in Mod])] = \
-                    np.sum(rho[tuple([slice(*a) for a in Mod])]**2, axis=-1)
+            A[indices, k] = np.reshape(
+                coef, (1, np.size(coef)), order='C').squeeze()
+            Y[tuple([slice(*a) for a in ijSig])] -= dataSig.copy()
+            if k < nr - 1 or seed_method.lower() != 'auto':
+                Mod = [[np.maximum(ij[c] - 2 * gHalf[c], 0),
+                        np.minimum(ij[c] + 2 * gHalf[c] + 1, d[c])] for c in range(len(ij))]
+                ModLen = [m[1] - m[0] for m in Mod]
+                Lag = [ijSig[c] - Mod[c][0] for c in range(len(ij))]
+                dataTemp = np.zeros(ModLen)
+                dataTemp[tuple([slice(*a) for a in Lag])] = coef
+                dataTemp = imblur(dataTemp[..., np.newaxis],
+                                  sig=gSig, siz=gSiz, kernel=kernel)
+                temp = dataTemp * score.reshape([1] * (Y.ndim - 1) + [-1])
+                rho[tuple([slice(*a) for a in Mod])] -= temp.copy()
+                if rolling_sum:
+                    rho_filt = scipy.signal.lfilter(
+                        rolling_filter, 1., rho[tuple([slice(*a) for a in Mod])]**2)
+                    v[tuple([slice(*a) for a in Mod])] = np.amax(rho_filt, axis=-1)
+                else:
+                    v[tuple([slice(*a) for a in Mod])] = \
+                        np.sum(rho[tuple([slice(*a) for a in Mod])]**2, axis=-1)
+        center = center.tolist()
+    else:
+        center = []
+
+    if seed_method.lower() in ('manual', 'semi'):
+        # manually pick seed pixels
+        while True:
+            fig = plt.figure(figsize=(13, 12))
+            ax = plt.axes([.04, .04, .95, .18])
+            sc_all = []
+            sc_select = []
+            plt.axes([0, .25, 1, .7])
+            sc_all.append(plt.scatter([], [], color='g'))
+            sc_select.append(plt.scatter([], [], color='r'))
+            plt.imshow(v, interpolation=None, vmin=np.percentile(v[~np.isnan(v)], 1),
+                       vmax=np.percentile(v[~np.isnan(v)], 99), cmap='gray')
+            if len(center):
+                plt.scatter(*np.transpose(center)[::-1], c='b')
+            plt.axis('off')
+            plt.suptitle(
+                'Click to add component. Click again on it to remove it. Press any key to update figure. Add more components, or press any key again when done.')
+            centers = []
+
+            def key_press(event):
+                plt.close(fig)
+
+            def onclick(event):
+                new_center = int(round(event.xdata)), int(round(event.ydata))
+                if new_center in centers:
+                    centers.remove(new_center)
+                else:
+                    centers.append(new_center)
+                print(centers)
+                ax.clear()
+                if len(centers): 
+                    ax.plot(Y[centers[-1][1], centers[-1][0]], c='r')
+                    for sc in sc_all:
+                        sc.set_offsets(centers)
+                    for sc in sc_select:
+                        sc.set_offsets(centers[-1:])
+                else:
+                    for sc in sc_all:
+                        sc.set_offsets(np.zeros((0,2)))
+                    for sc in sc_select:
+                        sc.set_offsets(np.zeros((0,2)))                    
+                plt.draw()
+
+            cid = fig.canvas.mpl_connect('key_press_event', key_press)
+            fig.canvas.mpl_connect('button_press_event', onclick)
+            plt.show(block=True)
+
+            if centers == []:
+                break
+            centers = np.array(centers)[:,::-1].tolist()
+            center += centers
+            
+            # we initialize every values to zero
+            A_ = np.zeros((np.prod(d[0:-1]), len(centers)), dtype=np.float32)
+            C_ = np.zeros((len(centers), d[-1]), dtype=np.float32)
+            for k, ij in enumerate(centers):
+                # we define a squared size around it
+                ijSig = [[np.maximum(ij[c] - gHalf[c], 0), np.minimum(ij[c] + gHalf[c] + 1, d[c])]
+                         for c in range(len(ij))]
+                # we create an array of it (fl like) and compute the trace like the pixel ij trough time
+                dataTemp = np.array(
+                    Y[tuple([slice(*a) for a in ijSig])].copy(), dtype=np.float32)
+                traceTemp = np.array(np.squeeze(rho[tuple(ij)]), dtype=np.float32)
+
+                coef, score = finetune(dataTemp, traceTemp, nIter=nIter)
+                C_[k, :] = np.squeeze(score)
+                dataSig = coef[..., np.newaxis] * \
+                    score.reshape([1] * (Y.ndim - 1) + [-1])
+                xySig = np.meshgrid(*[np.arange(s[0], s[1])
+                                      for s in ijSig], indexing='xy')
+                arr = np.array([np.reshape(s, (1, np.size(s)), order='F').squeeze()
+                                for s in xySig], dtype=np.int)
+                indices = np.ravel_multi_index(arr, d[0:-1], order='F')
+
+                A_[indices, k] = np.reshape(
+                    coef, (1, np.size(coef)), order='C').squeeze()
+                Y[tuple([slice(*a) for a in ijSig])] -= dataSig.copy()
+                
+                Mod = [[np.maximum(ij[c] - 2 * gHalf[c], 0),
+                        np.minimum(ij[c] + 2 * gHalf[c] + 1, d[c])] for c in range(len(ij))]
+                ModLen = [m[1] - m[0] for m in Mod]
+                Lag = [ijSig[c] - Mod[c][0] for c in range(len(ij))]
+                dataTemp = np.zeros(ModLen)
+                dataTemp[tuple([slice(*a) for a in Lag])] = coef
+                dataTemp = imblur(dataTemp[..., np.newaxis],
+                                  sig=gSig, siz=gSiz, kernel=kernel)
+                temp = dataTemp * score.reshape([1] * (Y.ndim - 1) + [-1])
+                rho[tuple([slice(*a) for a in Mod])] -= temp.copy()
+                if rolling_sum:
+                    rho_filt = scipy.signal.lfilter(
+                        rolling_filter, 1., rho[tuple([slice(*a) for a in Mod])]**2)
+                    v[tuple([slice(*a) for a in Mod])] = np.amax(rho_filt, axis=-1)
+                else:
+                    v[tuple([slice(*a) for a in Mod])] = \
+                        np.sum(rho[tuple([slice(*a) for a in Mod])]**2, axis=-1)
+            A = np.concatenate([A, A_], 1)
+            C = np.concatenate([C, C_])
 
     res = np.reshape(Y, (np.prod(d[0:-1]), d[-1]),
                      order='F') + med.flatten(order='F')[:, None]
@@ -850,7 +966,7 @@ def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1,
     b_in = model.fit_transform(np.maximum(res, 0)).astype(np.float32)
     f_in = model.components_.astype(np.float32)
 
-    return A, C, center, b_in, f_in
+    return A, C, np.array(center, dtype='uint16'), b_in, f_in
 
 #%%
 
@@ -1307,7 +1423,9 @@ def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
         min_pnr: float
             minimum peak-to-noise ratio for selecting a seed pixel.
         seed_method: str {'auto', 'manual'}
-            methods for choosing seed pixels.
+            methods for choosing seed pixels
+            if running as notebook 'manual' requires a backend that does not
+            inline figures, e.g. %matplotlib tk
         deconvolve_options: dict
             all options for deconvolving temporal traces.
         min_pixel: integer
@@ -1496,10 +1614,15 @@ def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
                 ax.clear()
                 if len(centers):
                     ax.plot(data_filtered[:, centers[-1][1], centers[-1][0]], c='r')
-                for sc in sc_all:
-                    sc.set_offsets(centers)
-                for sc in sc_select:
-                    sc.set_offsets(centers[-1:])
+                    for sc in sc_all:
+                        sc.set_offsets(centers)
+                    for sc in sc_select:
+                        sc.set_offsets(centers[-1:])
+                else:
+                    for sc in sc_all:
+                        sc.set_offsets(np.zeros((0,2)))
+                    for sc in sc_select:
+                        sc.set_offsets(np.zeros((0,2)))      
                 plt.draw()
 
             cid = fig.canvas.mpl_connect('key_press_event', key_press)

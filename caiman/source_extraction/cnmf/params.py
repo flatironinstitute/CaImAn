@@ -214,23 +214,29 @@ class CNMFParams(object):
             maxIter: int, default: 5
                 number of HALS iterations during initialization
 
-            method_init: 'greedy_roi'|'greedy_pnr'|'sparse_NMF'|'local_NMF' default: 'greedy_roi'
-                initialization method. use 'greedy_pnr' for 1p processing and 'sparse_NMF' for dendritic processing.
+            method_init: 'greedy_roi'|'corr_pnr'|'sparse_NMF'|'local_NMF' default: 'greedy_roi'
+                initialization method. use 'corr_pnr' for 1p processing and 'sparse_NMF' for dendritic processing.
 
             min_corr: float, default: 0.85
-                minimum value of correlation image for determining a candidate component during greedy_pnr
+                minimum value of correlation image for determining a candidate component during corr_pnr
 
             min_pnr: float, default: 20
-                minimum value of psnr image for determining a candidate component during greedy_pnr
+                minimum value of psnr image for determining a candidate component during corr_pnr
+
+            seed_method: str {'auto', 'manual', 'semi'}
+                methods for choosing seed pixels during greedy_roi or corr_pnr initialization
+                'semi' detects nr components automatically and allows to add more manually
+                if running as notebook 'semi' and 'manual' require a backend that does not
+                inline figures, e.g. %matplotlib tk
 
             ring_size_factor: float, default: 1.5
-                radius of ring (*gSig) for computing background during greedy_pnr
+                radius of ring (*gSig) for computing background during corr_pnr
 
             ssub_B: float, default: 2
-                downsampling factor for background during greedy_pnr
+                downsampling factor for background during corr_pnr
 
             init_iter: int, default: 2
-                number of iterations during greedy_pnr (1p) initialization
+                number of iterations during corr_pnr (1p) initialization
 
             nIter: int, default: 5
                 number of rank-1 refinement iterations during greedy_roi initialization
@@ -692,7 +698,7 @@ class CNMFParams(object):
             'lambda_gnmf' :1,         # regularization weight for graph NMF
             'maxIter': 5,             # number of HALS iterations
             'max_iter_snmf': 500,
-            'method_init': method_init,    # can be greedy_roi, greedy_pnr sparse_nmf, local_NMF
+            'method_init': method_init,    # can be greedy_roi, corr_pnr sparse_nmf, local_NMF
             'min_corr': min_corr,
             'min_pnr': min_pnr,
             'nIter': 5,               # number of refinement iterations
