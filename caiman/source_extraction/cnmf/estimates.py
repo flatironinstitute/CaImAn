@@ -565,10 +565,10 @@ class Estimates(object):
             include_bck: bool (True)
                 flag for including background in original and reconstructed movie
 
-            frame_rage: range or slice or list (default: slice(None))
+            frame_range: range or slice or list (default: slice(None))
                 display only a subset of frames
 
-            bpx: int (deafult: 0)
+            bpx: int (default: 0)
                 number of pixels to exclude on each border
 
             thr: float (values in [0, 1[) (default: 0)
@@ -580,7 +580,7 @@ class Estimates(object):
             movie_name: str (default: 'results_movie.avi')
                 name of saved file
 
-            display: bool (deafult: True)
+            display: bool (default: True)
                 flag for playing the movie (to stop the movie press 'q')
 
             opencv_codec: str (default: 'H264')
@@ -1230,7 +1230,7 @@ class Estimates(object):
         ''' merge a given list of components. The indices
         of components are not pythonic, i.e., they start from 1. Moreover,
         the indices refer to the absolute indices, i.e., the indices before
-        spliting the components in accepted and rejected. If you want to e.g.
+        splitting the components in accepted and rejected. If you want to e.g.
         merge components 1 from idx_components and 10 from idx_components_bad
         you will to set
         ```
@@ -1653,7 +1653,7 @@ class Estimates(object):
                 images = Images('summary_images')
                 images.add_image(GrayscaleImage(name='local_correlations', data=self.Cn))
 
-                # Add MotionCorreciton
+                # Add MotionCorrection
     #            create_corrected_image_stack(corrected, original, xy_translation, name='CorrectedImageStack')
                 io.write(nwbfile)
 
