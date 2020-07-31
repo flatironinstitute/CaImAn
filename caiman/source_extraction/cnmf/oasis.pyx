@@ -699,7 +699,7 @@ def constrained_oasisAR1(np.ndarray[SINGLE, ndim=1] y, SINGLE g, SINGLE sn,
     s_min : float, optional, default -3
         Minimal non-zero activity within each bin (minimal 'spike size').
         For negative values the threshold is |s_min| * sn * sqrt(1-g)
-        If 0 the threshold is determined automatically such that     
+        If 0 the threshold is determined automatically such that RSS <= sn^2 T   
 
     Returns
     -------
