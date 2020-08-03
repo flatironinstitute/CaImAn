@@ -438,7 +438,7 @@ def run_CNMF_patches(file_name, shape, params, gnb=1, dview=None,
         f = mdl.components_.squeeze()
         f = np.atleast_2d(f)
         for _ in range(100):
-            f /= np.sqrt((f**2).sum(1)[:, None])
+            f /= np.sqrt((f**2).sum(1)[:, None]) + np.finfo(np.float32).eps
             try:
                 b = np.fmax(Bm.dot(F_tot.dot(f.T)).dot(
                     np.linalg.inv(f.dot(f.T))), 0)
@@ -451,7 +451,7 @@ def run_CNMF_patches(file_name, shape, params, gnb=1, dview=None,
                 f = scipy.linalg.lstsq(b, Bm.toarray())[0].dot(F_tot)
 
         nB = np.ravel(np.sqrt((b**2).sum(0)))
-        b /= nB
+        b /= nB + np.finfo(np.float32).eps
         b = np.array(b, dtype=np.float32)
 #        B_tot = scipy.sparse.coo_matrix(B_tot)
         f *= nB[:, None]
