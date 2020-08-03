@@ -1054,8 +1054,7 @@ def constrained_oasisAR1(np.ndarray[SINGLE, ndim=1] y, SINGLE g, SINGLE sn,
                 if RSS < thresh:
                     break
         else:
-            c, s = oasisAR1(y, g, s_min=s_min if s_min >= .5 else
-                            (s_min * np.max(y) if s_min > 0 else -s_min * sn * sqrt(1 - g)))
+            c, s = oasisAR1(y, g, s_min=s_min if s_min > 0 else -s_min * sn * sqrt(1 - g))
 
     # construct s
     s = c.copy()

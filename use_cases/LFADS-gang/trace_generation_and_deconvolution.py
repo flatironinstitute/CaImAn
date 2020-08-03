@@ -14,7 +14,7 @@ from scipy.interpolate import interp1d
 
 #%%
 def gen_data(trueSpikes=None, g=[.95], g_noise=0.01, sn=.3, poiss_noise_factor=1.5, T=3000, framerate=30, 
-             firerate=.5, b=0, N=20, seed=13, nonlinearity=False, spike_noise = 0.1):
+             firerate=.5, b=0, N=20, seed=13, nonlinearity=False, spike_noise=0.1):
     """
     Generate data from homogenous Poisson Process
 
@@ -67,7 +67,8 @@ def gen_data(trueSpikes=None, g=[.95], g_noise=0.01, sn=.3, poiss_noise_factor=1
         Y = np.zeros((N, T))
     
     truth = trueSpikes.astype(float)
-    truth += np.random.normal(0,spike_noise,truth.shape)
+    truth[truth>0] += np.random.normal(0,spike_noise,truth[truth>0].shape)
+#    truth += np.random.normal(0,spike_noise,truth.shape)
     g = np.vstack(g*N)
     g += g_noise*2*(np.random.random(g.shape)-0.5)
     
@@ -127,12 +128,12 @@ def nonlinear_transformation(model='dana_kim_gc6f'):
     return f, inv_f
 
 #%% Calcium trace generation
-Y, truth, trueSpikes, gs = gen_data(firerate=2, N=1000, sn=0.3)
+Y, truth, trueSpikes, gs = gen_data(firerate=2, N=1000, sn=0.1 ,poiss_noise_factor=0)
 Y_nl, _, _, gs = gen_data(trueSpikes=trueSpikes, nonlinearity=True, sn=0.1)
 
 #%% Deconvolution using OASIS
 index = np.argmin(gs)
-c, bl, c1, g, sn, s, lam = constrained_foopsi(Y[index], p=1)
+c, bl, c1, g, sn, s, lam = constrained_foopsi(Y[index], p=1, s_min=0.01)
 c_nl, bl_nl, c1_nl, g_nl, sn_nl, s_nl, lam_nl = constrained_foopsi(Y_nl[index], p=1)
 
 #%% Show without nonlinear transformation result
