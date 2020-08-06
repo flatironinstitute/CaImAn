@@ -994,13 +994,7 @@ class OnACID(object):
                 (self.estimates.A, self.estimates.b, self.estimates.C, self.estimates.f,
                  self.estimates.YrA) = tmp
             self.estimates.S = np.zeros_like(self.estimates.C)
-            nr = self.estimates.C.shape[0]
-            self.estimates.g = np.array([-np.poly([0.9] * max(self.params.get('preprocess', 'p'), 1))[1:]
-                               for gg in np.ones(nr)])
-            self.estimates.bl = np.zeros(nr)
-            self.estimates.c1 = np.zeros(nr)
-            self.estimates.neurons_sn = np.std(self.estimates.YrA, axis=-1)
-            self.estimates.lam = np.zeros(nr)
+            
         elif self.params.get('online', 'init_method') == 'cnmf':
             n_processes = cpu_count() - 1 or 1
             cnm = CNMF(n_processes=n_processes, params=self.params, dview=self.dview)
@@ -1029,15 +1023,15 @@ class OnACID(object):
                     Y.transpose(1, 2, 0), self.estimates.A, gnb=self.params.get('init', 'nb'), k=self.params.get('init', 'K'),
                     gSig=self.params.get('init', 'gSig'), return_object=False)
             self.estimates.S = np.zeros_like(self.estimates.C)
-            nr = self.estimates.C.shape[0]
-            self.estimates.g = np.array([-np.poly([0.9] * max(self.params.get('preprocess', 'p'), 1))[1:]
-                               for gg in np.ones(nr)])
-            self.estimates.bl = np.zeros(nr)
-            self.estimates.c1 = np.zeros(nr)
-            self.estimates.neurons_sn = np.std(self.estimates.YrA, axis=-1)
-            self.estimates.lam = np.zeros(nr)
         else:
             raise Exception('Unknown initialization method!')
+        nr = self.estimates.C.shape[0]
+        self.estimates.g = np.array([-np.poly([0.9] * max(self.params.get('preprocess', 'p'), 1))[1:]
+                            for gg in np.ones(nr)])
+        self.estimates.bl = np.zeros(nr)
+        self.estimates.c1 = np.zeros(nr)
+        self.estimates.neurons_sn = np.std(self.estimates.YrA, axis=-1)
+        self.estimates.lam = np.zeros(nr)
         dims, Ts = get_file_size(fls, var_name_hdf5=self.params.get('data', 'var_name_hdf5'))
         dims = Y.shape[1:]
         self.params.set('data', {'dims': dims})
