@@ -559,13 +559,15 @@ def recursively_load_dict_contents_from_group(h5file:h5py.File, path:str) -> Dic
                     ans[key] = item[()]
 
         elif isinstance(item, h5py._hl.group.Group):
-            if key == 'A':
+            if key in ('A', 'W', 'Ab', 'downscale_matrix', 'upscale_matrix'):
                 data =  item[path + key + '/data']
                 indices = item[path + key + '/indices']
                 indptr = item[path + key + '/indptr']
                 shape = item[path + key + '/shape']
                 ans[key] = scipy.sparse.csc_matrix((data[:], indices[:],
                     indptr[:]), shape[:])
+                if key in ('W', 'upscale_matrix'):
+                    ans[key] = ans[key].tocsr()
             else:
                 ans[key] = recursively_load_dict_contents_from_group(h5file, path + key + '/')
     return ans

@@ -333,7 +333,7 @@ def save_place_holder(pars: List) -> str:
                        order=order,
                        var_name_hdf5=var_name_hdf5,
                        xy_shifts=xy_shifts,
-                       is_3D=is_3D, 
+                       is_3D=is_3D,
                        add_to_movie=add_to_movie,
                        border_to_0=border_to_0,
                        slices=slices)
