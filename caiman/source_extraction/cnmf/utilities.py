@@ -980,7 +980,7 @@ def get_file_size(file_name, var_name_hdf5='mov'):
                 mjv, mnv = scipy.io.matlab.mio.get_matfile_version(byte_stream)
                 if mjv == 2:
                     extension = '.h5'
-            if extension == '.tif' or extension == '.tiff':
+            if extension in ['.tif', '.tiff', '.btf']:
                 tffl = tifffile.TiffFile(file_name)
                 siz = tffl.series[0].shape
                 T, dims = siz[0], siz[1:]
@@ -1195,4 +1195,3 @@ def fast_graph_Laplacian_pixel(pars):
         ind = np.where(w>0)[0]
 
     return indeces[ind].tolist(), w[ind].tolist()
-    
