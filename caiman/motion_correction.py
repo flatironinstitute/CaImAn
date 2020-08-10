@@ -429,7 +429,11 @@ class MotionCorrect(object):
                             ' of {}'.format(self.pw_rigid))            
         
         if self.pw_rigid is False:
-            if self.shifts_opencv:
+            if self.is3D:
+                m_reg = [apply_shifts_dft(img, (sh[0], sh[1], sh[2]), 0,
+                                          is_freq=False, border_nan=self.border_nan)
+                         for img, sh in zip(Y, self.shifts_rig)]
+            elif self.shifts_opencv:
                 m_reg = [apply_shift_iteration(img, shift, border_nan=self.border_nan)
                          for img, shift in zip(Y, self.shifts_rig)]
             else:
@@ -437,20 +441,41 @@ class MotionCorrect(object):
                     sh[0], sh[1]), 0, is_freq=False, border_nan=self.border_nan) for img, sh in zip(
                     Y, self.shifts_rig)]
         else:
-            xy_grid = [(it[0], it[1]) for it in sliding_window(Y[0], self.overlaps, self.strides)]
-            dims_grid = tuple(np.max(np.stack(xy_grid, axis=1), axis=1) - np.min(
-                np.stack(xy_grid, axis=1), axis=1) + 1)
-            shifts_x = np.stack([np.reshape(_sh_, dims_grid, order='C').astype(
-                np.float32) for _sh_ in self.x_shifts_els], axis=0)
-            shifts_y = np.stack([np.reshape(_sh_, dims_grid, order='C').astype(
-                np.float32) for _sh_ in self.y_shifts_els], axis=0)
-            dims = Y.shape[1:]
-            x_grid, y_grid = np.meshgrid(np.arange(0., dims[1]).astype(
-                np.float32), np.arange(0., dims[0]).astype(np.float32))
-            m_reg = [cv2.remap(img, -cv2.resize(shiftY, dims[::-1]) + x_grid,
-                               -cv2.resize(shiftX, dims[::-1]) + y_grid,
-                               cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
-                     for img, shiftX, shiftY in zip(Y, shifts_x, shifts_y)]
+            if self.is3D:
+                xyz_grid = [(it[0], it[1], it[2]) for it in sliding_window_3d(
+                            Y[0], self.overlaps, self.strides)]
+                dims_grid = tuple(np.add(xyz_grid[-1], 1))
+                shifts_x = np.stack([np.reshape(_sh_, dims_grid, order='C').astype(
+                    np.float32) for _sh_ in self.x_shifts_els], axis=0)
+                shifts_y = np.stack([np.reshape(_sh_, dims_grid, order='C').astype(
+                    np.float32) for _sh_ in self.y_shifts_els], axis=0)
+                shifts_z = np.stack([np.reshape(_sh_, dims_grid, order='C').astype(
+                    np.float32) for _sh_ in self.z_shifts_els], axis=0)
+                dims = Y.shape[1:]
+                x_grid, y_grid, z_grid = np.meshgrid(np.arange(0., dims[1]).astype(
+                    np.float32), np.arange(0., dims[0]).astype(np.float32),
+                    np.arange(0., dims[2]).astype(np.float32))
+                m_reg = [warp_sk(img, np.stack((resize_sk(shiftX.astype(np.float32), dims) + y_grid,
+                                 resize_sk(shiftY.astype(np.float32), dims) + x_grid,
+                                 resize_sk(shiftZ.astype(np.float32), dims) + z_grid), axis=0),
+                                 order=3, mode='constant')
+                         for img, shiftX, shiftY, shiftZ in zip(Y, shifts_x, shifts_y, shifts_z)]
+                                 # borderValue=add_to_movie)
+            else:
+                xy_grid = [(it[0], it[1]) for it in sliding_window(Y[0], self.overlaps, self.strides)]
+                dims_grid = tuple(np.max(np.stack(xy_grid, axis=1), axis=1) - np.min(
+                    np.stack(xy_grid, axis=1), axis=1) + 1)
+                shifts_x = np.stack([np.reshape(_sh_, dims_grid, order='C').astype(
+                    np.float32) for _sh_ in self.x_shifts_els], axis=0)
+                shifts_y = np.stack([np.reshape(_sh_, dims_grid, order='C').astype(
+                    np.float32) for _sh_ in self.y_shifts_els], axis=0)
+                dims = Y.shape[1:]
+                x_grid, y_grid = np.meshgrid(np.arange(0., dims[1]).astype(
+                    np.float32), np.arange(0., dims[0]).astype(np.float32))
+                m_reg = [cv2.remap(img, -cv2.resize(shiftY, dims[::-1]) + x_grid,
+                                   -cv2.resize(shiftX, dims[::-1]) + y_grid,
+                                   cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
+                         for img, shiftX, shiftY in zip(Y, shifts_x, shifts_y)]
         m_reg = np.stack(m_reg, axis=0)
         if save_memmap:
             dims = m_reg.shape
@@ -1263,8 +1288,6 @@ def _upsampled_dft(data, upsampled_region_size,
     output = np.tensordot(output, col_kernel, axes = [1,0])
 
     if data.ndim > 2:
-        #import pdb
-        #pdb.set_trace()
         output = np.tensordot(output, pln_kernel, axes = [1,1])
     #output = row_kernel.dot(data).dot(col_kernel)
     return output
@@ -2380,7 +2403,7 @@ def tile_and_correct_3d(img:np.ndarray, template:np.ndarray, strides:Tuple, over
                               order=3, mode='constant')
                              # borderValue=add_to_movie)
             total_shifts = [
-                    (-x, -y, z) for x, y, z in zip(shift_img_x.reshape(num_tiles), shift_img_y.reshape(num_tiles), shift_img_z.reshape(num_tiles))]
+                    (-x, -y, -z) for x, y, z in zip(shift_img_x.reshape(num_tiles), shift_img_y.reshape(num_tiles), shift_img_z.reshape(num_tiles))]
             return m_reg - add_to_movie, total_shifts, None, None
 
         # create automatically upsample parameters if not passed
@@ -2932,7 +2955,7 @@ def tile_and_correct_wrapper(params):
                                                                        max_deviation_rigid=max_deviation_rigid,
                                                                        shifts_opencv=shifts_opencv, gSig_filt=gSig_filt,
                                                                        use_cuda=use_cuda, border_nan=border_nan)
-            shift_info.append([total_shift, start_step, xyz_grid])
+            shift_info.append([tuple(-np.array(total_shift)), start_step, xyz_grid])
             
         else:
             mc[count], total_shift, start_step, xy_grid = tile_and_correct(img, template, strides, overlaps, max_shifts,
