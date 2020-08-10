@@ -982,7 +982,7 @@ class CNMF(object):
     def preprocess(self, Yr):
         """
         Examines data to remove corrupted pixels and computes the noise level
-        estimate fo each pixel.
+        estimate for each pixel.
 
         Args:
             Yr: np.array (or memmap.array)
