@@ -2530,12 +2530,16 @@ def compute_flow_single_frame(frame, templ, pyr_scale=.5, levels=3, winsize=100,
 
 def compute_metrics_motion_correction(fname, final_size_x, final_size_y, swap_dim, pyr_scale=.5, levels=3,
                                       winsize=100, iterations=15, poly_n=5, poly_sigma=1.2 / 5, flags=0,
-                                      play_flow=False, resize_fact_flow=.2, template=None):
+                                      play_flow=False, resize_fact_flow=.2, template=None,
+                                      opencv=True, resize_fact_play=3, fr_play=30, max_flow=1):
     #todo: todocument
     # cv2.OPTFLOW_FARNEBACK_GAUSSIAN
     import scipy
-    vmin, vmax = -1, 1
+    vmin, vmax = -max_flow, max_flow
     m = cm.load(fname)
+    mi, ma = m.min(), m.max()
+    m_min = mi + (ma - mi) / 100
+    m_max = mi + (ma - mi) / 4
 
     max_shft_x = np.int(np.ceil((np.shape(m)[1] - final_size_x) / 2))
     max_shft_y = np.int(np.ceil((np.shape(m)[2] - final_size_y) / 2))
@@ -2593,24 +2597,49 @@ def compute_metrics_motion_correction(fname, final_size_x, final_size_y, swap_di
             tmpl, fr, None, pyr_scale, levels, winsize, iterations, poly_n, poly_sigma, flags)
 
         if play_flow:
-            pl.subplot(1, 3, 1)
-            pl.cla()
-            pl.imshow(fr, vmin=0, vmax=300, cmap='gray')
-            pl.title('movie')
-            pl.subplot(1, 3, 3)
-            pl.cla()
-            pl.imshow(flow[:, :, 1], vmin=vmin, vmax=vmax)
-            pl.title('y_flow')
-
-            pl.subplot(1, 3, 2)
-            pl.cla()
-            pl.imshow(flow[:, :, 0], vmin=vmin, vmax=vmax)
-            pl.title('x_flow')
-            pl.pause(.05)
+            if opencv:
+                dims = tuple(np.array(flow.shape[:-1]) * resize_fact_play)
+                vid_frame = np.concatenate([
+                    np.repeat(np.clip((cv2.resize(fr, dims)[..., None] - m_min) /
+                                      (m_max - m_min), 0, 1), 3, -1),
+                    np.transpose([cv2.resize(np.clip(flow[:, :, 1] / vmax, 0, 1), dims),
+                                  np.zeros(dims, np.float32),
+                                  cv2.resize(np.clip(flow[:, :, 1] / vmin, 0, 1), dims)],
+                                  (1, 2, 0)),
+                    np.transpose([cv2.resize(np.clip(flow[:, :, 0] / vmax, 0, 1), dims),
+                                  np.zeros(dims, np.float32),
+                                  cv2.resize(np.clip(flow[:, :, 0] / vmin, 0, 1), dims)],
+                                  (1, 2, 0))], 1).astype(np.float32)
+                cv2.putText(vid_frame, 'movie', (10, 20), fontFace=5, fontScale=0.8, color=(
+                    0, 255, 0), thickness=1)
+                cv2.putText(vid_frame, 'y_flow', (dims[0] + 10, 20), fontFace=5, fontScale=0.8, color=(
+                    0, 255, 0), thickness=1)
+                cv2.putText(vid_frame, 'x_flow', (2 * dims[0] + 10, 20), fontFace=5, fontScale=0.8, color=(
+                    0, 255, 0), thickness=1)
+                cv2.imshow('frame', vid_frame)
+                pl.pause(1 / fr_play)
+                if cv2.waitKey(1) & 0xFF == ord('q'):
+                    break
+            else:
+                pl.subplot(1, 3, 1)
+                pl.cla()
+                pl.imshow(fr, vmin=m_min, vmax=m_max, cmap='gray')
+                pl.title('movie')
+                pl.subplot(1, 3, 3)
+                pl.cla()
+                pl.imshow(flow[:, :, 1], vmin=vmin, vmax=vmax)
+                pl.title('y_flow')
+                pl.subplot(1, 3, 2)
+                pl.cla()
+                pl.imshow(flow[:, :, 0], vmin=vmin, vmax=vmax)
+                pl.title('x_flow')
+                pl.pause(1 / fr_play)
 
         n = np.linalg.norm(flow)
         flows.append(flow)
         norms.append(n)
+    if play_flow and opencv:
+        cv2.destroyAllWindows()
 
     np.savez(fname[:-4] + '_metrics', flows=flows, norms=norms, correlations=correlations, smoothness=smoothness,
              tmpl=tmpl, smoothness_corr=smoothness_corr, img_corr=img_corr)
