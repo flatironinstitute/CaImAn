@@ -943,6 +943,11 @@ class CNMFParams(object):
                             " automatically to " + str(self.motion[a]))
                     else:
                         raise ValueError(a + ' has to be a tuple of length 3 for volumetric 3D data')
+        for key in ('max_num_added', 'min_num_trial'):
+            if (self.online[key] == 0 and self.online['update_num_comps']):
+                self.set('online', {'update_num_comps': False})
+                logging.warning(key + "=0, hence setting key update_num_comps " +
+                                "in group online automatically to False.")
 
     def set(self, group, val_dict, set_if_not_exists=False, verbose=False):
         """ Add key-value pairs to a group. Existing key-value pairs will be overwritten

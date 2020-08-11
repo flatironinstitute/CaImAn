@@ -83,7 +83,7 @@ class OnACID(object):
             Run the entire online pipeline on a given list of files
     """
 
-    def __init__(self, params=None, estimates=None, path=None, dview=None):
+    def __init__(self, params=None, estimates=None, path=None, dview=None, Ain=None):
         if path is None:
             self.params = CNMFParams() if params is None else params
             self.estimates = Estimates() if estimates is None else estimates
@@ -92,6 +92,8 @@ class OnACID(object):
             self.params = params if params is not None else onacid.params
             self.estimates= estimates if estimates is not None else onacid.estimates
         self.dview = dview
+        if Ain is not None:
+            self.estimates.A = Ain
 #            if params is None or estimates is None:
 #                raise ValueError("Cannot Specify Estimates and Params While \
 #                                 Loading Object From File")
