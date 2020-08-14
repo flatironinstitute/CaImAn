@@ -259,17 +259,16 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
     if np.size(ff) > 0:
         logging.info('removing {0} empty spatial component(s)'.format(ff.shape[0]))
         if any(ff < nr):
-            #A_ = np.delete(A_, list(ff[ff < nr]), 1)
             A_ = csc_column_remove(A_, list(ff[ff < nr]))
             C = np.delete(C, list(ff[ff < nr]), 0)
+            ff -= nr
             nr = nr - len(ff[ff < nr])
+        else:
+            ff -= nr
         if update_background_components:
-            if low_rank_background:
-                background_ff = list(filter(lambda i: i >= nb, ff - nr))
-                f = np.delete(f, background_ff, 0)
-            else:
-                background_ff = list(filter(lambda i: i >= 0, ff - nr))
-                f = np.delete(f, background_ff, 0)
+            background_ff = list(filter(lambda i: i >= 0, ff))
+            f = np.delete(f, background_ff, 0)
+            if b_in is not None:
                 b_in = np.delete(b_in, background_ff, 1)
 
     A_ = A_[:, :nr]    
