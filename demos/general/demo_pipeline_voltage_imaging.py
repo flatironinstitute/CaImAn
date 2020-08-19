@@ -4,7 +4,6 @@ Demo pipeline for processing voltage imaging data. The processing pipeline
 includes motion correction, memory mapping, segmentation, denoising and source
 extraction. The demo shows how to construct the params, MotionCorrect and VOLPY 
 objects and call the relevant functions. See inside for detail.
-
 Dataset courtesy of Karel Svoboda Lab (Janelia Research Campus).
 author: @caichangjia
 """
@@ -15,7 +14,6 @@ import logging
 import matplotlib.pyplot as plt
 import numpy as np
 import os
-
 
 try:
     cv2.setNumThreads(0)
@@ -33,6 +31,7 @@ except NameError:
 
 import caiman as cm
 from caiman.motion_correction import MotionCorrect
+from caiman.paths import caiman_datadir
 from caiman.source_extraction.volpy import utils
 from caiman.source_extraction.volpy.volparams import volparams
 from caiman.source_extraction.volpy.volpy import VOLPY
@@ -57,11 +56,12 @@ def main():
     # %%  Load demo movie and ROIs
     fnames = download_demo('demo_voltage_imaging.hdf5', 'volpy')  # file path to movie file (will download if not present)
     path_ROIs = download_demo('demo_voltage_imaging_ROIs.hdf5', 'volpy')  # file path to ROIs file (will download if not present)
+    file_dir = os.path.split(fnames)[0]
     
 #%% dataset dependent parameters
     # dataset dependent parameters
     fr = 400                                        # sample rate of the movie
-                                                   
+
     # motion correction parameters
     pw_rigid = False                                # flag for pw-rigid motion correction
     gSig_filt = (3, 3)                              # size of filter, in general gSig (see below),
@@ -105,55 +105,74 @@ def main():
     # first we create a motion correction object with the specified parameters
     mc = MotionCorrect(fnames, dview=dview, **opts.get_group('motion'))
     # Run correction
-    mc.motion_correct(save_movie=True)
+    do_motion_correction = True
+    if do_motion_correction:
+        mc.motion_correct(save_movie=True)
+    else: 
+        mc_list = [file for file in os.listdir(file_dir) if (fnames.split('/')[-1].split('.')[0]+'.' in file and '.mmap' in file)]
+        mc.mmap_file = [os.path.join(file_dir, mc_list[0])]
+        print('reuse previously saved motion corrected file:',mc.mmap_file)
 
 # %% compare with original movie
     if display_images:
         m_orig = cm.load(fnames)
         m_rig = cm.load(mc.mmap_file)
         ds_ratio = 0.2
-        moviehandle = cm.concatenate([m_orig.resize(1, 1, ds_ratio) - mc.min_mov * mc.nonneg_movie,
+        moviehandle = cm.concatenate([m_orig.resize(1, 1, ds_ratio),
                                       m_rig.resize(1, 1, ds_ratio)], axis=2)
         moviehandle.play(fr=60, q_max=99.5, magnification=4)  # press q to exit
 
 # %% MEMORY MAPPING
-    border_to_0 = 0 if mc.border_nan == 'copy' else mc.border_to_0
-    # you can include the boundaries of the FOV if you used the 'copy' option
-    # during motion correction, although be careful about the components near
-    # the boundaries
+    do_memory_mapping = True
+    if do_memory_mapping:
+        border_to_0 = 0 if mc.border_nan == 'copy' else mc.border_to_0
+        # you can include the boundaries of the FOV if you used the 'copy' option
+        # during motion correction, although be careful about the components near
+        # the boundaries
+        
+        # memory map the file in order 'C'
+        fname_new = cm.save_memmap_join(mc.mmap_file, base_name='memmap_' + fnames.split('/')[-1].split('.')[0],
+                                        add_to_mov=border_to_0, dview=dview)  # exclude border
+    else: 
+        mmap_list = [file for file in os.listdir(file_dir) if ('memmap_' + fnames.split('/')[-1].split('.')[0]) in file]
+        fname_new = os.path.join(file_dir, mmap_list[0])
+        print('reuse previously saved memory mapping file:', fname_new)
     
-    # memory map the file in order 'C'
-    fname_new = cm.save_memmap_join(mc.mmap_file, base_name='memmap_',
-                                    add_to_mov=border_to_0, dview=dview)  # exclude border
-
 # %% SEGMENTATION
     # create summary images
     img = mean_image(mc.mmap_file[0], window = 1000, dview=dview)
     img = (img-np.mean(img))/np.std(img)
     
-    gaussian_blur = False        # Use gaussian blur when the quality of corr image(Cn) is bad
+    gaussian_blur = False        # Use gaussian blur when there is too much noise in the video
     Cn = local_correlations_movie_offline(mc.mmap_file[0], fr=fr, window=fr*4, 
                                           stride=fr*4, winSize_baseline=fr, 
                                           remove_baseline=True, gaussian_blur=gaussian_blur,
                                           dview=dview).max(axis=0)
     img_corr = (Cn-np.mean(Cn))/np.std(Cn)
-    summary_image = np.stack([img, img, img_corr], axis=2).astype(np.float32) 
+    summary_images = np.stack([img, img, img_corr], axis=0).astype(np.float32)
+    # ! save summary image, it is used in GUI
+    cm.movie(summary_images).save(fnames[:-5] + '_summary_images.tif')
     
     #%% three methods for segmentation
     methods_list = ['manual_annotation',        # manual annotation needs user to prepare annotated datasets same format as demo ROIs 
-                    'quick_annotation',         # quick annotation annotates data with simple interface in python
-                    'maskrcnn' ]                # maskrcnn is a convolutional network trained for finding neurons using summary images
-    method = methods_list[0]
+                    'gui_annotation',          # use gui to manual annotate neurons (it can perform basic functions but still under developing)
+                    'maskrcnn']                # maskrcnn is a convolutional network trained for finding neurons using summary images
+    method = methods_list[1]
     if method == 'manual_annotation':                
         with h5py.File(path_ROIs, 'r') as fl:
             ROIs = fl['mov'][()]  
 
-    elif method == 'quick_annotation':           
-        ROIs = utils.quick_annotation(img, min_radius=4, max_radius=8)
-
+    elif method == 'gui_annotation':
+        # run volpy_gui file in the caiman/source_extraction/volpy folder
+        # load the summary images you have just saved 
+        # save the ROIs to the video folder
+        path_ROIs =  caiman_datadir() + '/example_movies/volpy/gui_roi.hdf5'
+        with h5py.File(path_ROIs, 'r') as fl:
+            ROIs = fl['mov'][()]  
+        
     elif method == 'maskrcnn':                 # Important!! make sure install keras before using mask rcnn
         weights_path = download_model('mask_rcnn')
-        ROIs = utils.mrcnn_inference(img=summary_image, size_range=[12, 22],
+        ROIs = utils.mrcnn_inference(img=summary_images.transpose([1, 2, 0]), size_range=[5, 22],
                                      weights_path=weights_path, display_result=True) # size parameter decides size range of masks to be selected
             
 # %% restart cluster to clean up memory
@@ -213,6 +232,11 @@ def main():
         mv_all = utils.reconstructed_movie(vpy.estimates, fnames=mc.mmap_file,
                                            idx=idx, scope=(0,1000), flip_signal=flip_signal)
         mv_all.play(fr=40)
+    
+#%% save the result in .npy format 
+    save_result = True
+    if save_result:
+        np.save(file_dir + '/result_volpy_demo_voltage_imaging', vpy.estimates)
     
 # %% STOP CLUSTER and clean up log files
     cm.stop_server(dview=dview)

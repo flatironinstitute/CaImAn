@@ -208,7 +208,7 @@ def volspike(pars):
         data = -data
     else:
         pass
-
+    
     # remove photobleaching effect by high pass filtering signal
     output['mean_im'] = np.mean(data, axis=0)
     data = np.reshape(data, (data.shape[0], -1))
@@ -216,7 +216,7 @@ def volspike(pars):
     data = data - np.mean(data, 0)   #do again because of numeric issues
     data_hp = signal_filter(data.T, args['hp_freq_pb'], fr).T  
     data_lp = data - data_hp
-    
+
     # initial trace
     if weights_init is None:
         t0 = np.nanmean(data_hp[:, bw.ravel()], 1)
@@ -323,7 +323,7 @@ def volspike(pars):
         # ridge regression to remove background components
         b = Ridge(alpha=alpha, fit_intercept=False, solver='lsqr').fit(Ub, t).coef_
         t = t - np.matmul(Ub, b)
-   
+
         # correct shrinkage
         t = np.double(t * np.mean(t0[spikes]) / np.mean(t[spikes]))
 
@@ -390,6 +390,8 @@ def volspike(pars):
     output['F0'] = np.abs(np.nanmean(data_lp[:, bw.flatten()] + output['mean_im'][bw][np.newaxis, :], 1))
     output['dFF'] = t / output['F0']
     output['rawROI']['dFF'] = output['rawROI']['t'] / output['F0']
+    #output['F0'] = np.abs(np.matmul(data_lp, weights.flatten() / weights.sum()) + np.nanmean(output['mean_im'][bw][np.newaxis, :], 1))
+    #output['dFF_with_bg'] = t_test / output['F0']
     
     return output
 
@@ -426,8 +428,7 @@ def denoise_spikes(data, window_length, fr=400,  hp_freq=1, threshold_method='si
             The real threshold is the value multiply estimated noise level
             
         last_round: boolean
-            if True no limit number of spikes to be found in the second round
-            
+
         do_plot: boolean
             if Ture, will plot trace of signals and spiketimes, peak triggered
             average, histogram of heights
@@ -506,51 +507,24 @@ def denoise_spikes(data, window_length, fr=400,  hp_freq=1, threshold_method='si
         std2 = np.sqrt(np.divide(np.sum(ff1**2), Ns)) 
         thresh2 = threshold * std2
         spikes = signal.find_peaks(datafilt, height=thresh2)[0]
-        """        
-        window = 30000
-        T = len(datafilt)
-        n = int(np.floor(T / window))
-        mv_std = []
-        spikes = []
-
-        for i in range(n):
-            if i < n - 1:
-                data = datafilt[window * i: window * i + window]
-            else:
-                data = datafilt[window * i:]
-            ff1 = -data * (data < 0)
-            Ns = np.sum(ff1 > 0)
-            mv_std.append(np.sqrt(np.divide(np.sum(ff1**2), Ns)))
-            thresh2 = threshold * mv_std[-1]
-            spike = signal.find_peaks(data, height=thresh2)[0] + i *window
-            spikes.append(spike)
-        spikes = np.concatenate(spikes)                
-        """
         
         if len(spikes) < min_spikes:
             low_spikes = True
-            if last_round == True:
-                logging.warning(f'last round: less than {min_spikes} spikes are found')
-            else:
-                logging.warning(f'less than {min_spikes} spikes are found, pick top {min_spikes} spikes')
-                thresh2 = np.percentile(pks2, 100 * (1 - min_spikes / len(pks2)))
-                spikes = signal.find_peaks(datafilt, height=thresh2)[0]
+            logging.warning(f'less than {min_spikes} spikes are found, pick top {min_spikes} spikes')
+            thresh2 = np.percentile(pks2, 100 * (1 - min_spikes / len(pks2)))
+            spikes = signal.find_peaks(datafilt, height=thresh2)[0]
     elif threshold_method == 'adaptive_threshold':
         thresh2, falsePosRate, detectionRate, _ = get_thresh(pks2, clip=0, pnorm=0.5, min_spikes=min_spikes)  # clip=0 means no clipping
         spikes = signal.find_peaks(datafilt, height=thresh2)[0]
 
-    if len(spikes) > 0:
-        t_rec = np.zeros(datafilt.shape)
-        t_rec[spikes] = 1
-        t_rec = np.convolve(t_rec, PTA, 'same')   
-        # filtering shrinks the data;
-        # rescale so that the mean value at the peaks is same as in the input
-        factor = np.mean(data[spikes]) / np.mean(datafilt[spikes])
-        datafilt = datafilt * factor
-        thresh2_normalized = thresh2 * factor
-#    else:
-#    thresh2_normalized = 0
-#    t_rec = np.zeros(data.shape)
+    t_rec = np.zeros(datafilt.shape)
+    t_rec[spikes] = 1
+    t_rec = np.convolve(t_rec, PTA, 'same')   
+    # filtering shrinks the data;
+    # rescale so that the mean value at the peaks is same as in the input
+    factor = np.mean(data[spikes]) / np.mean(datafilt[spikes])
+    datafilt = datafilt * factor
+    thresh2_normalized = thresh2 * factor
         
     if do_plot:
         plt.figure()
