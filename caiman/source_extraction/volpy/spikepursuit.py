@@ -390,8 +390,6 @@ def volspike(pars):
     output['F0'] = np.abs(np.nanmean(data_lp[:, bw.flatten()] + output['mean_im'][bw][np.newaxis, :], 1))
     output['dFF'] = t / output['F0']
     output['rawROI']['dFF'] = output['rawROI']['t'] / output['F0']
-    #output['F0'] = np.abs(np.matmul(data_lp, weights.flatten() / weights.sum()) + np.nanmean(output['mean_im'][bw][np.newaxis, :], 1))
-    #output['dFF_with_bg'] = t_test / output['F0']
     
     return output
 
@@ -455,12 +453,10 @@ def denoise_spikes(data, window_length, fr=400,  hp_freq=1, threshold_method='si
     # high-pass filter the signal to remove part of subthreshold activity
     data = data - np.median(data)
     data = signal_filter(data, hp_freq, fr, order=5)
-    #data = gaussian_filter1d(data, fr/500)          #fr/500
     clip = 2000
         
     low_spikes = False
     data = data - np.median(data)
-    #pks = data[signal.find_peaks(data, height=None, distance=int(fr/100))[0]]
     pks = data[signal.find_peaks(data, height=None)[0]]
 
     # find spikes    
@@ -490,7 +486,6 @@ def denoise_spikes(data, window_length, fr=400,  hp_freq=1, threshold_method='si
     window = np.int64(np.arange(-window_length, window_length + 1, 1))
     locs = locs[np.logical_and(locs > (-window[0]), locs < (len(data) - window[-1]))]
     PTD = data[(locs[:, np.newaxis] + window)]
-    #PTA = np.mean(PTD, 0)
     PTA = np.median(PTD, 0)
     PTA = PTA - np.min(PTA)
     templates = PTA
@@ -520,8 +515,6 @@ def denoise_spikes(data, window_length, fr=400,  hp_freq=1, threshold_method='si
     t_rec = np.zeros(datafilt.shape)
     t_rec[spikes] = 1
     t_rec = np.convolve(t_rec, PTA, 'same')   
-    # filtering shrinks the data;
-    # rescale so that the mean value at the peaks is same as in the input
     factor = np.mean(data[spikes]) / np.mean(datafilt[spikes])
     datafilt = datafilt * factor
     thresh2_normalized = thresh2 * factor
