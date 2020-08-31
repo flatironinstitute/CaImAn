@@ -193,7 +193,7 @@ class timeseries(np.ndarray):
                      fr=self.fr,
                      meta_data=self.meta_data,
                      file_name=self.file_name)
-        elif extension == '.avi':
+        elif extension in ('.avi', '.mkv'):
             codec = None
             try:
                 codec = cv2.FOURCC('I', 'Y', 'U', 'V')

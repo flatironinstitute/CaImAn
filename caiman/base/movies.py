@@ -1562,7 +1562,7 @@ def load(file_name: Union[str, List[str]],
 
                 input_arr = np.squeeze(input_arr)
 
-        elif extension == '.avi':      # load avi file
+        elif extension in ('.avi', '.mkv'):      # load video file
             cap = cv2.VideoCapture(file_name)
 
             try:
@@ -2184,7 +2184,7 @@ def load_iter(file_name, subindices=None, var_name_hdf5: str = 'mov'):
                 Y = Y[subindices]
             for y in Y:
                 yield y.asarray()
-        elif extension == '.avi':
+        elif extension in ('.avi', '.mkv'):
             cap = cv2.VideoCapture(file_name)
             if subindices is None:
                 while True:
