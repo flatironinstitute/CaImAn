@@ -95,7 +95,7 @@ def main():
         m_orig = cm.load(fnames)
         ds_ratio = 0.2
         moviehandle = m_orig.resize(1, 1, ds_ratio)
-        moviehandle.play(q_max=99.5, fr=40, magnification=6)
+        moviehandle.play(q_max=99.5, fr=40, magnification=4)
 
 # %% start a cluster for parallel processing
     c, dview, n_processes = cm.cluster.setup_cluster(
@@ -109,9 +109,10 @@ def main():
     if do_motion_correction:
         mc.motion_correct(save_movie=True)
     else: 
-        mc_list = [file for file in os.listdir(file_dir) if (fnames.split('/')[-1].split('.')[0]+'.' in file and '.mmap' in file)]
+        mc_list = [file for file in os.listdir(file_dir) if 
+                   (os.path.splitext(os.path.split(fnames)[-1])[0] in file and '.mmap' in file)]
         mc.mmap_file = [os.path.join(file_dir, mc_list[0])]
-        print('reuse previously saved motion corrected file:',mc.mmap_file)
+        print(f'reuse previously saved motion corrected file:{mc.mmap_file}')
 
 # %% compare with original movie
     if display_images:
@@ -120,7 +121,7 @@ def main():
         ds_ratio = 0.2
         moviehandle = cm.concatenate([m_orig.resize(1, 1, ds_ratio),
                                       m_rig.resize(1, 1, ds_ratio)], axis=2)
-        moviehandle.play(fr=60, q_max=99.5, magnification=4)  # press q to exit
+        moviehandle.play(fr=40, q_max=99.5, magnification=4)  # press q to exit
 
 # %% MEMORY MAPPING
     do_memory_mapping = True
@@ -131,12 +132,13 @@ def main():
         # the boundaries
         
         # memory map the file in order 'C'
-        fname_new = cm.save_memmap_join(mc.mmap_file, base_name='memmap_' + fnames.split('/')[-1].split('.')[0],
+        fname_new = cm.save_memmap_join(mc.mmap_file, base_name='memmap_' + os.path.splitext(os.path.split(fnames)[-1])[0],
                                         add_to_mov=border_to_0, dview=dview)  # exclude border
     else: 
-        mmap_list = [file for file in os.listdir(file_dir) if ('memmap_' + fnames.split('/')[-1].split('.')[0]) in file]
+        mmap_list = [file for file in os.listdir(file_dir) if 
+                     ('memmap_' + os.path.splitext(os.path.split(fnames)[-1])[0]) in file]
         fname_new = os.path.join(file_dir, mmap_list[0])
-        print('reuse previously saved memory mapping file:', fname_new)
+        print(f'reuse previously saved memory mapping file:{fname_new}')
     
 # %% SEGMENTATION
     # create summary images
@@ -154,8 +156,8 @@ def main():
     cm.movie(summary_images).save(fnames[:-5] + '_summary_images.tif')
     
     #%% three methods for segmentation
-    methods_list = ['manual_annotation',        # manual annotation needs user to prepare annotated datasets same format as demo ROIs 
-                    'gui_annotation',          # use gui to manual annotate neurons (it can perform basic functions but still under developing)
+    methods_list = ['manual_annotation',       # manual annotation needs user to prepare annotated datasets same format as demo ROIs 
+                    'gui_annotation',          # use gui to manually annotate neurons, but this is still under developing
                     'maskrcnn']                # maskrcnn is a convolutional network trained for finding neurons using summary images
     method = methods_list[1]
     if method == 'manual_annotation':                
@@ -192,7 +194,7 @@ def main():
     min_spikes= 10                                # minimal spikes to be found
     threshold = 3.5                               # threshold for finding spikes, increase threshold to find less spikes
     do_plot = False                               # plot detail of spikes, template for the last iteration
-    ridge_bg= 0.5                               # ridge regression regularizer strength for background removement
+    ridge_bg= 0.5                                 # ridge regression regularizer strength for background removement, larger value specifies stronger regularization 
     sub_freq = 20                                 # frequency for subthreshold extraction
     weight_update = 'ridge'                       # 'ridge' or 'NMF' for weight update
     n_iter = 2
@@ -236,7 +238,7 @@ def main():
 #%% save the result in .npy format 
     save_result = True
     if save_result:
-        np.save(file_dir + '/result_volpy_demo_voltage_imaging', vpy.estimates)
+        np.save(os.path.join(file_dir, 'result_volpy_demo_voltage_imaging'), vpy.estimates)
     
 # %% STOP CLUSTER and clean up log files
     cm.stop_server(dview=dview)

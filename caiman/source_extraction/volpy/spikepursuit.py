@@ -67,6 +67,9 @@ def volspike(pars):
 
                     hp_freq: float
                         high-pass cutoff frequency to filter the signal after computing the trace
+                        
+                    clip: int
+                        maximum number of spikes for producing templates
 
                     threshold_method: str
                         'simple' or 'adaptive_threshold' method for thresholding signals
@@ -232,9 +235,9 @@ def volspike(pars):
     
     # find out spikes of initial trace
     ts, spikes, t_rec, templates, low_spikes, thresh = denoise_spikes(t0, 
-                                          window_length, fr, hp_freq=args['hp_freq'],
+                                          window_length, fr, hp_freq=args['hp_freq'], clip=args['clip'],
                                           threshold_method=args['threshold_method'], threshold=args['threshold'], 
-                                          min_spikes=args['min_spikes'], last_round=False, do_plot=False)
+                                          min_spikes=args['min_spikes'], do_plot=False)
 
     output['rawROI']['t'] = t0.copy()
     output['rawROI']['ts'] = ts.copy()
@@ -282,10 +285,8 @@ def volspike(pars):
     for iteration in range(args['n_iter']):
         if iteration == args['n_iter'] - 1:
             do_plot = args['do_plot']
-            last_round = True
         else:
             do_plot = False
-            last_round = False
             
         # update spatial weights
         tr = np.single(t_rec.copy())
@@ -329,9 +330,9 @@ def volspike(pars):
 
         # generate the new trace and the new denoised trace
         ts, spikes, t_rec, templates, low_spikes, thresh = denoise_spikes(t, 
-                    window_length, fr,  hp_freq=args['hp_freq'], 
+                    window_length, fr,  hp_freq=args['hp_freq'], clip=args['clip'],
                     threshold_method=args['threshold_method'], threshold=args['threshold'], 
-                    min_spikes=args['min_spikes'], last_round=last_round, do_plot=do_plot)
+                    min_spikes=args['min_spikes'], do_plot=do_plot)
     
         num_spikes.append(spikes.shape[0])
 
@@ -394,8 +395,8 @@ def volspike(pars):
     return output
 
 
-def denoise_spikes(data, window_length, fr=400,  hp_freq=1, threshold_method='simple', 
-                   min_spikes=5, threshold=3.5, last_round=False, do_plot=True):
+def denoise_spikes(data, window_length, fr=400,  hp_freq=1,  clip=2000, threshold_method='simple', 
+                   min_spikes=5, threshold=3.5,  do_plot=True):
     """ Function for finding spikes and the temporal filter given one dimensional signals.
         Use function whitened_matched_filter to denoise spikes. Two thresholding methods can be 
         chosen, 'simple' or 'adaptive thresholding'.
@@ -412,6 +413,9 @@ def denoise_spikes(data, window_length, fr=400,  hp_freq=1, threshold_method='si
             
         hp_freq: float
             high-pass cutoff frequency to filter the signal after computing the trace
+            
+        clip: int
+            maximum number of spikes for producing templates
 
         threshold_method: str
             'simple' or 'adaptive_threshold' method for thresholding signals
@@ -424,8 +428,6 @@ def denoise_spikes(data, window_length, fr=400,  hp_freq=1, threshold_method='si
         threshold: float
             threshold for spike detection in 'simple' threshold method 
             The real threshold is the value multiply estimated noise level
-            
-        last_round: boolean
 
         do_plot: boolean
             if Ture, will plot trace of signals and spiketimes, peak triggered
@@ -453,7 +455,6 @@ def denoise_spikes(data, window_length, fr=400,  hp_freq=1, threshold_method='si
     # high-pass filter the signal to remove part of subthreshold activity
     data = data - np.median(data)
     data = signal_filter(data, hp_freq, fr, order=5)
-    clip = 2000
         
     low_spikes = False
     data = data - np.median(data)
@@ -505,7 +506,7 @@ def denoise_spikes(data, window_length, fr=400,  hp_freq=1, threshold_method='si
         
         if len(spikes) < min_spikes:
             low_spikes = True
-            logging.warning(f'less than {min_spikes} spikes are found, pick top {min_spikes} spikes')
+            logging.warning(f'Less than {min_spikes} spikes were found. Picking top {min_spikes} spikes')
             thresh2 = np.percentile(pks2, 100 * (1 - min_spikes / len(pks2)))
             spikes = signal.find_peaks(datafilt, height=thresh2)[0]
     elif threshold_method == 'adaptive_threshold':

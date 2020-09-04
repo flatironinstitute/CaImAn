@@ -1,4 +1,4 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
 Created on Thu Aug  6 10:48:16 2020
@@ -26,8 +26,7 @@ except:
 try:
     if __IPYTHON__:
         print(1)
-        # this is used for debugging purposes only. allows to reload classes
-        # when changed
+        # This is used for debugging purposes only. Automatically reloads imports if they change
         get_ipython().magic('load_ext autoreload')
         get_ipython().magic('autoreload 2')
 except NameError:
@@ -220,7 +219,6 @@ def save():
     ffll = F.getSaveFileName(filter='HDF5 (*.hdf5)')
     print(ffll[0])
     save_ROIs = np.array(list(all_ROIs.values())).copy()
-    save_ROIs = save_ROIs.transpose([0, 2, 1])
     save_ROIs = np.flip(save_ROIs, axis=1)
     
     if os.path.splitext(ffll[0])[1] == '.hdf5':
