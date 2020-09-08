@@ -1010,6 +1010,8 @@ def get_file_size(file_name, var_name_hdf5='mov'):
                             siz = f[var_name_hdf5]['data'].shape
                         else:
                             siz = f[var_name_hdf5].shape
+                    elif var_name_hdf5 in f['acquisition']:
+                        siz = f['acquisition'][var_name_hdf5]['data'].shape
                     else:
                         logging.error('The file does not contain a variable' +
                                       'named {0}'.format(var_name_hdf5))
