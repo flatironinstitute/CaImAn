@@ -589,6 +589,7 @@ def onnls(y, g, lam=0, shift=100, window=None, mask=None, tol=1e-9, max_iter=Non
     else:
         w = window
     w = min(T, w)
+    shift = min(w, shift)
     K = np.zeros((w, w))
 
     if len(g) == 1:  # kernel for AR(1)
