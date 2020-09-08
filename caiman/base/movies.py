@@ -1688,11 +1688,14 @@ def load(file_name: Union[str, List[str]],
                         var_name_hdf5 = fkeys[0]
 
                     if extension == '.nwb':
-                        fgroup = f[var_name_hdf5]['data']
+                        try:
+                            fgroup = f[var_name_hdf5]['data']
+                        except:
+                            fgroup = f['acquisition'][var_name_hdf5]['data']
                     else:
                         fgroup = f[var_name_hdf5]
 
-                    if var_name_hdf5 in f:
+                    if var_name_hdf5 in f or var_name_hdf5 in f['acquisition']:
                         if subindices is None:
                             images = np.array(fgroup).squeeze()
                             #if images.ndim > 3:
@@ -2221,9 +2224,10 @@ def load_iter(file_name, subindices=None, var_name_hdf5: str = 'mov'):
 
                 return
                 #raise StopIteration
-        elif extension in ('.hdf5', '.h5', '.mat'):
+        elif extension in ('.hdf5', '.h5', '.nwb', '.mat'):
             with h5py.File(file_name, "r") as f:
-                Y = f.get(var_name_hdf5)
+                Y = f.get('acquisition/' + var_name_hdf5 + '/data'
+                           if extension == '.nwb' else var_name_hdf5)
                 if subindices is None:
                     for y in Y:
                         yield y

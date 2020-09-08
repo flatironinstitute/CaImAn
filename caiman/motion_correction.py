@@ -232,9 +232,18 @@ class MotionCorrect(object):
         #       from a method that is not a constructor
         if self.min_mov is None:
             if self.gSig_filt is None:
-                self.min_mov = np.array([cm.load(self.fname[0],
-                                                 var_name_hdf5=self.var_name_hdf5,
-                                                 subindices=slice(400))]).min()
+                # self.min_mov = np.array([cm.load(self.fname[0],
+                #                                  var_name_hdf5=self.var_name_hdf5,
+                #                                  subindices=slice(400))]).min()
+                iterator = cm.base.movies.load_iter(self.fname[0],
+                                                    var_name_hdf5=self.var_name_hdf5)
+                mi = np.inf
+                for _ in range(400):
+                    try:
+                        mi = min(mi, next(iterator).min()[()])
+                    except StopIteration:
+                        break
+                self.min_mov = mi
             else:
                 self.min_mov = np.array([high_pass_filter_space(m_, self.gSig_filt)
                     for m_ in cm.load(self.fname[0], var_name_hdf5=self.var_name_hdf5,

@@ -785,11 +785,12 @@ def test(Y, A_in, C, f, n_pixels_per_process, nb):
             raise Exception('Dimension of Matrix C must be neurons x time')
 
     if f is not None:
-
         f = np.atleast_2d(f)
         if f.shape[1] == 1:
             raise Exception(
                 'Dimension of Matrix f must be background comps x time ')
+    else:
+        f = np.zeros((0, Y.shape[1]), dtype=np.float32)
 
     if (A_in is None) and (C is None):
         raise Exception('Either A or C need to be determined')
