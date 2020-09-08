@@ -84,8 +84,9 @@ class CNMFParams(object):
 
         PATCH PARAMS (CNMFParams.patch)######
 
-            rf: int or None, default: None
-                Half-size of patch in pixels. If None, no patches are constructed and the whole FOV is processed jointly
+            rf: int or list or None, default: None
+                Half-size of patch in pixels. If None, no patches are constructed and the whole FOV is processed jointly.
+                If list, it should be a list of two elements corresponding to the height and width of patches
 
             stride: int or None, default: None
                 Overlap between neighboring patches in pixels.
@@ -915,7 +916,7 @@ class CNMFParams(object):
             self.init['gSiz'] = [2*gs + 1 for gs in self.init['gSig']]
         self.init['gSiz'] = tuple([gs + 1 if gs % 2 == 0 else gs for gs in self.init['gSiz']])
         if self.patch['rf'] is not None:
-            if self.patch['rf'] <= self.init['gSiz'][0]:
+            if np.any(np.array(self.patch['rf']) <= self.init['gSiz'][0]):
                 logging.warning("Changing rf from {0} to {1} ".format(self.patch['rf'], 2*self.init['gSiz'][0]) +
                                 "because the constraint rf > gSiz was not satisfied.")
 #        if self.motion['gSig_filt'] is None:

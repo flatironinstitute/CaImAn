@@ -51,7 +51,7 @@ def quick_annotation(img, min_radius, max_radius, roughness=2):
     while keep_select:
         # Plot img
         plt.clf()
-        plt.imshow(img, cmap='gray', vmax=np.percentile(img, 98))            
+        plt.imshow(img, cmap='gray', vmax=np.percentile(img, 99))            
         if len(ROIs) == 0:
             pass
         elif len(ROIs) == 1:
@@ -89,11 +89,14 @@ def quick_annotation(img, min_radius, max_radius, roughness=2):
 
     return ROIs
 
-def mrcnn_inference(img, weights_path, display_result=True):
+def mrcnn_inference(img, size_range, weights_path, display_result=True):
     """ Mask R-CNN inference in VolPy
     Args: 
         img: 2-D array
             summary images for detection
+            
+        size_range: list
+            range of neuron size for selection
             
         weights_path: str
             path for Mask R-CNN weight
@@ -128,6 +131,12 @@ def mrcnn_inference(img, weights_path, display_result=True):
     model.load_weights(weights_path, by_name=True)
     results = model.detect([img], verbose=1)
     r = results[0]
+    selection = np.logical_and(r['masks'].sum(axis=(0,1)) > size_range[0] ** 2, 
+                               r['masks'].sum(axis=(0,1)) < size_range[1] ** 2)
+    r['rois'] = r['rois'][selection]
+    r['masks'] = r['masks'][:, :, selection]
+    r['class_ids'] = r['class_ids'][selection]
+    r['scores'] = r['scores'][selection]
     ROIs = r['masks'].transpose([2, 0, 1])
 
     if display_result:
@@ -183,7 +192,7 @@ def reconstructed_movie(estimates, fnames, idx, scope, flip_signal):
     mv_all = cm.concatenate((mv,mv_bl,mv_rec),axis=2)    
     return mv_all
 
-def view_components(estimates, img, idx):
+def view_components(estimates, img, idx, frame_times=None, gt_times=None):
     """ View spatial and temporal components interactively
     Args:
         estimates: dict
@@ -204,6 +213,10 @@ def view_components(estimates, img, idx):
     ax2 = plt.axes([0.05, 0.1, 0.9, 0.4])    
     s_comp = Slider(axcomp, 'Component', 0, n, valinit=0)
     vmax = np.percentile(img, 98)
+    if frame_times is not None:
+        pass
+    else:
+        frame_times = np.array(range(len(estimates['t'][0])))
     
     def arrow_key_image_control(event):
 
@@ -232,14 +245,20 @@ def view_components(estimates, img, idx):
             ax1.axis('off')
             
             ax2.cla()
-            ax2.plot(estimates['t'][idx][i], alpha=0.8)
-            ax2.plot(estimates['t_sub'][idx][i])            
-            ax2.plot(estimates['t_rec'][idx][i], alpha = 0.4, color='red')
-            ax2.plot(estimates['spikes'][idx][i],
+            ax2.plot(frame_times, estimates['t'][idx][i], alpha=0.8)
+            ax2.plot(frame_times, estimates['t_sub'][idx][i])            
+            ax2.plot(frame_times, estimates['t_rec'][idx][i], alpha = 0.4, color='red')
+            ax2.plot(frame_times[estimates['spikes'][idx][i]],
                      1.05 * np.max(estimates['t'][idx][i]) * np.ones(estimates['spikes'][idx][i].shape),
                      color='r', marker='.', fillstyle='none', linestyle='none')
+            if gt_times is not None:
+                ax2.plot(gt_times,
+                     1.15 * np.max(estimates['t'][idx][i]) * np.ones(gt_times.shape),
+                     color='blue', marker='.', fillstyle='none', linestyle='none')
+                ax2.legend(labels=['t', 't_sub', 't_rec', 'spikes', 'gt_spikes'])
+            else:
+                ax2.legend(labels=['t', 't_sub', 't_rec', 'spikes'])
             ax2.set_title(f'Signal and spike times {i+1}')
-            ax2.legend(labels=['t', 't_sub', 't_rec', 'spikes'])
             ax2.text(0.1, 0.1, f'snr:{round(estimates["snr"][idx][i],2)}', horizontalalignment='center', verticalalignment='center', transform = ax2.transAxes)
             ax2.text(0.1, 0.07, f'num_spikes: {len(estimates["spikes"][idx][i])}', horizontalalignment='center', verticalalignment='center', transform = ax2.transAxes)            
             ax2.text(0.1, 0.04, f'locality_test: {estimates["locality"][idx][i]}', horizontalalignment='center', verticalalignment='center', transform = ax2.transAxes)            
