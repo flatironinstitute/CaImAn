@@ -84,8 +84,9 @@ class CNMFParams(object):
 
         PATCH PARAMS (CNMFParams.patch)######
 
-            rf: int or None, default: None
-                Half-size of patch in pixels. If None, no patches are constructed and the whole FOV is processed jointly
+            rf: int or list or None, default: None
+                Half-size of patch in pixels. If None, no patches are constructed and the whole FOV is processed jointly.
+                If list, it should be a list of two elements corresponding to the height and width of patches
 
             stride: int or None, default: None
                 Overlap between neighboring patches in pixels.
