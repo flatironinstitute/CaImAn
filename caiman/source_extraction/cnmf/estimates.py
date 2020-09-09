@@ -864,7 +864,8 @@ class Estimates(object):
                 Flag to use self.idx_components for reading the indices.
 
             save_discarded_components: bool
-                whether to save the components from initialization so that they can be restored using the restore_discarded_components method
+                whether to save the components from initialization so that they
+                can be restored using the restore_discarded_components method
 
         Returns:
             self: Estimates object
@@ -876,37 +877,53 @@ class Estimates(object):
             idx_components_bad = np.setdiff1d(np.arange(self.A.shape[-1]), idx_components)
 
         if idx_components is not None:
-            if save_discarded_components:
+            if save_discarded_components and self.discarded_components is None:
                 self.discarded_components = Estimates()
 
-            for field in ['C', 'S', 'YrA', 'R', 'F_dff', 'g', 'bl', 'c1', 'neurons_sn', 'lam', 'cnn_preds','SNR_comp','r_values','coordinates']:
+            for field in ['C', 'S', 'YrA', 'R', 'F_dff', 'g', 'bl', 'c1', 'neurons_sn',
+                          'lam', 'cnn_preds', 'SNR_comp', 'r_values', 'coordinates']:
                 if getattr(self, field) is not None:
                     if type(getattr(self, field)) is list:
                         setattr(self, field, np.array(getattr(self, field)))
                     if len(getattr(self, field)) == self.A.shape[-1]:
                         if save_discarded_components:
-                            setattr(self.discarded_components, field, getattr(self, field)[idx_components_bad])
+                            setattr(self.discarded_components, field,
+                                    getattr(self, field)[idx_components_bad]
+                                    if getattr(self.discarded_components, field) is None else
+                                    np.concatenate([getattr(self.discarded_components, field),
+                                                    getattr(self, field)[idx_components_bad]]))
                         setattr(self, field, getattr(self, field)[idx_components])
                     else:
-                        print('*** Variable ' + field + ' has not the same number of components as A ***')
+                        print('*** Variable ' + field +
+                              ' has not the same number of components as A ***')
 
             for field in ['A', 'A_thr']:
                 if getattr(self, field) is not None:
                     if 'sparse' in str(type(getattr(self, field))):
                         if save_discarded_components:
-                            setattr(self.discarded_components, field, getattr(self, field).tocsc()[:, idx_components_bad])
+                            if getattr(self.discarded_components, field) is None:
+                                setattr(self.discarded_components, field,
+                                    getattr(self, field).tocsc()[:, idx_components_bad])
+                            else:
+                                caiman.source_extraction.cnmf.online_cnmf.csc_append(
+                                    getattr(self.discarded_components, field),
+                                    getattr(self, field).tocsc()[:, idx_components_bad])
                         setattr(self, field, getattr(self, field).tocsc()[:, idx_components])
-
                     else:
                         if save_discarded_components:
-                            setattr(self.discarded_components, field, getattr(self, field)[:, idx_components_bad])
+                            setattr(self.discarded_components, field,
+                                getattr(self, field)[:, idx_components_bad]
+                                    if getattr(self.discarded_components, field) is None else
+                                    np.concatenate([getattr(self.discarded_components, field),
+                                        getattr(self, field)[:, idx_components_bad]], axis=-1))
                         setattr(self, field, getattr(self, field)[:, idx_components])
-
 
             self.nr = len(idx_components)
 
             if save_discarded_components:
-                self.discarded_components.nr = len(idx_components_bad)
+                if not hasattr(self.discarded_components, 'nr'):
+                    self.discarded_components.nr = 0
+                self.discarded_components.nr += len(idx_components_bad)
                 self.discarded_components.dims = self.dims
 
             self.idx_components = None
