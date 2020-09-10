@@ -137,7 +137,7 @@ def main():
 #%% MEMORY MAPPING
     # memory map the file in order 'C'
     border_to_0 = bord_px_els  # exclude borders due to motion correction
-#    border_to_0 = 0 if mc.border_nan is 'copy' else bord_px_els   
+#    border_to_0 = 0 if mc.border_nan == 'copy' else bord_px_els   
         # you can include boundaries if you used the 'copy' option in the motion
         # correction, although be careful abou the components near the boundaries
     fname_new = cm.save_memmap(fnames, base_name='memmap_', order='C',
