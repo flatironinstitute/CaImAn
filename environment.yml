@@ -1,14 +1,14 @@
 channels:
 - conda-forge
 dependencies:
-- python=3.7
+- python=3.8
 - bokeh
 - coverage
 - cython
 - future
 - h5py
 - holoviews
-- ipykernel=4.10
+- ipykernel
 - ipython
 - ipyparallel
 - jupyter
@@ -27,7 +27,7 @@ dependencies:
 - scikit-learn
 - scipy
 - tensorflow
-- tifffile=0.15.1
-- tk=8.6.8
+- tifffile
+- tk
 - tqdm
 - yapf
