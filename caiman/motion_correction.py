@@ -2744,6 +2744,8 @@ def motion_correct_batch_rigid(fname, max_shifts, dview=None, splits=56, num_spl
 #            template = caiman.motion_correction.bin_median_3d(
 #                    m.motion_correct_3d(max_shifts[2], max_shifts[1], max_shifts[0], template=None)[0])
         else:
+            if not m.flags['WRITEABLE']:
+                m = m.copy()
             template = caiman.motion_correction.bin_median(
                     m.motion_correct(max_shifts[1], max_shifts[0], template=None)[0])
 

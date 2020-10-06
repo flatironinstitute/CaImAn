@@ -2154,7 +2154,7 @@ def rolling_window(ndarr, window_size, stride):
            yield ndarr[:,i+stride:]
 
 
-def load_iter(file_name, subindices=None, var_name_hdf5: str = 'mov'):
+def load_iter(file_name, subindices=None, var_name_hdf5: str = 'mov', outtype=np.float32):
     """
     load iterator over movie from file. Supports a variety of formats. tif, hdf5, avi.
 
@@ -2164,6 +2164,11 @@ def load_iter(file_name, subindices=None, var_name_hdf5: str = 'mov'):
 
         subindices: iterable indexes
             for loading only a portion of the movie
+
+        var_name_hdf5: str
+            if loading from hdf5 name of the variable to load
+
+        outtype: The data type for the movie
 
     Returns:
         iter: iterator over movie
@@ -2186,14 +2191,14 @@ def load_iter(file_name, subindices=None, var_name_hdf5: str = 'mov'):
                     subindices = slice(subindices.start, subindices.stop, subindices.step)
                 Y = Y[subindices]
             for y in Y:
-                yield y.asarray()
+                yield y.asarray().astype(outtype)
         elif extension in ('.avi', '.mkv'):
             cap = cv2.VideoCapture(file_name)
             if subindices is None:
                 while True:
                     ret, frame = cap.read()
                     if ret:
-                        yield frame[..., 0]
+                        yield frame[..., 0].astype(outtype)
                     else:
                         cap.release()
                         return
@@ -2216,7 +2221,7 @@ def load_iter(file_name, subindices=None, var_name_hdf5: str = 'mov'):
                         ret, frame = cap.read()
                         t += 1
                     if ret:
-                        yield frame[..., 0]
+                        yield frame[..., 0].astype(outtype)
                     else:
                         return
                         #raise StopIteration
@@ -2230,17 +2235,17 @@ def load_iter(file_name, subindices=None, var_name_hdf5: str = 'mov'):
                            if extension == '.nwb' else var_name_hdf5)
                 if subindices is None:
                     for y in Y:
-                        yield y
+                        yield y.astype(outtype)
                 else:
                     if type(subindices) is slice:
                         subindices = range(subindices.start,
                                            len(Y) if subindices.stop is None else subindices.stop,
                                            1 if subindices.step is None else subindices.step)
                     for ind in subindices:
-                        yield Y[ind]
+                        yield Y[ind].astype(outtype)
         else:  # fall back to memory inefficient version
             for y in load(file_name, var_name_hdf5=var_name_hdf5,
-                          subindices=subindices):
+                          subindices=subindices, outtype=outtype):
                 yield y
     else:
         logging.error(f"File request:[{file_name}] not found!")
