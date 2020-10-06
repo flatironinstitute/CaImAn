@@ -166,7 +166,7 @@ class Estimates(object):
 
 
 
-    def plot_contours(self, img=None, idx=None, crd=None, thr_method='max',
+    def plot_contours(self, img=None, idx=None, thr_method='max',
                       thr=0.2, display_numbers=True, params=None,
                       cmap='viridis'):
         """view contours of all spatial footprints.
@@ -177,12 +177,12 @@ class Estimates(object):
                 image of all spatial components (d1 x d2)
             idx :   list
                 list of accepted components
-            crd :   list
-                list of coordinates (if empty they are computed)
             thr_method : str
                 thresholding method for computing contours ('max', 'nrg')
+                if list of coordinates self.coordinates is None, i.e. not already computed
             thr : float
                 threshold value
+                only effective if self.coordinates is None, i.e. not already computed
             display_numbers :   bool
                 flag for displaying the id number of each contour
             params : params object
@@ -225,7 +225,7 @@ class Estimates(object):
             plt.title('Rejected Components')
         return self
 
-    def plot_contours_nb(self, img=None, idx=None, crd=None, thr_method='max',
+    def plot_contours_nb(self, img=None, idx=None, thr_method='max',
                          thr=0.2, params=None, line_color='white', cmap='viridis'):
         """view contours of all spatial footprints (notebook environment).
 
@@ -235,12 +235,12 @@ class Estimates(object):
                 image of all spatial components (d1 x d2)
             idx :   list
                 list of accepted components
-            crd :   list
-                list of coordinates (if empty they are computed)
             thr_method : str
                 thresholding method for computing contours ('max', 'nrg')
+                if list of coordinates self.coordinates is None, i.e. not already computed
             thr : float
                 threshold value
+                only effective if self.coordinates is None, i.e. not already computed
             params : params object
                 set of dictionary containing the various parameters
         """
