@@ -8,7 +8,7 @@ dependencies:
 - future
 - h5py
 - holoviews
-- ipykernel=4.10
+- ipykernel
 - ipython
 - ipyparallel
 - jupyter
@@ -27,7 +27,7 @@ dependencies:
 - scikit-learn
 - scipy
 - tensorflow
-- tifffile=0.15.1
-- tk=8.6.8
+- tifffile
+- tk
 - tqdm
 - yapf

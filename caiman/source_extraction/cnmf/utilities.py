@@ -316,6 +316,7 @@ def detrend_df_f(A, b, C, f, YrA=None, quantileMin=8, frames_window=500,
 
         quantile_min: float
             quantile used to estimate the baseline (values in [0,100])
+            used only if 'flag_auto' is False, i.e. ignored by default
 
         frames_window: int
             number of frames for computing running quantile
@@ -324,7 +325,7 @@ def detrend_df_f(A, b, C, f, YrA=None, quantileMin=8, frames_window=500,
             flag for determining quantile automatically
 
         use_fast: bool
-            flag for u´sing approximate fast percentile filtering
+            flag for using approximate fast percentile filtering
 
         detrend_only: bool (False)
             flag for only subtracting baseline and not normalizing by it.
@@ -333,7 +334,7 @@ def detrend_df_f(A, b, C, f, YrA=None, quantileMin=8, frames_window=500,
 
     Returns:
         F_df:
-            the computed Calcium acitivty to the derivative of f
+            the computed Calcium activity to the derivative of f
     """
 
     if C is None:
@@ -408,9 +409,9 @@ def detrend_df_f(A, b, C, f, YrA=None, quantileMin=8, frames_window=500,
                 F_df = F - Fd[:, None]
         else:
             Fd = scipy.ndimage.percentile_filter(
-                F, quantileMin, (frames_window, 1))
+                F, quantileMin, (1, frames_window))
             Df = scipy.ndimage.percentile_filter(
-                B, quantileMin, (frames_window, 1))
+                B, quantileMin, (1, frames_window))
             if not detrend_only:
                 F_df = (F - Fd) / (Df + Fd)
             else:
@@ -727,7 +728,7 @@ def update_order(A, new_a=None, prev_list=None, method='greedy'):
     K = np.shape(A)[-1]
     if new_a is None and prev_list is None:
 
-        if method is 'greedy':
+        if method == 'greedy':
             prev_list, count_list = update_order_greedy(A, flag_AA=False)
         else:
             prev_list, count_list = update_order_random(A, flag_AA=False)

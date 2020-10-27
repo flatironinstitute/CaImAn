@@ -833,7 +833,7 @@ class Estimates(object):
         if self.YrA is not None:
             self.YrA = nA_mat * self.YrA
         if self.R is not None:
-            self.R = nA_mat * self.YrA
+            self.R = nA_mat * self.R
         if self.bl is not None:
             self.bl = nA * self.bl
         if self.c1 is not None:
@@ -1245,10 +1245,10 @@ class Estimates(object):
 
     def manual_merge(self, components, params):
         ''' merge a given list of components. The indices
-        of components are not pythonic, i.e., they start from 1. Moreover,
+        of components are pythonic, i.e., they start from 0. Moreover,
         the indices refer to the absolute indices, i.e., the indices before
         splitting the components in accepted and rejected. If you want to e.g.
-        merge components 1 from idx_components and 10 from idx_components_bad
+        merge components 0 from idx_components and 9 from idx_components_bad
         you will to set
         ```
         components = [[self.idx_components[0], self.idx_components_bad[9]]]
@@ -1314,7 +1314,7 @@ class Estimates(object):
             g_merged[i, :] = gm
 
         empty = np.ravel((C_merged.sum(1) == 0) + (A_merged.sum(0) == 0))
-        nbmrg -= len(empty)
+        nbmrg -= sum(empty)
         if np.any(empty):
             A_merged = A_merged[:, ~empty]
             C_merged = C_merged[~empty]
@@ -1357,8 +1357,8 @@ class Estimates(object):
         if self.c1 is not None:
             self.c1 = np.hstack((self.c1[good_neurons],
                                  np.array(c1_merged).flatten()))
-        if self.sn is not None:
-            self.sn = np.hstack((self.sn[good_neurons],
+        if self.neurons_sn is not None:
+            self.neurons_sn = np.hstack((self.neurons_sn[good_neurons],
                                  np.array(sn_merged).flatten()))
         if self.g is not None:
             self.g = np.vstack((np.vstack(self.g)[good_neurons], g_merged))
