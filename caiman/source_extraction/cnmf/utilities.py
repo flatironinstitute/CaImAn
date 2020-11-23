@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 """ A set of utilities, mostly for post-processing and visualization
 
@@ -14,6 +13,7 @@ See Also:
 .. image::
 @author  epnev
 """
+
 # \package caiman/dource_ectraction/cnmf
 # \version   1.0
 # \copyright GNU General Public License v2.0
@@ -28,6 +28,7 @@ import h5py
 import logging
 import numpy as np
 import os
+import pathlib
 import pylab as pl
 import scipy
 from scipy.sparse import spdiags, issparse, csc_matrix, csr_matrix
@@ -959,11 +960,11 @@ def get_file_size(file_name, var_name_hdf5='mov'):
     it/them in memory. An exception is thrown if the files have FOVs with
     different sizes
         Args:
-            file_name: str or list
-                locations of file(s) in memory
+            file_name: str/filePath or various list types
+                locations of file(s)
 
             var_name_hdf5: 'str'
-                if loading from hdf5 name of the variable to load
+                if loading from hdf5 name of the dataset to load
 
         Returns:
             dims: list
@@ -972,6 +973,10 @@ def get_file_size(file_name, var_name_hdf5='mov'):
             T: list
                 number of timesteps in each file
     """
+    if isinstance(file_name, pathlib.Path):
+        # We want to support these as input, but str has a broader set of operations that we'd like to use, so let's just convert.
+	# (specifically, filePath types don't support subscripting)
+        file_name = str(file_name)
     if isinstance(file_name, str):
         if os.path.exists(file_name):
             _, extension = os.path.splitext(file_name)[:2]
