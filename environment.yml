@@ -6,7 +6,7 @@ dependencies:
 - coverage
 - cython
 - future
-- h5py
+- h5py=2.10.0
 - holoviews
 - ipykernel
 - ipython
