@@ -2017,15 +2017,53 @@ def create_weight_matrix_for_blending(img, overlaps, strides):
 
         yield weight_mat
 
-def high_pass_filter_space(img_orig, gSig_filt):
-    ksize = tuple([(3 * i) // 2 * 2 + 1 for i in gSig_filt])
-    ker = cv2.getGaussianKernel(ksize[0], gSig_filt[0])
-    ker2D = ker.dot(ker.T)
-    nz = np.nonzero(ker2D >= ker2D[:, 0].max())
-    zz = np.nonzero(ker2D < ker2D[:, 0].max())
-    ker2D[nz] -= ker2D[nz].mean()
-    ker2D[zz] = 0
-    return cv2.filter2D(np.array(img_orig, dtype=np.float32), -1, ker2D, borderType=cv2.BORDER_REFLECT)
+def high_pass_filter_space(img_orig, gSig_filt=None, freq=None, order=None):
+    """
+    Function for high passing the image(s) with centered Gaussian if gSig_filt
+    is specified or Butterworth filter if freq and order are specified
+
+    Args:
+        img_orig: 2-d or 3-d array
+            input image/movie
+
+        gSig_filt:
+            size of the Gaussian filter 
+
+        freq: float
+            cutoff frequency of the Butterworth filter
+
+        order: int
+            order of the Butterworth filter
+
+    Returns:
+        img: 2-d array or 3-d movie
+            image/movie after filtering            
+    """
+    if freq is None or order is None:  # Gaussian
+        ksize = tuple([(3 * i) // 2 * 2 + 1 for i in gSig_filt])
+        ker = cv2.getGaussianKernel(ksize[0], gSig_filt[0])
+        ker2D = ker.dot(ker.T)
+        nz = np.nonzero(ker2D >= ker2D[:, 0].max())
+        zz = np.nonzero(ker2D < ker2D[:, 0].max())
+        ker2D[nz] -= ker2D[nz].mean()
+        ker2D[zz] = 0
+        if img_orig.ndim == 2:  # image
+            return cv2.filter2D(np.array(img_orig, dtype=np.float32),
+                                -1, ker2D, borderType=cv2.BORDER_REFLECT)
+        else:  # movie
+            return cm.movie(np.array([cv2.filter2D(np.array(img, dtype=np.float32),
+                                -1, ker2D, borderType=cv2.BORDER_REFLECT) for img in img_orig]))     
+    else:  # Butterworth
+        rows, cols = img_orig.shape[-2:]
+        xx, yy = np.meshgrid(np.arange(cols, dtype=np.float32) - cols / 2,
+                             np.arange(rows, dtype=np.float32) - rows / 2, sparse=True)
+        H = np.fft.ifftshift(1 - 1 / (1 + ((xx**2 + yy**2)/freq**2)**order))
+        if img_orig.ndim == 2:  # image
+            return cv2.idft(cv2.dft(img_orig, flags=cv2.DFT_COMPLEX_OUTPUT) *
+                            H[..., None])[..., 0] / (rows*cols)
+        else:  # movie
+            return cm.movie(np.array([cv2.idft(cv2.dft(img, flags=cv2.DFT_COMPLEX_OUTPUT) * 
+                            H[..., None])[..., 0] for img in img_orig]) / (rows*cols))
 
 def tile_and_correct(img, template, strides, overlaps, max_shifts, newoverlaps=None, newstrides=None, upsample_factor_grid=4,
                      upsample_factor_fft=10, show_movie=False, max_deviation_rigid=2, add_to_movie=0, shifts_opencv=False, gSig_filt=None,
@@ -2540,12 +2578,15 @@ def compute_flow_single_frame(frame, templ, pyr_scale=.5, levels=3, winsize=100,
 def compute_metrics_motion_correction(fname, final_size_x, final_size_y, swap_dim, pyr_scale=.5, levels=3,
                                       winsize=100, iterations=15, poly_n=5, poly_sigma=1.2 / 5, flags=0,
                                       play_flow=False, resize_fact_flow=.2, template=None,
-                                      opencv=True, resize_fact_play=3, fr_play=30, max_flow=1):
+                                      opencv=True, resize_fact_play=3, fr_play=30, max_flow=1,
+                                      gSig_filt=None):
     #todo: todocument
     # cv2.OPTFLOW_FARNEBACK_GAUSSIAN
     import scipy
     vmin, vmax = -max_flow, max_flow
     m = cm.load(fname)
+    if gSig_filt is not None:
+        m = high_pass_filter_space(m, gSig_filt)
     mi, ma = m.min(), m.max()
     m_min = mi + (ma - mi) / 100
     m_max = mi + (ma - mi) / 4
