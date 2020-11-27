@@ -4,7 +4,7 @@ What's new?
 Online analysis for microendoscopic 1p data (January 2020)
 --------------------------------------------------------
 
-We developed two approaches for analyzing streaming microendoscopic 1p data with hihg speed and low memory requirements.
+We developed two approaches for analyzing streaming microendoscopic 1p data with high speed and low memory requirements.
 The first approach (OnACID-E) features a direct implementation of the CNMF-E algorithm in an online setup.
 An example can be shown in the notebook `demos/notebooks/demo_online_CNMFE.ipynb`. The second approach first extracts
 the background by modeling it with a simple convolutional neural network (Ring-CNN) and proceeds with the analysis using the OnACID algorithm.

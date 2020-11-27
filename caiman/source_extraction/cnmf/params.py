@@ -84,8 +84,9 @@ class CNMFParams(object):
 
         PATCH PARAMS (CNMFParams.patch)######
 
-            rf: int or None, default: None
-                Half-size of patch in pixels. If None, no patches are constructed and the whole FOV is processed jointly
+            rf: int or list or None, default: None
+                Half-size of patch in pixels. If None, no patches are constructed and the whole FOV is processed jointly.
+                If list, it should be a list of two elements corresponding to the height and width of patches
 
             stride: int or None, default: None
                 Overlap between neighboring patches in pixels.
@@ -890,10 +891,7 @@ class CNMFParams(object):
         if self.data['fnames'] is not None:
             if isinstance(self.data['fnames'], str):
                 self.data['fnames'] = [self.data['fnames']]
-            if self.motion['is3D']:
-                T = get_file_size(self.data['fnames'], var_name_hdf5=self.data['var_name_hdf5'])[0][0]
-            else:
-                T = get_file_size(self.data['fnames'], var_name_hdf5=self.data['var_name_hdf5'])[1]
+            T = get_file_size(self.data['fnames'], var_name_hdf5=self.data['var_name_hdf5'])[1]
             if len(self.data['fnames']) > 1:
                 T = T[0]
             num_splits = max(T//max(self.motion['num_frames_split'], 10), 1)
@@ -915,7 +913,7 @@ class CNMFParams(object):
             self.init['gSiz'] = [2*gs + 1 for gs in self.init['gSig']]
         self.init['gSiz'] = tuple([gs + 1 if gs % 2 == 0 else gs for gs in self.init['gSiz']])
         if self.patch['rf'] is not None:
-            if self.patch['rf'] <= self.init['gSiz'][0]:
+            if np.any(np.array(self.patch['rf']) <= self.init['gSiz'][0]):
                 logging.warning("Changing rf from {0} to {1} ".format(self.patch['rf'], 2*self.init['gSiz'][0]) +
                                 "because the constraint rf > gSiz was not satisfied.")
 #        if self.motion['gSig_filt'] is None:
@@ -943,6 +941,11 @@ class CNMFParams(object):
                             " automatically to " + str(self.motion[a]))
                     else:
                         raise ValueError(a + ' has to be a tuple of length 3 for volumetric 3D data')
+        for key in ('max_num_added', 'min_num_trial'):
+            if (self.online[key] == 0 and self.online['update_num_comps']):
+                self.set('online', {'update_num_comps': False})
+                logging.warning(key + "=0, hence setting key update_num_comps " +
+                                "in group online automatically to False.")
 
     def set(self, group, val_dict, set_if_not_exists=False, verbose=False):
         """ Add key-value pairs to a group. Existing key-value pairs will be overwritten

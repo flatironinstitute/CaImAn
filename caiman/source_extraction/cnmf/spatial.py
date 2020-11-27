@@ -124,7 +124,7 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
                  'lasso_lars' lasso lars function from scikit learn
 
             normalize_yyt_one: bool
-                wheter to norrmalize the C and A matrices so that diag(C*C.T) are ones
+                whether to normalize the C and A matrices so that diag(C*C.T) are ones
 
         update_background_components:bool
             whether to update the background components in the spatial phase
@@ -217,7 +217,7 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
     # matrix that include background components
     C_name, Y_name, folder = creatememmap(Y, np.vstack((C, f)), dview)
 
-    # we create a pixel group array (chunks for the cnmf)for the parrallelization of the process
+    # we create a pixel group array (chunks for the cnmf)for the parallelization of the process
     logging.info('Updating Spatial Components using lasso lars')
     cct = np.diag(C.dot(C.T))
     pixel_groups = []
@@ -259,17 +259,16 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
     if np.size(ff) > 0:
         logging.info('removing {0} empty spatial component(s)'.format(ff.shape[0]))
         if any(ff < nr):
-            #A_ = np.delete(A_, list(ff[ff < nr]), 1)
             A_ = csc_column_remove(A_, list(ff[ff < nr]))
             C = np.delete(C, list(ff[ff < nr]), 0)
+            ff -= nr
             nr = nr - len(ff[ff < nr])
+        else:
+            ff -= nr
         if update_background_components:
-            if low_rank_background:
-                background_ff = list(filter(lambda i: i >= nb, ff - nr))
-                f = np.delete(f, background_ff, 0)
-            else:
-                background_ff = list(filter(lambda i: i >= 0, ff - nr))
-                f = np.delete(f, background_ff, 0)
+            background_ff = list(filter(lambda i: i >= 0, ff))
+            f = np.delete(f, background_ff, 0)
+            if b_in is not None:
                 b_in = np.delete(b_in, background_ff, 1)
 
     A_ = A_[:, :nr]    
@@ -494,7 +493,7 @@ def threshold_components(A, dims, medw=None, thr_method='max', maxthr=0.1, nrgth
         se: [optional] np.intarray
             Morphological closing structuring element
 
-        ss: [optinoal] np.intarray
+        ss: [optional] np.intarray
             Binary element for determining connectivity
 
     Returns:
@@ -512,7 +511,7 @@ def threshold_components(A, dims, medw=None, thr_method='max', maxthr=0.1, nrgth
     # instanciation of A thresh.
     #Ath = np.zeros((d, nr))
     pars = []
-    # fo each neurons
+    # for each neurons
     A_1 = scipy.sparse.csc_matrix(A)
     for i in range(nr):
         pars.append([A_1[:, i], i, dims,
@@ -579,7 +578,7 @@ def threshold_components_parallel(pars):
                se: [optional] np.intarray
                    Morphological closing structuring element
 
-               ss: [optinoal] np.intarray
+               ss: [optional] np.intarray
                    Binary element for determining connectivity
 
        Returns:
@@ -617,7 +616,7 @@ def threshold_components_parallel(pars):
     #
     # we want to extract the largest connected component ( to remove small unconnected pixel )
     if extract_cc:
-        # we extract each future as independent with the cross structuring elemnt
+        # we extract each future as independent with the cross structuring element
         labeled_array, num_features = label(BW, structure=ss)
         labeled_array = np.squeeze(np.reshape(labeled_array, (d, 1)))
         nrg = np.zeros((num_features, 1))
@@ -691,10 +690,10 @@ def calcAvec(new, dQ, W, lambda_, active_set, M, positive):
 
     Returns:
         C_name: string
-            the memmaped name of Cf
+            the memmapped name of Cf
 
         Y_name: string
-            the memmaped name of Y
+            the memmapped name of Y
     """
     r, c = np.nonzero(active_set)
     Mm = -M.take(r, axis=0).take(r, axis=1)
@@ -786,11 +785,12 @@ def test(Y, A_in, C, f, n_pixels_per_process, nb):
             raise Exception('Dimension of Matrix C must be neurons x time')
 
     if f is not None:
-
         f = np.atleast_2d(f)
         if f.shape[1] == 1:
             raise Exception(
                 'Dimension of Matrix f must be background comps x time ')
+    else:
+        f = np.zeros((0, Y.shape[1]), dtype=np.float32)
 
     if (A_in is None) and (C is None):
         raise Exception('Either A or C need to be determined')
@@ -893,7 +893,7 @@ def determine_search_location(A, dims, method='ellipse', min_size=3, max_size=8,
                 cm[:, i] = old_div(
                     np.dot(Coor[c], A[:, :nr].todense()), A[:, :nr].sum(axis=0))
 
-            # parrallelizing process of the construct ellipse function
+            # parallelizing process of the construct ellipse function
             for i in range(nr):
                 pars.append([Coor, cm[i], A[:, i], Vr, dims,
                              dist, max_size, min_size, d])
@@ -1061,7 +1061,7 @@ def computing_indicator(Y, A_in, b, C, f, nb, method, dims, min_size, max_size, 
             not_px = 1 - px
             if Y.shape[-1] < 30000:
                 f = Y[not_px, :].mean(0)
-            else:  # momory mapping fails here for some reasons
+            else:  # memory mapping fails here for some reasons
                 print('estimating f')
                 f = 0
                 for xxx in not_px:
@@ -1100,7 +1100,7 @@ def computing_indicator(Y, A_in, b, C, f, nb, method, dims, min_size, max_size, 
 def creatememmap(Y, Cf, dview):
     """memmap the C and Y objects in parallel
 
-       the memmaped object will be read during parallelized computation such as the regression function
+       the memmapped object will be read during parallelized computation such as the regression function
 
        Args:
            Y: np.ndarray (2D or 3D)
@@ -1111,10 +1111,10 @@ def creatememmap(Y, Cf, dview):
 
        Returns:
            C_name: string
-                the memmaped name of Cf
+                the memmapped name of Cf
 
            Y_name: string
-                the memmaped name of Y
+                the memmapped name of Y
 
            Raises:
            Exception 'Not implemented consistently'

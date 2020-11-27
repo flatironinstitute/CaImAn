@@ -210,7 +210,7 @@ def update_temporal_components(Y, A, b, Cin, fin, bl=None, c1=None, g=None, sn=N
         YA = (A.T.dot(Y).T) * diags(1. / nA)
     AA = ((A.T.dot(A)) * diags(1. / nA)).tocsr()
     YrA = YA - AA.T.dot(Cin).T
-    # creating the patch of components to be computed in parrallel
+    # creating the patch of components to be computed in parallel
     parrllcomp, len_parrllcomp = update_order_greedy(AA[:nr, :][:, :nr])
     logging.info("entering the deconvolution ")
     C, S, bl, YrA, c1, sn, g, lam = update_iteration(parrllcomp, len_parrllcomp, nb, C, S, bl, nr,

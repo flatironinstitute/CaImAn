@@ -1520,23 +1520,39 @@ def load(file_name: Union[str, List[str]],
             if mjv == 2:
                 extension = '.h5'
 
-        if extension in ['.tif', '.tiff', '.btf']:  # load avi file
+        if extension in ['.tif', '.tiff', '.btf']:  # load tif file
             with tifffile.TiffFile(file_name) as tffl:
                 multi_page = True if tffl.series[0].shape[0] > 1 else False
                 if len(tffl.pages) == 1:
-                    logging.warning('Your tif file is saved a single page' + 'file. Performance will be affected')
+                    logging.warning('Your tif file is saved a single page' +
+                                    'file. Performance will be affected')
                     multi_page = False
                 if subindices is not None:
-                    #if isinstance(subindices, (list, tuple)): # is list or tuple:
+                    # if isinstance(subindices, (list, tuple)): # is list or tuple:
                     if isinstance(subindices, list):  # is list or tuple:
                         if multi_page:
-                            input_arr = tffl.asarray(key=subindices[0])[:, subindices[1], subindices[2]]
+                            if len(tffl.series[0].shape) < 4:
+                                input_arr = tffl.asarray(key=subindices[0])[:, subindices[1], subindices[2]]
+                            else:  # 3D
+                                shape = tffl.series[0].shape
+                                ts = np.arange(shape[0])[subindices[0]]
+                                input_arr = tffl.asarray(key=np.ravel(ts[:, None] * shape[1] +
+                                                                      np.arange(shape[1]))
+                                                         ).reshape((len(ts),) + shape[1:])[
+                                    :, subindices[1], subindices[2], subindices[3]]
                         else:
-                            input_arr = tffl.asarray()
-                            input_arr = input_arr[subindices[0], subindices[1], subindices[2]]
+                            input_arr = tffl.asarray()[tuple(subindices)]
+
                     else:
                         if multi_page:
-                            input_arr = tffl.asarray(key=subindices)
+                            if len(tffl.series[0].shape) < 4:
+                                input_arr = tffl.asarray(key=subindices)
+                            else:  # 3D
+                                shape = tffl.series[0].shape
+                                ts = np.arange(shape[0])[subindices]
+                                input_arr = tffl.asarray(key=np.ravel(ts[:, None] * shape[1] +
+                                                                      np.arange(shape[1]))
+                                                         ).reshape((len(ts),) + shape[1:])
                         else:
                             input_arr = tffl.asarray()
                             input_arr = input_arr[subindices]
@@ -1546,7 +1562,7 @@ def load(file_name: Union[str, List[str]],
 
                 input_arr = np.squeeze(input_arr)
 
-        elif extension == '.avi':      # load avi file
+        elif extension in ('.avi', '.mkv'):      # load video file
             cap = cv2.VideoCapture(file_name)
 
             try:
@@ -1672,11 +1688,14 @@ def load(file_name: Union[str, List[str]],
                         var_name_hdf5 = fkeys[0]
 
                     if extension == '.nwb':
-                        fgroup = f[var_name_hdf5]['data']
+                        try:
+                            fgroup = f[var_name_hdf5]['data']
+                        except:
+                            fgroup = f['acquisition'][var_name_hdf5]['data']
                     else:
                         fgroup = f[var_name_hdf5]
 
-                    if var_name_hdf5 in f:
+                    if var_name_hdf5 in f or var_name_hdf5 in f['acquisition']:
                         if subindices is None:
                             images = np.array(fgroup).squeeze()
                             #if images.ndim > 3:
@@ -2135,7 +2154,7 @@ def rolling_window(ndarr, window_size, stride):
            yield ndarr[:,i+stride:]
 
 
-def load_iter(file_name, subindices=None, var_name_hdf5: str = 'mov'):
+def load_iter(file_name, subindices=None, var_name_hdf5: str = 'mov', outtype=np.float32):
     """
     load iterator over movie from file. Supports a variety of formats. tif, hdf5, avi.
 
@@ -2145,6 +2164,11 @@ def load_iter(file_name, subindices=None, var_name_hdf5: str = 'mov'):
 
         subindices: iterable indexes
             for loading only a portion of the movie
+
+        var_name_hdf5: str
+            if loading from hdf5 name of the variable to load
+
+        outtype: The data type for the movie
 
     Returns:
         iter: iterator over movie
@@ -2167,14 +2191,14 @@ def load_iter(file_name, subindices=None, var_name_hdf5: str = 'mov'):
                     subindices = slice(subindices.start, subindices.stop, subindices.step)
                 Y = Y[subindices]
             for y in Y:
-                yield y.asarray()
-        elif extension == '.avi':
+                yield y.asarray().astype(outtype)
+        elif extension in ('.avi', '.mkv'):
             cap = cv2.VideoCapture(file_name)
             if subindices is None:
                 while True:
                     ret, frame = cap.read()
                     if ret:
-                        yield frame[..., 0]
+                        yield frame[..., 0].astype(outtype)
                     else:
                         cap.release()
                         return
@@ -2197,7 +2221,7 @@ def load_iter(file_name, subindices=None, var_name_hdf5: str = 'mov'):
                         ret, frame = cap.read()
                         t += 1
                     if ret:
-                        yield frame[..., 0]
+                        yield frame[..., 0].astype(outtype)
                     else:
                         return
                         #raise StopIteration
@@ -2205,22 +2229,23 @@ def load_iter(file_name, subindices=None, var_name_hdf5: str = 'mov'):
 
                 return
                 #raise StopIteration
-        elif extension in ('.hdf5', '.h5', '.mat'):
+        elif extension in ('.hdf5', '.h5', '.nwb', '.mat'):
             with h5py.File(file_name, "r") as f:
-                Y = f.get(var_name_hdf5)
+                Y = f.get('acquisition/' + var_name_hdf5 + '/data'
+                           if extension == '.nwb' else var_name_hdf5)
                 if subindices is None:
                     for y in Y:
-                        yield y
+                        yield y.astype(outtype)
                 else:
                     if type(subindices) is slice:
                         subindices = range(subindices.start,
                                            len(Y) if subindices.stop is None else subindices.stop,
                                            1 if subindices.step is None else subindices.step)
                     for ind in subindices:
-                        yield Y[ind]
+                        yield Y[ind].astype(outtype)
         else:  # fall back to memory inefficient version
             for y in load(file_name, var_name_hdf5=var_name_hdf5,
-                          subindices=subindices):
+                          subindices=subindices, outtype=outtype):
                 yield y
     else:
         logging.error(f"File request:[{file_name}] not found!")

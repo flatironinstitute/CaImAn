@@ -67,6 +67,9 @@ def volspike(pars):
 
                     hp_freq: float
                         high-pass cutoff frequency to filter the signal after computing the trace
+                        
+                    clip: int
+                        maximum number of spikes for producing templates
 
                     threshold_method: str
                         'simple' or 'adaptive_threshold' method for thresholding signals
@@ -208,7 +211,7 @@ def volspike(pars):
         data = -data
     else:
         pass
-
+    
     # remove photobleaching effect by high pass filtering signal
     output['mean_im'] = np.mean(data, axis=0)
     data = np.reshape(data, (data.shape[0], -1))
@@ -216,7 +219,7 @@ def volspike(pars):
     data = data - np.mean(data, 0)   #do again because of numeric issues
     data_hp = signal_filter(data.T, args['hp_freq_pb'], fr).T  
     data_lp = data - data_hp
-    
+
     # initial trace
     if weights_init is None:
         t0 = np.nanmean(data_hp[:, bw.ravel()], 1)
@@ -232,9 +235,9 @@ def volspike(pars):
     
     # find out spikes of initial trace
     ts, spikes, t_rec, templates, low_spikes, thresh = denoise_spikes(t0, 
-                                          window_length, fr, hp_freq=args['hp_freq'],
+                                          window_length, fr, hp_freq=args['hp_freq'], clip=args['clip'],
                                           threshold_method=args['threshold_method'], threshold=args['threshold'], 
-                                          min_spikes=args['min_spikes'], last_round=False, do_plot=False)
+                                          min_spikes=args['min_spikes'], do_plot=False)
 
     output['rawROI']['t'] = t0.copy()
     output['rawROI']['ts'] = ts.copy()
@@ -282,10 +285,8 @@ def volspike(pars):
     for iteration in range(args['n_iter']):
         if iteration == args['n_iter'] - 1:
             do_plot = args['do_plot']
-            last_round = True
         else:
             do_plot = False
-            last_round = False
             
         # update spatial weights
         tr = np.single(t_rec.copy())
@@ -323,15 +324,15 @@ def volspike(pars):
         # ridge regression to remove background components
         b = Ridge(alpha=alpha, fit_intercept=False, solver='lsqr').fit(Ub, t).coef_
         t = t - np.matmul(Ub, b)
-   
+
         # correct shrinkage
         t = np.double(t * np.mean(t0[spikes]) / np.mean(t[spikes]))
 
         # generate the new trace and the new denoised trace
         ts, spikes, t_rec, templates, low_spikes, thresh = denoise_spikes(t, 
-                    window_length, fr,  hp_freq=args['hp_freq'], 
+                    window_length, fr,  hp_freq=args['hp_freq'], clip=args['clip'],
                     threshold_method=args['threshold_method'], threshold=args['threshold'], 
-                    min_spikes=args['min_spikes'], last_round=last_round, do_plot=do_plot)
+                    min_spikes=args['min_spikes'], do_plot=do_plot)
     
         num_spikes.append(spikes.shape[0])
 
@@ -394,8 +395,8 @@ def volspike(pars):
     return output
 
 
-def denoise_spikes(data, window_length, fr=400,  hp_freq=1, threshold_method='simple', 
-                   min_spikes=5, threshold=3.5, last_round=False, do_plot=True):
+def denoise_spikes(data, window_length, fr=400,  hp_freq=1,  clip=2000, threshold_method='simple', 
+                   min_spikes=5, threshold=3.5,  do_plot=True):
     """ Function for finding spikes and the temporal filter given one dimensional signals.
         Use function whitened_matched_filter to denoise spikes. Two thresholding methods can be 
         chosen, 'simple' or 'adaptive thresholding'.
@@ -412,6 +413,9 @@ def denoise_spikes(data, window_length, fr=400,  hp_freq=1, threshold_method='si
             
         hp_freq: float
             high-pass cutoff frequency to filter the signal after computing the trace
+            
+        clip: int
+            maximum number of spikes for producing templates
 
         threshold_method: str
             'simple' or 'adaptive_threshold' method for thresholding signals
@@ -424,10 +428,7 @@ def denoise_spikes(data, window_length, fr=400,  hp_freq=1, threshold_method='si
         threshold: float
             threshold for spike detection in 'simple' threshold method 
             The real threshold is the value multiply estimated noise level
-            
-        last_round: boolean
-            if True no limit number of spikes to be found in the second round
-            
+
         do_plot: boolean
             if Ture, will plot trace of signals and spiketimes, peak triggered
             average, histogram of heights
@@ -454,11 +455,10 @@ def denoise_spikes(data, window_length, fr=400,  hp_freq=1, threshold_method='si
     # high-pass filter the signal to remove part of subthreshold activity
     data = data - np.median(data)
     data = signal_filter(data, hp_freq, fr, order=5)
-    data = gaussian_filter1d(data, fr/500)          #fr/500
         
     low_spikes = False
     data = data - np.median(data)
-    pks = data[signal.find_peaks(data, height=None, distance=int(fr/100))[0]]
+    pks = data[signal.find_peaks(data, height=None)[0]]
 
     # find spikes    
     if threshold_method == 'simple':
@@ -466,14 +466,18 @@ def denoise_spikes(data, window_length, fr=400,  hp_freq=1, threshold_method='si
         Ns = np.sum(ff1 > 0)
         std = np.sqrt(np.divide(np.sum(ff1**2), Ns)) 
         thresh = 3.5 * std
-        locs = signal.find_peaks(data, height=thresh, distance=int(fr/100))[0]
+        locs = signal.find_peaks(data, height=thresh)[0]
         if len(locs) < min_spikes:
             logging.warning(f'less than {min_spikes} spikes are found, pick top {min_spikes} spikes')
             thresh = np.percentile(pks, 100 * (1 - min_spikes / len(pks)))
-            locs = signal.find_peaks(data, height=thresh, distance=int(fr/100))[0]
+            locs = signal.find_peaks(data, height=thresh)[0]
             low_spikes = True
+        elif ((len(locs) > clip) & (clip > 0)):
+            logging.warning(f'Selecting top {clip} spikes for template')
+            thresh = np.percentile(pks, 100 * (1 - clip / len(pks)))
+            locs = signal.find_peaks(data, height=thresh)[0]
     elif threshold_method == 'adaptive_threshold':
-        thresh, _, _, low_spikes = get_thresh(pks, 100, 0.25, min_spikes)
+        thresh, _, _, low_spikes = get_thresh(pks, clip, 0.25, min_spikes)
         locs = signal.find_peaks(data, height=thresh)[0]
     else:
         logging.warning("Error: threshold_method not found")
@@ -483,7 +487,8 @@ def denoise_spikes(data, window_length, fr=400,  hp_freq=1, threshold_method='si
     window = np.int64(np.arange(-window_length, window_length + 1, 1))
     locs = locs[np.logical_and(locs > (-window[0]), locs < (len(data) - window[-1]))]
     PTD = data[(locs[:, np.newaxis] + window)]
-    PTA = np.mean(PTD, 0)
+    PTA = np.median(PTD, 0)
+    PTA = PTA - np.min(PTA)
     templates = PTA
 
     # whitened matched filter
@@ -491,35 +496,29 @@ def denoise_spikes(data, window_length, fr=400,  hp_freq=1, threshold_method='si
     datafilt = datafilt - np.median(datafilt)
 
     # spikes detected after filter
-    pks2 = datafilt[signal.find_peaks(datafilt, height=None, distance=int(fr/100))[0]]
+    pks2 = datafilt[signal.find_peaks(datafilt, height=None)[0]]
     if threshold_method == 'simple':
         ff1 = -datafilt * (datafilt < 0)
         Ns = np.sum(ff1 > 0)
         std2 = np.sqrt(np.divide(np.sum(ff1**2), Ns)) 
         thresh2 = threshold * std2
-        spikes = signal.find_peaks(datafilt, height=thresh2, distance=int(fr/100))[0]
+        spikes = signal.find_peaks(datafilt, height=thresh2)[0]
+        
         if len(spikes) < min_spikes:
             low_spikes = True
-            if last_round == True:
-                logging.warning(f'last round: less than {min_spikes} spikes are found')
-            else:
-                logging.warning(f'less than {min_spikes} spikes are found, pick top {min_spikes} spikes')
-                thresh2 = np.percentile(pks2, 100 * (1 - min_spikes / len(pks2)))
-                spikes = signal.find_peaks(datafilt, height=thresh2, distance=int(fr/100))[0]
+            logging.warning(f'Less than {min_spikes} spikes were found. Picking top {min_spikes} spikes')
+            thresh2 = np.percentile(pks2, 100 * (1 - min_spikes / len(pks2)))
+            spikes = signal.find_peaks(datafilt, height=thresh2)[0]
     elif threshold_method == 'adaptive_threshold':
         thresh2, falsePosRate, detectionRate, _ = get_thresh(pks2, clip=0, pnorm=0.5, min_spikes=min_spikes)  # clip=0 means no clipping
         spikes = signal.find_peaks(datafilt, height=thresh2)[0]
-    
-    if len(spikes) > 0:
-        t_rec = np.zeros(data.shape)
-        t_rec[spikes] = 1
-        t_rec = np.convolve(t_rec, PTA, 'same')   
-        # filtering shrinks the data;
-        # rescale so that the mean value at the peaks is same as in the input
-        datafilt = datafilt * np.mean(data[spikes]) / np.mean(datafilt[spikes])
-        thresh2 = thresh2 * np.mean(data[spikes]) / np.mean(datafilt[spikes])
-    else:
-        t_rec = np.zeros(data.shape)
+
+    t_rec = np.zeros(datafilt.shape)
+    t_rec[spikes] = 1
+    t_rec = np.convolve(t_rec, PTA, 'same')   
+    factor = np.mean(data[spikes]) / np.mean(datafilt[spikes])
+    datafilt = datafilt * factor
+    thresh2_normalized = thresh2 * factor
         
     if do_plot:
         plt.figure()
@@ -555,7 +554,7 @@ def denoise_spikes(data, window_length, fr=400,  hp_freq=1, threshold_method='si
                  linestyle='none')
         plt.show()
 
-    return datafilt, spikes, t_rec, templates, low_spikes, thresh2
+    return datafilt, spikes, t_rec, templates, low_spikes, thresh2_normalized
 
 def get_thresh(pks, clip, pnorm=0.5, min_spikes=30):
     """ Function for deciding threshold given heights of all peaks.
@@ -627,7 +626,7 @@ def get_thresh(pks, clip, pnorm=0.5, min_spikes=30):
         logging.warning(f'Few spikes were detected. Adjusting threshold to take {min_spikes} largest spikes')
         thresh = np.percentile(pks, 100 * (1 - min_spikes / len(pks)))
     elif ((np.sum(pks > thresh) > clip) & (clip > 0)):
-        logging.warning(f'Selecting top {min_spikes} spikes for template')
+        logging.warning(f'Selecting top {clip} spikes for template')
         thresh = np.percentile(pks, 100 * (1 - clip / len(pks)))
 
     ix = np.argmin(np.abs(xi - thresh))

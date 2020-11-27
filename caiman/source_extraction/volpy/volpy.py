@@ -24,7 +24,7 @@ class VOLPY(object):
     """
     def __init__(self, n_processes, dview=None, context_size=35, censor_size=12, 
                  flip_signal=True, hp_freq_pb=1/3, nPC_bg=8, ridge_bg=0.01,  
-                 hp_freq=1, threshold_method='simple', min_spikes=10, threshold=4, 
+                 hp_freq=1, clip=2000, threshold_method='simple', min_spikes=10, threshold=4, 
                  sigmas=np.array([1, 1.5, 2]), n_iter=2, weight_update='ridge', 
                  do_plot=True, do_cross_val=False, sub_freq=75, 
                  method='spikepursuit', superfactor=10, params=None):
@@ -59,6 +59,9 @@ class VOLPY(object):
 
             hp_freq: float
                 high-pass cutoff frequency to filter the signal after computing the trace
+                
+            clip: int
+                maximum number of spikes for producing templates
 
             threshold_method: str
                 'simple' or 'adaptive_threshold' method for thresholding signals

@@ -232,9 +232,18 @@ class MotionCorrect(object):
         #       from a method that is not a constructor
         if self.min_mov is None:
             if self.gSig_filt is None:
-                self.min_mov = np.array([cm.load(self.fname[0],
-                                                 var_name_hdf5=self.var_name_hdf5,
-                                                 subindices=slice(400))]).min()
+                # self.min_mov = np.array([cm.load(self.fname[0],
+                #                                  var_name_hdf5=self.var_name_hdf5,
+                #                                  subindices=slice(400))]).min()
+                iterator = cm.base.movies.load_iter(self.fname[0],
+                                                    var_name_hdf5=self.var_name_hdf5)
+                mi = np.inf
+                for _ in range(400):
+                    try:
+                        mi = min(mi, next(iterator).min()[()])
+                    except StopIteration:
+                        break
+                self.min_mov = mi
             else:
                 self.min_mov = np.array([high_pass_filter_space(m_, self.gSig_filt)
                     for m_ in cm.load(self.fname[0], var_name_hdf5=self.var_name_hdf5,
@@ -429,7 +438,11 @@ class MotionCorrect(object):
                             ' of {}'.format(self.pw_rigid))            
         
         if self.pw_rigid is False:
-            if self.shifts_opencv:
+            if self.is3D:
+                m_reg = [apply_shifts_dft(img, (sh[0], sh[1], sh[2]), 0,
+                                          is_freq=False, border_nan=self.border_nan)
+                         for img, sh in zip(Y, self.shifts_rig)]
+            elif self.shifts_opencv:
                 m_reg = [apply_shift_iteration(img, shift, border_nan=self.border_nan)
                          for img, shift in zip(Y, self.shifts_rig)]
             else:
@@ -437,20 +450,41 @@ class MotionCorrect(object):
                     sh[0], sh[1]), 0, is_freq=False, border_nan=self.border_nan) for img, sh in zip(
                     Y, self.shifts_rig)]
         else:
-            xy_grid = [(it[0], it[1]) for it in sliding_window(Y[0], self.overlaps, self.strides)]
-            dims_grid = tuple(np.max(np.stack(xy_grid, axis=1), axis=1) - np.min(
-                np.stack(xy_grid, axis=1), axis=1) + 1)
-            shifts_x = np.stack([np.reshape(_sh_, dims_grid, order='C').astype(
-                np.float32) for _sh_ in self.x_shifts_els], axis=0)
-            shifts_y = np.stack([np.reshape(_sh_, dims_grid, order='C').astype(
-                np.float32) for _sh_ in self.y_shifts_els], axis=0)
-            dims = Y.shape[1:]
-            x_grid, y_grid = np.meshgrid(np.arange(0., dims[1]).astype(
-                np.float32), np.arange(0., dims[0]).astype(np.float32))
-            m_reg = [cv2.remap(img, -cv2.resize(shiftY, dims[::-1]) + x_grid,
-                               -cv2.resize(shiftX, dims[::-1]) + y_grid,
-                               cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
-                     for img, shiftX, shiftY in zip(Y, shifts_x, shifts_y)]
+            if self.is3D:
+                xyz_grid = [(it[0], it[1], it[2]) for it in sliding_window_3d(
+                            Y[0], self.overlaps, self.strides)]
+                dims_grid = tuple(np.add(xyz_grid[-1], 1))
+                shifts_x = np.stack([np.reshape(_sh_, dims_grid, order='C').astype(
+                    np.float32) for _sh_ in self.x_shifts_els], axis=0)
+                shifts_y = np.stack([np.reshape(_sh_, dims_grid, order='C').astype(
+                    np.float32) for _sh_ in self.y_shifts_els], axis=0)
+                shifts_z = np.stack([np.reshape(_sh_, dims_grid, order='C').astype(
+                    np.float32) for _sh_ in self.z_shifts_els], axis=0)
+                dims = Y.shape[1:]
+                x_grid, y_grid, z_grid = np.meshgrid(np.arange(0., dims[1]).astype(
+                    np.float32), np.arange(0., dims[0]).astype(np.float32),
+                    np.arange(0., dims[2]).astype(np.float32))
+                m_reg = [warp_sk(img, np.stack((resize_sk(shiftX.astype(np.float32), dims) + y_grid,
+                                 resize_sk(shiftY.astype(np.float32), dims) + x_grid,
+                                 resize_sk(shiftZ.astype(np.float32), dims) + z_grid), axis=0),
+                                 order=3, mode='constant')
+                         for img, shiftX, shiftY, shiftZ in zip(Y, shifts_x, shifts_y, shifts_z)]
+                                 # borderValue=add_to_movie)
+            else:
+                xy_grid = [(it[0], it[1]) for it in sliding_window(Y[0], self.overlaps, self.strides)]
+                dims_grid = tuple(np.max(np.stack(xy_grid, axis=1), axis=1) - np.min(
+                    np.stack(xy_grid, axis=1), axis=1) + 1)
+                shifts_x = np.stack([np.reshape(_sh_, dims_grid, order='C').astype(
+                    np.float32) for _sh_ in self.x_shifts_els], axis=0)
+                shifts_y = np.stack([np.reshape(_sh_, dims_grid, order='C').astype(
+                    np.float32) for _sh_ in self.y_shifts_els], axis=0)
+                dims = Y.shape[1:]
+                x_grid, y_grid = np.meshgrid(np.arange(0., dims[1]).astype(
+                    np.float32), np.arange(0., dims[0]).astype(np.float32))
+                m_reg = [cv2.remap(img, -cv2.resize(shiftY, dims[::-1]) + x_grid,
+                                   -cv2.resize(shiftX, dims[::-1]) + y_grid,
+                                   cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
+                         for img, shiftX, shiftY in zip(Y, shifts_x, shifts_y)]
         m_reg = np.stack(m_reg, axis=0)
         if save_memmap:
             dims = m_reg.shape
@@ -1263,8 +1297,6 @@ def _upsampled_dft(data, upsampled_region_size,
     output = np.tensordot(output, col_kernel, axes = [1,0])
 
     if data.ndim > 2:
-        #import pdb
-        #pdb.set_trace()
         output = np.tensordot(output, pln_kernel, axes = [1,1])
     #output = row_kernel.dot(data).dot(col_kernel)
     return output
@@ -1985,15 +2017,53 @@ def create_weight_matrix_for_blending(img, overlaps, strides):
 
         yield weight_mat
 
-def high_pass_filter_space(img_orig, gSig_filt):
-    ksize = tuple([(3 * i) // 2 * 2 + 1 for i in gSig_filt])
-    ker = cv2.getGaussianKernel(ksize[0], gSig_filt[0])
-    ker2D = ker.dot(ker.T)
-    nz = np.nonzero(ker2D >= ker2D[:, 0].max())
-    zz = np.nonzero(ker2D < ker2D[:, 0].max())
-    ker2D[nz] -= ker2D[nz].mean()
-    ker2D[zz] = 0
-    return cv2.filter2D(np.array(img_orig, dtype=np.float32), -1, ker2D, borderType=cv2.BORDER_REFLECT)
+def high_pass_filter_space(img_orig, gSig_filt=None, freq=None, order=None):
+    """
+    Function for high passing the image(s) with centered Gaussian if gSig_filt
+    is specified or Butterworth filter if freq and order are specified
+
+    Args:
+        img_orig: 2-d or 3-d array
+            input image/movie
+
+        gSig_filt:
+            size of the Gaussian filter 
+
+        freq: float
+            cutoff frequency of the Butterworth filter
+
+        order: int
+            order of the Butterworth filter
+
+    Returns:
+        img: 2-d array or 3-d movie
+            image/movie after filtering            
+    """
+    if freq is None or order is None:  # Gaussian
+        ksize = tuple([(3 * i) // 2 * 2 + 1 for i in gSig_filt])
+        ker = cv2.getGaussianKernel(ksize[0], gSig_filt[0])
+        ker2D = ker.dot(ker.T)
+        nz = np.nonzero(ker2D >= ker2D[:, 0].max())
+        zz = np.nonzero(ker2D < ker2D[:, 0].max())
+        ker2D[nz] -= ker2D[nz].mean()
+        ker2D[zz] = 0
+        if img_orig.ndim == 2:  # image
+            return cv2.filter2D(np.array(img_orig, dtype=np.float32),
+                                -1, ker2D, borderType=cv2.BORDER_REFLECT)
+        else:  # movie
+            return cm.movie(np.array([cv2.filter2D(np.array(img, dtype=np.float32),
+                                -1, ker2D, borderType=cv2.BORDER_REFLECT) for img in img_orig]))     
+    else:  # Butterworth
+        rows, cols = img_orig.shape[-2:]
+        xx, yy = np.meshgrid(np.arange(cols, dtype=np.float32) - cols / 2,
+                             np.arange(rows, dtype=np.float32) - rows / 2, sparse=True)
+        H = np.fft.ifftshift(1 - 1 / (1 + ((xx**2 + yy**2)/freq**2)**order))
+        if img_orig.ndim == 2:  # image
+            return cv2.idft(cv2.dft(img_orig, flags=cv2.DFT_COMPLEX_OUTPUT) *
+                            H[..., None])[..., 0] / (rows*cols)
+        else:  # movie
+            return cm.movie(np.array([cv2.idft(cv2.dft(img, flags=cv2.DFT_COMPLEX_OUTPUT) * 
+                            H[..., None])[..., 0] for img in img_orig]) / (rows*cols))
 
 def tile_and_correct(img, template, strides, overlaps, max_shifts, newoverlaps=None, newstrides=None, upsample_factor_grid=4,
                      upsample_factor_fft=10, show_movie=False, max_deviation_rigid=2, add_to_movie=0, shifts_opencv=False, gSig_filt=None,
@@ -2380,7 +2450,7 @@ def tile_and_correct_3d(img:np.ndarray, template:np.ndarray, strides:Tuple, over
                               order=3, mode='constant')
                              # borderValue=add_to_movie)
             total_shifts = [
-                    (-x, -y, z) for x, y, z in zip(shift_img_x.reshape(num_tiles), shift_img_y.reshape(num_tiles), shift_img_z.reshape(num_tiles))]
+                    (-x, -y, -z) for x, y, z in zip(shift_img_x.reshape(num_tiles), shift_img_y.reshape(num_tiles), shift_img_z.reshape(num_tiles))]
             return m_reg - add_to_movie, total_shifts, None, None
 
         # create automatically upsample parameters if not passed
@@ -2507,12 +2577,19 @@ def compute_flow_single_frame(frame, templ, pyr_scale=.5, levels=3, winsize=100,
 
 def compute_metrics_motion_correction(fname, final_size_x, final_size_y, swap_dim, pyr_scale=.5, levels=3,
                                       winsize=100, iterations=15, poly_n=5, poly_sigma=1.2 / 5, flags=0,
-                                      play_flow=False, resize_fact_flow=.2, template=None):
+                                      play_flow=False, resize_fact_flow=.2, template=None,
+                                      opencv=True, resize_fact_play=3, fr_play=30, max_flow=1,
+                                      gSig_filt=None):
     #todo: todocument
     # cv2.OPTFLOW_FARNEBACK_GAUSSIAN
     import scipy
-    vmin, vmax = -1, 1
+    vmin, vmax = -max_flow, max_flow
     m = cm.load(fname)
+    if gSig_filt is not None:
+        m = high_pass_filter_space(m, gSig_filt)
+    mi, ma = m.min(), m.max()
+    m_min = mi + (ma - mi) / 100
+    m_max = mi + (ma - mi) / 4
 
     max_shft_x = np.int(np.ceil((np.shape(m)[1] - final_size_x) / 2))
     max_shft_y = np.int(np.ceil((np.shape(m)[2] - final_size_y) / 2))
@@ -2570,24 +2647,49 @@ def compute_metrics_motion_correction(fname, final_size_x, final_size_y, swap_di
             tmpl, fr, None, pyr_scale, levels, winsize, iterations, poly_n, poly_sigma, flags)
 
         if play_flow:
-            pl.subplot(1, 3, 1)
-            pl.cla()
-            pl.imshow(fr, vmin=0, vmax=300, cmap='gray')
-            pl.title('movie')
-            pl.subplot(1, 3, 3)
-            pl.cla()
-            pl.imshow(flow[:, :, 1], vmin=vmin, vmax=vmax)
-            pl.title('y_flow')
-
-            pl.subplot(1, 3, 2)
-            pl.cla()
-            pl.imshow(flow[:, :, 0], vmin=vmin, vmax=vmax)
-            pl.title('x_flow')
-            pl.pause(.05)
+            if opencv:
+                dims = tuple(np.array(flow.shape[:-1]) * resize_fact_play)
+                vid_frame = np.concatenate([
+                    np.repeat(np.clip((cv2.resize(fr, dims)[..., None] - m_min) /
+                                      (m_max - m_min), 0, 1), 3, -1),
+                    np.transpose([cv2.resize(np.clip(flow[:, :, 1] / vmax, 0, 1), dims),
+                                  np.zeros(dims, np.float32),
+                                  cv2.resize(np.clip(flow[:, :, 1] / vmin, 0, 1), dims)],
+                                  (1, 2, 0)),
+                    np.transpose([cv2.resize(np.clip(flow[:, :, 0] / vmax, 0, 1), dims),
+                                  np.zeros(dims, np.float32),
+                                  cv2.resize(np.clip(flow[:, :, 0] / vmin, 0, 1), dims)],
+                                  (1, 2, 0))], 1).astype(np.float32)
+                cv2.putText(vid_frame, 'movie', (10, 20), fontFace=5, fontScale=0.8, color=(
+                    0, 255, 0), thickness=1)
+                cv2.putText(vid_frame, 'y_flow', (dims[0] + 10, 20), fontFace=5, fontScale=0.8, color=(
+                    0, 255, 0), thickness=1)
+                cv2.putText(vid_frame, 'x_flow', (2 * dims[0] + 10, 20), fontFace=5, fontScale=0.8, color=(
+                    0, 255, 0), thickness=1)
+                cv2.imshow('frame', vid_frame)
+                pl.pause(1 / fr_play)
+                if cv2.waitKey(1) & 0xFF == ord('q'):
+                    break
+            else:
+                pl.subplot(1, 3, 1)
+                pl.cla()
+                pl.imshow(fr, vmin=m_min, vmax=m_max, cmap='gray')
+                pl.title('movie')
+                pl.subplot(1, 3, 3)
+                pl.cla()
+                pl.imshow(flow[:, :, 1], vmin=vmin, vmax=vmax)
+                pl.title('y_flow')
+                pl.subplot(1, 3, 2)
+                pl.cla()
+                pl.imshow(flow[:, :, 0], vmin=vmin, vmax=vmax)
+                pl.title('x_flow')
+                pl.pause(1 / fr_play)
 
         n = np.linalg.norm(flow)
         flows.append(flow)
         norms.append(n)
+    if play_flow and opencv:
+        cv2.destroyAllWindows()
 
     np.savez(fname[:-4] + '_metrics', flows=flows, norms=norms, correlations=correlations, smoothness=smoothness,
              tmpl=tmpl, smoothness_corr=smoothness_corr, img_corr=img_corr)
@@ -2683,6 +2785,8 @@ def motion_correct_batch_rigid(fname, max_shifts, dview=None, splits=56, num_spl
 #            template = caiman.motion_correction.bin_median_3d(
 #                    m.motion_correct_3d(max_shifts[2], max_shifts[1], max_shifts[0], template=None)[0])
         else:
+            if not m.flags['WRITEABLE']:
+                m = m.copy()
             template = caiman.motion_correction.bin_median(
                     m.motion_correct(max_shifts[1], max_shifts[0], template=None)[0])
 
@@ -2932,7 +3036,7 @@ def tile_and_correct_wrapper(params):
                                                                        max_deviation_rigid=max_deviation_rigid,
                                                                        shifts_opencv=shifts_opencv, gSig_filt=gSig_filt,
                                                                        use_cuda=use_cuda, border_nan=border_nan)
-            shift_info.append([total_shift, start_step, xyz_grid])
+            shift_info.append([tuple(-np.array(total_shift)), start_step, xyz_grid])
             
         else:
             mc[count], total_shift, start_step, xy_grid = tile_and_correct(img, template, strides, overlaps, max_shifts,
