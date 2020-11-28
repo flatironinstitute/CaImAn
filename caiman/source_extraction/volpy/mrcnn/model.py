@@ -17,6 +17,10 @@ from collections import OrderedDict
 import multiprocessing
 import numpy as np
 import tensorflow as tf
+
+config = tf.ConfigProto()
+gpu_options = tf.GPUOptions(per_process_gpu_memory_fraction=0.1)
+sess = tf.Session(config=tf.ConfigProto(gpu_options=gpu_options))
 #import tensorflow.keras as keras
 #import tensorflow.keras.backend as K
 #import tensorflow.keras.layers as KL

@@ -23,10 +23,10 @@ class VOLPY(object):
         "conda install -c conda-forge keras".
     """
     def __init__(self, n_processes, dview=None, context_size=35, censor_size=12, 
-                 flip_signal=True, hp_freq_pb=1/3, nPC_bg=8, ridge_bg=0.01,  
-                 hp_freq=1, clip=2000, threshold_method='simple', min_spikes=10, threshold=4, 
-                 sigmas=np.array([1, 1.5, 2]), n_iter=2, weight_update='ridge', 
-                 do_plot=True, do_cross_val=False, sub_freq=75, 
+                 visualize_ROI=False, flip_signal=True, hp_freq_pb=1/3, nPC_bg=8, ridge_bg=0.01,  
+                 hp_freq=1, clip=100, threshold_method='adaptive_threshold', min_spikes=10, 
+                 pnorm=0.5, threshold=3, sigmas=np.array([1, 1.5, 2]), n_iter=2, weight_update='ridge', 
+                 do_plot=False, do_cross_val=False, sub_freq=20, 
                  method='spikepursuit', superfactor=10, params=None):
         
         """
@@ -64,12 +64,15 @@ class VOLPY(object):
                 maximum number of spikes for producing templates
 
             threshold_method: str
-                'simple' or 'adaptive_threshold' method for thresholding signals
-                'simple' method threshold based on estimated noise level 
+                'adaptive_threshold' or 'simple' method for thresholding signals
                 'adaptive_threshold' method threshold based on estimated peak distribution
-                
+                'simple' method threshold based on estimated noise level 
+
             min_spikes: int
                 minimal number of spikes to be detected
+                
+            pnorm: float, between 0 and 1, default is 0.5
+                a variable deciding the amount of spikes chosen for adaptive threshold method
 
             threshold: float
                 threshold for spike detection in 'simple' threshold method 
@@ -150,6 +153,9 @@ class VOLPY(object):
             results = results + results_part
         
         for i in results[0].keys():
+            try:
                 self.estimates[i] = np.array([results[j][i] for j in range(N)])
-
+            except:
+                self.estimates[i] = [results[j][i] for j in range(N)]
+                
         return self
