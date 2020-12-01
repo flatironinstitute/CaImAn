@@ -4,10 +4,11 @@ import numpy as np
 class volparams(object):
 
     def __init__(self, fnames=None, fr=None, index=None, ROIs=None, weights=None,
-                 context_size=35, censor_size=12, flip_signal=True, hp_freq_pb=1/3, nPC_bg=8, ridge_bg=0.01,  
-                 hp_freq=1, clip=2000, threshold_method='simple', min_spikes=10, threshold=4, 
-                 sigmas=np.array([1, 1.5, 2]), n_iter=2, weight_update='ridge', do_plot=True,  
-                 do_cross_val=False, sub_freq=75, method='spikepursuit', superfactor=10, params_dict={}):
+                 context_size=35, censor_size=12, visualize_ROI=False, flip_signal=True, 
+                 hp_freq_pb=1/3, nPC_bg=8, ridge_bg=0.01, hp_freq=1, clip=100, 
+                 threshold_method='adaptive_threshold', min_spikes=10, pnorm=0.5, threshold=3, 
+                 sigmas=np.array([1, 1.5, 2]), n_iter=2, weight_update='ridge', do_plot=False,  
+                 do_cross_val=False, sub_freq=20, method='spikepursuit', superfactor=10, params_dict={}):
         """Class for setting parameters for voltage imaging. Including parameters for the data, motion correction and
         spike detection. The prefered way to set parameters is by using the set function, where a subclass is determined
         and a dictionary is passed. The whole dictionary can also be initialized at once by passing a dictionary
@@ -25,22 +26,24 @@ class volparams(object):
             'context_size': context_size, #number of pixels surrounding the ROI to use as context
             'censor_size': censor_size, # number of pixels surrounding the ROI to censor from the background PCA;
             # roughly the spatial scale of scattered/dendritic neural signals, in pixels.
+            'visualize_ROI': visualize_ROI, #whether to visualize the region of interest inside the context region
             'flip_signal': flip_signal, # whether to flip signal to find spikes
             'hp_freq_pb': hp_freq_pb, # high-pass frequency for removing photobleaching    
             'nPC_bg': nPC_bg, # number of principle components used for background subtraction
             'ridge_bg':ridge_bg, # regularization strength for Ridge to remove bg
-            'hp_freq': hp_freq, #high-pass cutoff frequency to filter the signal after computing the trace
+            'hp_freq': hp_freq, # high-pass cutoff frequency to filter the signal after computing the trace
             'clip': clip, # maximum number of spikes for producing templates
-            'threshold_method':threshold_method, # 'simple' or 'adaptive_threshold' method for thresholding signals
+            'threshold_method': threshold_method, # adaptive_threshold or simple method for thresholding signals
             'min_spikes': min_spikes, # minimal spikes to be detected
+            'pnorm': pnorm, # a variable decides spike count chosen for adaptive threshold method
             'threshold': threshold, # threshold for finding spikes
             'sigmas': sigmas, # spatial smoothing radius imposed on high-pass filtered movie
             'n_iter': n_iter, # number of iterations alternating between estimating temporal and spatial filters
-            'weight_update': weight_update, # method for updating spatial weights 'NMF' or 'ridge'
+            'weight_update': weight_update, # method for updating spatial weights NMF or ridge
             'do_plot': do_plot, # plot in the last iteration
             'do_cross_val': do_cross_val, # cross-validate to optimize regression regularization parameters
             'sub_freq': sub_freq, # frequency for extracting subthreshold osciilation
-            'method': method, # 'spikepursuit' or 'atm' (adaptive template matching)
+            'method': method, # spikepursuit or atm (adaptive template matching)
             'superfactor': superfactor, # factor for temporal super-resolution of spike times, e.g. 10 for 1/(10*framerate)
         }
 
