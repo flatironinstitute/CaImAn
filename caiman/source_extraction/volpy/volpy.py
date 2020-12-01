@@ -64,18 +64,18 @@ class VOLPY(object):
                 maximum number of spikes for producing templates
 
             threshold_method: str
-                'adaptive_threshold' or 'simple' method for thresholding signals
-                'adaptive_threshold' method threshold based on estimated peak distribution
-                'simple' method threshold based on estimated noise level 
+                adaptive_threshold or simple method for thresholding signals
+                adaptive_threshold method threshold based on estimated peak distribution
+                simple method threshold based on estimated noise level 
 
             min_spikes: int
                 minimal number of spikes to be detected
                 
             pnorm: float, between 0 and 1, default is 0.5
-                a variable deciding the amount of spikes chosen for adaptive threshold method
+                a variable decides spike count chosen for adaptive threshold method
 
             threshold: float
-                threshold for spike detection in 'simple' threshold method 
+                threshold for spike detection in simple threshold method 
                 The real threshold is the value multiplied by the estimated noise level
 
             sigmas: 1-d array
@@ -87,7 +87,7 @@ class VOLPY(object):
                 and spatial filters
                 
             weight_update: str
-                'ridge' or 'NMF' for weight update
+                ridge or NMF for weight update
                 
             do_plot: boolean
                 if Ture, plot trace of signals and spiketimes, 
@@ -100,10 +100,10 @@ class VOLPY(object):
                 frequency for subthreshold extraction
                 
             method: str
-                'spikepursuit' or 'atm' method
+                spikepursuit or atm method
                 
             superfactor: int
-                used in 'atm' method for regression
+                used in atm method for regression
         """
         if params is None:
             logging.warning("Parameters are not set from volparams")

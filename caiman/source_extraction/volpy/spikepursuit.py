@@ -75,15 +75,15 @@ def volspike(pars):
                         maximum number of spikes for producing templates
 
                     threshold_method: str
-                        'adaptive_threshold' or 'simple' method for thresholding signals
-                        'adaptive_threshold' method threshold based on estimated peak distribution
-                        'simple' method threshold based on estimated noise level 
+                        adaptive_threshold or simple method for thresholding signals
+                        adaptive_threshold method threshold based on estimated peak distribution
+                        simple method threshold based on estimated noise level 
                         
                     min_spikes: int
                         minimal number of spikes to be detected
                         
                     pnorm: float
-                        a variable deciding the amount of spikes chosen for adaptive threshold method
+                        a variable decides spike count chosen for adaptive threshold method
 
                     threshold: float
                         threshold for spike detection in simple threshold method 
@@ -98,7 +98,7 @@ def volspike(pars):
                         and spatial filters
                         
                     weight_update: str
-                        'ridge' or 'NMF' for weight update
+                        ridge or NMF for weight update
                         
                     do_plot: boolean
                         if Ture, plot trace of signals and spiketimes, 
@@ -147,7 +147,7 @@ def volspike(pars):
                     threshold of the signal
 
                 spatial_filter: 2-d array
-                    spatial filter of the neuron in the whole FOV
+                    spatial filter of the neuron in the FOV
                     
                 weights: 2-d array
                     ridge regression coefficients for fitting reconstructed signal
@@ -190,7 +190,7 @@ def volspike(pars):
     else:
         raise Exception('Dimensions of movie and ROIs do not accord')
         
-    # extract the context region from the whole movie
+    # extract the context region from the entire movie
     bwexp = dilation(bw, np.ones([args['context_size'], args['context_size']]), shift_x=True, shift_y=True)
     Xinds = np.where(np.any(bwexp > 0, axis=1) > 0)[0]
     Yinds = np.where(np.any(bwexp > 0, axis=0) > 0)[0]
@@ -362,7 +362,7 @@ def volspike(pars):
     else:
         locality = True
     
-    # spatial filter in the whole FOV
+    # spatial filter in the FOV
     weights = np.reshape(weights[1:],ref.shape, order='C')
     weights_FOV = np.zeros(images.shape[1:])
     weights_FOV[Xinds[0]:Xinds[-1] + 1, Yinds[0]:Yinds[-1] + 1] = weights
@@ -401,7 +401,7 @@ def denoise_spikes(data, window_length, fr=400,  hp_freq=1,  clip=100, threshold
                    min_spikes=10, pnorm=0.5, threshold=3,  do_plot=True):
     """ Function for finding spikes and the temporal filter given one dimensional signals.
         Use function whitened_matched_filter to denoise spikes. Two thresholding methods can be 
-        chosen, 'simple' or 'adaptive thresholding'.
+        chosen, simple or 'adaptive thresholding'.
 
     Args:
         data: 1-d array
@@ -420,9 +420,9 @@ def denoise_spikes(data, window_length, fr=400,  hp_freq=1,  clip=100, threshold
             maximum number of spikes for producing templates
 
         threshold_method: str
-            'adaptive_threshold' or 'simple' method for thresholding signals
-            'adaptive_threshold' method threshold based on estimated peak distribution
-            'simple' method threshold based on estimated noise level 
+            adaptive_threshold or simple method for thresholding signals
+            adaptive_threshold method threshold based on estimated peak distribution
+            simple method threshold based on estimated noise level 
             
         min_spikes: int
             minimal number of spikes to be detected

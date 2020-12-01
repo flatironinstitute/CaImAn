@@ -2,7 +2,9 @@
 # -*- coding: utf-8 -*-
 """
 Created on Thu Aug  6 10:48:16 2020
-VolPy GUI interface for neuron selection
+VolPy GUI interface is used to correct outputs of Mask R-CNN or annotate new datasets.
+VolPy GUI uses summary images and ROIs as the input. It outputs binary masks for the trace denoising 
+and spike extraction step of VolPy.
 @author: @caichangjia
 """
 import cv2
@@ -99,7 +101,7 @@ def mouseClickEvent(event):
     elif mode == "CELL MAGIC WAND":
         p1.clear()
         p1.addItem(img)
-        if pars_action.getValues()['DISPLAY'][0] == 'SPATIAL FOOTPRINTS':
+        if pars_action.param('DISPLAY').value() == 'SPATIAL FOOTPRINTS':
             overlay(all_ROIs)
         pts = []
         pos = img.mapFromScene(event.pos())
@@ -108,9 +110,9 @@ def mouseClickEvent(event):
             y = int(pos.y())
             j, i = pos.y(), pos.x()
             p1.plot(x=[i], y=[j], symbol='o', pen=None, symbolBrush='y', symbolSize=5)#, symbolBrush=pg.intColor(i,6,maxValue=128))
-            min_radius = pars_action.getValues()['MAGIC WAND PARAMS'][1]['MIN RADIUS'][0]
-            max_radius = pars_action.getValues()['MAGIC WAND PARAMS'][1]['MAX RADIUS'][0]
-            roughness = pars_action.getValues()['MAGIC WAND PARAMS'][1]['ROUGHNESS'][0]
+            min_radius = pars_action.param('MAGIC WAND PARAMS').child('MIN RADIUS').value()
+            max_radius = pars_action.param('MAGIC WAND PARAMS').child('MAX RADIUS').value()
+            roughness = pars_action.param('MAGIC WAND PARAMS').child('ROUGHNESS').value()
             roi, edge = cell_magic_wand_single_point(adjust_contrast(cur_img.copy().T, hist.getLevels()[0], hist.getLevels()[1]), (j, i), 
                                                min_radius=min_radius, max_radius=max_radius, 
                                                roughness=roughness, zoom_factor=1)
@@ -206,11 +208,10 @@ def show_all():
     global all_pts, pen, all_ROIs, neuron_list, img_overlay
     p1.clear()
     p1.addItem(img)
-    if pars_action.getValues()['DISPLAY'][0] == 'CONTOUR':
+    if pars_action.param('DISPLAY').value() == 'CONTOUR':
         for pp in list(all_pts.values()):
             pp.append(pp[0])
             p1.plot(x=np.array(pp)[:,0], y=np.array(pp)[:,1], pen=pen)
-        print(pars_action.getValues())
     else:
         overlay(all_ROIs)
             
@@ -230,7 +231,7 @@ def show_neuron():
     pp.append(pp[0])
     p1.clear()
     p1.addItem(img)
-    if pars_action.getValues()['DISPLAY'][0] == 'SPATIAL FOOTPRINTS':
+    if pars_action.param('DISPLAY').value() == 'SPATIAL FOOTPRINTS':
         overlay({str(item.text): all_ROIs[str(item.text())]})
     else:
         p1.plot(x=np.array(pp)[:,0], y=np.array(pp)[:,1], pen=pen)
@@ -302,7 +303,6 @@ pars_action.param('SAVE').sigActivated.connect(save)
 def change(param, changes):
     global mode, cur_img
     print("tree changes:")
-    #mode = pars_action.getValues()['MODE'][0]
     for param, change, data in changes:
         if pars_action.childPath(param)[0] == 'MODE':
             if data == 'None':
@@ -330,7 +330,7 @@ def down():
         pp.append(pp[0])
         p1.clear()
         p1.addItem(img)
-        if pars_action.getValues()['DISPLAY'][0] == 'SPATIAL FOOTPRINTS':
+        if pars_action.param('DISPLAY').value() == 'SPATIAL FOOTPRINTS':
             overlay({str(item.text): all_ROIs[str(item.text())]})
         else:
             p1.plot(x=np.array(pp)[:,0], y=np.array(pp)[:,1], pen=pen)
@@ -349,7 +349,7 @@ def up():
         pp.append(pp[0])
         p1.clear()
         p1.addItem(img)
-        if pars_action.getValues()['DISPLAY'][0] == 'SPATIAL FOOTPRINTS':
+        if pars_action.param('DISPLAY').value() == 'SPATIAL FOOTPRINTS':
             overlay({str(item.text): all_ROIs[str(item.text())]})
         else:
             p1.plot(x=np.array(pp)[:,0], y=np.array(pp)[:,1], pen=pen)

@@ -31,19 +31,19 @@ class volparams(object):
             'hp_freq_pb': hp_freq_pb, # high-pass frequency for removing photobleaching    
             'nPC_bg': nPC_bg, # number of principle components used for background subtraction
             'ridge_bg':ridge_bg, # regularization strength for Ridge to remove bg
-            'hp_freq': hp_freq, #high-pass cutoff frequency to filter the signal after computing the trace
+            'hp_freq': hp_freq, # high-pass cutoff frequency to filter the signal after computing the trace
             'clip': clip, # maximum number of spikes for producing templates
-            'threshold_method':threshold_method, # 'adaptive_threshold' or 'simple' method for thresholding signals
+            'threshold_method': threshold_method, # adaptive_threshold or simple method for thresholding signals
             'min_spikes': min_spikes, # minimal spikes to be detected
-            'pnorm': pnorm, #a variable deciding the amount of spikes chosen for adaptive threshold method
+            'pnorm': pnorm, # a variable decides spike count chosen for adaptive threshold method
             'threshold': threshold, # threshold for finding spikes
             'sigmas': sigmas, # spatial smoothing radius imposed on high-pass filtered movie
             'n_iter': n_iter, # number of iterations alternating between estimating temporal and spatial filters
-            'weight_update': weight_update, # method for updating spatial weights 'NMF' or 'ridge'
+            'weight_update': weight_update, # method for updating spatial weights NMF or ridge
             'do_plot': do_plot, # plot in the last iteration
             'do_cross_val': do_cross_val, # cross-validate to optimize regression regularization parameters
             'sub_freq': sub_freq, # frequency for extracting subthreshold osciilation
-            'method': method, # 'spikepursuit' or 'atm' (adaptive template matching)
+            'method': method, # spikepursuit or atm (adaptive template matching)
             'superfactor': superfactor, # factor for temporal super-resolution of spike times, e.g. 10 for 1/(10*framerate)
         }
 

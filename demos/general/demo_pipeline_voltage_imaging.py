@@ -63,7 +63,7 @@ def main():
     fr = 400                                        # sample rate of the movie
 
     # motion correction parameters
-    pw_rigid = False                                 # flag for pw-rigid motion correction
+    pw_rigid = False                                # flag for pw-rigid motion correction
     gSig_filt = (3, 3)                              # size of filter, in general gSig (see below),
                                                     # change this one if algorithm does not work
     max_shifts = (5, 5)                             # maximum allowed rigid shift
@@ -159,25 +159,23 @@ def main():
     axs[0].set_title('mean image'); axs[1].set_title('corr image')
 
     #%% methods for segmentation
-    methods_list = ['manual_annotation',       # manual annotations need users to prepare annotated datasets same format as demo_voltage_imaging_ROIs.hdf5 
-                    'maskrcnn',                # Mask R-CNN is a convolutional neural networks trained for detecting neurons in summary images
-                    'gui_annotation']           # use VolPy GUI to correct outputs of Mask R-CNN or annotate new datasets easily 
+    methods_list = ['manual_annotation',       # manual annotations need prepared annotated datasets in the same format as demo_voltage_imaging_ROIs.hdf5 
+                    'maskrcnn',                # Mask R-CNN is a convolutional neural network trained for detecting neurons in summary images
+                    'gui_annotation']          # use VolPy GUI to correct outputs of Mask R-CNN or annotate new datasets 
                     
-    method = methods_list[2]
+    method = methods_list[0]
     if method == 'manual_annotation':                
         with h5py.File(path_ROIs, 'r') as fl:
             ROIs = fl['mov'][()]  
 
-    elif method == 'maskrcnn':                 # Important!! make sure install keras before using mask rcnn
-        weights_path = download_model('mask_rcnn')
+    elif method == 'maskrcnn':                 # Important!! Make sure install keras before using mask rcnn. 
+        weights_path = download_model('mask_rcnn')    # also make sure you have downloaded the new weight. The weight was updated on Dec 1st 2020.
         ROIs = utils.mrcnn_inference(img=summary_images.transpose([1, 2, 0]), size_range=[5, 22],
                                      weights_path=weights_path, display_result=True) # size parameter decides size range of masks to be selected
         cm.movie(ROIs).save(fnames[:-5] + 'mrcnn_ROIs.hdf5')
 
     elif method == 'gui_annotation':
         # run volpy_gui.py file in the caiman/source_extraction/volpy folder
-        # load the summary images you have just saved and select neurons. Save the ROIs to the video folder
-        # the gui can be used to correct outputs of Mask R-CNN results by loading ROIs from the mrcnn_ROIs.hdf5 file
         gui_ROIs =  caiman_datadir() + '/example_movies/volpy/gui_roi.hdf5'
         with h5py.File(gui_ROIs, 'r') as fl:
             ROIs = fl['mov'][()]
@@ -203,14 +201,14 @@ def main():
     flip_signal = True                            # Important!! Flip signal or not, True for Voltron indicator, False for others
     hp_freq_pb = 1 / 3                            # parameter for high-pass filter to remove photobleaching
     clip = 100                                    # maximum number of spikes to form spike template
-    threshold_method = 'adaptive_threshold'       # 'adaptive_threshold' or 'simple' 
+    threshold_method = 'adaptive_threshold'       # adaptive_threshold or simple 
     min_spikes= 10                                # minimal spikes to be found
     pnorm = 0.5                                   # a variable deciding the amount of spikes chosen for adaptive threshold method
     threshold = 3                                 # threshold for finding spikes only used in simple threshold method, Increase the threshold to find less spikes
     do_plot = False                               # plot detail of spikes, template for the last iteration
     ridge_bg= 0.01                                # ridge regression regularizer strength for background removement, larger value specifies stronger regularization 
     sub_freq = 20                                 # frequency for subthreshold extraction
-    weight_update = 'ridge'                       # 'ridge' or 'NMF' for weight update
+    weight_update = 'ridge'                       # ridge or NMF for weight update
     n_iter = 2                                    # number of iterations alternating between estimating spike times and spatial filters
     
     opts_dict={'fnames': fname_new,
