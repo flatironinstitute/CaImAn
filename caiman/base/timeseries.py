@@ -171,16 +171,25 @@ class timeseries(np.ndarray):
         extension = extension.lower()
         logging.debug("Parsing extension " + str(extension))
 
-        if extension == '.tif':
+        if extension in ['.tif', '.tiff', '.btf']:
             with tifffile.TiffWriter(file_name, bigtiff=bigtiff, imagej=imagej) as tif:
-                for i in range(self.shape[0]):
-                    if i % 200 == 0:
-                        logging.debug(str(i) + ' frames saved')
-
-                    curfr = self[i].copy()
-                    if to32 and not ('float32' in str(self.dtype)):
-                        curfr = curfr.astype(np.float32)
-                    tif.save(curfr, compress=compress)
+                if "%4d%02d%02d" % tuple(map(int, tifffile.__version__.split('.'))) >= '20200813':
+                    def foo(i):
+                        if i % 200 == 0:
+                            logging.debug(str(i) + ' frames saved')
+                        curfr = self[i].copy()
+                        if to32 and not ('float32' in str(self.dtype)):
+                            curfr = curfr.astype(np.float32)
+                        return curfr             
+                    tif.save([foo(i) for i in range(self.shape[0])], compress=compress)
+                else:
+                    for i in range(self.shape[0]):
+                        if i % 200 == 0:
+                            logging.debug(str(i) + ' frames saved')
+                        curfr = self[i].copy()
+                        if to32 and not ('float32' in str(self.dtype)):
+                            curfr = curfr.astype(np.float32)
+                        tif.save(curfr, compress=compress)
         elif extension == '.npz':
             if to32 and not ('float32' in str(self.dtype)):
                 input_arr = self.astype(np.float32)
@@ -193,7 +202,7 @@ class timeseries(np.ndarray):
                      fr=self.fr,
                      meta_data=self.meta_data,
                      file_name=self.file_name)
-        elif extension == '.avi':
+        elif extension in ('.avi', '.mkv'):
             codec = None
             try:
                 codec = cv2.FOURCC('I', 'Y', 'U', 'V')

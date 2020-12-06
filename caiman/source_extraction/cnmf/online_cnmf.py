@@ -83,7 +83,7 @@ class OnACID(object):
             Run the entire online pipeline on a given list of files
     """
 
-    def __init__(self, params=None, estimates=None, path=None, dview=None):
+    def __init__(self, params=None, estimates=None, path=None, dview=None, Ain=None):
         if path is None:
             self.params = CNMFParams() if params is None else params
             self.estimates = Estimates() if estimates is None else estimates
@@ -92,6 +92,8 @@ class OnACID(object):
             self.params = params if params is not None else onacid.params
             self.estimates= estimates if estimates is not None else onacid.estimates
         self.dview = dview
+        if Ain is not None:
+            self.estimates.A = Ain
 #            if params is None or estimates is None:
 #                raise ValueError("Cannot Specify Estimates and Params While \
 #                                 Loading Object From File")
@@ -117,11 +119,14 @@ class OnACID(object):
         self.estimates.select_components(idx_components=idx_components)
         self.N = self.estimates.A.shape[-1]
         self.M = self.params.get('init', 'nb') + self.N
-        
+
+        if not self.params.get('online', 'update_num_comps'):
+            self.params.set('online', {'expected_comps': self.N})
+        elif (self.params.get('online', 'expected_comps') <= 
+            self.N + self.params.get('online', 'max_num_added')):
+            self.params.set('online', {'expected_comps': self.N + 
+                self.params.get('online', 'max_num_added') + 200})
         expected_comps = self.params.get('online', 'expected_comps')
-        if expected_comps <= self.N + self.params.get('online', 'max_num_added'):
-            expected_comps = self.N + self.params.get('online', 'max_num_added') + 200
-            self.params.set('online', {'expected_comps': expected_comps})
 
         if Yr.shape[-1] != self.params.get('online', 'init_batch'):
             raise Exception(
@@ -196,6 +201,8 @@ class OnACID(object):
             X -= self.estimates.b0[:, None]
             if ssub_B > 1:
                 self.estimates.downscale_matrix = decimation_matrix(self.estimates.dims, ssub_B)
+                self.estimates.upscale_matrix = self.estimates.downscale_matrix.T
+                self.estimates.upscale_matrix.data = np.ones_like(self.estimates.upscale_matrix.data)
                 X = self.estimates.downscale_matrix.dot(X)
             if self.params.get('online', 'full_XXt'):
                 self.estimates.XXt = X.dot(X.T)
@@ -216,7 +223,9 @@ class OnACID(object):
             self.estimates.A, self.estimates.C_on[:self.N, :init_batch],
             self.estimates.b, self.estimates.noisyC[:self.params.get('init', 'nb'), :init_batch],
             W=self.estimates.W if self.is1p else None, b0=self.estimates.b0 if self.is1p else None,
-            ssub_B=self.params.get('init', 'ssub_B') * self.params.get('init', 'ssub'))
+            ssub_B=self.params.get('init', 'ssub_B') * self.params.get('init', 'ssub'),
+            downscale_matrix=self.estimates.downscale_matrix if (self.is1p and ssub_B > 1) else None,
+            upscale_matrix=self.estimates.upscale_matrix if (self.is1p and ssub_B > 1) else None)
 
         self.estimates.CY = self.estimates.CY * 1. / self.params.get('online', 'init_batch')
         self.estimates.CC = 1 * self.estimates.CC / self.params.get('online', 'init_batch')
@@ -251,17 +260,12 @@ class OnACID(object):
                 estim.Yres_buf -= estim.W.dot(estim.Yres_buf.T).T
             else:
                 A_ds = estim.downscale_matrix.dot(estim.Ab)
-                estim.Atb = estim.Ab.T.dot(np.repeat(np.repeat(estim.W.dot(
-                    estim.downscale_matrix.dot(estim.b0).reshape((-1, 1), order='F'))
-                    .reshape(((d1 - 1) // ssub_B + 1, (d2 - 1) // ssub_B + 1), order='F'),
-                    ssub_B, 0), ssub_B, 1)[:d1, :d2].ravel(order='F') - estim.b0)
+                estim.Atb = estim.Ab.T.dot(estim.upscale_matrix.dot(
+                    estim.W.dot(estim.downscale_matrix.dot(estim.b0))) - estim.b0)
                 estim.AtW = A_ds.T.dot(estim.W)
                 estim.AtWA = estim.AtW.dot(A_ds).toarray()
-                estim.Yres_buf -= np.repeat(np.repeat(estim.W.dot(
-                    estim.downscale_matrix.dot(estim.Yres_buf.T))
-                    .reshape(((d1 - 1) // ssub_B + 1, (d2 - 1) // ssub_B + 1, -1), order='F'),
-                    ssub_B, 0), ssub_B, 1)[:d1, :d2].reshape(
-                -1, self.params.get('online', 'minibatch_shape'), order='F').T
+                estim.Yres_buf -= estim.upscale_matrix.dot(estim.W.dot(
+                    estim.downscale_matrix.dot(estim.Yres_buf.T))).T
 
         self.estimates.sn = np.array(np.std(self.estimates.Yres_buf,axis=0))
         self.estimates.vr = np.array(np.var(self.estimates.Yres_buf,axis=0))
@@ -367,10 +371,8 @@ class OnACID(object):
                 if ssub_B == 1:
                     Yres -= self.estimates.W.dot(Yres)
                 else:
-                    Yres -= np.repeat(np.repeat(self.estimates.W.dot(
-                        estim.downscale_matrix.dot(Yres))
-                        .reshape(((d1 - 1) // ssub_B + 1, (d2 - 1) // ssub_B + 1, -1), order='F'),
-                        ssub_B, 0), ssub_B, 1)[:d1, :d2].reshape(-1, init_batch, order='F')                
+                    Yres -= estim.upscale_matrix.dot(estim.W.dot(
+                        estim.downscale_matrix.dot(Yres)))
             Yres = Yres.reshape((d1, d2, -1), order='F')
 
             (self.estimates.first_moment, self.estimates.second_moment,
@@ -378,6 +380,12 @@ class OnACID(object):
                 self.estimates.num_neigbors, self.estimates.corrM, self.estimates.corr_img) = \
             summary_images.prepare_local_correlations(Yres, swap_dim=True, eight_neighbours=False)
             self.estimates.max_img = Yres.max(-1)
+
+        self.comp_upd = []
+        self.t_shapes:List = []
+        self.t_detect:List = []
+        self.t_motion:List = []
+        self.t_stat:List = []
 
         return self
 
@@ -457,11 +465,9 @@ class OnACID(object):
         if self.is1p:
             self.estimates.b0 = self.estimates.b0 * (t-1)/t + res_frame/t
             res_frame -= self.estimates.b0
-            x = res_frame if ssub_B == 1 else self.estimates.downscale_matrix.dot(res_frame)
-            res_frame -= (self.estimates.W.dot(x) if ssub_B == 1 else
-                          np.repeat(np.repeat(self.estimates.W.dot(x).reshape(
-                              ((d1 - 1) // ssub_B + 1, (d2 - 1) // ssub_B + 1), order='F'),
-                              ssub_B, 0), ssub_B, 1)[:d1, :d2].ravel(order='F'))
+            res_frame -= (self.estimates.W.dot(res_frame) if ssub_B == 1 else
+                          self.estimates.upscale_matrix.dot(self.estimates.W.dot(
+                            self.estimates.downscale_matrix.dot(res_frame))))
         mn_ = self.estimates.mn.copy()
         self.estimates.mn = (t-1)/t*self.estimates.mn + res_frame/t
         self.estimates.vr = (t-1)/t*self.estimates.vr + (res_frame - mn_)*(res_frame - self.estimates.mn)/t
@@ -539,6 +545,8 @@ class OnACID(object):
                 row_ind=self.estimates.row_ind if use_corr else None,
                 corr_img_mode=corr_img_mode if use_corr else None,
                 downscale_matrix=self.estimates.downscale_matrix if
+                (self.is1p and ssub_B > 1) else None,
+                upscale_matrix=self.estimates.upscale_matrix if
                 (self.is1p and ssub_B > 1) else None,
                 max_img=self.estimates.max_img if use_corr else None)
 
@@ -664,7 +672,7 @@ class OnACID(object):
                 # set the update counter to 0 for components that are overlaping the newly added
                 idx_overlap = self.estimates.AtA[nb_:-num_added, -num_added:].nonzero()[0]
                 self.update_counter[idx_overlap] = 0
-        self.t_detect.append(time() - t_new)
+            self.t_detect.append(time() - t_new)
         t_stat = time()
         if self.params.get('online', 'batch_update_suff_stat'):
         # faster update using minibatch of frames
@@ -680,10 +688,7 @@ class OnACID(object):
                     else:
                         x = self.estimates.downscale_matrix.dot(
                             y.T - self.estimates.Ab.dot(ccf) - self.estimates.b0[:, None])
-                        y -= np.repeat(np.repeat(
-                            self.estimates.W.dot(x).T.reshape((-1, (d1 - 1) // ssub_B + 1,
-                                (d2 - 1) // ssub_B + 1), order='F'),
-                            ssub_B, 1), ssub_B, 2)[:, :d1, :d2].reshape((len(y), -1), order='F')
+                        y -= self.estimates.upscale_matrix.dot(self.estimates.W.dot(x)).T
                     y -= self.estimates.b0
                     # self.estimates.XXt += x.dot(x.T)
                     # exploit that we only access some elements of XXt, hence update only these
@@ -725,14 +730,11 @@ class OnACID(object):
                 if ssub_B == 1:
                     x = (y - self.estimates.Ab.dot(ccf).T - self.estimates.b0).T
                     y -= self.estimates.W.dot(x).T
-                    y -= self.estimates.b0
                 else:
                     x = self.estimates.downscale_matrix.dot(
                         y.T - self.estimates.Ab.dot(ccf) - self.estimates.b0[:, None])
-                    y -= (np.repeat(np.repeat(self.estimates.W.dot(x).T
-                        .reshape((-1, (d1 - 1) // ssub_B + 1, (d2 - 1) // ssub_B + 1), order='F'),
-                        ssub_B, 1), ssub_B, 2)[:, :d1, :d2]
-                        .reshape((len(y), -1), order='F') + self.estimates.b0)
+                    y -= self.estimates.upscale_matrix.dot(self.estimates.W.dot(x)).T
+                y -= self.estimates.b0
                 # self.estimates.XXt += x.dot(x.T)
                 # exploit that we only access some elements of XXt, hence update only these
                 if self.params.get('online', 'full_XXt'):
@@ -841,10 +843,8 @@ class OnACID(object):
                     else:
                         d1, d2 = self.estimates.dims
                         A_ds = self.estimates.downscale_matrix.dot(self.estimates.Ab)
-                        self.estimates.Atb = Ab_.T.dot(np.repeat(np.repeat(W.dot(
-                            self.estimates.downscale_matrix.dot(self.estimates.b0).reshape((-1, 1), order='F'))
-                            .reshape(((d1 - 1) // ssub_B + 1, (d2 - 1) // ssub_B + 1), order='F'),
-                            ssub_B, 0), ssub_B, 1)[:d1, :d2].ravel(order='F') - self.estimates.b0)
+                        self.estimates.Atb = Ab_.T.dot(self.estimates.upscale_matrix.dot(W.dot(
+                            self.estimates.downscale_matrix.dot(self.estimates.b0))) - self.estimates.b0)
                         self.estimates.AtW = A_ds.T.dot(W)
                         self.estimates.AtWA = self.estimates.AtW.dot(A_ds).toarray()
 
@@ -927,7 +927,7 @@ class OnACID(object):
 
         return self
 
-    def initialize_online(self, model_LN=None):
+    def initialize_online(self, model_LN=None, T=None):
         fls = self.params.get('data', 'fnames')
         opts = self.params.get_group('online')
         Y = caiman.load(fls[0], subindices=slice(0, opts['init_batch'],
@@ -1043,7 +1043,7 @@ class OnACID(object):
         dims, Ts = get_file_size(fls, var_name_hdf5=self.params.get('data', 'var_name_hdf5'))
         dims = Y.shape[1:]
         self.params.set('data', {'dims': dims})
-        T1 = np.array(Ts).sum()*self.params.get('online', 'epochs')
+        T1 = np.array(Ts).sum()*self.params.get('online', 'epochs') if T is None else T
         self._prepare_object(Yr, T1)
         if opts['show_movie']:
             self.bnd_AC = np.percentile(self.estimates.A.dot(self.estimates.C),
@@ -1065,6 +1065,45 @@ class OnACID(object):
             save_dict_to_hdf5(self.__dict__, filename)
         else:
             raise Exception("Unsupported file extension")
+
+
+    def mc_next(self, t, frame):
+        frame_ = frame.flatten(order='F')
+        templ = self.estimates.Ab.dot(
+            np.median(self.estimates.C_on[:self.M, t-51:t-1], 1))
+        if self.is1p and self.estimates.W is not None:
+            if self.params.get('init','ssub_B') == 1:
+                B = self.estimates.W.dot(frame_ - templ - self.estimates.b0) + self.estimates.b0
+            else:
+                bc2 = self.estimates.downscale_matrix.dot(frame_ - templ - self.estimates.b0)
+                B = self.estimates.upscale_matrix.dot(self.estimates.W.dot(bc2))
+                B += self.estimates.b0
+            templ += B
+        templ = templ.reshape(self.params.get('data', 'dims'), order='F')
+        if self.params.get('online', 'normalize'):
+            templ *= self.img_norm
+        if self.is1p:
+            templ = high_pass_filter_space(templ, self.params.motion['gSig_filt'])
+        if self.params.get('motion', 'pw_rigid'):
+            frame_cor, shift, _, xy_grid = tile_and_correct(
+                frame, templ, self.params.motion['strides'], self.params.motion['overlaps'],
+                self.params.motion['max_shifts'], newoverlaps=None, newstrides=None,
+                upsample_factor_grid=4, upsample_factor_fft=10, show_movie=False,
+                max_deviation_rigid=self.params.motion['max_deviation_rigid'], add_to_movie=0,
+                shifts_opencv=True, gSig_filt=None, use_cuda=False, border_nan='copy')
+        else:
+            if self.is1p:
+                frame_orig = frame.copy()
+                frame = high_pass_filter_space(frame, self.params.motion['gSig_filt'])
+            frame_cor, shift = motion_correct_iteration_fast(
+                    frame, templ, *(self.params.get('online', 'max_shifts_online'),)*2)
+            if self.is1p:
+                M = np.float32([[1, 0, shift[1]], [0, 1, shift[0]]])
+                frame_cor = cv2.warpAffine(frame_orig, M, frame.shape[::-1],
+                                           flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REFLECT)
+
+        self.estimates.shifts.append(shift)
+        return frame_cor
 
 
     def fit_online(self, **kwargs):
@@ -1141,11 +1180,6 @@ class OnACID(object):
         t = init_batch
         self.Ab_epoch:List = []
         t_online = []
-        self.comp_upd = []
-        self.t_shapes:List = []
-        self.t_detect:List = []
-        self.t_motion:List = []
-        self.t_stat:List = []
         ssub_B = self.params.get('init', 'ssub_B') * self.params.get('init', 'ssub')
         d1, d2 = self.params.get('data', 'dims')
         max_shifts_online = self.params.get('online', 'max_shifts_online')
@@ -1214,48 +1248,14 @@ class OnACID(object):
 
                         if self.params.get('online', 'normalize'):
                             frame_ -= self.img_min     # make data non-negative
-                        t_mot = time()
 
                         # Motion Correction
+                        t_mot = time()
                         if self.params.get('online', 'motion_correct'):    # motion correct
-                            templ = self.estimates.Ab.dot(
-                                    np.median(self.estimates.C_on[:self.M, t-51:t-1], 1)).reshape(self.params.get('data', 'dims'), order='F')#*self.img_norm
-                            if self.is1p and self.estimates.W is not None:
-                                if ssub_B == 1:
-                                    B = self.estimates.W.dot((frame_ - templ).flatten(order='F') - self.estimates.b0) + self.estimates.b0
-                                    B = B.reshape(self.params.get('data', 'dims'), order='F')
-                                else:
-                                    b0 = self.estimates.b0.reshape((d1, d2), order='F')#*self.img_norm
-                                    bc2 = downscale(frame_ - templ - b0, (ssub_B, ssub_B)).flatten(order='F')
-                                    Wb = self.estimates.W.dot(bc2).reshape(((d1 - 1) // ssub_B + 1, (d2 - 1) // ssub_B + 1), order='F')
-                                    B = b0 + np.repeat(np.repeat(Wb, ssub_B, 0), ssub_B, 1)[:d1, :d2]
-                                templ += B
-                            if self.params.get('online', 'normalize'):
-                                templ *= self.img_norm
-                            if self.is1p:
-                                templ = high_pass_filter_space(templ, self.params.motion['gSig_filt'])
-                            if self.params.get('motion', 'pw_rigid'):
-                                frame_cor, shift, _, xy_grid = tile_and_correct(frame_, templ, self.params.motion['strides'], self.params.motion['overlaps'],
-                                                                                self.params.motion['max_shifts'], newoverlaps=None, newstrides=None, upsample_factor_grid=4,
-                                                                                upsample_factor_fft=10, show_movie=False, max_deviation_rigid=self.params.motion['max_deviation_rigid'],
-                                                                                add_to_movie=0, shifts_opencv=True, gSig_filt=None,
-                                                                                use_cuda=False, border_nan='copy')
-                            else:
-                                if self.is1p:
-                                    frame_orig = frame_.copy()
-                                    frame_ = high_pass_filter_space(frame_, self.params.motion['gSig_filt'])
-                                frame_cor, shift = motion_correct_iteration_fast(
-                                        frame_, templ, max_shifts_online, max_shifts_online)
-                                if self.is1p:
-                                    M = np.float32([[1, 0, shift[1]], [0, 1, shift[0]]])
-                                    frame_cor = cv2.warpAffine(
-                                        frame_orig, M, frame_.shape[::-1], flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REFLECT)
-
-                            self.estimates.shifts.append(shift)
+                            frame_cor = self.mc_next(t, frame_)
                         else:
                             templ = None
                             frame_cor = frame_
-
                         self.t_motion.append(time() - t_mot)
                         
                         if self.params.get('online', 'normalize'):
@@ -1344,10 +1344,10 @@ class OnACID(object):
                 B = self.estimates.W.dot((frame_cor - comps_frame).flatten(order='F') - self.estimates.b0) + self.estimates.b0
                 bgkrnd_frame = B.reshape(self.dims, order='F')
             else:
-                b0 = self.estimates.b0.reshape(self.dims, order='F')#*self.img_norm
-                bc2 = downscale(frame_cor - comps_frame - b0, (ssub_B, ssub_B)).flatten(order='F')
-                Wb = self.estimates.W.dot(bc2).reshape(((self.dims[0] - 1) // ssub_B + 1, (self.dims[1] - 1) // ssub_B + 1), order='F')
-                bgkrnd_frame = b0 + np.repeat(np.repeat(Wb, ssub_B, 0), ssub_B, 1)[:self.dims[0], :self.dims[1]]
+                bc2 = self.estimates.downscale_matrix.dot(
+                    (frame_cor - comps_frame).flatten(order='F') - self.estimates.b0)
+                bgkrnd_frame = (self.estimates.b0 + self.estimates.upscale_matrix.dot(
+                    self.estimates.W.dot(bc2))).reshape(self.dims, order='F')
         else:
             bgkrnd_frame = b.dot(f[:, self.t - 1]).reshape(self.dims, order='F')  # denoised frame (components + background)
         denoised_frame = comps_frame + bgkrnd_frame
@@ -1529,6 +1529,7 @@ def seeded_initialization(Y, Ain, dims=None, init_batch=1000, order_init=None, g
         not_px = np.array(not_px).flatten()
     Yr = np.reshape(Y, (Ain.shape[0], Y.shape[-1]), order='F')
     model = NMF(n_components=gnb, init='nndsvdar', max_iter=10)
+    _ = model.fit_transform(np.maximum(Yr[not_px], 0)) # Done to update the model object
     f_in = model.components_.squeeze()
     f_in = np.atleast_2d(f_in)
     Y_resf = np.dot(Yr, f_in.T)
@@ -1801,7 +1802,8 @@ def demix_and_deconvolve(C, noisyC, AtY, AtA, OASISinstances, iters=3, n_refit=0
 
 
 #%% Estimate shapes on small initial batch
-def init_shapes_and_sufficient_stats(Y, A, C, b, f, W=None, b0=None, ssub_B=1, bSiz=3):
+def init_shapes_and_sufficient_stats(Y, A, C, b, f, W=None, b0=None, ssub_B=1, bSiz=3,
+                                     downscale_matrix=None, upscale_matrix=None):
     # smooth the components
     dims, T = np.shape(Y)[:-1], np.shape(Y)[-1]
     K = A.shape[1]  # number of neurons
@@ -1832,14 +1834,9 @@ def init_shapes_and_sufficient_stats(Y, A, C, b, f, W=None, b0=None, ssub_B=1, b
                                A.dot(C) - b0[:, None]).T + b0)
         else:
             d1, d2 = dims
-            B = b0[:, None] + (np.repeat(np.repeat(W.dot(
-                downscale(Y - np.asarray(A.dot(C)).reshape(dims + (T,), order='F'),
-                              (ssub_B, ssub_B, 1)).reshape((-1, T), order='F') -
-                downscale(b0.reshape(dims, order='F'),
-                          (ssub_B, ssub_B)).reshape((-1, 1), order='F'))
-                .reshape(((d1 - 1) // ssub_B + 1, (d2 - 1) // ssub_B + 1, -1), order='F'),
-                ssub_B, 0), ssub_B, 1)[:d1, :d2].reshape((-1, T), order='F'))
-            CY -= Cf.dot(B.T)
+            B = upscale_matrix.dot(W.dot(downscale_matrix.dot(
+                np.reshape(Y, (-1, T), order='F') - A.dot(C) - b0[:, None]))).T + b0
+            CY -= Cf.dot(B)
     CC = Cf.dot(Cf.T)
     return Ab, ind_A, CY, CC
 
@@ -2008,26 +2005,28 @@ def corr(a, b):
     return a.dot(b) / sqrt(a.dot(a) * b.dot(b) + np.finfo(float).eps)
 
 
-def rank1nmf(Ypx, ain):
+def rank1nmf(Ypx, ain, iters=10):
     """
     perform a fast rank 1 NMF
     """
     # cin_old = -1
-    for _ in range(15):
-        cin_res = ain.T.dot(Ypx)  # / ain.dot(ain)
+    eps = np.finfo(np.float32).eps
+    for t in range(iters):
+        cin_res = ain.dot(Ypx)  # / ain.dot(ain)
         cin = np.maximum(cin_res, 0)
-        ain = np.maximum(Ypx.dot(cin.T), 0)
-        try:
-            ain /= (sqrt(ain.dot(ain)) + np.finfo(np.float32).eps)
-        except:
-            break
+        ain = np.maximum(Ypx.dot(cin), 0)
+        # ain /= (sqrt(ain.dot(ain)) + np.finfo(np.float32).eps)
+        if t in (0, iters-1):
+            ain /= (sqrt(ain.dot(ain)) + eps)
+        elif t % 2 == 0:  # division by squared norm every 2nd iter is faster yet numerically stable
+            ain /= (ain.dot(ain) + eps)
         # nc = cin.dot(cin)
         # ain = np.maximum(Ypx.dot(cin.T) / nc, 0)
         # tmp = cin - cin_old
         # if tmp.dot(tmp) < 1e-6 * nc:
         #     break
         # cin_old = cin.copy()
-    cin_res = ain.T.dot(Ypx)  # / ain.dot(ain)
+    cin_res = ain.dot(Ypx)  # / ain.dot(ain)
     cin = np.maximum(cin_res, 0)
     return ain, cin, cin_res
 
@@ -2196,8 +2195,8 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                           mean_buff=None, ssub_B=1, W=None, b0=None,
                           corr_img=None, first_moment=None, second_moment=None,
                           crosscorr=None, col_ind=None, row_ind=None, corr_img_mode=None,
-                          max_img=None, downscale_matrix=None, tf_in=None,
-                          tf_out=None):
+                          max_img=None, downscale_matrix=None, upscale_matrix=None,
+                          tf_in=None, tf_out=None):
     """
     Checks for new components in the residual buffer and incorporates them if they pass the acceptance tests
     """
@@ -2340,17 +2339,13 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
             if W is not None:  # 1p data, subtract background
                 y = Y_buf.get_ordered()
                 if ssub_B == 1:
-                    x = (y - Ab.dot(Cf).T - b0).T
+                    x = y.T - Ab.dot(Cf) - b0[:, None]
                     y = y[:, indices] - W[indices].dot(x).T - b0[indices]
                 else:
                     d1, d2 = dims
                     x = downscale_matrix.dot(y.T - Ab.dot(Cf) - b0[:, None])
-                    # restrict to region where component is located already at this step?
-                    y -= np.repeat(np.repeat(
-                        W.dot(x).T.reshape((-1, (d1 - 1) // ssub_B + 1,
-                                            (d2 - 1) // ssub_B + 1), order='F'),
-                        ssub_B, 1), ssub_B, 2)[:, :d1, :d2].reshape((len(y), -1), order='F')
-                    y = y[:, indices] - b0[indices]
+                    y = y[:, indices] - upscale_matrix.tocsr()[indices].dot(
+                        W).dot(x).T - b0[indices]
                 CY[M, indices] = cin_circ.dot(y) / tt
             else:
                 CY[M, indices] = cin.dot(Y_buf[:, indices]) / tt

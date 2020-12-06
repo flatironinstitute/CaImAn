@@ -136,7 +136,7 @@ def main():
         moviehandle.play(fr=60, q_max=99.5, magnification=2)  # press q to exit
 
 # %% MEMORY MAPPING
-    border_to_0 = 0 if mc.border_nan is 'copy' else mc.border_to_0
+    border_to_0 = 0 if mc.border_nan == 'copy' else mc.border_to_0
     # you can include the boundaries of the FOV if you used the 'copy' option
     # during motion correction, although be careful about the components near
     # the boundaries

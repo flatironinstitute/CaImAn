@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 """ A set of utilities, mostly for post-processing and visualization
 
@@ -14,6 +13,7 @@ See Also:
 .. image::
 @author  epnev
 """
+
 # \package caiman/dource_ectraction/cnmf
 # \version   1.0
 # \copyright GNU General Public License v2.0
@@ -28,6 +28,7 @@ import h5py
 import logging
 import numpy as np
 import os
+import pathlib
 import pylab as pl
 import scipy
 from scipy.sparse import spdiags, issparse, csc_matrix, csr_matrix
@@ -316,6 +317,7 @@ def detrend_df_f(A, b, C, f, YrA=None, quantileMin=8, frames_window=500,
 
         quantile_min: float
             quantile used to estimate the baseline (values in [0,100])
+            used only if 'flag_auto' is False, i.e. ignored by default
 
         frames_window: int
             number of frames for computing running quantile
@@ -324,7 +326,7 @@ def detrend_df_f(A, b, C, f, YrA=None, quantileMin=8, frames_window=500,
             flag for determining quantile automatically
 
         use_fast: bool
-            flag for u´sing approximate fast percentile filtering
+            flag for using approximate fast percentile filtering
 
         detrend_only: bool (False)
             flag for only subtracting baseline and not normalizing by it.
@@ -333,7 +335,7 @@ def detrend_df_f(A, b, C, f, YrA=None, quantileMin=8, frames_window=500,
 
     Returns:
         F_df:
-            the computed Calcium acitivty to the derivative of f
+            the computed Calcium activity to the derivative of f
     """
 
     if C is None:
@@ -408,9 +410,9 @@ def detrend_df_f(A, b, C, f, YrA=None, quantileMin=8, frames_window=500,
                 F_df = F - Fd[:, None]
         else:
             Fd = scipy.ndimage.percentile_filter(
-                F, quantileMin, (frames_window, 1))
+                F, quantileMin, (1, frames_window))
             Df = scipy.ndimage.percentile_filter(
-                B, quantileMin, (frames_window, 1))
+                B, quantileMin, (1, frames_window))
             if not detrend_only:
                 F_df = (F - Fd) / (Df + Fd)
             else:
@@ -727,7 +729,7 @@ def update_order(A, new_a=None, prev_list=None, method='greedy'):
     K = np.shape(A)[-1]
     if new_a is None and prev_list is None:
 
-        if method is 'greedy':
+        if method == 'greedy':
             prev_list, count_list = update_order_greedy(A, flag_AA=False)
         else:
             prev_list, count_list = update_order_random(A, flag_AA=False)
@@ -958,11 +960,11 @@ def get_file_size(file_name, var_name_hdf5='mov'):
     it/them in memory. An exception is thrown if the files have FOVs with
     different sizes
         Args:
-            file_name: str or list
-                locations of file(s) in memory
+            file_name: str/filePath or various list types
+                locations of file(s)
 
             var_name_hdf5: 'str'
-                if loading from hdf5 name of the variable to load
+                if loading from hdf5 name of the dataset to load
 
         Returns:
             dims: list
@@ -971,6 +973,10 @@ def get_file_size(file_name, var_name_hdf5='mov'):
             T: list
                 number of timesteps in each file
     """
+    if isinstance(file_name, pathlib.Path):
+        # We want to support these as input, but str has a broader set of operations that we'd like to use, so let's just convert.
+	# (specifically, filePath types don't support subscripting)
+        file_name = str(file_name)
     if isinstance(file_name, str):
         if os.path.exists(file_name):
             _, extension = os.path.splitext(file_name)[:2]
@@ -980,11 +986,11 @@ def get_file_size(file_name, var_name_hdf5='mov'):
                 mjv, mnv = scipy.io.matlab.mio.get_matfile_version(byte_stream)
                 if mjv == 2:
                     extension = '.h5'
-            if extension == '.tif' or extension == '.tiff':
+            if extension in ['.tif', '.tiff', '.btf']:
                 tffl = tifffile.TiffFile(file_name)
                 siz = tffl.series[0].shape
                 T, dims = siz[0], siz[1:]
-            elif extension == '.avi':
+            elif extension in ('.avi', '.mkv'):
                 cap = cv2.VideoCapture(file_name)
                 dims = [0, 0]
                 try:
@@ -1010,6 +1016,8 @@ def get_file_size(file_name, var_name_hdf5='mov'):
                             siz = f[var_name_hdf5]['data'].shape
                         else:
                             siz = f[var_name_hdf5].shape
+                    elif var_name_hdf5 in f['acquisition']:
+                        siz = f['acquisition'][var_name_hdf5]['data'].shape
                     else:
                         logging.error('The file does not contain a variable' +
                                       'named {0}'.format(var_name_hdf5))
@@ -1195,4 +1203,3 @@ def fast_graph_Laplacian_pixel(pars):
         ind = np.where(w>0)[0]
 
     return indeces[ind].tolist(), w[ind].tolist()
-    

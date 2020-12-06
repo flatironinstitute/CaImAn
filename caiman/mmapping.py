@@ -85,6 +85,7 @@ def save_memmap_each(fnames: List[str],
                      idx_xy=None,
                      var_name_hdf5='mov',
                      xy_shifts=None,
+                     is_3D=False,
                      add_to_movie: float = 0,
                      border_to_0: int = 0,
                      order: str = 'C',
@@ -114,6 +115,9 @@ def save_memmap_each(fnames: List[str],
         xy_shifts: list
             x and y shifts computed by a motion correction algorithm to be applied before memory mapping
 
+        is_3D: boolean
+            whether it is 3D data
+
         add_to_movie: float
             if movie too negative will make it positive
 
@@ -141,13 +145,13 @@ def save_memmap_each(fnames: List[str],
         if base_name is not None:
             pars.append([
                 f, base_name + '{:04d}'.format(idx), resize_fact[idx], remove_init, idx_xy, order,
-                var_name_hdf5, xy_shifts[idx], add_to_movie, border_to_0, slices
+                var_name_hdf5, xy_shifts[idx], is_3D, add_to_movie, border_to_0, slices
             ])
         else:
             pars.append([
                 f,
                 os.path.splitext(f)[0], resize_fact[idx], remove_init, idx_xy, order, var_name_hdf5,
-                xy_shifts[idx], add_to_movie, border_to_0, slices
+                xy_shifts[idx], is_3D, add_to_movie, border_to_0, slices
             ])
 
     # Perform the job using whatever computing framework we're set to use
@@ -319,7 +323,7 @@ def save_place_holder(pars: List) -> str:
     """
     # todo: todocument
 
-    (f, base_name, resize_fact, remove_init, idx_xy, order, var_name_hdf5, xy_shifts, add_to_movie, border_to_0, slices) = pars
+    (f, base_name, resize_fact, remove_init, idx_xy, order, var_name_hdf5, xy_shifts, is_3D, add_to_movie, border_to_0, slices) = pars
 
     return save_memmap([f],
                        base_name=base_name,
@@ -329,6 +333,7 @@ def save_place_holder(pars: List) -> str:
                        order=order,
                        var_name_hdf5=var_name_hdf5,
                        xy_shifts=xy_shifts,
+                       is_3D=is_3D,
                        add_to_movie=add_to_movie,
                        border_to_0=border_to_0,
                        slices=slices)
@@ -426,6 +431,7 @@ def save_memmap(filenames: List[str],
                                               remove_init=remove_init,
                                               idx_xy=idx_xy,
                                               xy_shifts=xy_shifts,
+                                              is_3D=is_3D,
                                               slices=slices,
                                               add_to_movie=add_to_movie)
         else:
@@ -447,6 +453,8 @@ def save_memmap(filenames: List[str],
 
             if is_3D:
                 Yr = f if not (isinstance(f, basestring)) else tifffile.imread(f)
+                if Yr.ndim == 3:
+                    Yr = Yr[None, ...]
                 if slices is not None:
                     Yr = Yr[tuple(slices)]
                 else:

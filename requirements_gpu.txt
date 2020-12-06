@@ -22,7 +22,8 @@ pyqtgraph
 scikit-image
 scikit-learn
 scipy
-tensorflow-gpu==1.15.2
+tensorflow-gpu==2.2.1
+tensorflow-addons==0.10.0
 tifffile
 tk
 tqdm

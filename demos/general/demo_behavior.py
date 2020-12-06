@@ -8,25 +8,11 @@ Created on Sun Aug  6 11:43:39 2017
 """
 
 from builtins import zip
-from builtins import str
-from builtins import map
-from builtins import range
-from past.utils import old_div
 
-import copy
 import cv2
-import glob
-from ipyparallel import Client
 import logging
 import numpy as np
-import os
-import psutil
 import pylab as pl
-import scipy
-from scipy.sparse import coo_matrix
-from skimage.external.tifffile import TiffFile
-import sys
-import time
 
 try:
     cv2.setNumThreads(0)
@@ -43,10 +29,6 @@ except NameError:
     pass
 
 import caiman as cm
-from caiman.source_extraction.cnmf import cnmf as cnmf
-from caiman.components_evaluation import evaluate_components
-from caiman.utils.visualization import plot_contours, view_patches_bar
-from caiman.base.rois import extract_binary_masks_blob
 from caiman.behavior import behavior
 from caiman.utils.utils import download_demo
 

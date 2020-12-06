@@ -6,9 +6,9 @@ dependencies:
 - coverage
 - cython
 - future
-- h5py
+- h5py=2.10.0
 - holoviews
-- ipykernel=4.10
+- ipykernel
 - ipython
 - ipyparallel
 - jupyter
@@ -27,7 +27,7 @@ dependencies:
 - scikit-learn
 - scipy
 - tensorflow
-- tifffile=0.15.1
-- tk=8.6.8
+- tifffile
+- tk
 - tqdm
 - yapf

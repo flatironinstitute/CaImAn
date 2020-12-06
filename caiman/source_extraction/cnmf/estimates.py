@@ -166,7 +166,7 @@ class Estimates(object):
 
 
 
-    def plot_contours(self, img=None, idx=None, crd=None, thr_method='max',
+    def plot_contours(self, img=None, idx=None, thr_method='max',
                       thr=0.2, display_numbers=True, params=None,
                       cmap='viridis'):
         """view contours of all spatial footprints.
@@ -177,12 +177,12 @@ class Estimates(object):
                 image of all spatial components (d1 x d2)
             idx :   list
                 list of accepted components
-            crd :   list
-                list of coordinates (if empty they are computed)
             thr_method : str
                 thresholding method for computing contours ('max', 'nrg')
+                if list of coordinates self.coordinates is None, i.e. not already computed
             thr : float
                 threshold value
+                only effective if self.coordinates is None, i.e. not already computed
             display_numbers :   bool
                 flag for displaying the id number of each contour
             params : params object
@@ -197,7 +197,7 @@ class Estimates(object):
         plt.figure()
         if params is not None:
             plt.suptitle('min_SNR=%1.2f, rval_thr=%1.2f, use_cnn=%i'
-                         %(params.quality['SNR_lowest'],
+                         %(params.quality['min_SNR'],
                            params.quality['rval_thr'],
                            int(params.quality['use_cnn'])))
         if idx is None:
@@ -225,7 +225,7 @@ class Estimates(object):
             plt.title('Rejected Components')
         return self
 
-    def plot_contours_nb(self, img=None, idx=None, crd=None, thr_method='max',
+    def plot_contours_nb(self, img=None, idx=None, thr_method='max',
                          thr=0.2, params=None, line_color='white', cmap='viridis'):
         """view contours of all spatial footprints (notebook environment).
 
@@ -235,12 +235,12 @@ class Estimates(object):
                 image of all spatial components (d1 x d2)
             idx :   list
                 list of accepted components
-            crd :   list
-                list of coordinates (if empty they are computed)
             thr_method : str
                 thresholding method for computing contours ('max', 'nrg')
+                if list of coordinates self.coordinates is None, i.e. not already computed
             thr : float
                 threshold value
+                only effective if self.coordinates is None, i.e. not already computed
             params : params object
                 set of dictionary containing the various parameters
         """
@@ -264,7 +264,7 @@ class Estimates(object):
                 if params is not None:
                     p.xaxis.axis_label = '''\
                     min_SNR={min_SNR}, rval_thr={rval_thr}, use_cnn={use_cnn}\
-                    '''.format(min_SNR=params.quality['SNR_lowest'],
+                    '''.format(min_SNR=params.quality['min_SNR'],
                                rval_thr=params.quality['rval_thr'],
                                use_cnn=params.quality['use_cnn'])
                 bokeh.plotting.show(p)
@@ -284,7 +284,7 @@ class Estimates(object):
                 if params is not None:
                     p1.xaxis.axis_label = '''\
                     min_SNR={min_SNR}, rval_thr={rval_thr}, use_cnn={use_cnn}\
-                    '''.format(min_SNR=params.quality['SNR_lowest'],
+                    '''.format(min_SNR=params.quality['min_SNR'],
                                rval_thr=params.quality['rval_thr'],
                                use_cnn=params.quality['use_cnn'])
                 bad = list(set(range(self.A.shape[1])) - set(idx))
@@ -298,7 +298,7 @@ class Estimates(object):
                 if params is not None:
                     p2.xaxis.axis_label = '''\
                     min_SNR={min_SNR}, rval_thr={rval_thr}, use_cnn={use_cnn}\
-                    '''.format(min_SNR=params.quality['SNR_lowest'],
+                    '''.format(min_SNR=params.quality['min_SNR'],
                                rval_thr=params.quality['rval_thr'],
                                use_cnn=params.quality['use_cnn'])
                 bokeh.plotting.show(bokeh.layouts.row(p1, p2))
@@ -565,10 +565,10 @@ class Estimates(object):
             include_bck: bool (True)
                 flag for including background in original and reconstructed movie
 
-            frame_rage: range or slice or list (default: slice(None))
+            frame_range: range or slice or list (default: slice(None))
                 display only a subset of frames
 
-            bpx: int (deafult: 0)
+            bpx: int (default: 0)
                 number of pixels to exclude on each border
 
             thr: float (values in [0, 1[) (default: 0)
@@ -580,7 +580,7 @@ class Estimates(object):
             movie_name: str (default: 'results_movie.avi')
                 name of saved file
 
-            display: bool (deafult: True)
+            display: bool (default: True)
                 flag for playing the movie (to stop the movie press 'q')
 
             opencv_codec: str (default: 'H264')
@@ -833,7 +833,7 @@ class Estimates(object):
         if self.YrA is not None:
             self.YrA = nA_mat * self.YrA
         if self.R is not None:
-            self.R = nA_mat * self.YrA
+            self.R = nA_mat * self.R
         if self.bl is not None:
             self.bl = nA * self.bl
         if self.c1 is not None:
@@ -864,7 +864,8 @@ class Estimates(object):
                 Flag to use self.idx_components for reading the indices.
 
             save_discarded_components: bool
-                whether to save the components from initialization so that they can be restored using the restore_discarded_components method
+                whether to save the components from initialization so that they
+                can be restored using the restore_discarded_components method
 
         Returns:
             self: Estimates object
@@ -876,37 +877,53 @@ class Estimates(object):
             idx_components_bad = np.setdiff1d(np.arange(self.A.shape[-1]), idx_components)
 
         if idx_components is not None:
-            if save_discarded_components:
+            if save_discarded_components and self.discarded_components is None:
                 self.discarded_components = Estimates()
 
-            for field in ['C', 'S', 'YrA', 'R', 'F_dff', 'g', 'bl', 'c1', 'neurons_sn', 'lam', 'cnn_preds','SNR_comp','r_values','coordinates']:
+            for field in ['C', 'S', 'YrA', 'R', 'F_dff', 'g', 'bl', 'c1', 'neurons_sn',
+                          'lam', 'cnn_preds', 'SNR_comp', 'r_values', 'coordinates']:
                 if getattr(self, field) is not None:
                     if type(getattr(self, field)) is list:
                         setattr(self, field, np.array(getattr(self, field)))
                     if len(getattr(self, field)) == self.A.shape[-1]:
                         if save_discarded_components:
-                            setattr(self.discarded_components, field, getattr(self, field)[idx_components_bad])
+                            setattr(self.discarded_components, field,
+                                    getattr(self, field)[idx_components_bad]
+                                    if getattr(self.discarded_components, field) is None else
+                                    np.concatenate([getattr(self.discarded_components, field),
+                                                    getattr(self, field)[idx_components_bad]]))
                         setattr(self, field, getattr(self, field)[idx_components])
                     else:
-                        print('*** Variable ' + field + ' has not the same number of components as A ***')
+                        print('*** Variable ' + field +
+                              ' has not the same number of components as A ***')
 
             for field in ['A', 'A_thr']:
                 if getattr(self, field) is not None:
                     if 'sparse' in str(type(getattr(self, field))):
                         if save_discarded_components:
-                            setattr(self.discarded_components, field, getattr(self, field).tocsc()[:, idx_components_bad])
+                            if getattr(self.discarded_components, field) is None:
+                                setattr(self.discarded_components, field,
+                                    getattr(self, field).tocsc()[:, idx_components_bad])
+                            else:
+                                caiman.source_extraction.cnmf.online_cnmf.csc_append(
+                                    getattr(self.discarded_components, field),
+                                    getattr(self, field).tocsc()[:, idx_components_bad])
                         setattr(self, field, getattr(self, field).tocsc()[:, idx_components])
-
                     else:
                         if save_discarded_components:
-                            setattr(self.discarded_components, field, getattr(self, field)[:, idx_components_bad])
+                            setattr(self.discarded_components, field,
+                                getattr(self, field)[:, idx_components_bad]
+                                    if getattr(self.discarded_components, field) is None else
+                                    np.concatenate([getattr(self.discarded_components, field),
+                                        getattr(self, field)[:, idx_components_bad]], axis=-1))
                         setattr(self, field, getattr(self, field)[:, idx_components])
-
 
             self.nr = len(idx_components)
 
             if save_discarded_components:
-                self.discarded_components.nr = len(idx_components_bad)
+                if not hasattr(self.discarded_components, 'nr'):
+                    self.discarded_components.nr = 0
+                self.discarded_components.nr += len(idx_components_bad)
                 self.discarded_components.dims = self.dims
 
             self.idx_components = None
@@ -1228,10 +1245,10 @@ class Estimates(object):
 
     def manual_merge(self, components, params):
         ''' merge a given list of components. The indices
-        of components are not pythonic, i.e., they start from 1. Moreover,
+        of components are pythonic, i.e., they start from 0. Moreover,
         the indices refer to the absolute indices, i.e., the indices before
-        spliting the components in accepted and rejected. If you want to e.g.
-        merge components 1 from idx_components and 10 from idx_components_bad
+        splitting the components in accepted and rejected. If you want to e.g.
+        merge components 0 from idx_components and 9 from idx_components_bad
         you will to set
         ```
         components = [[self.idx_components[0], self.idx_components_bad[9]]]
@@ -1297,7 +1314,7 @@ class Estimates(object):
             g_merged[i, :] = gm
 
         empty = np.ravel((C_merged.sum(1) == 0) + (A_merged.sum(0) == 0))
-        nbmrg -= len(empty)
+        nbmrg -= sum(empty)
         if np.any(empty):
             A_merged = A_merged[:, ~empty]
             C_merged = C_merged[~empty]
@@ -1340,8 +1357,8 @@ class Estimates(object):
         if self.c1 is not None:
             self.c1 = np.hstack((self.c1[good_neurons],
                                  np.array(c1_merged).flatten()))
-        if self.sn is not None:
-            self.sn = np.hstack((self.sn[good_neurons],
+        if self.neurons_sn is not None:
+            self.neurons_sn = np.hstack((self.neurons_sn[good_neurons],
                                  np.array(sn_merged).flatten()))
         if self.g is not None:
             self.g = np.vstack((np.vstack(self.g)[good_neurons], g_merged))
@@ -1582,7 +1599,7 @@ class Estimates(object):
                 mod = nwbfile.create_processing_module('ophys', 'contains caiman estimates for the main imaging plane')
 
             img_seg = ImageSegmentation()
-            mod.add_data_interface(img_seg)
+            mod.add(img_seg)
             fl = Fluorescence()
             mod.add_data_interface(fl)
 #            mot_crct = MotionCorrection()
@@ -1609,27 +1626,45 @@ class Estimates(object):
                     raise Exception('There is more than one imaging plane in the file, you need to specify the name'
                                     ' via the "imaging_series_name" parameter')
 
-            ps = img_seg.create_plane_segmentation('CNMF_ROIs', imaging_plane, 'PlaneSegmentation', image_series)
+            ps = img_seg.create_plane_segmentation(
+                name='PlaneSegmentation',
+                description='CNMF_ROIs',
+                imaging_plane=imaging_plane,
+                reference_images=image_series)
 
             ps.add_column('r', 'description of r values')
             ps.add_column('snr', 'signal to noise ratio')
-            ps.add_column('cnn', 'description of CNN')
-            ps.add_column('keep', 'in idx_components')
             ps.add_column('accepted', 'in accepted list')
             ps.add_column('rejected', 'in rejected list')
+            if self.cnn_preds:
+                ps.add_column('cnn', 'description of CNN')
+            if self.idx_components:
+                ps.add_column('keep', 'in idx_components')
 
             # Add ROIs
-            if not hasattr(self, 'accepted_list'):
-                for i, (roi, snr, r, cnn) in enumerate(zip(self.A.T, self.SNR_comp, self.r_values, self.cnn_preds)):
-                    ps.add_roi(image_mask=roi.T.toarray().reshape(self.dims), r=r, snr=snr, cnn=cnn,
-                               keep=i in self.idx_components, accepted=False, rejected=False)
-            else:
-                for i, (roi, snr, r, cnn) in enumerate(zip(self.A.T, self.SNR_comp, self.r_values, self.cnn_preds)):
-                    ps.add_roi(image_mask=roi.T.toarray().reshape(self.dims), r=r, snr=snr, cnn=cnn,
-                               keep=i in self.idx_components, accepted=i in self.accepted_list, rejected=i in self.rejected_list)
+            for i in range(self.A.shape[-1]):
+                add_roi_kwargs = dict(image_mask=self.A.T[i].T.toarray().reshape(self.dims),
+                                      r=self.r_values[i], snr=self.SNR_comp[i], accepted=False, rejected=False)
+                if hasattr(self, 'accepted_list'):
+                    add_roi_kwargs.update(accepted=i in self.accepted_list)
+                if hasattr(self, 'rejected_list'):
+                    add_roi_kwargs.update(rejected=i in self.rejected_list)
+                if self.cnn_preds:
+                    add_roi_kwargs.update(cnn=self.cnn_preds[i])
+                if self.idx_components:
+                    add_roi_kwargs.update(keep=i in self.idx_components)
+
+                ps.add_roi(**add_roi_kwargs)
 
             for bg in self.b.T:  # Backgrounds
-                ps.add_roi(image_mask=bg.reshape(self.dims), r=np.nan, snr=np.nan, cnn=np.nan, keep=False, accepted=False, rejected=False)
+                add_bg_roi_kwargs = dict(image_mask=bg.reshape(self.dims), r=np.nan, snr=np.nan, accepted=False,
+                                         rejected=False)
+                if 'keep' in ps.colnames:
+                    add_bg_roi_kwargs.update(keep=False)
+                if 'cnn' in ps.colnames:
+                    add_bg_roi_kwargs.update(cnn=np.nan)
+                ps.add_roi(**add_bg_roi_kwargs)
+
             # Add Traces
             n_rois = self.A.shape[-1]
             n_bg = len(self.f)
@@ -1642,10 +1677,11 @@ class Estimates(object):
             timestamps = np.arange(self.f.shape[1]) / imaging_rate + starting_time
 
             # Neurons
-            fl.create_roi_response_series(name='RoiResponseSeries', data=self.C.T, rois=rt_region_roi, unit='lumens', timestamps=timestamps)
-            # Background
-            fl.create_roi_response_series(name='Background_Fluorescence_Response', data=self.f.T, rois=rt_region_bg, unit='lumens',
+            fl.create_roi_response_series(name='RoiResponseSeries', data=self.C.T, rois=rt_region_roi, unit='lumens',
                                           timestamps=timestamps)
+            # Background
+            fl.create_roi_response_series(name='Background_Fluorescence_Response', data=self.f.T, rois=rt_region_bg,
+                                          unit='lumens', timestamps=timestamps)
 
             mod.add(TimeSeries(name='residuals', description='residuals', data=self.YrA.T, timestamps=timestamps,
                                unit='NA'))
@@ -1653,9 +1689,9 @@ class Estimates(object):
                 images = Images('summary_images')
                 images.add_image(GrayscaleImage(name='local_correlations', data=self.Cn))
 
-                # Add MotionCorreciton
+                # Add MotionCorrection
     #            create_corrected_image_stack(corrected, original, xy_translation, name='CorrectedImageStack')
-                io.write(nwbfile)
+            io.write(nwbfile)
 
 
 def compare_components(estimate_gt, estimate_cmp,  Cn=None, thresh_cost=.8, min_dist=10, print_assignment=False,

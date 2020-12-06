@@ -60,6 +60,11 @@ if not os.path.exists(cnm_obj.mmap_file):
     M = FileDialog()
     cnm_obj.mmap_file = M.getOpenFileName(caption='Load memory mapped file',
                                           filter='*.mmap')[0]
+else:
+    M = FileDialog()
+    d, f = os.path.split(cnm_obj.mmap_file)
+    cnm_obj.mmap_file = M.getOpenFileName(caption='Load memory mapped file',
+                                          directory=d, filter=f + ';;*.mmap')[0]
 
 if fpath[-3:] == 'nwb':
     mov = cm.load(cnm_obj.mmap_file,

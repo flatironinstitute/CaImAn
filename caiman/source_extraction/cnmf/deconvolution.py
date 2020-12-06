@@ -148,7 +148,8 @@ def constrained_foopsi(fluor, bl=None,  c1=None, g=None,  sn=None, p=None, metho
                         optimize_g=optimize_g, penalty=penalty, s_min=0 if s_min is None else s_min)
                 else:
                     c, sp, _, g, lam = constrained_oasisAR1(
-                        (fluor - bl).astype(np.float32), g[0], sn, optimize_b=False, penalty=penalty)
+                        (fluor - bl).astype(np.float32), g[0], sn, optimize_b=False, penalty=penalty,
+                        s_min=0 if s_min is None else s_min)
 
                 c1 = c[0]
 
@@ -159,10 +160,11 @@ def constrained_foopsi(fluor, bl=None,  c1=None, g=None,  sn=None, p=None, metho
                 if bl is None:
                     c, sp, bl, g, lam = constrained_oasisAR2(
                         fluor.astype(np.float32), g, sn, optimize_b=True, b_nonneg=bas_nonneg,
-                        optimize_g=optimize_g, penalty=penalty)
+                        optimize_g=optimize_g, penalty=penalty, s_min=s_min)
                 else:
                     c, sp, _, g, lam = constrained_oasisAR2(
-                        (fluor - bl).astype(np.float32), g, sn, optimize_b=False, penalty=penalty)
+                        (fluor - bl).astype(np.float32), g, sn, optimize_b=False,
+                        penalty=penalty, s_min=s_min)
                 c1 = c[0]
                 d = (g[0] + sqrt(g[0] * g[0] + 4 * g[1])) / 2
                 c -= c1 * d**np.arange(len(fluor))
@@ -587,6 +589,7 @@ def onnls(y, g, lam=0, shift=100, window=None, mask=None, tol=1e-9, max_iter=Non
     else:
         w = window
     w = min(T, w)
+    shift = min(w, shift)
     K = np.zeros((w, w))
 
     if len(g) == 1:  # kernel for AR(1)
@@ -637,7 +640,7 @@ def onnls(y, g, lam=0, shift=100, window=None, mask=None, tol=1e-9, max_iter=Non
 
 
 def constrained_oasisAR2(y, g, sn, optimize_b=True, b_nonneg=True, optimize_g=0, decimate=5,
-                         shift=100, window=None, tol=1e-9, max_iter=1, penalty=1):
+                         shift=100, window=None, tol=1e-9, max_iter=1, penalty=1, s_min=0):
     """ Infer the most likely discretized spike train underlying an AR(2) fluorescence trace
 
     Solves the noise constrained sparse non-negative deconvolution problem
@@ -681,6 +684,11 @@ def constrained_oasisAR2(y, g, sn, optimize_b=True, b_nonneg=True, optimize_g=0,
     
         penalty : int, optional, default 1
             Sparsity penalty. 1: min (s)_1  0: min (s)_0
+
+        s_min : float, optional, default 0
+            Minimal non-zero activity within each bin (minimal 'spike size').
+            For negative values the threshold is |s_min| * sn * sqrt(1-decay_constant)
+            If 0 the threshold is determined automatically such that RSS <= sn^2 T
 
     Returns:
         c : array of float
@@ -898,25 +906,33 @@ def constrained_oasisAR2(y, g, sn, optimize_b=True, b_nonneg=True, optimize_g=0,
                 tmp[f + 1:f + l] = g11[1:l] * tmp[f] + g12[1:l] * tmp[f - 1]
             return tmp
 
-        spikesizes = np.sort(s[s > 1e-6])
-        i = len(spikesizes) // 2
-        l = 0
-        u = len(spikesizes) - 1
-        while u - l > 1:
-            s_min = spikesizes[i]
-            tmp = c4smin(y - b, s, s_min)
-            res = y - b - tmp
-            RSS = res.dot(res)
-            if RSS < thresh or i == 0:
-                l = i
-                i = (l + u) // 2
-                res0 = tmp
-            else:
-                u = i
-                i = (l + u) // 2
-        if i > 0:
-            c = res0
-            s = np.append([0, 0], c[2:] - g[0] * c[1:-1] - g[1] * c[:-2])
+        if s_min == 0:
+            spikesizes = np.sort(s[s > 1e-6])
+            i = len(spikesizes) // 2
+            l = 0
+            u = len(spikesizes) - 1
+            while u - l > 1:
+                s_min = spikesizes[i]
+                tmp = c4smin(y - b, s, s_min)
+                res = y - b - tmp
+                RSS = res.dot(res)
+                if RSS < thresh or i == 0:
+                    l = i
+                    i = (l + u) // 2
+                    res0 = tmp
+                else:
+                    u = i
+                    i = (l + u) // 2
+            if i > 0:
+                c = res0
+                s = np.append([0, 0], c[2:] - g[0] * c[1:-1] - g[1] * c[:-2])
+        else:
+            if s_min < 0:
+                s_min = -s_min * sn * np.sqrt(1 - d)
+            for factor in (.7, .8, .9, 1):
+                c = c4smin(y - b, s, factor * s_min)
+                s = np.append([0, 0], c[2:] - g[0] * c[1:-1] - g[1] * c[:-2])
+        s[s < np.finfo(np.float32).eps] = 0
 
     return c, s, b, g, lam
 
