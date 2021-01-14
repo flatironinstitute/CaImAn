@@ -33,7 +33,6 @@ import pylab as pl
 import scipy
 from scipy.sparse import spdiags, issparse, csc_matrix, csr_matrix
 import scipy.ndimage.morphology as morph
-from skimage.feature.peak import _get_high_intensity_peaks
 import tifffile
 from typing import List
 
@@ -200,7 +199,9 @@ def peak_local_max(image, min_distance=1, threshold_abs=None,
         mask &= image > max(thresholds)
 
     # Select highest intensities (num_peaks)
-    coordinates = _get_high_intensity_peaks(image, mask, num_peaks)
+    coord = np.nonzero(mask)
+    idx_maxsort = np.argsort(-image[coord])[:num_peaks]
+    coordinates = np.transpose(coord)[idx_maxsort]
 
     if indices is True:
         return coordinates
