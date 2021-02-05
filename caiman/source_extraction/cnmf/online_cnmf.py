@@ -1069,9 +1069,9 @@ class OnACID(object):
 
     def mc_next(self, t, frame):
         frame_ = frame.flatten(order='F')
-        templ = self.estimates.Ab.dot(
-            np.median(self.estimates.C_on[:self.M, t-51:t-1], 1))
         if self.is1p and self.estimates.W is not None:
+            templ = self.estimates.Ab.dot(
+                np.median(self.estimates.C_on[:self.M, t-50:t], 1))            
             if self.params.get('init','ssub_B') == 1:
                 B = self.estimates.W.dot(frame_ - templ - self.estimates.b0) + self.estimates.b0
             else:
@@ -1079,6 +1079,8 @@ class OnACID(object):
                 B = self.estimates.upscale_matrix.dot(self.estimates.W.dot(bc2))
                 B += self.estimates.b0
             templ += B
+        else:
+            templ = self.estimates.Ab.dot(self.estimates.C_on[:self.M, t-1])
         templ = templ.reshape(self.params.get('data', 'dims'), order='F')
         if self.params.get('online', 'normalize'):
             templ *= self.img_norm
