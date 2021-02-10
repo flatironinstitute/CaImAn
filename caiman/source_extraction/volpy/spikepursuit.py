@@ -231,7 +231,11 @@ def volspike(pars):
     t0 = t0 - np.mean(t0)
     
     # remove any variance in trace that can be predicted from the background principal components
-    Ub, Sb, Vb = svds(data_hp[:, notbw.ravel()], args['nPC_bg'])
+    data_svd = data_hp[:, notbw.ravel()]
+    if data_svd.shape[1] < args['nPC_bg'] + 1:
+        raise Exception(f'Too few pixels ({data_svd.shape[1]}) for background extraction (at least {args["nPC_bg"]} needed);'
+                        f'please decrease context_size and censor_size')
+    Ub, Sb, Vb = svds(data_svd, args['nPC_bg'])
     alpha = args['nPC_bg'] * args['ridge_bg']    # square of F-norm of Ub is equal to number of principal components
     reg = Ridge(alpha=alpha, fit_intercept=False, solver='lsqr').fit(Ub, t0)
     t0 = np.double(t0 - np.matmul(Ub, reg.coef_))
