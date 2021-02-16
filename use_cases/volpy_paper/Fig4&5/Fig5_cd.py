@@ -1,8 +1,10 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
 Created on Tue Aug 18 10:29:14 2020
-This produces Fig 5c,d
+This produces Fig 5c,d for VolPy paper.
+One needs to first run VolPy, CaImAN, SGPMD, Mean_ROI on three real datasets L1_1, TEG_1 and TEG_2.
+Then computes the SpNR and reproduces the figures.
 @author: agiovann & caichangjia
 """
 import numpy as np

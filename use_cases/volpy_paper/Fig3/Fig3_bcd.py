@@ -2,8 +2,9 @@
 # -*- coding: utf-8 -*-
 """
 Created on Fri Sep 20 10:33:04 2019
-@author: Changjia
+@author: caichangjia
 This file produces Fig3_bcd, Table 1,2,3 and Fig S4 for volpy paper.
+One needs F1 scores of Mask R-CNN produced by Fig3_a.py to reproduce these figures.
 """
 #%%
 import caiman as cm
@@ -69,7 +70,28 @@ file_names = ['L1.00.00', 'L1.01.00', 'L1.01.35', 'L1.02.00', 'L1.02.80', 'L1.03
               'HPC.29.04', 'HPC.29.06', 'HPC.32.01', 'HPC.38.05', 'HPC.38.03', 'HPC.39.07',
               'HPC.39.03', 'HPC.39.04', 'HPC.48.01', 'HPC.48.05', 'HPC.48.07', 'HPC.48.08']
 
-#%%
+#%% save the result to excel file
+import pandas as pd
+import openpyxl
+def multiple_dfs(df_list, sheets, file_name, spaces, text):
+    try:
+        book = load_workbook(file_name)
+        print('existing workbook')
+    except:
+        book = openpyxl.Workbook()
+        print('new workbook')
+
+    writer = pd.ExcelWriter(file_name,engine='openpyxl') 
+    writer.book = book
+    writer.sheets = {ws.title: ws for ws in book.worksheets}
+    row = 2
+    for dataframe in df_list:
+        dataframe.to_excel(writer,sheet_name=sheets,startrow=row, startcol=0, index=False, na_rep='NA')   
+        row = row + len(dataframe.index) + spaces + 1
+    #writer.sheets[sheets].cell(1,1).style.alignment.wrap_text = True
+    writer.sheets[sheets].cell(1,1).value = text
+    writer.save()
+    
 excel_folder = '/home/nel/NEL-LAB Dropbox/NEL/Papers/VolPy/Figures/plos/excel_data'
 df = pd.DataFrame({'file':file_names,'f1 score':values})
 dfs = [df]
@@ -162,33 +184,9 @@ for s1 in results.keys():
     for idx, s2 in enumerate(labels):
         df1[s1 + '_' + s2] = results[s1][list(results['train'].keys())[idx]]
 
-#%%
 df2 = pd.DataFrame({'file':['L1', 'TEG', 'HPC'],'train_mean':t_mean, 'val_mean':v_mean, 'human_mean':m_mean, 
                    'train_std':t_std, 'val_std':v_std, 'human_std':m_std})
-
-        
-#%%
-import openpyxl
-def multiple_dfs(df_list, sheets, file_name, spaces, text):
-    try:
-        book = load_workbook(file_name)
-        print('existing workbook')
-    except:
-        book = openpyxl.Workbook()
-        print('new workbook')
-
-    writer = pd.ExcelWriter(file_name,engine='openpyxl') 
-    writer.book = book
-    writer.sheets = {ws.title: ws for ws in book.worksheets}
-    row = 2
-    for dataframe in df_list:
-        dataframe.to_excel(writer,sheet_name=sheets,startrow=row, startcol=0, index=False, na_rep='NA')   
-        row = row + len(dataframe.index) + spaces + 1
-    #writer.sheets[sheets].cell(1,1).style.alignment.wrap_text = True
-    writer.sheets[sheets].cell(1,1).value = text
-    writer.save()
-
-
+       
 # list of dataframes
 dfs = [df1,df2]
 text = 'Average F1 score on training and validation sets grouped by dataset type. Results were provided for training, validation and human annotators (against consensus ground truth)'
@@ -345,19 +343,19 @@ dataset_name = ["voltage_v1.2", "voltage_v1.2_cross2", "voltage_v1.2_cross3",
 weights = ["/neurons20200824T1032/mask_rcnn_neurons_0040.h5",
            "/neurons20200825T0951/mask_rcnn_neurons_0040.h5", 
            "/neurons20200825T1039/mask_rcnn_neurons_0040.h5",
-           '/neurons20200901T0906/mask_rcnn_neurons_0030.h5',
-           '/neurons20200901T1008/mask_rcnn_neurons_0030.h5',
-           "/neurons20201116T1141/mask_rcnn_neurons_0030.h5", #'/neurons20200901T1058/mask_rcnn_neurons_0030.h5',
-           '/neurons20200902T1530/mask_rcnn_neurons_0030.h5',
-           "/neurons20200903T1124/mask_rcnn_neurons_0030.h5",
-           "/neurons20200903T1215/mask_rcnn_neurons_0030.h5",
-           '/neurons20200926T0919/mask_rcnn_neurons_0030.h5', 
-           "/neurons20200926T1036/mask_rcnn_neurons_0030.h5",
-           "/neurons20200926T1124/mask_rcnn_neurons_0030.h5", 
-           "/neurons20200926T1213/mask_rcnn_neurons_0030.h5",
+           '/neurons20200901T0906/mask_rcnn_neurons_0040.h5',
+           '/neurons20200901T1008/mask_rcnn_neurons_0040.h5',
+           "/neurons20201116T1141/mask_rcnn_neurons_0040.h5", #'/neurons20200901T1058/mask_rcnn_neurons_0040.h5',
+           '/neurons20200902T1530/mask_rcnn_neurons_0040.h5',
+           "/neurons20200903T1124/mask_rcnn_neurons_0040.h5",
+           "/neurons20200903T1215/mask_rcnn_neurons_0040.h5",
+           '/neurons20200926T0919/mask_rcnn_neurons_0040.h5', 
+           "/neurons20200926T1036/mask_rcnn_neurons_0040.h5",
+           "/neurons20200926T1124/mask_rcnn_neurons_0040.h5", 
+           "/neurons20200926T1213/mask_rcnn_neurons_0040.h5",
            "/neurons20201010T1758/mask_rcnn_neurons_0040.h5",
-           "/neurons20201015T1403/mask_rcnn_neurons_0030.h5", 
-           "/neurons20201019T1034/mask_rcnn_neurons_0030.h5"]
+           "/neurons20201015T1403/mask_rcnn_neurons_0040.h5", 
+           "/neurons20201019T1034/mask_rcnn_neurons_0040.h5"]
 
 folders = [os.path.split(name)[0][1:] for name in weights]
 

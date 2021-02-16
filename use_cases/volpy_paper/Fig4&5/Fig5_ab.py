@@ -1,6 +1,8 @@
 # -*- coding: utf-8 -*-
 """
 This file produces Fig5 a,b and Fig S5 for volpy paper.
+One needs to first run VolPy, CaImAn, SGPMD, Mean_ROI on these three datasets.
+Then computes the Fi score against ground truth and reproduces the figures.
 @author: caichangjia
 """
 #%%

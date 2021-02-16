@@ -1,11 +1,17 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
 Created on Mon Sep  7 22:36:12 2020
 This file creates figure 4 c,d and e
+To generate simulated datasets, one needs to clone the following repository:
+https://github.com/KasparP/PositronSimulations    
+One needs to run VolPy, CaImAn, SGPMD-NMF, Suite2p, PCA-ICA, MeanROI and SpikePursuit
+algorithms first (line 240-408, SGPMD and SPikePursuit needs to clone the github repository to run). 
+Then one needs to compare these results with the groundtruth to compute F1 scores (line 408-1045) 
+and creates the figures (line 40-408).
 sim3_10 - sim3_16: simulation with different spike amplitude
 sim4_1 - sim4_15: simulation with different overlaps
-@author: nel
+@author: @caichangjia
 """
 import numpy as np
 import os

@@ -1,7 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-This file produces the result in fig1 e,f in the VolPy paper.
+This file produces the result of fig1 e,f in the VolPy paper.
+One needs to run the demo_pipeline_voltage_imaging.py on L1.04.50 data to get
+volpy estimates object for running the code.
 @author: caichangjia
 """
 #%%

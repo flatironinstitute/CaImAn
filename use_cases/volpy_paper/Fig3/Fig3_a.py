@@ -1,6 +1,9 @@
 #!/usr/bin/env python
-# This file produces fig3_a for volpy paper.
-
+"""
+This file produces fig3_a in the volpy paper.
+One needs to clone the repository of Mask R-CNN and run Mask R-CNN with trained
+weights on summary images for each dataset. 
+"""
 #%%
 import os
 import sys
@@ -94,19 +97,19 @@ for mode in ["train", "val"]:
             weights = ["/neurons20200824T1032/mask_rcnn_neurons_0040.h5",
                        "/neurons20200825T0951/mask_rcnn_neurons_0040.h5", 
                        "/neurons20200825T1039/mask_rcnn_neurons_0040.h5",
-                       '/neurons20200901T0906/mask_rcnn_neurons_0030.h5',
-                       '/neurons20200901T1008/mask_rcnn_neurons_0030.h5',
-                       '/neurons20200901T1058/mask_rcnn_neurons_0030.h5',
-                       '/neurons20200902T1530/mask_rcnn_neurons_0030.h5',
-                       "/neurons20200903T1124/mask_rcnn_neurons_0030.h5",
-                       "/neurons20200903T1215/mask_rcnn_neurons_0030.h5",
-                       '/neurons20200926T0919/mask_rcnn_neurons_0030.h5', 
-                       "/neurons20200926T1036/mask_rcnn_neurons_0030.h5",
-                       "/neurons20200926T1124/mask_rcnn_neurons_0030.h5", 
-                       "/neurons20200926T1213/mask_rcnn_neurons_0030.h5",
+                       '/neurons20200901T0906/mask_rcnn_neurons_0040.h5',
+                       '/neurons20200901T1008/mask_rcnn_neurons_0040.h5',
+                       '/neurons20200901T1058/mask_rcnn_neurons_0040.h5',
+                       '/neurons20200902T1530/mask_rcnn_neurons_0040.h5',
+                       "/neurons20200903T1124/mask_rcnn_neurons_0040.h5",
+                       "/neurons20200903T1215/mask_rcnn_neurons_0040.h5",
+                       '/neurons20200926T0919/mask_rcnn_neurons_0040.h5', 
+                       "/neurons20200926T1036/mask_rcnn_neurons_0040.h5",
+                       "/neurons20200926T1124/mask_rcnn_neurons_0040.h5", 
+                       "/neurons20200926T1213/mask_rcnn_neurons_0040.h5",
                        "/neurons20201010T1758/mask_rcnn_neurons_0040.h5",
-                       "/neurons20201015T1403/mask_rcnn_neurons_0030.h5",
-                       "/neurons20201019T1034/mask_rcnn_neurons_0030.h5"][dataset_idx]
+                       "/neurons20201015T1403/mask_rcnn_neurons_0040.h5",
+                       "/neurons20201019T1034/mask_rcnn_neurons_0040.h5"][dataset_idx]
             
             ww = "{0:0=2d}".format(w)
             weights = weights[:-5] + ww + '.h5'
@@ -208,6 +211,7 @@ for mode in ["train", "val"]:
                 mask_gt = gt_mask.copy().transpose([2,0,1])*1.
                 
                 # save the comparisons between ground truth and mask rcnn
+                # Fig 3_a
                 tp_gt, tp_comp, fn_gt, fp_comp, performance_cons_off = nf_match_neurons_in_binary_masks(
                         mask_gt, mask_pr, thresh_cost=0.7, min_dist=10, print_assignment=True,
                         plot_results=False, Cn=image[:,:,0], labels=['GT', 'MRCNN'])

@@ -1,9 +1,9 @@
-#!/usr/bin/env python3
+#!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
 This file is used to measure computational performance of VolPy.
+This file produces Fig6 for Volpy paper.
 Note that if testing with 1 CPU, make sure dview=None.
-This file produces Fig6
 @author: caichangjia
 """
 #%% Run memory tests for VolPy
