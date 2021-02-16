@@ -79,7 +79,7 @@ methods appeared (see References below), as well as:
 .. [CaImAn]  Giovannucci A., Friedrich J., Gunn P., Kalfon J., Koay S.A., Taxidis
     J., Najafi F., Gauthier J.L., Zhou P., Tank D.W., Chklovskii D.B.,
     Pnevmatikakis E.A. (2018). CaImAn: An open source tool for scalable
-    Calcium Imaging data Analysis. bioarXiv preprint. `[paper] <https://doi.org/10.1101/339564>`__
+    Calcium Imaging data Analysis. eLife 2019;8:e38173. `[paper] <https://elifesciences.org/articles/38173>`__
 
 Deconvolution and demixing of calcium imaging data
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -97,8 +97,8 @@ Deconvolution and demixing of calcium imaging data
 
 .. [CNMF_E]  Zhou, P., Resendez, S. L., Stuber, G. D., Kass, R. E., & Paninski,
     L. (2016). Efficient and accurate extraction of in vivo calcium signals
-    from microendoscopic video data. arXiv preprint arXiv:1605.07266.
-    `[paper] <https://arxiv.org/abs/1605.07266>`__, `[Github
+    from microendoscopic video data. eLife 2018;7:e28728.
+    `[paper] <https://elifesciences.org/articles/28728>`__, `[Github
     repository] <https://github.com/zhoupc/CNMF_E>`__.
 
 .. [OASIS] Friedrich J. and Paninski L. Fast active set methods for online
@@ -115,7 +115,7 @@ Online Analysis
     `[paper] <http://papers.nips.cc/paper/6832-onacid-online-analysis-of-calcium-imaging-data-in-real-time>`__
 
 .. [OnACID-E] Friedrich J., Giovannucci A. & Pnevmatikakis E.A. (2020).
-    Online analysis of microendoscopic 1-photon calcium imaging data streams.
+    Online analysis of microendoscopic 1-photon calcium imaging data streams. PLoS Comput Biol 17(1):e1008565. `[paper] <https://doi.org/10.1371/journal.pcbi.1008565>`__.
 
 Motion Correction
 ~~~~~~~~~~~~~~~~~

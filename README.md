@@ -35,10 +35,15 @@ CaImAn implements a variety of algorithms for analyzing calcium (and voltage) im
  
 If you use this code please cite the corresponding papers where original methods appeared as well the companion paper.
 
+## New: Real-time analysis of microendoscopic 1p data (January 2021)
+
+Our online algorithms can be used for newly enabled real-time analysis of live-streaming data. An example for real-time analysis of microendoscopic 1p data is shown in the notebook `demos/notebooks/demo_realtime_cnmfE.ipynb`.
+For more information about the approach check the [paper](https://doi.org/10.1371/journal.pcbi.1008565).
+
 ## New: Online analysis for microendoscopic 1p data (January 2020)
 
-We developed two approaches for analyzing streaming microendoscopic 1p data with hihg speed and low memory requirements. 
-The first approach (OnACID-E) features a direct implementation of the CNMF-E algorithm in an online setup. An example can be shown in the notebook `demos/notebooks/demo_online_CNMFE.ipynb`. The second approach first extracts the background by modeling it with a simple convolutional neural network (Ring-CNN) and proceeds with the analysis using the OnACID algorithm.
+We developed two approaches for analyzing streaming microendoscopic 1p data with high speed and low memory requirements. 
+The first approach (OnACID-E) features a direct implementation of the CNMF-E algorithm in an online setup. An example can be seen in the notebook `demos/notebooks/demo_online_cnmfE.ipynb`. The second approach first extracts the background by modeling it with a simple convolutional neural network (Ring-CNN) and proceeds with the analysis using the OnACID algorithm, see `demos/notebooks/demo_Ring_CNN.ipynb`.
 
 ## New: Analysis pipeline for Voltage Imaging data (December 2019)
 
