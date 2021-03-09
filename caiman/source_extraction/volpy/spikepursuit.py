@@ -145,12 +145,9 @@ def volspike(pars):
                     
                 thresh: float
                     threshold of the signal
-
-                spatial_filter: 2-d array
-                    spatial filter of the neuron in the FOV
                     
                 weights: 2-d array
-                    ridge regression coefficients for fitting reconstructed signal
+                    ridge regression coefficients for fitting reconstructed signal 
                 
                 locality: boolean
                     False if the maximum of spatial filter is not in the initial ROI
@@ -226,8 +223,9 @@ def volspike(pars):
     # compute the initial trace
     if weights_init is None:
         t0 = np.nanmean(data_hp[:, bw.ravel()], 1)
-    else:
-        t0 = np.matmul(data_hp, weights_init[1:])  
+    else: 
+        print('Reuse weights')
+        t0 = np.matmul(data_hp, weights_init.ravel()) # reuse weights
     t0 = t0 - np.mean(t0)
     
     # remove any variance in trace that can be predicted from the background principal components
@@ -250,7 +248,10 @@ def volspike(pars):
     output['rawROI']['t'] = t0.copy()
     output['rawROI']['ts'] = ts.copy()
     output['rawROI']['spikes'] = spikes.copy()
-    output['rawROI']['spatial_filter'] = bw.copy()
+    if weights_init is None:
+        output['rawROI']['weights'] = bw.copy()
+    else:
+        output['rawROI']['weights'] = weights_init.copy()
     output['rawROI']['t'] = output['rawROI']['t'] * np.mean(t0[output['rawROI']['spikes']]) / np.mean(
         output['rawROI']['t'][output['rawROI']['spikes']])  # correct shrinkage
     output['rawROI']['templates'] = templates
@@ -288,14 +289,14 @@ def volspike(pars):
                             kernel_std_x=sigma, kernel_std_y=sigma,
                             borderType=cv2.BORDER_REPLICATE), data_hp.shape)))
 
-    # refine spatial filter and estimate spike times for several iterations 
+    # refine weights and estimate spike times for several iterations 
     for iteration in range(args['n_iter']):
         if iteration == args['n_iter'] - 1:
             do_plot = args['do_plot']
         else:
             do_plot = False
             
-        # update spatial filter
+        # update weights
         tr = np.single(t_rec.copy())
         if args['weight_update'] == 'NMF':
             C = np.array([tr, np.ones_like(tr)])  # constant baselines as 2nd component
@@ -314,15 +315,6 @@ def volspike(pars):
             weights = Ri.coef_
             weights[0] = Ri.intercept_
 
-        spatial_filter = np.empty_like(weights)
-        spatial_filter[:] = weights
-        spatial_filter = movie.gaussian_blur_2D(np.reshape(spatial_filter[1:],
-                                                          ref.shape, order='C')[np.newaxis, :, :],
-                                               kernel_size_x=np.int(2 * np.ceil(2 * sigma) + 1),
-                                               kernel_size_y=np.int(2 * np.ceil(2 * sigma) + 1),
-                                               kernel_std_x=sigma, kernel_std_y=sigma,
-                                               borderType=cv2.BORDER_REPLICATE)[0]
-
         # update the signal            
         t = np.matmul(recon, weights)
         t = t - np.mean(t)
@@ -332,6 +324,7 @@ def volspike(pars):
         t = t - np.matmul(Ub, b)
 
         # correct shrinkage
+        weights = weights * np.mean(t0[spikes]) / np.mean(t[spikes])
         t = np.double(t * np.mean(t0[spikes]) / np.mean(t[spikes]))
 
         # estimate spike times
@@ -366,13 +359,10 @@ def volspike(pars):
     else:
         locality = True
     
-    # spatial filter in the FOV
+    # weights in the FOV
     weights = np.reshape(weights[1:],ref.shape, order='C')
     weights_FOV = np.zeros(images.shape[1:])
     weights_FOV[Xinds[0]:Xinds[-1] + 1, Yinds[0]:Yinds[-1] + 1] = weights
-
-    spatial = np.zeros(images.shape[1:])
-    spatial[Xinds[0]:Xinds[-1] + 1, Yinds[0]:Yinds[-1] + 1] = spatial_filter
 
     # subthreshold activity extraction    
     t_sub = t.copy() - t_rec
@@ -390,7 +380,6 @@ def volspike(pars):
     output['templates'] = templates
     output['snr'] = snr
     output['thresh'] = thresh
-    output['spatial_filter'] = spatial    
     output['weights'] = weights_FOV
     output['locality'] = locality    
     output['context_coord'] = np.transpose(np.vstack((Xinds[[0, -1]], Yinds[[0, -1]])))
