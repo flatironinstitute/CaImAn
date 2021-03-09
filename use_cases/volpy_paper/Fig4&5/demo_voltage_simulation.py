@@ -50,17 +50,19 @@ logging.basicConfig(format=
                     level=logging.INFO)
 
 # %%
-def main():
-    pass  # For compatibility between running under Spyder and the CLI
+def run_volpy(fnames, options=None, do_motion_correction=True, do_memory_mapping=True, fr=400):
+    #pass  # For compatibility between running under Spyder and the CLI
 
     # %%  Load demo movie and ROIs
-    fnames = download_demo('demo_voltage_imaging.hdf5', 'volpy')  # file path to movie file (will download if not present)
-    path_ROIs = download_demo('demo_voltage_imaging_ROIs.hdf5', 'volpy')  # file path to ROIs file (will download if not present)
     file_dir = os.path.split(fnames)[0]
+    path_ROIs = [file for file in os.listdir(file_dir) if 'ROIs_gt' in file]
+    if len(path_ROIs)>0:
+        path_ROIs = path_ROIs[0]
+    #path_ROIs = '/home/nel/NEL-LAB Dropbox/NEL/Datasets/voltage_lin/peyman_golshani/ROIs.hdf5'
     
 #%% dataset dependent parameters
     # dataset dependent parameters
-    fr = 400                                        # sample rate of the movie
+    fr = fr                                        # sample rate of the movie
 
     # motion correction parameters
     pw_rigid = False                                # flag for pw-rigid motion correction
@@ -86,17 +88,6 @@ def main():
 
     opts = volparams(params_dict=opts_dict)
 
-# %% play the movie (optional)
-    # playing the movie using opencv. It requires loading the movie in memory.
-    # To close the movie press q
-    display_images = False
-
-    if display_images:
-        m_orig = cm.load(fnames)
-        ds_ratio = 0.2
-        moviehandle = m_orig.resize(1, 1, ds_ratio)
-        moviehandle.play(q_max=99.5, fr=40, magnification=4)
-
 # %% start a cluster for parallel processing
     c, dview, n_processes = cm.cluster.setup_cluster(
         backend='local', n_processes=None, single_thread=False)
@@ -105,7 +96,7 @@ def main():
     # first we create a motion correction object with the specified parameters
     mc = MotionCorrect(fnames, dview=dview, **opts.get_group('motion'))
     # Run correction
-    do_motion_correction = True
+    do_motion_correction = do_motion_correction
     if do_motion_correction:
         mc.motion_correct(save_movie=True)
     else: 
@@ -114,17 +105,8 @@ def main():
         mc.mmap_file = [os.path.join(file_dir, mc_list[0])]
         print(f'reuse previously saved motion corrected file:{mc.mmap_file}')
 
-# %% compare with original movie
-    if display_images:
-        m_orig = cm.load(fnames)
-        m_rig = cm.load(mc.mmap_file)
-        ds_ratio = 0.2
-        moviehandle = cm.concatenate([m_orig.resize(1, 1, ds_ratio),
-                                      m_rig.resize(1, 1, ds_ratio)], axis=2)
-        moviehandle.play(fr=40, q_max=99.5, magnification=4)  # press q to exit
-
 # %% MEMORY MAPPING
-    do_memory_mapping = True
+    do_memory_mapping = do_memory_mapping
     if do_memory_mapping:
         border_to_0 = 0 if mc.border_nan == 'copy' else mc.border_to_0
         # you can include the boundaries of the FOV if you used the 'copy' option
@@ -152,38 +134,33 @@ def main():
                                           dview=dview).max(axis=0)
     img_corr = (Cn-np.mean(Cn))/np.std(Cn)
     summary_images = np.stack([img, img, img_corr], axis=0).astype(np.float32)
-    # save summary images which are used in the VolPy GUI
+    # ! save summary image, it is used in GUI
     cm.movie(summary_images).save(fnames[:-5] + '_summary_images.tif')
-    fig, axs = plt.subplots(1, 2)
-    axs[0].imshow(summary_images[0]); axs[1].imshow(summary_images[2])
-    axs[0].set_title('mean image'); axs[1].set_title('corr image')
-
-    #%% methods for segmentation
-    methods_list = ['manual_annotation',       # manual annotations need prepared annotated datasets in the same format as demo_voltage_imaging_ROIs.hdf5 
-                    'maskrcnn',                # Mask R-CNN is a convolutional neural network trained for detecting neurons in summary images
-                    'gui_annotation']          # use VolPy GUI to correct outputs of Mask R-CNN or annotate new datasets 
-                    
+    #plt.imshow(summary_images[0])    
+    #%% three methods for segmentation
+    methods_list = ['manual_annotation',       # manual annotation needs user to prepare annotated datasets same format as demo ROIs 
+                    'gui_annotation',          # use gui to manually annotate neurons, but this is still under developing
+                    'maskrcnn']                # maskrcnn is a convolutional network trained for finding neurons using summary images
     method = methods_list[0]
     if method == 'manual_annotation':                
-        with h5py.File(path_ROIs, 'r') as fl:
-            ROIs = fl['mov'][()]  
-
-    elif method == 'maskrcnn':                 # Important!! Make sure install keras before using mask rcnn. 
-        weights_path = download_model('mask_rcnn')    # also make sure you have downloaded the new weight. The weight was updated on Dec 1st 2020.
-        ROIs = utils.mrcnn_inference(img=summary_images.transpose([1, 2, 0]), size_range=[5, 22],
-                                     weights_path=weights_path, display_result=True) # size parameter decides size range of masks to be selected
-        cm.movie(ROIs).save(fnames[:-5] + 'mrcnn_ROIs.hdf5')
+        #with h5py.File(path_ROIs, 'r') as fl:
+        #    ROIs = fl['mov'][()]
+        ROIs = np.load(os.path.join(file_dir, path_ROIs))
 
     elif method == 'gui_annotation':
-        # run volpy_gui.py file in the caiman/source_extraction/volpy folder
-        gui_ROIs =  caiman_datadir() + '/example_movies/volpy/gui_roi.hdf5'
-        with h5py.File(gui_ROIs, 'r') as fl:
-            ROIs = fl['mov'][()]
-
-    fig, axs = plt.subplots(1, 2)
-    axs[0].imshow(summary_images[0]); axs[1].imshow(ROIs.sum(0))
-    axs[0].set_title('mean image'); axs[1].set_title('masks')
+        # run volpy_gui file in the caiman/source_extraction/volpy folder
+        # load the summary images you have just saved 
+        # save the ROIs to the video folder
+        path_ROIs =  caiman_datadir() + '/example_movies/volpy/gui_roi.hdf5'
+        with h5py.File(path_ROIs, 'r') as fl:
+            ROIs = fl['mov'][()]  
         
+    elif method == 'maskrcnn':                 # Important!! make sure install keras before using mask rcnn
+        weights_path = download_model('mask_rcnn')
+        weights_path = '/home/nel/Code/NEL_LAB/Mask_RCNN/logs/neurons20200824T1032/mask_rcnn_neurons_0040.h5'
+        ROIs = utils.mrcnn_inference(img=summary_images.transpose([1, 2, 0]), size_range=[5, 100],
+                                     weights_path=weights_path, display_result=True) # size parameter decides size range of masks to be selected
+        #np.save(os.path.join(file_dir, 'ROIs'), ROIs)            
 # %% restart cluster to clean up memory
     cm.stop_server(dview=dview)
     c, dview, n_processes = cm.cluster.setup_cluster(
@@ -192,35 +169,29 @@ def main():
 # %% parameters for trace denoising and spike extraction
     ROIs = ROIs                                   # region of interests
     index = list(range(len(ROIs)))                # index of neurons
-    weights = None                                # if None, use ROIs for initialization; to reuse weights check reuse weights block 
+    weights = None                                # reuse spatial weights 
 
     context_size = 35                             # number of pixels surrounding the ROI to censor from the background PCA
-    visualize_ROI = False                         # whether to visualize the region of interest inside the context region
     flip_signal = True                            # Important!! Flip signal or not, True for Voltron indicator, False for others
     hp_freq_pb = 1 / 3                            # parameter for high-pass filter to remove photobleaching
-    clip = 100                                    # maximum number of spikes to form spike template
-    threshold_method = 'adaptive_threshold'       # adaptive_threshold or simple 
-    min_spikes= 10                                # minimal spikes to be found
-    pnorm = 0.5                                   # a variable deciding the amount of spikes chosen for adaptive threshold method
-    threshold = 3                                 # threshold for finding spikes only used in simple threshold method, Increase the threshold to find less spikes
+    threshold_method = 'adaptive_threshold'                   # 'simple' or 'adaptive_threshold'
+    min_spikes= 30                                # minimal spikes to be found
+    threshold = 4                               # threshold for finding spikes, increase threshold to find less spikes
     do_plot = False                               # plot detail of spikes, template for the last iteration
-    ridge_bg= 0.01                                # ridge regression regularizer strength for background removement, larger value specifies stronger regularization 
+    ridge_bg= 0.01                                 # ridge regression regularizer strength for background removement, larger value specifies stronger regularization 
     sub_freq = 20                                 # frequency for subthreshold extraction
-    weight_update = 'ridge'                       # ridge or NMF for weight update
-    n_iter = 2                                    # number of iterations alternating between estimating spike times and spatial filters
+    weight_update = 'ridge'                       # 'ridge' or 'NMF' for weight update
+    n_iter = 2
     
     opts_dict={'fnames': fname_new,
                'ROIs': ROIs,
                'index': index,
                'weights': weights,
                'context_size': context_size,
-               'visualize_ROI': visualize_ROI, 
                'flip_signal': flip_signal,
                'hp_freq_pb': hp_freq_pb,
-               'clip': clip,
                'threshold_method': threshold_method,
                'min_spikes':min_spikes,
-               'pnorm': pnorm, 
                'threshold': threshold,
                'do_plot':do_plot,
                'ridge_bg':ridge_bg,
@@ -229,13 +200,19 @@ def main():
                'n_iter': n_iter}
 
     opts.change_params(params_dict=opts_dict);          
+    
+    if options is not None:
+        print('using external options')
+        opts.change_params(params_dict=options)
+    else:
+        print('not using external options')
 
 #%% TRACE DENOISING AND SPIKE DETECTION
     vpy = VOLPY(n_processes=n_processes, dview=dview, params=opts)
     vpy.fit(n_processes=n_processes, dview=dview)
-   
+
 #%% visualization
-    display_images = True
+    display_images = False
     if display_images:
         print(np.where(vpy.estimates['locality'])[0])    # neurons that pass locality test
         idx = np.where(vpy.estimates['locality'] > 0)[0]
@@ -244,27 +221,16 @@ def main():
 #%% reconstructed movie
 # note the negative spatial weights is cutoff    
     if display_images:
-        mv_all = utils.reconstructed_movie(vpy.estimates.copy(), fnames=mc.mmap_file,
+        mv_all = utils.reconstructed_movie(vpy.estimates, fnames=mc.mmap_file,
                                            idx=idx, scope=(0,1000), flip_signal=flip_signal)
-        mv_all.play(fr=40, magnification=3)
+        mv_all.play(fr=40)
     
 #%% save the result in .npy format 
     save_result = True
     if save_result:
         vpy.estimates['ROIs'] = ROIs
-        vpy.estimates['params'] = opts
-        save_name = f'volpy_{os.path.split(fnames)[1][:-5]}_{threshold_method}'
+        save_name = f'volpy_{os.path.split(fnames)[1][:-5]}_{opts.volspike["threshold_method"]}_{opts.volspike["threshold"]}_{opts.volspike["weight_update"]}_bg_{opts.volspike["ridge_bg"]}'
         np.save(os.path.join(file_dir, save_name), vpy.estimates)
-        
-#%% reuse weights 
-# set weights = reuse_weights in opts_dict dictionary
-    estimates = np.load(os.path.join(file_dir, save_name+'.npy'), allow_pickle=True).item()
-    reuse_weights = []
-    for idx in range(ROIs.shape[0]):
-        coord = estimates['context_coord'][idx]
-        w = estimates['weights'][idx][coord[0][0]:coord[1][0]+1, coord[0][1]:coord[1][1]+1] 
-        plt.figure(); plt.imshow(w);plt.colorbar(); plt.show()
-        reuse_weights.append(w)
     
 # %% STOP CLUSTER and clean up log files
     cm.stop_server(dview=dview)
@@ -276,4 +242,4 @@ def main():
 # This is to mask the differences between running this demo in Spyder
 # versus from the CLI
 if __name__ == "__main__":
-    main()
+    run_volpy
