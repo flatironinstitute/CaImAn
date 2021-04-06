@@ -247,7 +247,14 @@ class MotionCorrect(object):
             else:
                 self.min_mov = np.array([high_pass_filter_space(m_, self.gSig_filt)
                     for m_ in cm.load(self.fname[0], var_name_hdf5=self.var_name_hdf5,
-                                      subindices=slice(400))]).min()
+                                      subindices=slice(15))]).min()
+    
+                """
+                mmm = cm.load(self.fname[0], var_name_hdf5=self.var_name_hdf5,
+                                      subindices=slice(400))
+                np.array([high_pass_filter_space(m_, self.gSig_filt)
+                    for m_ in mmm])
+                """
 
         if self.pw_rigid:
             self.motion_correct_pwrigid(template=template, save_movie=save_movie)
@@ -1848,6 +1855,8 @@ def apply_shifts_dft(src_freq, shifts, diffphase, is_freq=True, border_nan=True)
                                  (-shifts[0] * 1. * Nr / nr - shifts[1] * 1. * Nc / nc))
     else:
         #shifts = np.array([*shifts[:-1][::-1],shifts[-1]])
+        #import pdb
+        #pdb.set_trace()
         shifts = np.array(list(shifts[:-1][::-1]) + [shifts[-1]])
         nc, nr, nd = np.array(np.shape(src_freq), dtype=float)
         Nr = ifftshift(np.arange(-np.fix(nr / 2.), np.ceil(nr / 2.)))
@@ -1857,6 +1866,8 @@ def apply_shifts_dft(src_freq, shifts, diffphase, is_freq=True, border_nan=True)
         Greg = src_freq * np.exp(-1j * 2 * np.pi *
                                  (-shifts[0] * Nr / nr - shifts[1] * Nc / nc -
                                   shifts[2] * Nd / nd))
+
+
 
     Greg = Greg.dot(np.exp(1j * diffphase))
     if is3D:
@@ -2042,17 +2053,33 @@ def high_pass_filter_space(img_orig, gSig_filt=None, freq=None, order=None):
     if freq is None or order is None:  # Gaussian
         ksize = tuple([(3 * i) // 2 * 2 + 1 for i in gSig_filt])
         ker = cv2.getGaussianKernel(ksize[0], gSig_filt[0])
-        ker2D = ker.dot(ker.T)
-        nz = np.nonzero(ker2D >= ker2D[:, 0].max())
-        zz = np.nonzero(ker2D < ker2D[:, 0].max())
-        ker2D[nz] -= ker2D[nz].mean()
-        ker2D[zz] = 0
-        if img_orig.ndim == 2:  # image
-            return cv2.filter2D(np.array(img_orig, dtype=np.float32),
-                                -1, ker2D, borderType=cv2.BORDER_REFLECT)
-        else:  # movie
-            return cm.movie(np.array([cv2.filter2D(np.array(img, dtype=np.float32),
-                                -1, ker2D, borderType=cv2.BORDER_REFLECT) for img in img_orig]))     
+                
+        if len(ksize) <= 2:
+            ker2D = ker.dot(ker.T)
+            nz = np.nonzero(ker2D >= ker2D[:, 0].max())
+            zz = np.nonzero(ker2D < ker2D[:, 0].max())
+            ker2D[nz] -= ker2D[nz].mean()
+            ker2D[zz] = 0
+            if img_orig.ndim == 2:  # image
+                return cv2.filter2D(np.array(img_orig, dtype=np.float32),
+                                    -1, ker2D, borderType=cv2.BORDER_REFLECT)
+            else:  # movie
+                mm = cm.movie(np.array([cv2.filter2D(np.array(img, dtype=np.float32),
+                                    -1, ker2D, borderType=cv2.BORDER_REFLECT) for img in img_orig]))     
+                return mm
+        else:
+            ker3D = (ker[:,None,None] * ker[None,:,None] * ker[None,None,:])[:,:,:,0]
+            nz = np.nonzero(ker3D >= ker3D[:, :, 0].max())
+            zz = np.nonzero(ker3D < ker3D[:, :, 0].max())
+            ker3D[nz] -= ker3D[nz].mean()
+            ker3D[zz] = 0
+            #from scipy.ndimage import gaussian_filter
+            from scipy.ndimage import convolve
+            #import pdb
+            #pdb.set_trace()
+            mm = convolve(img_orig, ker3D)
+            return mm
+            
     else:  # Butterworth
         rows, cols = img_orig.shape[-2:]
         xx, yy = np.meshgrid(np.arange(cols, dtype=np.float32) - cols / 2,
@@ -2375,9 +2402,9 @@ def tile_and_correct_3d(img:np.ndarray, template:np.ndarray, strides:Tuple, over
     template = template.astype(np.float64).copy()
 
     if gSig_filt is not None:
-
         img_orig = img.copy()
         img = high_pass_filter_space(img_orig, gSig_filt)
+    
 
     img = img + add_to_movie
     template = template + add_to_movie
@@ -2387,17 +2414,23 @@ def tile_and_correct_3d(img:np.ndarray, template:np.ndarray, strides:Tuple, over
         img, template, upsample_factor=upsample_factor_fft, max_shifts=max_shifts)
 
     if max_deviation_rigid == 0: # if rigid shifts only
-
-#        if shifts_opencv:
-            # NOTE: opencv does not support 3D operations - skimage is used instead
- #       else:
-
+        # NOTE: opencv does not support 3D operations - skimage is used instead
         if gSig_filt is not None:
-            raise Exception(
-                'The use of FFT and filtering options have not been tested. Set opencv=True')
+            #raise Exception(
+            #    'The use of FFT and filtering options have not been tested. Set opencv=True')
+            img = img_orig
+            print('The use of FFT and filtering options have not been tested. Set opencv=True')
+        #new_img = apply_shifts_dft( # TODO: check
+        #    sfr_freq, (rigid_shts[0], rigid_shts[1], rigid_shts[2]), diffphase, border_nan=border_nan)
 
+        #new_img = apply_shifts_dft( # TODO: check
+        #    sfr_freq, (rigid_shts[0], rigid_shts[1], rigid_shts[2]), diffphase, border_nan=border_nan, is_freq=True)
+        
         new_img = apply_shifts_dft( # TODO: check
-            sfr_freq, (rigid_shts[0], rigid_shts[1], rigid_shts[2]), diffphase, border_nan=border_nan)
+            img, (rigid_shts[0], rigid_shts[1], rigid_shts[2]), diffphase, border_nan=border_nan, is_freq=False)
+        
+        #if gSig_filt is not None:
+        #    new_img += add_to_movie
 
         return new_img - add_to_movie, (-rigid_shts[0], -rigid_shts[1], -rigid_shts[2]), None, None
     else:
@@ -2495,8 +2528,9 @@ def tile_and_correct_3d(img:np.ndarray, template:np.ndarray, strides:Tuple, over
             dfs for dfs in diffs_phase_grid_us.reshape(num_tiles)]
 
         if gSig_filt is not None:
-            raise Exception(
-                'The use of FFT and filtering options have not been tested. Set opencv=True')
+            #raise Exception(
+            print('The use of FFT and filtering options have not been tested. Set opencv=True')
+            print('1')
 
         imgs = [apply_shifts_dft(im, (
             sh[0], sh[1], sh[2]), dffphs, is_freq=False, border_nan=border_nan) for im, sh, dffphs in zip(
