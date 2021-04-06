@@ -1,4 +1,4 @@
-CaImAn Performace Guide
+CaImAn Performance Guide
 =======================
 Do not start with this guide.
 * First, please get CaImAn working with your data, using the minimal set of changes to defaults needed to verify that it is working

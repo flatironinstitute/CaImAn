@@ -191,7 +191,8 @@ def nf_match_neurons_in_binary_masks(masks_gt,
                                      labels=['Session 1', 'Session 2'],
                                      cmap='gray',
                                      D=None,
-                                     enclosed_thr=None):
+                                     enclosed_thr=None,
+                                     colors=['red', 'white']):
     """
     Match neurons expressed as binary masks. Uses Hungarian matching algorithm
 
@@ -296,27 +297,27 @@ def nf_match_neurons_in_binary_masks(masks_gt,
             font = {'family': 'Myriad Pro', 'weight': 'regular', 'size': 10}
             pl.rc('font', **font)
             lp, hp = np.nanpercentile(Cn, [5, 95])
-            ses_1 = mpatches.Patch(color='red', label=labels[0])
-            ses_2 = mpatches.Patch(color='white', label=labels[1])
+            ses_1 = mpatches.Patch(color=colors[0], label=labels[0])
+            ses_2 = mpatches.Patch(color=colors[1], label=labels[1])
             pl.subplot(1, 2, 1)
             pl.imshow(Cn, vmin=lp, vmax=hp, cmap=cmap)
-            [pl.contour(norm_nrg(mm), levels=[level], colors='w', linewidths=1) for mm in masks_comp[idx_tp_comp]]
-            [pl.contour(norm_nrg(mm), levels=[level], colors='r', linewidths=1) for mm in masks_gt[idx_tp_gt]]
+            [pl.contour(norm_nrg(mm), levels=[level], colors=colors[1], linewidths=1) for mm in masks_comp[idx_tp_comp]]
+            [pl.contour(norm_nrg(mm), levels=[level], colors=colors[0], linewidths=1) for mm in masks_gt[idx_tp_gt]]
             if labels is None:
                 pl.title('MATCHES')
             else:
-                pl.title('MATCHES: ' + labels[1] + '(w), ' + labels[0] + '(r)')
+                pl.title('MATCHES: ' + labels[1] + f'({colors[1][0]}), ' + labels[0] + f'({colors[0][0]})')
             pl.legend(handles=[ses_1, ses_2])
             pl.show()
             pl.axis('off')
             pl.subplot(1, 2, 2)
             pl.imshow(Cn, vmin=lp, vmax=hp, cmap=cmap)
-            [pl.contour(norm_nrg(mm), levels=[level], colors='w', linewidths=1) for mm in masks_comp[idx_fp_comp]]
-            [pl.contour(norm_nrg(mm), levels=[level], colors='r', linewidths=1) for mm in masks_gt[idx_fn_gt]]
+            [pl.contour(norm_nrg(mm), levels=[level], colors=colors[1], linewidths=1) for mm in masks_comp[idx_fp_comp]]
+            [pl.contour(norm_nrg(mm), levels=[level], colors=colors[0], linewidths=1) for mm in masks_gt[idx_fn_gt]]
             if labels is None:
-                pl.title('FALSE POSITIVE (w), FALSE NEGATIVE (r)')
+                pl.title(f'FALSE POSITIVE ({colors[1][0]}), FALSE NEGATIVE ({colors[0][0]})')
             else:
-                pl.title(labels[1] + '(w), ' + labels[0] + '(r)')
+                pl.title(labels[1] + f'({colors[1][0]}), ' + labels[0] + f'({colors[0][0]})')
             pl.legend(handles=[ses_1, ses_2])
             pl.show()
             pl.axis('off')

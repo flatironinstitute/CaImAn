@@ -183,8 +183,6 @@ def main():
     fig, axs = plt.subplots(1, 2)
     axs[0].imshow(summary_images[0]); axs[1].imshow(ROIs.sum(0))
     axs[0].set_title('mean image'); axs[1].set_title('masks')
-
-
         
 # %% restart cluster to clean up memory
     cm.stop_server(dview=dview)
@@ -194,7 +192,7 @@ def main():
 # %% parameters for trace denoising and spike extraction
     ROIs = ROIs                                   # region of interests
     index = list(range(len(ROIs)))                # index of neurons
-    weights = None                                # reuse spatial weights 
+    weights = None                                # if None, use ROIs for initialization; to reuse weights check reuse weights block 
 
     context_size = 35                             # number of pixels surrounding the ROI to censor from the background PCA
     visualize_ROI = False                         # whether to visualize the region of interest inside the context region
@@ -235,7 +233,7 @@ def main():
 #%% TRACE DENOISING AND SPIKE DETECTION
     vpy = VOLPY(n_processes=n_processes, dview=dview, params=opts)
     vpy.fit(n_processes=n_processes, dview=dview)
-
+   
 #%% visualization
     display_images = True
     if display_images:
@@ -248,7 +246,7 @@ def main():
     if display_images:
         mv_all = utils.reconstructed_movie(vpy.estimates.copy(), fnames=mc.mmap_file,
                                            idx=idx, scope=(0,1000), flip_signal=flip_signal)
-        mv_all.play(fr=40)
+        mv_all.play(fr=40, magnification=3)
     
 #%% save the result in .npy format 
     save_result = True
@@ -257,6 +255,16 @@ def main():
         vpy.estimates['params'] = opts
         save_name = f'volpy_{os.path.split(fnames)[1][:-5]}_{threshold_method}'
         np.save(os.path.join(file_dir, save_name), vpy.estimates)
+        
+#%% reuse weights 
+# set weights = reuse_weights in opts_dict dictionary
+    estimates = np.load(os.path.join(file_dir, save_name+'.npy'), allow_pickle=True).item()
+    reuse_weights = []
+    for idx in range(ROIs.shape[0]):
+        coord = estimates['context_coord'][idx]
+        w = estimates['weights'][idx][coord[0][0]:coord[1][0]+1, coord[0][1]:coord[1][1]+1] 
+        plt.figure(); plt.imshow(w);plt.colorbar(); plt.show()
+        reuse_weights.append(w)
     
 # %% STOP CLUSTER and clean up log files
     cm.stop_server(dview=dview)

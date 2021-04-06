@@ -968,10 +968,10 @@ def get_file_size(file_name, var_name_hdf5='mov'):
                 if loading from hdf5 name of the dataset to load
 
         Returns:
-            dims: list
+            dims: tuple
                 dimensions of FOV
 
-            T: list
+            T: int or tuple of int
                 number of timesteps in each file
     """
     if isinstance(file_name, pathlib.Path):
@@ -1059,6 +1059,10 @@ def get_file_size(file_name, var_name_hdf5='mov'):
         else:
             dims, T = zip(*[get_file_size(fn, var_name_hdf5=var_name_hdf5)
                 for fn in file_name])
+            if len(set(dims)) > 1:
+                raise Exception('Files have FOVs with different sizes')
+            else:
+                dims = dims[0]
     else:
         raise Exception('Unknown input type')
     return dims, T

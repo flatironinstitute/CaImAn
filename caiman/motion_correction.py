@@ -179,11 +179,14 @@ class MotionCorrect(object):
         """
         if 'ndarray' in str(type(fname)):
             logging.info('Creating file for motion correction "tmp_mov_mot_corr.hdf5"')
-            cm.movie(fname).save('./tmp_mov_mot_corr.hdf5')
+            cm.movie(fname).save('./tmp_mov_mot_corr.hdf5') # FIXME don't write to the current directory!
             fname = ['./tmp_mov_mot_corr.hdf5']
 
         if type(fname) is not list:
             fname = [fname]
+
+        if type(gSig_filt) is tuple:
+            gSig_filt = list(gSig_filt) # There are some serializers down the line that choke otherwise
 
         self.fname = fname
         self.dview = dview

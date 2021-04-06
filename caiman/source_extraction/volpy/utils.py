@@ -275,3 +275,4 @@ def view_components(estimates, img, idx, frame_times=None, gt_times=None):
     s_comp.set_val(0)
     fig.canvas.mpl_connect('key_release_event', arrow_key_image_control)
     plt.show()
+    
