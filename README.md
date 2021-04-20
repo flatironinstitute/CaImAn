@@ -77,6 +77,8 @@ In order to use VolPy, you must install Keras into your conda environment. You c
 
 To see examples of how these methods are used, please consult the `demo_pipeline_voltage_imaging.py` script in the `demos/general` folder. For more information about the approach check the [preprint](https://www.biorxiv.org/content/10.1101/2020.01.02.892323v1).
 
+There is also a [general paper](https://journals.plos.org/ploscompbiol/article/comments?id=10.1371/journal.pcbi.1008806) on this pipeline
+
 ## Documentation & Wiki
 
 Documentation of the code can be found [here](https://caiman.readthedocs.io/en/master/). 
@@ -91,6 +93,7 @@ Other docs:
 * Eftychios A. Pnevmatikakis, **Flatiron Institute, Simons Foundation** 
 * Andrea Giovannucci, **University of North Carolina, Chapel Hill**
 * Johannes Friedrich, **Flatiron Institute, Simons Foundation**
+* Changlia Cai, **University of North Carolina, Chapel Hill**
 * Pat Gunn, **Flatiron Institute, Simons Foundation**
 
 A complete list of contributors can be found [here](https://github.com/flatironinstitute/CaImAn/graphs/contributors).
