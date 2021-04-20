@@ -100,7 +100,11 @@ Currently Pat Gunn and Johannes Friedrich are the most active maintainers.
 
 ## Questions, comments, issues
 
-Please use the [gitter chat room](https://gitter.im/agiovann/Constrained_NMF) for questions and comments and create an issue for any bugs you might encounter.
+For support, you can create a Github issue describing any bugs you wish to report, or any feature requests you may have.
+
+You may also use the [gitter chat room](https://gitter.im/agiovann/Constrained_NMF) for discussion.
+
+Finally, you may reach out via email to one of the primary maintainers (above).
 
 ## Acknowledgements
 
