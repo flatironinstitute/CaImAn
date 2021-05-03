@@ -144,6 +144,12 @@ def update_temporal_components(Y, A, b, Cin, fin, bl=None, c1=None, g=None, sn=N
         C:   np.ndarray
                 matrix of temporal components (K x T)
 
+        A:   np.ndarray
+                updated A
+
+        b:   np.array
+                updated estimate
+
         f:   np.array
                 vector of temporal background (length T)
 
@@ -156,10 +162,10 @@ def update_temporal_components(Y, A, b, Cin, fin, bl=None, c1=None, g=None, sn=N
         c1:  float
                 same as input
 
-        g:   float
+        sn:  float
                 same as input
 
-        sn:  float
+        g:   float
                 same as input
 
         YrA: np.ndarray
