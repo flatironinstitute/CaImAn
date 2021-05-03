@@ -22,7 +22,7 @@ pyqtgraph
 scikit-image
 scikit-learn
 scipy
-tensorflow-gpu
+tensorflow
 tensorflow-addons
 tifffile
 tk
