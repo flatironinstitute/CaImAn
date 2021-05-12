@@ -53,6 +53,7 @@ import logging
 import numpy as np
 from numpy.fft import ifftshift
 import os
+import sys
 import pylab as pl
 import tifffile
 from typing import List, Optional, Tuple
@@ -2586,6 +2587,12 @@ def compute_metrics_motion_correction(fname, final_size_x, final_size_y, swap_di
     #todo: todocument
     # cv2.OPTFLOW_FARNEBACK_GAUSSIAN
     import scipy
+    from tqdm import tqdm
+    if os.environ.get('ENABLE_TQDM') == 'True':
+        disable_tqdm = False
+    else:
+        disable_tqdm = True
+        
     vmin, vmax = -max_flow, max_flow
     m = cm.load(fname)
     if gSig_filt is not None:
@@ -2627,10 +2634,11 @@ def compute_metrics_motion_correction(fname, final_size_x, final_size_y, swap_di
     logging.debug('Compute correlations.. ')
     correlations = []
     count = 0
-    for fr in m:
-        if count % 100 == 0:
-            logging.debug(count)
-
+    sys.stdout.flush()
+    for fr in tqdm(m, desc="Correlations", disable=disable_tqdm):
+        if disable_tqdm:
+            if count % 100 == 0:
+                logging.debug(count)
         count += 1
         correlations.append(scipy.stats.pearsonr(
             fr.flatten(), tmpl.flatten())[0])
@@ -2641,9 +2649,12 @@ def compute_metrics_motion_correction(fname, final_size_x, final_size_y, swap_di
     norms = []
     flows = []
     count = 0
-    for fr in m:
-        if count % 100 == 0:
-            logging.debug(count)
+    sys.stdout.flush()
+    for fr in tqdm(m, desc="Optical flow", disable=disable_tqdm):
+        if disable_tqdm:
+            if count % 100 == 0:
+                logging.debug(count)
+
 
         count += 1
         flow = cv2.calcOpticalFlowFarneback(
