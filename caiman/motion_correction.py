@@ -2078,9 +2078,11 @@ def high_pass_filter_space(img_orig, gSig_filt=None, freq=None, order=None):
             ker3D[zz] = 0
             #from scipy.ndimage import gaussian_filter
             from scipy.ndimage import convolve
-            #import pdb
-            #pdb.set_trace()
+            #try:
             mm = convolve(img_orig, ker3D)
+            #except:
+            #    import pdb
+            #    pdb.set_trace()
             return mm
             
     else:  # Butterworth
@@ -2475,6 +2477,7 @@ def tile_and_correct_3d(img:np.ndarray, template:np.ndarray, strides:Tuple, over
         if shifts_opencv:
             if gSig_filt is not None:
                 img = img_orig
+                print("Non-rigid motion correction with shifts_skimage!!!!!")
 
             dims = img.shape
             x_grid, y_grid, z_grid = np.meshgrid(np.arange(0., dims[1]).astype(
@@ -2992,8 +2995,10 @@ def motion_correct_batch_pwrigid(fname, max_shifts, strides, overlaps, add_to_mo
                                                             shifts_opencv=shifts_opencv, nonneg_movie=nonneg_movie, gSig_filt=gSig_filt,
                                                             use_cuda=use_cuda, border_nan=border_nan, var_name_hdf5=var_name_hdf5, is3D=is3D,
                                                             indices=indices)
-
-        new_templ = np.nanmedian(np.dstack([r[-1] for r in res_el]), -1)
+        if is3D:
+            new_templ = np.nanmedian(np.stack([r[-1] for r in res_el]), 0)
+        else:
+            new_templ = np.nanmedian(np.dstack([r[-1] for r in res_el]), -1)
         if gSig_filt is not None:
             new_templ = high_pass_filter_space(new_templ, gSig_filt)
 
