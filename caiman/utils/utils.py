@@ -677,5 +677,5 @@ def get_tempdir() -> str:
     temp_under_data = os.path.join(caiman_datadir(), "temp")
     if not os.path.isdir(temp_under_data):
         logging.warning(f"Default temporary dir {temp_under_data} does not exist, creating")
-    os.makedirs(temp_under_data)
+    	os.makedirs(temp_under_data)
     return temp_under_data
