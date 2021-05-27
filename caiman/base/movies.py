@@ -106,15 +106,6 @@ class movie(ts.timeseries):
         else:
             raise Exception('Input must be an ndarray, use load instead!')
 
-    def apply_shifts_online(self, xy_shifts, save_base_name=None):
-        # This function is unused.
-        # todo: todocument
-
-        if save_base_name is None:
-            return movie(apply_shift_online(self, xy_shifts, save_base_name=save_base_name), fr=self.fr)
-        else:
-            return apply_shift_online(self, xy_shifts, save_base_name=save_base_name)
-
     def calc_min(self) -> 'movie':
         # todo: todocument
 
