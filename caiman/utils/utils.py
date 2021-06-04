@@ -663,19 +663,3 @@ def get_caiman_version() -> Tuple[str, str]:
             newest = last_modified
     return 'FILE', str(int(newest))
 
-def get_tempdir() -> str:
-    """ Returns where CaImAn can store temporary files, such as memmap files. Controlled mainly by environment variables """
-    # CAIMAN_TEMP is used to control where temporary files live. 
-    # If unset, uses default of a temp folder under caiman_datadir()
-    # To get the old "store it where I am" behaviour, set CAIMAN_TEMP to a single dot.
-    # If you prefer to store it somewhere different, provide a full path to that location.
-    if 'CAIMAN_TEMP' in os.environ:
-        if os.path.isdir(os.environ['CAIMAN_TEMP']):
-            return os.environ['CAIMAN_TEMP']
-        else:
-            logging.warning(f"CAIMAN_TEMP is set to nonexistent directory {os.environment['CAIMAN_TEMP']}. Ignoring")
-    temp_under_data = os.path.join(caiman_datadir(), "temp")
-    if not os.path.isdir(temp_under_data):
-        logging.warning(f"Default temporary dir {temp_under_data} does not exist, creating")
-        os.makedirs(temp_under_data)
-    return temp_under_data
