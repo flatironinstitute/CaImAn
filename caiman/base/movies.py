@@ -1692,7 +1692,7 @@ def load(file_name: Union[str, List[str]],
                             #if images.ndim > 3:
                             #    images = images[:, 0]
                         else:
-                            if type(subindices).__module__ is 'numpy':
+                            if type(subindices).__module__ == 'numpy':
                                 subindices = subindices.tolist()
                             if len(fgroup.shape) > 3:
                                 images = np.array(fgroup[subindices]).squeeze()
