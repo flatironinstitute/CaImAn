@@ -54,14 +54,13 @@ def load_memmap(filename: str, mode: str = 'r') -> Tuple[Any, Tuple, int]:
     """
     if pathlib.Path(filename).suffix != '.mmap':
         logging.error(f"Unknown extension for file {filename}")
-        raise ValueError('Unknown file extension (should be .mmap)')
+        raise ValueError(f'Unknown file extension for file {filename} (should be .mmap)')
     # Strip path components and use CAIMAN_DATA/example_movies
     # TODO: Eventually get the code to save these in a different dir
-    file_to_load = filename
-    filename = os.path.split(filename)[-1]
-    fpart = filename.split('_')[1:-1]  # The filename encodes the structure of the map
+    fn_without_path = os.path.split(filename)[-1]
+    fpart = fn_without_path.split('_')[1:-1]  # The filename encodes the structure of the map
     d1, d2, d3, T, order = int(fpart[-9]), int(fpart[-7]), int(fpart[-5]), int(fpart[-1]), fpart[-3]
-    Yr = np.memmap(file_to_load, mode=mode, shape=prepare_shape((d1 * d2 * d3, T)), dtype=np.float32, order=order)
+    Yr = np.memmap(filename, mode=mode, shape=prepare_shape((d1 * d2 * d3, T)), dtype=np.float32, order=order)
     if d3 == 1:
         return (Yr, (d1, d2), T)
     else:
