@@ -1,14 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""
-Created on Thu Oct 20 11:33:35 2016
 
-@author: agiovann
-"""
-
-from builtins import map
-from builtins import str
-from builtins import range
 from past.builtins import basestring
 from past.utils import old_div
 
@@ -61,7 +53,7 @@ def load_memmap(filename: str, mode: str = 'r') -> Tuple[Any, Tuple, int]:
 
     """
     if pathlib.Path(filename).suffix != '.mmap':
-        logging.error("Unknown extension for file " + str(filename))
+        logging.error(f"Unknown extension for file {filename}")
         raise ValueError('Unknown file extension (should be .mmap)')
     # Strip path components and use CAIMAN_DATA/example_movies
     # TODO: Eventually get the code to save these in a different dir
@@ -198,11 +190,11 @@ def save_memmap_join(mmap_fnames: List[str], base_name: str = None, n_chunks: in
     if base_name is None:
 
         base_name = mmap_fnames[0]
-        base_name = base_name[:base_name.find('_d1_')] + '-#-' + str(len(mmap_fnames))
+        base_name = base_name[:base_name.find('_d1_')] + f'-#-{len(mmap_fnames)}'
 
     fname_tot = memmap_frames_filename(base_name, dims, tot_frames, order)
     fname_tot = os.path.join(os.path.split(mmap_fnames[0])[0], fname_tot)
-    logging.info("Memmap file for fname_tot: " + str(fname_tot))
+    logging.info(f"Memmap file for fname_tot: {fname_tot}")
 
     big_mov = np.memmap(fname_tot, mode='w+', dtype=np.float32, shape=prepare_shape((d, tot_frames)), order='C')
 
@@ -282,16 +274,16 @@ def save_portion(pars) -> int:
     big_mov, d, tot_frames, fnames, idx_start, idx_end, add_to_mov = pars
     Ttot = 0
     Yr_tot = np.zeros((idx_end - idx_start, tot_frames), dtype=np.float32)
-    logging.debug("Shape of Yr_tot is " + str(Yr_tot.shape))
+    logging.debug(f"Shape of Yr_tot is {Yr_tot.shape}")
     for f in fnames:
-        logging.debug("Saving portion to " + str(f))
+        logging.debug(f"Saving portion to {f}")
         Yr, _, T = load_memmap(f)
         Yr_tot[:, Ttot:Ttot +
                T] = np.ascontiguousarray(Yr[idx_start:idx_end], dtype=np.float32) + np.float32(add_to_mov)
         Ttot = Ttot + T
         del Yr
 
-    logging.debug("Index start and end are " + str(idx_start) + " and " + str(idx_end))
+    logging.debug(f"Index start and end are {idx_start} and {idx_end}")
 
     if use_mmap_save:
         big_mov = np.memmap(big_mov, mode='r+', dtype=np.float32, shape=prepare_shape((d, tot_frames)), order='C')
@@ -439,7 +431,7 @@ def save_memmap(filenames: List[str],
 
         # The goal is to make a single large memmap file, which we do here
         if order == 'F':
-            raise Exception('You cannot merge files in F order, they must be in C order for CaImAn')
+            raise Exception('You cannot merge files in F order, they must be in C order')
 
         fname_new = cm.save_memmap_join(fname_parts, base_name=base_name,
                                         dview=dview, n_chunks=n_chunks)
@@ -539,7 +531,7 @@ def save_memmap(filenames: List[str],
             sys.stdout.flush()
             Ttot = Ttot + T
 
-        fname_new = fname_tot + '_frames_' + str(Ttot) + '_.mmap'
+        fname_new = fname_tot + f'_frames_{Ttot}_.mmap'
         try:
             # need to explicitly remove destination on windows
             os.unlink(fname_new)
@@ -569,7 +561,7 @@ def parallel_dot_product(A: np.ndarray, b, block_size: int = 5000, dview=None, t
     pars = []
     d1, d2 = np.shape(A)
     b = pickle.dumps(b)
-    logging.debug('parallel dot product block size: ' + str(block_size))
+    logging.debug(f'parallel dot product block size: {block_size}')
 
     if block_size < d1:
         for idx in range(0, d1 - block_size, block_size):
