@@ -180,7 +180,7 @@ class MotionCorrect(object):
         """
         if 'ndarray' in str(type(fname)):
             logging.info('Creating file for motion correction "tmp_mov_mot_corr.hdf5"')
-            cm.movie(fname).save('./tmp_mov_mot_corr.hdf5') # FIXME don't write to the current directory!
+            cm.movie(fname).save('tmp_mov_mot_corr.hdf5')
             fname = ['./tmp_mov_mot_corr.hdf5']
 
         if type(fname) is not list:
