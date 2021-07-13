@@ -63,7 +63,7 @@ from skimage.transform import warp as warp_sk
 import caiman as cm
 import caiman.base.movies
 import caiman.motion_correction
-from caiman.paths import memmap_frames_filename
+import caiman.paths
 from .mmapping import prepare_shape
 
 try:
@@ -492,7 +492,7 @@ class MotionCorrect(object):
         m_reg = np.stack(m_reg, axis=0)
         if save_memmap:
             dims = m_reg.shape
-            fname_tot = memmap_frames_filename(save_base_name, dims[1:], dims[0], order)
+            fname_tot = caiman.paths.memmap_frames_filename(save_base_name, dims[1:], dims[0], order)
             big_mov = np.memmap(fname_tot, mode='w+', dtype=np.float32,
                         shape=prepare_shape((np.prod(dims[1:]), dims[0])), order=order)
             big_mov[:] = np.reshape(m_reg.transpose(1, 2, 0), (np.prod(dims[1:]), dims[0]), order='F')
@@ -582,7 +582,8 @@ def apply_shift_online(movie_iterable, xy_shifts, save_base_name=None, order='F'
     dims = (len(movie_iterable),) + movie_iterable[0].shape  # TODO: Refactor so length is either tracked separately or is last part of tuple
 
     if save_base_name is not None:
-        fname_tot = memmap_frames_filename(save_base_name, dims[1:], dims[0], order)
+        fname_tot = caiman.paths.memmap_frames_filename(save_base_name, dims[1:], dims[0], order)
+        fname_tot = caiman.paths.fn_relocated(fname_tot)
         big_mov = np.memmap(fname_tot, mode='w+', dtype=np.float32,
                             shape=prepare_shape((np.prod(dims[1:]), dims[0])), order=order)
 
@@ -819,7 +820,7 @@ def motion_correct_online(movie_iterable, add_to_movie, max_shift_w=25, max_shif
                 dims = (dims[0], dims[1] + min_h -
                         max_h, dims[2] + min_w - max_w)
 
-            fname_tot:Optional[str] = memmap_frames_filename(save_base_name, dims[1:], dims[0], order)
+            fname_tot:Optional[str] = caiman.paths.memmap_frames_filename(save_base_name, dims[1:], dims[0], order)
             big_mov = np.memmap(fname_tot, mode='w+', dtype=np.float32,
                                 shape=prepare_shape((np.prod(dims[1:]), dims[0])), order=order)
 
@@ -3124,7 +3125,7 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
     if save_movie:
         if base_name is None:
             base_name = os.path.split(fname)[1][:-4]
-        fname_tot:Optional[str] = memmap_frames_filename(base_name, dims, T, order)
+        fname_tot:Optional[str] = caiman.paths.memmap_frames_filename(base_name, dims, T, order)
         if isinstance(fname,tuple):
             fname_tot = os.path.join(os.path.split(fname[0])[0], fname_tot)
         else:

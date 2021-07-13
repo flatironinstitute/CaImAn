@@ -4,8 +4,8 @@ import numpy.testing as npt
 import numpy as np
 import os
 import caiman as cm
+import caiman.paths
 from caiman.source_extraction import cnmf
-from caiman.paths import caiman_datadir
 
 
 def demo(parallel=False):
@@ -17,7 +17,7 @@ def demo(parallel=False):
         n_processes, dview = 2, None
 
     # LOAD MOVIE AND MEMORYMAP
-    fname_new = cm.save_memmap([os.path.join(caiman_datadir(), 'example_movies', 'demoMovie.tif')],
+    fname_new = cm.save_memmap([os.path.join(caiman.paths.caiman_datadir(), 'example_movies', 'demoMovie.tif')],
                                base_name='Yr',
                                order='C')
     Yr, dims, T = cm.load_memmap(fname_new)
