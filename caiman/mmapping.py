@@ -16,8 +16,7 @@ from typing import Any, Dict, List, Optional, Tuple, Union
 import pathlib
 
 import caiman as cm
-from caiman.paths import memmap_frames_filename
-
+import caiman.paths
 
 def prepare_shape(mytuple: Tuple) -> Tuple:
     """ This promotes the elements inside a shape into np.uint64. It is intended to prevent overflows
@@ -60,6 +59,8 @@ def load_memmap(filename: str, mode: str = 'r') -> Tuple[Any, Tuple, int]:
     fn_without_path = os.path.split(filename)[-1]
     fpart = fn_without_path.split('_')[1:-1]  # The filename encodes the structure of the map
     d1, d2, d3, T, order = int(fpart[-9]), int(fpart[-7]), int(fpart[-5]), int(fpart[-1]), fpart[-3]
+
+    filename = caiman.paths.fn_relocated(filename)
     Yr = np.memmap(filename, mode=mode, shape=prepare_shape((d1 * d2 * d3, T)), dtype=np.float32, order=order)
     if d3 == 1:
         return (Yr, (d1, d2), T)
@@ -135,12 +136,13 @@ def save_memmap_each(fnames: List[str],
     for idx, f in enumerate(fnames):
         if base_name is not None:
             pars.append([
-                f, base_name + '{:04d}'.format(idx), resize_fact[idx], remove_init, idx_xy, order,
+                caiman.paths.fn_relocated(f),
+                base_name + '{:04d}'.format(idx), resize_fact[idx], remove_init, idx_xy, order,
                 var_name_hdf5, xy_shifts[idx], is_3D, add_to_movie, border_to_0, slices
             ])
         else:
             pars.append([
-                f,
+                caiman.paths.fn_relocated(f),
                 os.path.splitext(f)[0], resize_fact[idx], remove_init, idx_xy, order, var_name_hdf5,
                 xy_shifts[idx], is_3D, add_to_movie, border_to_0, slices
             ])
@@ -179,20 +181,21 @@ def save_memmap_join(mmap_fnames: List[str], base_name: str = None, n_chunks: in
     tot_frames = 0
     order = 'C'
     for f in mmap_fnames:
-        Yr, dims, T = load_memmap(f)
-        logging.debug((f, T))  # TODO: Add a text header so this isn't just numeric output, but what to say?
+        cleaner_f = caiman.paths.fn_relocated(f)
+        Yr, dims, T = load_memmap(cleaner_f)
+        logging.debug(f"save_memmap_join (loading data): {cleaner_f} {T}")
         tot_frames += T
         del Yr
 
     d = np.prod(dims)
 
     if base_name is None:
-
         base_name = mmap_fnames[0]
         base_name = base_name[:base_name.find('_d1_')] + f'-#-{len(mmap_fnames)}'
 
-    fname_tot = memmap_frames_filename(base_name, dims, tot_frames, order)
+    fname_tot = caiman.paths.memmap_frames_filename(base_name, dims, tot_frames, order)
     fname_tot = os.path.join(os.path.split(mmap_fnames[0])[0], fname_tot)
+    fname_tot = caiman.paths.fn_relocated(fname_tot)
     logging.info(f"Memmap file for fname_tot: {fname_tot}")
 
     big_mov = np.memmap(fname_tot, mode='w+', dtype=np.float32, shape=prepare_shape((d, tot_frames)), order='C')
@@ -218,7 +221,7 @@ def save_memmap_join(mmap_fnames: List[str], base_name: str = None, n_chunks: in
     else:
         list(map(save_portion, pars))
 
-    np.savez(base_name + '.npz', mmap_fnames=mmap_fnames, fname_tot=fname_tot)
+    np.savez(caiman.paths.fn_relocated(base_name + '.npz'), mmap_fnames=mmap_fnames, fname_tot=fname_tot)
 
     logging.info('Deleting big mov')
     del big_mov
@@ -270,13 +273,16 @@ def my_map(dv, func, args) -> List:
 def save_portion(pars) -> int:
     # todo: todocument
     use_mmap_save = False
-    big_mov, d, tot_frames, fnames, idx_start, idx_end, add_to_mov = pars
+    big_mov_fn, d, tot_frames, fnames, idx_start, idx_end, add_to_mov = pars
+    big_mov_fn = caiman.paths.fn_relocated(big_mov_fn)
+
     Ttot = 0
     Yr_tot = np.zeros((idx_end - idx_start, tot_frames), dtype=np.float32)
     logging.debug(f"Shape of Yr_tot is {Yr_tot.shape}")
     for f in fnames:
-        logging.debug(f"Saving portion to {f}")
-        Yr, _, T = load_memmap(f)
+        full_f = caiman.paths.fn_relocated(f)
+        logging.debug(f"Saving portion to {full_f}")
+        Yr, _, T = load_memmap(full_ff)
         Yr_tot[:, Ttot:Ttot +
                T] = np.ascontiguousarray(Yr[idx_start:idx_end], dtype=np.float32) + np.float32(add_to_mov)
         Ttot = Ttot + T
@@ -285,11 +291,11 @@ def save_portion(pars) -> int:
     logging.debug(f"Index start and end are {idx_start} and {idx_end}")
 
     if use_mmap_save:
-        big_mov = np.memmap(big_mov, mode='r+', dtype=np.float32, shape=prepare_shape((d, tot_frames)), order='C')
+        big_mov = np.memmap(big_mov_fn, mode='r+', dtype=np.float32, shape=prepare_shape((d, tot_frames)), order='C')
         big_mov[idx_start:idx_end, :] = Yr_tot
         del big_mov
     else:
-        with open(big_mov, 'r+b') as f:
+        with open(big_mov_fn, 'r+b') as f:
             idx_start = np.uint64(idx_start)
             tot_frames = np.uint64(tot_frames)
             f.seek(np.uint64(idx_start * np.uint64(Yr_tot.dtype.itemsize) * tot_frames))
@@ -458,7 +464,7 @@ def save_memmap(filenames: List[str],
 
             else:
                 if isinstance(f, basestring) or isinstance(f, list):
-                    Yr = cm.load(f, fr=1, in_memory=True, var_name_hdf5=var_name_hdf5)
+                    Yr = cm.load(caiman.paths.fn_relocated(f), fr=1, in_memory=True, var_name_hdf5=var_name_hdf5)
                 else:
                     Yr = cm.movie(f)
                 if xy_shifts is not None:
@@ -505,9 +511,9 @@ def save_memmap(filenames: List[str],
                     dims[0]) + '_d2_' + str(dims[1]) + '_d3_' + str(1 if len(dims) == 2 else dims[2]) + '_order_' + str(
                         order)                                                                                           # TODO: Rewrite more legibly
                 if isinstance(f, str):
-                    fname_tot = os.path.join(os.path.split(f)[0], fname_tot)
+                    fname_tot = caiman.paths.fn_relocated(os.path.join(os.path.split(f)[0], fname_tot))
                 if len(filenames) > 1:
-                    big_mov = np.memmap(fname_tot,
+                    big_mov = np.memmap(caiman.paths.fn_relocated(fname_tot),
                                         mode='w+',
                                         dtype=np.float32,
                                         shape=prepare_shape((np.prod(dims), T)),
@@ -530,7 +536,7 @@ def save_memmap(filenames: List[str],
             sys.stdout.flush()
             Ttot = Ttot + T
 
-        fname_new = fname_tot + f'_frames_{Ttot}_.mmap'
+        fname_new = caiman.paths.fn_relocated(fname_tot + f'_frames_{Ttot}_.mmap')
         try:
             # need to explicitly remove destination on windows
             os.unlink(fname_new)
@@ -661,7 +667,7 @@ def save_tif_to_mmap_online(movie_iterable, save_base_name='YrOL_', order='C', a
 
     dims = (len(movie_iterable),) + movie_iterable[0].shape    # TODO: Don't pack length into dims
 
-    fname_tot = (memmap_frames_filename(save_base_name, dims[1:], dims[0], order))
+    fname_tot = caiman.paths.fn_relocated(caiman.paths.memmap_frames_filename(save_base_name, dims[1:], dims[0], order))
 
     big_mov = np.memmap(fname_tot,
                         mode='w+',

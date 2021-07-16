@@ -54,6 +54,8 @@ def fn_relocated(fn:str) -> str:
         but if all they think about is filenames, they go under CaImAn's notion of its temporary dir. This is under the
         principle of "sensible defaults, but users can override them".
     """
+    if not 'CAIMAN_NEW_TEMPFILE' in os.environ: # XXX We will ungate this in a future version of caiman
+        return fn
     if str(os.path.basename(fn)) == str(fn): # No path stuff
         return os.path.join(get_tempdir(), fn)
     else:

@@ -36,6 +36,7 @@ from time import time
 from typing import List, Tuple
 
 import caiman
+import caiman.paths
 from .cnmf import CNMF
 from .estimates import Estimates
 from .initialization import imblur, initialize_components, hals, downscale
@@ -1013,7 +1014,7 @@ class OnACID(object):
                 self.estimates = cnm.estimates
 
             else:
-                Y.save('init_file.hdf5')
+                Y.save(caiman.paths.fn_relocated('init_file.hdf5'))
                 f_new = mmapping.save_memmap(['init_file.hdf5'], base_name='Yr', order='C',
                                              slices=[slice(0, opts['init_batch']), None, None])
 
@@ -1062,7 +1063,7 @@ class OnACID(object):
 
         if '.hdf5' in filename:
             # keys_types = [(k, type(v)) for k, v in self.__dict__.items()]
-            save_dict_to_hdf5(self.__dict__, filename)
+            save_dict_to_hdf5(self.__dict__, caiman.paths.fn_relocated(filename))
         else:
             raise Exception("Unsupported file extension")
 
@@ -2486,7 +2487,7 @@ def initialize_movie_online(Y, K, gSig, rf, stride, base_name,
     # merging threshold, max correlation allowed
     # order of the autoregressive system
     base_name = base_name + '.mmap'
-    fname_new = Y.save(base_name, order='C')
+    fname_new = Y.save(caiman.paths.fn_relocated(base_name), order='C')
     Yr, dims, T = caiman.load_memmap(fname_new)
     d1, d2 = dims
     images = np.reshape(Yr.T, [T] + list(dims), order='F')
@@ -2592,7 +2593,8 @@ def load_OnlineCNMF(filename, dview = None):
             useful to set up parllelization in the objects
     """
 
-    for key,val in load_dict_from_hdf5(filename).items():
+    filename = caiman.paths.fn_relocated(filename)
+    for key, val in load_dict_from_hdf5(filename).items():
         if key == 'params':
             prms = CNMFParams()
             for subdict in val.keys():

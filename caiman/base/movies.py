@@ -1749,7 +1749,7 @@ def load(file_name: Union[str, List[str]],
             raise Exception('Unknown file type')
     else:
         logging.error(f"File request:[{file_name}] not found!")
-        raise Exception('File not found!')
+        raise Exception(f'File {file_name} not found!')
 
     return movie(input_arr.astype(outtype),
                  fr=fr,
