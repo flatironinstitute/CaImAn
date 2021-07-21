@@ -593,7 +593,7 @@ class CNMF(object):
                 logging.info(
                     ('Setting the stride to 10% of 2*rf automatically:' + str(self.params.get('patch', 'stride'))))
 
-            if isinstance(images, np.ndarray):
+            if not isinstance(images, np.memmap):
                 raise Exception(
                     'You need to provide a memory mapped file as input if you use patches!!')
 
