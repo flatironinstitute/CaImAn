@@ -64,12 +64,12 @@ class timeseries(np.ndarray):
 
         obj.start_time = np.double(start_time)
         obj.fr = np.double(fr)
-        if type(file_name) is list:
+        if isinstance(file_name, list):
             obj.file_name = file_name
         else:
             obj.file_name = [file_name]
 
-        if type(meta_data) is list:
+        if isinstance(meta_data, list):
             obj.meta_data = meta_data
         else:
             obj.meta_data = [meta_data]
@@ -88,7 +88,7 @@ class timeseries(np.ndarray):
         if context is not None:
             inputs = context[1]
             for inp in inputs:
-                if type(inp) is timeseries:
+                if isinstance(inp, timeseries):
                     if frRef is None:
                         frRef = inp.fr
                     else:

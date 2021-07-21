@@ -130,7 +130,7 @@ def save_memmap_each(fnames: List[str],
     if xy_shifts is None:
         xy_shifts = [None] * len(fnames)
 
-    if type(resize_fact) is not list:
+    if not isinstance(resize_fact, list):
         resize_fact = [resize_fact] * len(fnames)
 
     for idx, f in enumerate(fnames):
@@ -399,8 +399,8 @@ def save_memmap(filenames: List[str],
             the name will contain the frame dimensions and the number of frames
 
     """
-    if type(filenames) is not list:
-        raise Exception('input should be a list of filenames')
+    if not isinstance(filenames, list):
+        raise Exception('save_memmap: input should be a list of filenames')
 
     if slices is not None:
         slices = [slice(0, None) if sl is None else sl for sl in slices]
@@ -463,7 +463,7 @@ def save_memmap(filenames: List[str],
                         Yr = Yr[remove_init:, idx_xy[0], idx_xy[1], idx_xy[2]]
 
             else:
-                if isinstance(f, basestring) or isinstance(f, list):
+                if isinstance(f, (basestring, list)):
                     Yr = cm.load(caiman.paths.fn_relocated(f), fr=1, in_memory=True, var_name_hdf5=var_name_hdf5)
                 else:
                     Yr = cm.movie(f)
@@ -484,7 +484,7 @@ def save_memmap(filenames: List[str],
 
             if border_to_0 > 0:
                 if slices is not None:
-                    if type(slices) is list:
+                    if isinstance(slices, list):
                         raise Exception(
                             'You cannot slice in x and y and then use add_to_movie: if you only want to slice in time do not pass in a list but just a slice object'
                         )
@@ -509,7 +509,7 @@ def save_memmap(filenames: List[str],
             if idx == 0:
                 fname_tot = base_name + '_d1_' + str(
                     dims[0]) + '_d2_' + str(dims[1]) + '_d3_' + str(1 if len(dims) == 2 else dims[2]) + '_order_' + str(
-                        order)                                                                                           # TODO: Rewrite more legibly
+                        order) # TODO: Rewrite more legibly, move to caiman.paths
                 if isinstance(f, str):
                     fname_tot = caiman.paths.fn_relocated(os.path.join(os.path.split(f)[0], fname_tot))
                 if len(filenames) > 1:

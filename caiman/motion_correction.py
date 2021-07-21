@@ -181,12 +181,12 @@ class MotionCorrect(object):
         if 'ndarray' in str(type(fname)):
             logging.info('Creating file for motion correction "tmp_mov_mot_corr.hdf5"')
             cm.movie(fname).save('tmp_mov_mot_corr.hdf5')
-            fname = ['./tmp_mov_mot_corr.hdf5']
+            fname = ['tmp_mov_mot_corr.hdf5']
 
-        if type(fname) is not list:
+        if not isinstance(fname, list):
             fname = [fname]
 
-        if type(gSig_filt) is tuple:
+        if isinstance(gSig_filt, tuple):
             gSig_filt = list(gSig_filt) # There are some serializers down the line that choke otherwise
 
         self.fname = fname
@@ -1157,7 +1157,7 @@ def motion_correct_parallel(file_names, fr=10, template=None, margins_out=0,
     """
     args_in = []
     for file_idx, f in enumerate(file_names):
-        if type(template) is list:
+        if isinstance(template, list):
             args_in.append((f, fr, margins_out, template[file_idx], max_shift_w, max_shift_h,
                             remove_blanks, apply_smooth, save_hdf5))
         else:
@@ -3027,7 +3027,7 @@ def tile_and_correct_wrapper(params):
         is3D, indices = params
 
 
-    if isinstance(img_name,tuple):
+    if isinstance(img_name, tuple):
         name, extension = os.path.splitext(img_name[0])[:2]
     else:
         name, extension = os.path.splitext(img_name)[:2]
@@ -3087,7 +3087,7 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
 
     """
     # todo todocument
-    if isinstance(fname,tuple):
+    if isinstance(fname, tuple):
         name, extension = os.path.splitext(fname[0])[:2]
     else:
         name, extension = os.path.splitext(fname)[:2]
@@ -3098,7 +3098,7 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
     z = np.zeros(dims)
     dims = z[indices].shape
     logging.debug('Number of Splits: {}'.format(splits))
-    if type(splits) is int:
+    if isinstance(splits, int):
         if subidx is None:
             rng = range(T)
         else:
@@ -3126,7 +3126,7 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
         if base_name is None:
             base_name = os.path.split(fname)[1][:-4]
         fname_tot:Optional[str] = caiman.paths.memmap_frames_filename(base_name, dims, T, order)
-        if isinstance(fname,tuple):
+        if isinstance(fname, tuple):
             fname_tot = os.path.join(os.path.split(fname[0])[0], fname_tot)
         else:
             fname_tot = os.path.join(os.path.split(fname)[0], fname_tot)

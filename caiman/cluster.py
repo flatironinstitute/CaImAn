@@ -202,7 +202,7 @@ def function_place_holder(args_in: Tuple) -> np.ndarray:
     [T, d1, d2] = Y.shape
 
     res_fun = function(Y, *args, **kwargs)
-    if type(res_fun) is not tuple:
+    if not isinstance(res_fun, tuple):
 
         if res_fun.shape == (d1, d2):
             logger.debug('** reshaping form 2D to 1D')

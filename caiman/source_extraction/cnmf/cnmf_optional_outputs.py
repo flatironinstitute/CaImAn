@@ -205,9 +205,9 @@ class CNMF(object):
                 print(
                     ('**** Setting the stride to 10% of 2*rf automatically:' + str(self.stride)))
 
-            if type(images) is np.ndarray:
+            if isinstance(images, np.ndarray):
                 raise Exception(
-                    'You need to provide a memory mapped file as input if you use patches!!')
+                    'You must provide a memory mapped file as input if you use patches!!')
 
             if self.only_init:
                 options['patch_params']['only_init'] = True

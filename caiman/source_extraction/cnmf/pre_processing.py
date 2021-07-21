@@ -236,7 +236,7 @@ def get_noise_fft_parallel(Y, n_pixels_per_process=100, dview=None, **kwargs):
     pixel_groups = list(
         range(0, Y.shape[0] - n_pixels_per_process + 1, n_pixels_per_process))
 
-    if type(Y) is np.core.memmap:  # if input file is already memory mapped then find the filename
+    if isinstance(Y, np.core.memmap):  # if input file is already memory mapped then find the filename
         Y_name = Y.filename
 
     else:

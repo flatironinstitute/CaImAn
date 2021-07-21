@@ -89,7 +89,7 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
         d1, d2 = tf[0].shape
         T = len(tf)
 
-    if type(splits) is int:
+    if isinstance(splits, int):
         idxs = np.array_split(list(range(T)), splits)
     else:
         idxs = splits
