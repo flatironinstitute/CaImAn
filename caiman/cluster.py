@@ -245,7 +245,7 @@ def start_server(slurm_script: str = None, ipcluster: str = "ipcluster", ncpus: 
         c = Client(ipython_dir=pdir, profile=profile)
         ee = c[:]
         ne = len(ee)
-        logger.info((f'Running on {ne} engines.')
+        logger.info(f'Running on {ne} engines.')
         c.close()
         sys.stdout.write("start_server: done\n")
 
