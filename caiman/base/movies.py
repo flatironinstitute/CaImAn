@@ -387,7 +387,7 @@ class movie(ts.timeseries):
 
         for i, frame in enumerate(self):
             if i % 100 == 99:
-                logging.debug("Frame %i" % (i + 1))
+                logging.debug(f"Frame {i + 1}")
             if method == 'opencv':
                 res = cv2.matchTemplate(frame, template, cv2.TM_CCORR_NORMED)
                 top_left = cv2.minMaxLoc(res)[3]
@@ -487,7 +487,7 @@ class movie(ts.timeseries):
         _, h, w = self.shape
         for i, frame in enumerate(self):
             if i % 100 == 99:
-                logging.debug("Frame %i" % (i + 1))
+                logging.debug(f"Frame {i + 1}")
 
             sh_x_n, sh_y_n = shifts[i]
 

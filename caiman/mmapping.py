@@ -25,8 +25,6 @@ def prepare_shape(mytuple: Tuple) -> Tuple:
         raise Exception("Internal error: prepare_shape() passed a non-tuple")
     return tuple(map(lambda x: np.uint64(x), mytuple))
 
-
-#%%
 def load_memmap(filename: str, mode: str = 'r') -> Tuple[Any, Tuple, int]:
     """ Load a memory mapped file created by the function save_memmap
 
@@ -67,8 +65,6 @@ def load_memmap(filename: str, mode: str = 'r') -> Tuple[Any, Tuple, int]:
     else:
         return (Yr, (d1, d2, d3), T)
 
-
-#%%
 def save_memmap_each(fnames: List[str],
                      dview=None,
                      base_name: str = None,
@@ -158,8 +154,6 @@ def save_memmap_each(fnames: List[str],
 
     return fnames_new
 
-
-#%%
 def save_memmap_join(mmap_fnames: List[str], base_name: str = None, n_chunks: int = 20, dview=None,
                      add_to_mov=0) -> str:
     """
@@ -255,7 +249,7 @@ def my_map(dv, func, args) -> List:
         for msg_id in finished:
             # we know these are done, so don't worry about blocking
             ar = rc.get_result(msg_id)
-            logging.debug("job id %s finished on engine %i" % (msg_id, ar.engine_id)) # TODO: Abstract out the ugly bits
+            logging.debug(f"job id {msg_id} finished on engine {ar.engine_id}") # TODO: Abstract out the ugly bits
             logging.debug("with stdout:")
             logging.debug('    ' + ar.stdout.replace('\n', '\n    ').rstrip())
             logging.debug("and errors:")
@@ -313,8 +307,6 @@ def save_portion(pars) -> int:
     logging.debug('done')
     return Ttot
 
-
-#%%
 def save_place_holder(pars: List) -> str:
     """ To use map reduce
     """
@@ -335,8 +327,6 @@ def save_place_holder(pars: List) -> str:
                        border_to_0=border_to_0,
                        slices=slices)
 
-
-#%%
 def save_memmap(filenames: List[str],
                 base_name: str = 'Yr',
                 resize_fact: Tuple = (1, 1, 1),
@@ -546,10 +536,6 @@ def save_memmap(filenames: List[str],
 
     return fname_new
 
-
-#%%
-
-
 def parallel_dot_product(A: np.ndarray, b, block_size: int = 5000, dview=None, transpose=False,
                          num_blocks_per_run=20) -> np.ndarray:
     # todo: todocument
@@ -627,8 +613,6 @@ def parallel_dot_product(A: np.ndarray, b, block_size: int = 5000, dview=None, t
 
     return output
 
-
-#%%
 def dot_place_holder(par: List) -> Tuple:
     # todo: todocument
 
@@ -653,8 +637,6 @@ def dot_place_holder(par: List) -> Tuple:
     del b_, A_
     return idx_to_pass, outp
 
-
-#%%
 def save_tif_to_mmap_online(movie_iterable, save_base_name='YrOL_', order='C', add_to_movie=0, border_to_0=0) -> str:
     # todo: todocument
 
