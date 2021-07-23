@@ -1005,7 +1005,7 @@ class CNMFParams(object):
 
     def __eq__(self, other):
 
-        if type(other) != CNMFParams:
+        if not instance(other, CNMFParams):
             return False
 
         parent_dict1 = self.to_dict()

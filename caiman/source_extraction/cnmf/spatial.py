@@ -1133,7 +1133,7 @@ def creatememmap(Y, Cf, dview):
         C_name = os.path.join(folder, 'C_temp.npy')
         np.save(C_name, Cf)
 
-        if type(Y) is np.core.memmap:  # if input file is already memory mapped then find the filename
+        if isinstance(Y, np.core.memmap):  # if input file is already memory mapped then find the filename
             Y_name = Y.filename
         # if not create a memory mapped version (necessary for parallelization)
         elif isinstance(Y, basestring) or dview is None:

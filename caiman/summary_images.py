@@ -389,7 +389,7 @@ def correlation_image_ecobost(mov, chunk_size: int = 1000, dview=None):
         passing list of string)
     """
     # MAP
-    if type(mov) is list:
+    if isinstance(mov, list):
         if dview is not None:
             res = dview.map(map_corr, mov)
         else:
@@ -440,7 +440,7 @@ def map_corr(scan) -> Tuple[Any, Any, Any, int]:
     movies in parallel
     '''
     # TODO: Tighten prototype above
-    if type(scan) is str:
+    if isinstance(scan, str):
         scan = cm.load(scan)
 
     # h x w x num_frames
@@ -663,7 +663,7 @@ def local_correlations_movie(file_name,
             local correlation movie
 
     """
-    Y = cm.load(file_name) if type(file_name) is str else file_name
+    Y = cm.load(file_name) if isinstance(file_name, str) else file_name
     Y = Y[..., :tot_frames] if swap_dim else Y[:tot_frames]
     first_moment, second_moment, crosscorr, col_ind, row_ind, num_neigbors, M, cn = \
         prepare_local_correlations(Y[..., :window] if swap_dim else Y[:window],

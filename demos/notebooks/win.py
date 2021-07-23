@@ -18,7 +18,7 @@ def get_iterator(device=0, fr=None):
     device: device number (int) or filename (string) for reading from camera or file respectively
     fr: frame rate
     """
-    if type(device) is int:  # capture from camera
+    if isinstance(device, int):  # capture from camera
         def capture_iter(device=device, fr=fr):
             cap = cv2.VideoCapture(device)
             if fr is not None:  # set frame rate

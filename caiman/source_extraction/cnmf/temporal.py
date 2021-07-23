@@ -34,7 +34,7 @@ def make_G_matrix(T, g):
         G: sparse diagonal matrix
             Matrix of autoregression
     """
-    if type(g) is np.ndarray:
+    if isinstance(g, np.ndarray):
         if len(g) == 1 and g < 0:
             g = 0
         gs = np.matrix(np.hstack((1, -(g[:]).T)))

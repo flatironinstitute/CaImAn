@@ -110,8 +110,6 @@ def extract_patch_coordinates(dims: Tuple,
 
     return list(map(np.sort, coords_flat)), shapes
 
-
-#%%
 def apply_to_patch(mmap_file, shape: Tuple[Any, Any, Any], dview, rf, stride, function, *args,
                    **kwargs) -> Tuple[List, Any, Tuple]:
     """
@@ -186,10 +184,6 @@ def apply_to_patch(mmap_file, shape: Tuple[Any, Any, Any], dview, rf, stride, fu
         file_res = list(map(function_place_holder, args_in))
     return file_res, idx_flat, shape_grid
 
-
-#%%
-
-
 def function_place_holder(args_in: Tuple) -> np.ndarray:
     #todo: todocument
 
@@ -202,17 +196,13 @@ def function_place_holder(args_in: Tuple) -> np.ndarray:
     [T, d1, d2] = Y.shape
 
     res_fun = function(Y, *args, **kwargs)
-    if type(res_fun) is not tuple:
+    if not isinstance(res_fun, tuple):
 
         if res_fun.shape == (d1, d2):
             logger.debug('** reshaping form 2D to 1D')
             res_fun = np.reshape(res_fun, d1 * d2, order='F')
 
     return res_fun
-
-
-#%%
-
 
 def start_server(slurm_script: str = None, ipcluster: str = "ipcluster", ncpus: int = None) -> None:
     """
@@ -255,7 +245,7 @@ def start_server(slurm_script: str = None, ipcluster: str = "ipcluster", ncpus: 
         c = Client(ipython_dir=pdir, profile=profile)
         ee = c[:]
         ne = len(ee)
-        logger.info(('Running on %d engines.' % (ne)))
+        logger.info(f'Running on {ne} engines.')
         c.close()
         sys.stdout.write("start_server: done\n")
 
@@ -265,7 +255,7 @@ def shell_source(script: str) -> None:
     # XXX This function is weird and maybe not a good idea. People easily might expect
     #     it to handle conditionals. Maybe just make them provide a key-value file
     #introduce echo to indicate the end of the output
-    pipe = subprocess.Popen(". %s; env; echo 'FINISHED_CLUSTER'" % script, stdout=subprocess.PIPE, shell=True)
+    pipe = subprocess.Popen(f". {script}; env; echo 'FINISHED_CLUSTER'", stdout=subprocess.PIPE, shell=True)
 
     env = dict()
     while True:
@@ -312,7 +302,7 @@ def stop_server(ipcluster: str = 'ipcluster', pdir: str = None, profile: str = N
             c = Client(ipython_dir=pdir, profile=profile)
             ee = c[:]
             ne = len(ee)
-            logger.info(('Shutting down %d engines.' % (ne)))
+            logger.info(f'Shutting down {ne} engines.')
             c.close()
             c.shutdown(hub=True)
             shutil.rmtree('profile_' + str(profile))
@@ -356,10 +346,6 @@ def stop_server(ipcluster: str = 'ipcluster', pdir: str = None, profile: str = N
             proc.stderr.close()
 
     logger.info("stop_cluster(): done")
-
-
-#%%
-
 
 def setup_cluster(backend: str = 'multiprocessing',
                   n_processes: int = None,

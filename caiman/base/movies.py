@@ -97,23 +97,13 @@ class movie(ts.timeseries):
         if isinstance(input_arr, movie):
             return input_arr
 
-        if (type(input_arr) is np.ndarray) or \
-           (type(input_arr) is h5py._hl.dataset.Dataset) or \
+        if (isinstance(input_arr, np.ndarray)) or \
+           (isinstance(input_arr, h5py._hl.dataset.Dataset)) or \
            ('mmap' in str(type(input_arr))) or \
            ('tifffile' in str(type(input_arr))):
             return super().__new__(cls, input_arr, **kwargs)  
-            #return super(movie, cls).__new__(cls, input_arr, **kwargs)
         else:
             raise Exception('Input must be an ndarray, use load instead!')
-
-    def apply_shifts_online(self, xy_shifts, save_base_name=None):
-        # This function is unused.
-        # todo: todocument
-
-        if save_base_name is None:
-            return movie(apply_shift_online(self, xy_shifts, save_base_name=save_base_name), fr=self.fr)
-        else:
-            return apply_shift_online(self, xy_shifts, save_base_name=save_base_name)
 
     def calc_min(self) -> 'movie':
         # todo: todocument
@@ -373,7 +363,7 @@ class movie(ts.timeseries):
         else:
             min_val = 0
 
-        if type(self[0, 0, 0]) is not np.float32:
+        if not isinstance(self[0, 0, 0], np.float32):
             warnings.warn('Casting the array to float32')
             self = np.asanyarray(self, dtype=np.float32)
 
@@ -397,7 +387,7 @@ class movie(ts.timeseries):
 
         for i, frame in enumerate(self):
             if i % 100 == 99:
-                logging.debug("Frame %i" % (i + 1))
+                logging.debug(f"Frame {i + 1}")
             if method == 'opencv':
                 res = cv2.matchTemplate(frame, template, cv2.TM_CCORR_NORMED)
                 top_left = cv2.minMaxLoc(res)[3]
@@ -455,7 +445,7 @@ class movie(ts.timeseries):
 
             Exception 'Method not defined'
         """
-        if type(self[0, 0, 0]) is not np.float32:
+        if not isinstance(self[0, 0, 0], np.float32):
             warnings.warn('Casting the array to float32')
             self = np.asanyarray(self, dtype=np.float32)
 
@@ -497,7 +487,7 @@ class movie(ts.timeseries):
         _, h, w = self.shape
         for i, frame in enumerate(self):
             if i % 100 == 99:
-                logging.debug("Frame %i" % (i + 1))
+                logging.debug(f"Frame {i + 1}")
 
             sh_x_n, sh_y_n = shifts[i]
 
@@ -531,7 +521,7 @@ class movie(ts.timeseries):
         """ Debleach by fiting a model to the median intensity.
         """
         #todo: todocument
-        if type(self[0, 0, 0]) is not np.float32:
+        if not isinstance(self[0, 0, 0], np.float32):
             warnings.warn('Casting the array to float32')
             self = np.asanyarray(self, dtype=np.float32)
 
@@ -1119,8 +1109,8 @@ class movie(ts.timeseries):
         """
         performs bilateral filtering on each frame. See opencv documentation of cv2.bilateralFilter
         """
-        if type(self[0, 0, 0]) is not np.float32:
-            warnings.warn('Casting the array to float 32')
+        if not isinstance(self[0, 0, 0], np.float32):
+            warnings.warn('Casting the array to float32')
             self = np.asanyarray(self, dtype=np.float32)
 
         for idx, fr in enumerate(self):
@@ -1470,12 +1460,12 @@ def load(file_name: Union[str, List[str]],
         Exception 'File not found!'
     """
     # case we load movie from file
-    if max(top, bottom, left, right) > 0 and type(file_name) is str:
+    if max(top, bottom, left, right) > 0 and isinstance(file_name, str):
         file_name = [file_name]        # type: ignore # mypy doesn't like that this changes type
 
-    if type(file_name) is list:
+    if isinstance(file_name, list):
         if shape is not None:
-            logging.error('shape not supported for multiple movie input')
+            logging.error('shape parameter not supported for multiple movie input')
 
         return load_movie_chain(file_name,
                                 fr=fr,
@@ -1580,20 +1570,20 @@ def load(file_name: Union[str, List[str]],
             if length == 0 or width == 0 or height == 0:       #CV failed to load
                 cv_failed = True
             if subindices is not None:
-                if type(subindices) is not list:
+                if not isinstance(subindices, list):
                     subindices = [subindices]
                 for ind, sb in enumerate(subindices):
-                    if type(sb) is range:
+                    if isinstance(sb, range):
                         subindices[ind] = np.r_[sb]
                         dims[ind] = subindices[ind].shape[0]
-                    elif type(sb) is slice:
+                    elif isinstance(sb, slice):
                         if sb.start is None:
                             sb = slice(0, sb.stop, sb.step)
                         if sb.stop is None:
                             sb = slice(sb.start, dims[ind], sb.step)
                         subindices[ind] = np.r_[sb]
                         dims[ind] = subindices[ind].shape[0]
-                    elif type(sb) is np.ndarray:
+                    elif isinstance(sb, np.ndarray):
                         dims[ind] = sb.shape[0]
 
                 start_frame = subindices[0][0]
@@ -1701,7 +1691,7 @@ def load(file_name: Union[str, List[str]],
                             #if images.ndim > 3:
                             #    images = images[:, 0]
                         else:
-                            if type(subindices).__module__ is 'numpy':
+                            if type(subindices).__module__ == 'numpy':
                                 subindices = subindices.tolist()
                             if len(fgroup.shape) > 3:
                                 images = np.array(fgroup[subindices]).squeeze()
@@ -1758,7 +1748,7 @@ def load(file_name: Union[str, List[str]],
             raise Exception('Unknown file type')
     else:
         logging.error(f"File request:[{file_name}] not found!")
-        raise Exception('File not found!')
+        raise Exception(f'File {file_name} not found!')
 
     return movie(input_arr.astype(outtype),
                  fr=fr,
@@ -2187,7 +2177,7 @@ def load_iter(file_name, subindices=None, var_name_hdf5: str = 'mov', outtype=np
         if extension in ('.tif', '.tiff', '.btf'):
             Y = tifffile.TiffFile(file_name).pages
             if subindices is not None:
-                if type(subindices) is range:
+                if isinstance(subindices, range):
                     subindices = slice(subindices.start, subindices.stop, subindices.step)
                 Y = Y[subindices]
             for y in Y:
@@ -2204,7 +2194,7 @@ def load_iter(file_name, subindices=None, var_name_hdf5: str = 'mov', outtype=np
                         return
                         #raise StopIteration
             else:
-                if type(subindices) is slice:
+                if isinstance(subindices, slice):
                     subindices = range(
                         subindices.start,
                         int(cap.get(cv2.CAP_PROP_FRAME_COUNT)) if subindices.stop is None else subindices.stop,
@@ -2237,7 +2227,7 @@ def load_iter(file_name, subindices=None, var_name_hdf5: str = 'mov', outtype=np
                     for y in Y:
                         yield y.astype(outtype)
                 else:
-                    if type(subindices) is slice:
+                    if isinstance(subindices, slice):
                         subindices = range(subindices.start,
                                            len(Y) if subindices.stop is None else subindices.stop,
                                            1 if subindices.step is None else subindices.step)

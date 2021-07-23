@@ -50,6 +50,7 @@ from ...motion_correction import MotionCorrect
 from ...utils.utils import save_dict_to_hdf5, load_dict_from_hdf5
 from caiman import summary_images
 from caiman import cluster
+import caiman.paths
 
 try:
     cv2.setNumThreads(0)
@@ -592,7 +593,7 @@ class CNMF(object):
                 logging.info(
                     ('Setting the stride to 10% of 2*rf automatically:' + str(self.params.get('patch', 'stride'))))
 
-            if type(images) is np.ndarray:
+            if not isinstance(images, np.memmap):
                 raise Exception(
                     'You need to provide a memory mapped file as input if you use patches!!')
 
@@ -655,7 +656,7 @@ class CNMF(object):
         return self
 
 
-    def save(self,filename):
+    def save(self, filename):
         '''save object in hdf5 file format
 
         Args:
@@ -664,9 +665,10 @@ class CNMF(object):
         '''
 
         if '.hdf5' in filename:
+            filename = caiman.paths.fn_relocated(filename)
             save_dict_to_hdf5(self.__dict__, filename)
         else:
-            raise Exception("Filename not supported")
+            raise Exception("File extension not supported for cnmf.save")
 
     def remove_components(self, ind_rm):
         """
@@ -1005,6 +1007,7 @@ def load_CNMF(filename, n_processes=1, dview=None):
     '''
     new_obj = CNMF(n_processes)
     if os.path.splitext(filename)[1].lower() in ('.hdf5', '.h5'):
+        filename = caiman.paths.fn_relocated(filename)
         for key, val in load_dict_from_hdf5(filename).items():
             if key == 'params':
                 prms = CNMFParams()

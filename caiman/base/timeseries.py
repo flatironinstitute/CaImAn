@@ -1,28 +1,26 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
+
 """
 Class representing a time series.
-
-author: Andrea Giovannucci
 """
 
-#%%
 import cv2
+from datetime import datetime
+from dateutil.tz import tzlocal
 import h5py
 import logging
 import numpy as np
 import os
 import pylab as plt
+from pynwb import NWBHDF5IO, NWBFile
+from pynwb.ophys import TwoPhotonSeries, OpticalChannel
+from pynwb.device import Device
 import pickle as cpk
 from scipy.io import savemat
 import tifffile
 import warnings
-from datetime import datetime
-from dateutil.tz import tzlocal
-from pynwb import NWBHDF5IO, NWBFile
-from pynwb.ophys import TwoPhotonSeries, OpticalChannel
-from pynwb.device import Device
-from caiman.paths import memmap_frames_filename
+
+import caiman.paths
 
 try:
     cv2.setNumThreads(0)
@@ -35,7 +33,6 @@ except:
     pass
 
 
-#%%
 class timeseries(np.ndarray):
     """
     Class representing a time series.
@@ -67,12 +64,12 @@ class timeseries(np.ndarray):
 
         obj.start_time = np.double(start_time)
         obj.fr = np.double(fr)
-        if type(file_name) is list:
+        if isinstance(file_name, list):
             obj.file_name = file_name
         else:
             obj.file_name = [file_name]
 
-        if type(meta_data) is list:
+        if isinstance(meta_data, list):
             obj.meta_data = meta_data
         else:
             obj.meta_data = [meta_data]
@@ -91,7 +88,7 @@ class timeseries(np.ndarray):
         if context is not None:
             inputs = context[1]
             for inp in inputs:
-                if type(inp) is timeseries:
+                if isinstance(inp, timeseries):
                     if frRef is None:
                         frRef = inp.fr
                     else:
@@ -167,7 +164,8 @@ class timeseries(np.ndarray):
             Exception 'Extension Unknown'
 
         """
-        name, extension = os.path.splitext(file_name)[:2]
+        file_name = caiman.paths.fn_relocated(file_name)
+        name, extension = os.path.splitext(file_name)[:2] # name is only used by the memmap saver
         extension = extension.lower()
         logging.debug("Parsing extension " + str(extension))
 
@@ -289,7 +287,7 @@ class timeseries(np.ndarray):
             input_arr = np.transpose(input_arr, list(range(1, len(dims) + 1)) + [0])
             input_arr = np.reshape(input_arr, (np.prod(dims), T), order='F')
 
-            fname_tot = memmap_frames_filename(base_name, dims, T, order)
+            fname_tot = caiman.paths.memmap_frames_filename(base_name, dims, T, order)
             fname_tot = os.path.join(os.path.split(file_name)[0], fname_tot)
             big_mov = np.memmap(fname_tot,
                                 mode='w+',
@@ -377,3 +375,4 @@ def concatenate(*args, **kwargs):
     except:
         logging.debug('no meta information passed')
         return obj.__class__(np.concatenate(*args, **kwargs))
+

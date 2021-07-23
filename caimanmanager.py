@@ -60,6 +60,7 @@ def do_install_to(targdir: str, inplace: bool = False, force: bool = False) -> N
             shutil.copytree(sourcedir_base, targdir)
         else:
             distutils.dir_util.copy_tree(sourcedir_base, targdir)
+        os.makedirs(os.path.join(targdir, 'temp'          ), exist_ok=True)
     else:          # here we recreate the other logical path here. Maintenance concern: Keep these reasonably in sync with what's in setup.py
         for copydir in extra_dirs:
             if not force:
@@ -67,6 +68,7 @@ def do_install_to(targdir: str, inplace: bool = False, force: bool = False) -> N
             else:
                 distutils.dir_util.copy_tree(copydir, os.path.join(targdir, copydir))
         os.makedirs(os.path.join(targdir, 'example_movies'), exist_ok=True)
+        os.makedirs(os.path.join(targdir, 'temp'          ), exist_ok=True)
         for stdmovie in standard_movies:
             shutil.copy(stdmovie, os.path.join(targdir, 'example_movies'))
         for extrafile in extra_files:
