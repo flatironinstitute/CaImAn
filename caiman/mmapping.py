@@ -276,7 +276,7 @@ def save_portion(pars) -> int:
     for f in fnames:
         full_f = caiman.paths.fn_relocated(f)
         logging.debug(f"Saving portion to {full_f}")
-        Yr, _, T = load_memmap(full_ff)
+        Yr, _, T = load_memmap(full_f)
         Yr_tot[:, Ttot:Ttot +
                T] = np.ascontiguousarray(Yr[idx_start:idx_end], dtype=np.float32) + np.float32(add_to_mov)
         Ttot = Ttot + T
