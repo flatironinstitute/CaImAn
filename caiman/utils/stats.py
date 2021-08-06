@@ -217,7 +217,7 @@ def df_percentile(inputData, axis=None):
                 err = False
             except:
                 logging.warning('Percentile computation failed. Duplicating ' + 'and trying again.')
-                if type(inputData) is not list:
+                if not isinstance(inputData, list):
                     inputData = inputData.tolist()
                 inputData += inputData
 
@@ -225,7 +225,7 @@ def df_percentile(inputData, axis=None):
         val = mesh[np.argmax(density)]
         if data_prct >= 100 or data_prct < 0:
             logging.warning('Invalid percentile computed possibly due ' + 'short trace. Duplicating and recomuputing.')
-            if type(inputData) is not list:
+            if not isinstance(inputData, list):
                 inputData = inputData.tolist()
             inputData *= 2
             err = True
@@ -314,7 +314,7 @@ def csc_column_remove(A, ind):
             list or np.array with columns to be removed
     """
     d1, d2 = A.shape
-    if 'csc_matrix' not in str(type(A)):
+    if 'csc_matrix' not in str(type(A)): # FIXME
         logging.warning("Original matrix not in csc_format. Converting it" + " anyway.")
         A = scipy.sparse.csc_matrix(A)
     indptr = A.indptr

@@ -53,6 +53,7 @@ import logging
 import numpy as np
 from numpy.fft import ifftshift
 import os
+import sys
 import pylab as pl
 import tifffile
 from typing import List, Optional, Tuple
@@ -62,7 +63,7 @@ from skimage.transform import warp as warp_sk
 import caiman as cm
 import caiman.base.movies
 import caiman.motion_correction
-from caiman.paths import memmap_frames_filename
+import caiman.paths
 from .mmapping import prepare_shape
 
 try:
@@ -179,13 +180,13 @@ class MotionCorrect(object):
         """
         if 'ndarray' in str(type(fname)):
             logging.info('Creating file for motion correction "tmp_mov_mot_corr.hdf5"')
-            cm.movie(fname).save('./tmp_mov_mot_corr.hdf5') # FIXME don't write to the current directory!
-            fname = ['./tmp_mov_mot_corr.hdf5']
+            cm.movie(fname).save('tmp_mov_mot_corr.hdf5')
+            fname = ['tmp_mov_mot_corr.hdf5']
 
-        if type(fname) is not list:
+        if not isinstance(fname, list):
             fname = [fname]
 
-        if type(gSig_filt) is tuple:
+        if isinstance(gSig_filt, tuple):
             gSig_filt = list(gSig_filt) # There are some serializers down the line that choke otherwise
 
         self.fname = fname
@@ -498,7 +499,7 @@ class MotionCorrect(object):
         m_reg = np.stack(m_reg, axis=0)
         if save_memmap:
             dims = m_reg.shape
-            fname_tot = memmap_frames_filename(save_base_name, dims[1:], dims[0], order)
+            fname_tot = caiman.paths.memmap_frames_filename(save_base_name, dims[1:], dims[0], order)
             big_mov = np.memmap(fname_tot, mode='w+', dtype=np.float32,
                         shape=prepare_shape((np.prod(dims[1:]), dims[0])), order=order)
             big_mov[:] = np.reshape(m_reg.transpose(1, 2, 0), (np.prod(dims[1:]), dims[0]), order='F')
@@ -588,7 +589,8 @@ def apply_shift_online(movie_iterable, xy_shifts, save_base_name=None, order='F'
     dims = (len(movie_iterable),) + movie_iterable[0].shape  # TODO: Refactor so length is either tracked separately or is last part of tuple
 
     if save_base_name is not None:
-        fname_tot = memmap_frames_filename(save_base_name, dims[1:], dims[0], order)
+        fname_tot = caiman.paths.memmap_frames_filename(save_base_name, dims[1:], dims[0], order)
+        fname_tot = caiman.paths.fn_relocated(fname_tot)
         big_mov = np.memmap(fname_tot, mode='w+', dtype=np.float32,
                             shape=prepare_shape((np.prod(dims[1:]), dims[0])), order=order)
 
@@ -825,7 +827,7 @@ def motion_correct_online(movie_iterable, add_to_movie, max_shift_w=25, max_shif
                 dims = (dims[0], dims[1] + min_h -
                         max_h, dims[2] + min_w - max_w)
 
-            fname_tot:Optional[str] = memmap_frames_filename(save_base_name, dims[1:], dims[0], order)
+            fname_tot:Optional[str] = caiman.paths.memmap_frames_filename(save_base_name, dims[1:], dims[0], order)
             big_mov = np.memmap(fname_tot, mode='w+', dtype=np.float32,
                                 shape=prepare_shape((np.prod(dims[1:]), dims[0])), order=order)
 
@@ -1162,7 +1164,7 @@ def motion_correct_parallel(file_names, fr=10, template=None, margins_out=0,
     """
     args_in = []
     for file_idx, f in enumerate(file_names):
-        if type(template) is list:
+        if isinstance(template, list):
             args_in.append((f, fr, margins_out, template[file_idx], max_shift_w, max_shift_h,
                             remove_blanks, apply_smooth, save_hdf5))
         else:
@@ -2623,6 +2625,12 @@ def compute_metrics_motion_correction(fname, final_size_x, final_size_y, final_s
     #todo: todocument
     # cv2.OPTFLOW_FARNEBACK_GAUSSIAN
     import scipy
+    from tqdm import tqdm
+    if os.environ.get('ENABLE_TQDM') == 'True':
+        disable_tqdm = False
+    else:
+        disable_tqdm = True
+        
     vmin, vmax = -max_flow, max_flow
     m = cm.load(fname)
     if gSig_filt is not None:
@@ -2696,22 +2704,27 @@ def compute_metrics_motion_correction(fname, final_size_x, final_size_y, final_s
     logging.debug('Compute correlations.. ')
     correlations = []
     count = 0
-    for fr in m:
-        if count % 100 == 0:
-            logging.debug(count)
+    sys.stdout.flush()
+    for fr in tqdm(m, desc="Correlations", disable=disable_tqdm):
+        if disable_tqdm:
+            if count % 100 == 0:
+                logging.debug(count)
+        
         count += 1
         correlations.append(scipy.stats.pearsonr(
             fr.flatten(), tmpl.flatten())[0])        
     
     logging.info('Compute optical flow .. ')
+
     if m.ndim == 3:
         m = m.resize(1, 1, resize_fact_flow)
         norms = []
         flows = []
         count = 0
-        for fr in m:
-            if count % 100 == 0:
-                logging.debug(count)
+        for fr in tqdm(m, desc="Optical flow", disable=disable_tqdm):
+            if disable_tqdm:
+                if count % 100 == 0:
+                    logging.debug(count)
     
             count += 1
             flow = cv2.calcOpticalFlowFarneback(
@@ -3093,7 +3106,7 @@ def tile_and_correct_wrapper(params):
         is3D, indices = params
 
 
-    if isinstance(img_name,tuple):
+    if isinstance(img_name, tuple):
         name, extension = os.path.splitext(img_name[0])[:2]
     else:
         name, extension = os.path.splitext(img_name)[:2]
@@ -3153,7 +3166,7 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
 
     """
     # todo todocument
-    if isinstance(fname,tuple):
+    if isinstance(fname, tuple):
         name, extension = os.path.splitext(fname[0])[:2]
     else:
         name, extension = os.path.splitext(fname)[:2]
@@ -3164,7 +3177,7 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
     z = np.zeros(dims)
     dims = z[indices].shape
     logging.debug('Number of Splits: {}'.format(splits))
-    if type(splits) is int:
+    if isinstance(splits, int):
         if subidx is None:
             rng = range(T)
         else:
@@ -3191,8 +3204,8 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
     if save_movie:
         if base_name is None:
             base_name = os.path.split(fname)[1][:-4]
-        fname_tot:Optional[str] = memmap_frames_filename(base_name, dims, T, order)
-        if isinstance(fname,tuple):
+        fname_tot:Optional[str] = caiman.paths.memmap_frames_filename(base_name, dims, T, order)
+        if isinstance(fname, tuple):
             fname_tot = os.path.join(os.path.split(fname[0])[0], fname_tot)
         else:
             fname_tot = os.path.join(os.path.split(fname)[0], fname_tot)

@@ -481,7 +481,7 @@ def recursively_save_dict_contents_to_group(h5file:h5py.File, path:str, dic:Dict
             logging.info('Key {} is not saved.'.format(key))
             continue
 
-        if isinstance(item, list) or isinstance(item, tuple):
+        if isinstance(item, (list, tuple)):
             if len(item) > 0 and all(isinstance(elem, str) for elem in item):
                 item = np.string_(item)
             else:
@@ -523,7 +523,7 @@ def recursively_save_dict_contents_to_group(h5file:h5py.File, path:str, dic:Dict
         elif type(item).__name__ in ['CNMFParams', 'Estimates']: #  parameter object
             recursively_save_dict_contents_to_group(h5file, path + key + '/', item.__dict__)
         else:
-            raise ValueError("Cannot save %s type for key '%s'." % (type(item), key))
+            raise ValueError(f"Cannot save {type(item)} type for key '{key}'.")
 
 
 def recursively_load_dict_contents_from_group(h5file:h5py.File, path:str) -> Dict:
@@ -548,12 +548,12 @@ def recursively_load_dict_contents_from_group(h5file:h5py.File, path:str) -> Dic
 
             elif key in ['dims', 'medw', 'sigma_smooth_snmf', 'dxy', 'max_shifts', 'strides', 'overlaps']:
 
-                if type(item[()]) == np.ndarray:
+                if isinstance(item[()], np.ndarray):
                     ans[key] = tuple(item[()])
                 else:
                     ans[key] = item[()]
             else:
-                if type(item[()]) == np.bool_:
+                if isinstance(item[()], np.bool_): # sigh
                     ans[key] = bool(item[()])
                 else:
                     ans[key] = item[()]
@@ -662,3 +662,4 @@ def get_caiman_version() -> Tuple[str, str]:
         if last_modified > newest:
             newest = last_modified
     return 'FILE', str(int(newest))
+

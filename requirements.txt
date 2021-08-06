@@ -22,7 +22,7 @@ pyqtgraph
 scikit-image
 scikit-learn
 scipy
-tensorflow==1.15.4
+tensorflow
 tifffile
 tk
 tqdm

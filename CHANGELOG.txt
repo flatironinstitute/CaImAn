@@ -1,0 +1,31 @@
+Please check this file after new releases; it will cover (only) major changes or changes that will impact how CaImAn runs, and will not generally cover new features or minor changes (see the version history on Github for that). Most recent changes are at the top.
+
+1.9.0
+-----
+This implements a storage layer that, if enabled, will try not to write files
+to the working directory, instead by default saving them to
+
+~/caiman_data/temp/
+
+You can enable it by setting the CAIMAN_NEW_TEMPFILE environment variable, and
+control it further by looking at the docs in caiman/paths.py. In the future this will be the default behaviour.
+
+This serves three purposes:
+1) Some users ran CaImAn from directories with very little free space, but had other directories with plenty of space
+2) Some users wanted to run more than one instance of CaImAn at the same time and didn't want the tempfiles to stomp each other
+3) Leaving things in the current working directory is untidy
+
+In the future, this will likely evolve into a storage manager.
+
+1.8.9
+-----
+Python 3.7-3.9 are supported versions of CaImAn. 3.6 is no longer supported.
+Tensorflow 2.2+ is the supported version of tensorflow for CaImAn.
+
+1.8.3
+-----
+Compatibility with Tensorflow 2.x and Bokeh2
+
+1.6
+---
+First Anaconda packages, available on conda-forge. This is now the recommended install method for Windows and is reasonable on other platforms.

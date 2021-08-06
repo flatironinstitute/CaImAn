@@ -1,20 +1,48 @@
+<a href="https://colab.research.google.com/drive/1vkp-uPV8tKavmX12bcN2L-jYH8_MgmHL?usp=sharing"><img src="https://img.shields.io/badge/-Colab%20Demo-blue" /></a>
+<a href="https://ncsu.qualtrics.com/jfe/form/SV_enuiA15WX8w74qy"><img src="https://img.shields.io/badge/-Caiman%20Survey-green" /></a>
+
 CaImAn
 ======
 <img src="https://github.com/flatironinstitute/CaImAn/blob/master/docs/LOGOS/Caiman_logo_FI.png" width="500" align="right">
-
-
-
-[![Join the chat at https://gitter.im/agiovann/SOURCE_EXTRACTION_PYTHON](https://badges.gitter.im/agiovann/SOURCE_EXTRACTION_PYTHON.svg)](https://gitter.im/agiovann/SOURCE_EXTRACTION_PYTHON?utm_source=badge&utm_medium=badge&utm_campaign=pr-badge&utm_content=badge)
-
 
 A Python toolbox for large scale **Ca**lcium **Im**aging data **An**alysis and behavioral analysis.
 
 CaImAn implements a set of essential methods required in the analysis pipeline of large scale calcium imaging data. Fast and scalable algorithms are implemented for motion correction, source extraction, spike deconvolution, and component registration across multiple days. It is suitable for both two-photon and one-photon fluorescence microscopy data, and can be run in both batch and online modes. CaImAn also contains some routines for the analysis of behavior from video cameras. A list of features as well as relevant references can be found [here](https://caiman.readthedocs.io/en/latest/CaImAn_features_and_references.html).
 
-## Web-based Docs
-Documentation for CaImAn (including install instructions) can be found online [here](https://caiman.readthedocs.io/en/master/Overview.html).
+## Requirements
 
-## Companion paper and related references
+Right now, CaImAn works and is supported on the following platforms:
+* Linux on Intel CPUs
+* MacOS on Intel CPUs
+* Windows on Intel CPUs
+
+16G RAM is strongly recommended, and depending on datasets, 32G or more may be helpful. ARM-based versions of Apple hardware are likely to be eventually supported (although current available systems of that sort have little RAM).
+
+CaImAn presently targets Python 3.7. Parts of CaImAn are written in C++, but apart possibly during install, this is not visible to the user. There is also an [older implementation](https://github.com/flatironinstitute/CaImAn-MATLAB) of CaImAn in Matlab (unsupported). That version can be used with [MCMC spike inference](https://github.com/epnev/continuous_time_ca_sampler) 
+
+## Install
+
+The supported ways to install CaImAn use the Anaconda python distribution. If you do not already have it, first install a 3.x version for your platform from [here](https://docs.conda.io/en/latest/miniconda.html). Familiarise yourself with Conda before going further.
+
+There are a few supported install methods.
+
+The easiest (and strongly recommended on Windows) is to use a binary conda package, installed as the environment is built. Install this with 'conda create -n caiman -c conda-forge caiman'. This is suitable for most use, if you don't need to change the internals of the caiman package. You do not need to fetch the source code with this approach.
+
+Another option is to build it yourself; you will need a working compiler (easy on Linux, fairly easy on OSX, fairly involved on Windows). Clone the sources of this repo, and do a 'pip install .' or 'pip install -e .' The former is a standard install, the latter is more suitable for active development on the caiman sources.
+
+There are other ways to build/use caiman, but they may get less or no support depending on how different they are.
+
+More detailed docs on installation can be found [here](./docs/source/Installation.rst).
+
+After installing the software, the caimanmanager.py script (which will be put in your path on Linux and OSX) is used to unpack datafiles and demos into a directory called caiman\_data. 
+
+## Getting Started
+
+If you used caimanmanager to unpack the demos and data files, you will find in the caiman\_data folder a set of demos and jupyter notebooks. demo\_pipeline.py and demo\_behavior.py (or their notebook equivalents) are good introductions to the code.
+
+## Papers and data
+
+### Main paper
 A paper explaining most of the implementation details and benchmarking can be found [here](https://elifesciences.org/articles/38173).
 
 ```
@@ -35,19 +63,14 @@ CaImAn implements a variety of algorithms for analyzing calcium (and voltage) im
  
 If you use this code please cite the corresponding papers where original methods appeared as well the companion paper.
 
-## New: Real-time analysis of microendoscopic 1p data (January 2021)
+### Real-time analysis of microendoscopic 1p data
 
-Our online algorithms can be used for newly enabled real-time analysis of live-streaming data. An example for real-time analysis of microendoscopic 1p data is shown in the notebook `demos/notebooks/demo_realtime_cnmfE.ipynb`.
+Our online algorithms can be used for real-time analysis of live-streaming data. An example for real-time analysis of microendoscopic 1p data is shown in the notebook `demos/notebooks/demo_realtime_cnmfE.ipynb`.
 For more information about the approach check the [paper](https://doi.org/10.1371/journal.pcbi.1008565).
 
-## New: Online analysis for microendoscopic 1p data (January 2020)
+### Analysis pipeline for Voltage Imaging data
 
-We developed two approaches for analyzing streaming microendoscopic 1p data with high speed and low memory requirements. 
-The first approach (OnACID-E) features a direct implementation of the CNMF-E algorithm in an online setup. An example can be seen in the notebook `demos/notebooks/demo_online_cnmfE.ipynb`. The second approach first extracts the background by modeling it with a simple convolutional neural network (Ring-CNN) and proceeds with the analysis using the OnACID algorithm, see `demos/notebooks/demo_Ring_CNN.ipynb`.
-
-## New: Analysis pipeline for Voltage Imaging data (December 2019)
-
-We recently added VolPy, an analysis pipeline for voltage imaging data. The analysis is based on following objects:
+VolPy is an analysis pipeline for voltage imaging data. The analysis is based on following objects:
 
 * `MotionCorrect`: An object for motion correction which can be used for both rigid and piece-wise rigid motion correction.
 * `volparams`: An object for setting parameters of voltage imaging. It can be set and changed easily and is passed into the algorithms.
@@ -57,77 +80,41 @@ In order to use VolPy, you must install Keras into your conda environment. You c
 
 To see examples of how these methods are used, please consult the `demo_pipeline_voltage_imaging.py` script in the `demos/general` folder. For more information about the approach check the [preprint](https://www.biorxiv.org/content/10.1101/2020.01.02.892323v1).
 
-## New: Installation through conda-forge (August 2019)
-
-Beginning in August 2019 we have an experimental binary release of the software in the conda-forge package repos. This is intended for people who can use CaImAn as a library, interacting with it as the demos do. It also does not need a compiler. It is not suitable for people intending to change the CaImAn codebase. Comfort with conda is still required. If you wish to use the binary package, you do not need the sources (including this repo) at all. Installation and updating instructions can be found [here](./docs/source/Installation.rst).
-
-You will still need to use caimanmanager.py afterwards to create a data directory. If you install this way, do not follow any of the other install instructions below.
+There is also a [general paper](https://journals.plos.org/ploscompbiol/article/comments?id=10.1371/journal.pcbi.1008806) on this pipeline
 
 ## Documentation & Wiki
 
 Documentation of the code can be found [here](https://caiman.readthedocs.io/en/master/). 
 
-### Installation for behavioral analysis
-* Installation on Linux (Windows and MacOS are problematic with anaconda at the moment)
-   * create a new environment (suggested for safety) and follow the instructions for the calcium imaging installation
-   * Install spams, as explained [here](http://spams-devel.gforge.inria.fr/). Installation is not straightforward and it might take some trials to get it right.
+Other docs:
+* [Running CaImAn on a Cluster](docs/CLUSTER.md)
+* [Install quirks on some Linux Distributions](docs/README-Distros.md)
+* [How CaImAn can use your GPUs](docs/README-GPU.md)
 
-## Demos
-
-* Notebooks: The notebooks provide a simple and friendly way to get into CaImAn and understand its main characteristics. 
-They are located in the `demos/notebooks`. To launch one of the jupyter notebooks:
-        
-	```bash
-        source activate CaImAn
-        jupyter notebook --NotebookApp.iopub_data_rate_limit=1.0e10
-	```
-	and select the notebook from within Jupyter's browser. The argument `--NotebookApp.iopub_data_rate_limit=1.0e10` will prevent any memory issues while plotting on a notebook.
-   
-* demo files are also found in the demos/general subfolder. We suggest trying demo_pipeline.py first as it contains most of the tasks required by calcium imaging. For behavior use demo_behavior.py
-
-* If you modify the demos to use them for your own data it is recommended that you save them in a different file to avoid file conflicts during updating.
-
-* If you want to directly launch the python files, your python console still must be in the CaImAn directory. 
-
-## Testing
-
-* All diffs must be tested before asking for a pull request. Call ```python caimanmanager.py test``` from outside of your CaImAn folder to look for errors (you need to pass the path to the caimanmanager.py file). 
-     
 # Main developers:
 
 * Eftychios A. Pnevmatikakis, **Flatiron Institute, Simons Foundation** 
 * Andrea Giovannucci, **University of North Carolina, Chapel Hill**
 * Johannes Friedrich, **Flatiron Institute, Simons Foundation**
+* Changlia Cai, **University of North Carolina, Chapel Hill**
 * Pat Gunn, **Flatiron Institute, Simons Foundation**
 
 A complete list of contributors can be found [here](https://github.com/flatironinstitute/CaImAn/graphs/contributors).
 
-
-## Other docs in this repo
-* [Running CaImAn on a Cluster](docs/CLUSTER.md)
-* [Install quirks on some Linux Distributions](docs/README-Distros.md)
-* [How CaImAn can use your GPUs](docs/README-GPU.md)
-
-## Related packages
-
-The implementation of this package is developed in parallel with a MATLAB toobox, which can be found [here](https://github.com/epnev/ca_source_extraction). 
-
-Some tools that are currently available in Matlab but have not been ported to CaImAn are
-
-- [MCMC spike inference](https://github.com/epnev/continuous_time_ca_sampler) 
-
-## Dependencies
-
-A list of dependencies can be found in the [environment file](https://github.com/flatironinstitute/CaImAn/blob/master/environment.yml).
+Currently Pat Gunn and Johannes Friedrich are the most active maintainers.
 
 
 ## Questions, comments, issues
 
-Please use the [gitter chat room](https://gitter.im/agiovann/Constrained_NMF) for questions and comments and create an issue for any bugs you might encounter.
+For support, you can create a Github issue describing any bugs you wish to report, or any feature requests you may have.
+
+You may also use the [gitter chat room](https://gitter.im/agiovann/Constrained_NMF) for discussion.
+
+Finally, you may reach out via email to one of the primary maintainers (above).
 
 ## Acknowledgements
 
-Special thanks to the following people for letting us use their datasets for our various demo files:
+Special thanks to the following people for letting us use their datasets in demo files:
 
 * Weijian Yang, Darcy Peterka, Rafael Yuste, Columbia University
 * Sue Ann Koay, David Tank, Princeton University

@@ -317,7 +317,7 @@ p1.autoRange()
 
 
 mode = "reset"
-p2.setTitle("mode: %s" % (mode))
+p2.setTitle(f"mode: {mode}")
 
 thrshcomp_line.sigDragged.connect(lambda: draw_contours_overall(mode))
 
@@ -413,7 +413,7 @@ t_action.setWindowTitle('Parameter Action')
 def reset_button():
     global mode
     mode = "reset"
-    p2.setTitle("mode: %s" % (mode))
+    p2.setTitle(f"mode: {mode}")
     #  clear the upper right image
     zeros = np.zeros(estimates.dims, order='F')
     img2.setImage(make_color_img(zeros), autoLevels=False)
@@ -432,7 +432,7 @@ def show_background_button():
 
     background_num = (background_num + 1) % estimates.f.shape[0]
     mode = "background"
-    p2.setTitle("mode: %s %d" % (mode,background_num))
+    p2.setTitle(f"mode: {mode} {background_num}")
 
     # display the first frame of the background
     background_first_frame = estimates.b[:, background_num].reshape(estimates.dims, order='F')
@@ -468,7 +468,7 @@ def show_neurons_button():
     global mode, neuron_selected
     mode = "neurons"
     neuron_selected = False
-    p2.setTitle("mode: %s" % (mode))
+    p2.setTitle(f"mode: {mode}")
     #  clear the upper right image
     zeros = np.zeros(estimates.dims, order='F')
     img2.setImage(make_color_img(zeros), autoLevels=False)

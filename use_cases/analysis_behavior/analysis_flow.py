@@ -652,7 +652,7 @@ for e, session, trials_id in zip(expt_names[idx_file], wheel_sessions[idx_file],
         spatial_filter = ld['spatial_filter']
 
         print(cc)
-        if type(cc) is not list:
+        if not isinstance(cc, list):
             cc = [cc]
             dirct = [dirct]
             mag = [mag]

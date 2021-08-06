@@ -1,9 +1,7 @@
-bokeh
 coverage
 cython
 future
 h5py
-holoviews
 ipykernel
 ipython
 ipyparallel
@@ -17,13 +15,12 @@ opencv-python
 peakutils
 pims
 psutil
-pynwb==1.1
-pyqtgraph
+pynwb
 scikit-image
 scikit-learn
 scipy
-tensorflow-gpu==2.2.1
-tensorflow-addons==0.10.0
+tensorflow
+tensorflow-addons
 tifffile
 tk
 tqdm
