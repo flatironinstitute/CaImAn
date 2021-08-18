@@ -830,6 +830,8 @@ class Estimates(object):
         nA_inv_mat = scipy.sparse.spdiags(1. / (nA + np.finfo(np.float32).eps), 0, nA.shape[0], nA.shape[0])
         self.A = self.A * nA_inv_mat
         self.C = nA_mat * self.C
+        if self.S is not None:
+            self.S = nA_mat * self.S
         if self.YrA is not None:
             self.YrA = nA_mat * self.YrA
         if self.R is not None:
