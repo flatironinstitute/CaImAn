@@ -908,21 +908,26 @@ def constrained_oasisAR2(y, g, sn, optimize_b=True, b_nonneg=True, optimize_g=0,
 
         if s_min == 0:
             spikesizes = np.sort(s[s > 1e-6])
-            i = len(spikesizes) // 2
             l = 0
             u = len(spikesizes) - 1
-            while u - l > 1:
-                s_min = spikesizes[i]
-                tmp = c4smin(y - b, s, s_min)
-                res = y - b - tmp
-                RSS = res.dot(res)
-                if RSS < thresh or i == 0:
-                    l = i
-                    i = (l + u) // 2
-                    res0 = tmp
-                else:
-                    u = i
-                    i = (l + u) // 2
+            i = u // 2
+            if u >= 0:
+                while True:
+                    s_min = spikesizes[i]
+                    tmp = c4smin(y - b, s, s_min)
+                    res = y - b - tmp
+                    RSS = res.dot(res)
+                    if RSS < thresh:
+                        res0 = tmp
+                        if i == u:
+                            break
+                        l = i
+                        i = (l + u + 1) // 2
+                    else:
+                        if i == u or i == 0:
+                            break
+                        u = i
+                        i = (l + u) // 2
             if i > 0:
                 c = res0
                 s = np.append([0, 0], c[2:] - g[0] * c[1:-1] - g[1] * c[:-2])
