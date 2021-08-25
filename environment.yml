@@ -21,7 +21,7 @@ dependencies:
 - peakutils
 - pims
 - psutil
-- pynwb
+- pynwb==1.4.0
 - pyqtgraph
 - scikit-image
 - scikit-learn

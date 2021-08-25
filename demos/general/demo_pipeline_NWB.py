@@ -80,8 +80,6 @@ def main():
              session_id='Session 1',
              var_name_hdf5='TwoPhotonSeries')
 #%% First setup some parameters for data and motion correction
-
-
     # motion correction parameters
     dxy = (2., 2.)  # spatial resolution in x and y in (um per pixel)
     # note the lower than usual spatial resolution here
@@ -109,7 +107,8 @@ def main():
         'overlaps': overlaps,
         'max_deviation_rigid': max_deviation_rigid,
         'border_nan': 'copy',
-        'var_name_hdf5': 'acquisition/TwoPhotonSeries'
+        #'var_name_hdf5': 'acquisition/TwoPhotonSeries'
+        'var_name_hdf5': 'TwoPhotonSeries'
     }
 
     opts = params.CNMFParams(params_dict=mc_dict)
