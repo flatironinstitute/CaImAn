@@ -1638,9 +1638,9 @@ class Estimates(object):
             ps.add_column('snr', 'signal to noise ratio')
             ps.add_column('accepted', 'in accepted list')
             ps.add_column('rejected', 'in rejected list')
-            if self.cnn_preds:
+            if self.cnn_preds is not None:
                 ps.add_column('cnn', 'description of CNN')
-            if self.idx_components:
+            if self.idx_components is not None:
                 ps.add_column('keep', 'in idx_components')
 
             # Add ROIs
@@ -1651,9 +1651,9 @@ class Estimates(object):
                     add_roi_kwargs.update(accepted=i in self.accepted_list)
                 if hasattr(self, 'rejected_list'):
                     add_roi_kwargs.update(rejected=i in self.rejected_list)
-                if self.cnn_preds:
+                if self.cnn_preds is not None:
                     add_roi_kwargs.update(cnn=self.cnn_preds[i])
-                if self.idx_components:
+                if self.idx_components is not None:
                     add_roi_kwargs.update(keep=i in self.idx_components)
 
                 ps.add_roi(**add_roi_kwargs)
