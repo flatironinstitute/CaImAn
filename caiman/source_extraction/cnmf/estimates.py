@@ -701,6 +701,173 @@ class Estimates(object):
                      save_movie=save_movie, movie_name=movie_name)
 
         return mov
+    
+    def play_movie_3D(self, imgs, q_max=99.75, q_min=2, gain_res=1,
+                   magnification=1, include_bck=True,
+                   frame_range=slice(None, None, None),
+                   bpx=0, thr=0., save_movie=False,
+                   movie_name='results_movie.avi',
+                   display=True, opencv_codec='H264',
+                   use_color=False, gain_color=4, gain_bck=0.2):
+        """
+        Displays a movie with three panels (original data (left panel),
+        reconstructed data (middle panel), residual (right panel))
+
+        Args:
+            imgs: np.array (possibly memory mapped, t,x,y[,z])
+                Imaging data
+
+            q_max: float (values in [0, 100], default: 99.75)
+                percentile for maximum plotting value
+
+            q_min: float (values in [0, 100], default: 1)
+                percentile for minimum plotting value
+
+            gain_res: float (1)
+                amplification factor for residual movie
+
+            magnification: float (1)
+                magnification factor for whole movie
+
+            include_bck: bool (True)
+                flag for including background in original and reconstructed movie
+
+            frame_range: range or slice or list (default: slice(None))
+                display only a subset of frames
+
+            bpx: int (default: 0)
+                number of pixels to exclude on each border
+
+            thr: float (values in [0, 1[) (default: 0)
+                threshold value for contours, no contours if thr=0
+
+            save_movie: bool (default: False)
+                flag to save an avi file of the movie
+
+            movie_name: str (default: 'results_movie.avi')
+                name of saved file
+
+            display: bool (default: True)
+                flag for playing the movie (to stop the movie press 'q')
+
+            opencv_codec: str (default: 'H264')
+                FourCC video codec for saving movie. Check http://www.fourcc.org/codecs.php
+
+            use_color: bool (default: False)
+                flag for making a color movie. If True a random color will be assigned
+                for each of the components
+
+            gain_color: float (default: 4)
+                amplify colors in the movie to make them brighter
+
+            gain_bck: float (default: 0.2)
+                dampen background in the movie to expose components (applicable
+                only when color is used.)
+
+        Returns:
+            mov: The concatenated output movie
+        """
+        dims = imgs.shape[1:]
+        if 'movie' not in str(type(imgs)):
+            imgs = caiman.movie(imgs[frame_range])
+        else:
+            imgs = imgs[frame_range]
+
+        if use_color:
+            cols_c = np.random.rand(self.C.shape[0], 1, 3)*gain_color
+            Cs = np.expand_dims(self.C[:, frame_range], -1)*cols_c
+            #AC = np.tensordot(np.hstack((self.A.toarray(), self.b)), Cs, axes=(1, 0))
+            Y_rec_color = np.tensordot(self.A.toarray(), Cs, axes=(1, 0))
+            Y_rec_color = Y_rec_color.reshape((dims) + (-1, 3), order='F').transpose(2, 0, 1, 3)
+
+        AC = self.A.dot(self.C[:, frame_range])
+        Y_rec = AC.reshape(dims + (-1,), order='F')
+        Y_rec = Y_rec.transpose([3, 0, 1, 2])
+        if self.W is not None:
+            ssub_B = int(round(np.sqrt(np.prod(dims) / self.W.shape[0])))
+            B = imgs.reshape((-1, np.prod(dims)), order='F').T - AC
+            if ssub_B == 1:
+                B = self.b0[:, None] + self.W.dot(B - self.b0[:, None])
+            else:
+                WB = self.W.dot(downscale(B.reshape(dims + (B.shape[-1],), order='F'),
+                              (ssub_B, ssub_B, 1)).reshape((-1, B.shape[-1]), order='F'))
+                Wb0 = self.W.dot(downscale(self.b0.reshape(dims, order='F'),
+                              (ssub_B, ssub_B)).reshape((-1, 1), order='F'))
+                B = self.b0.flatten('F')[:, None] + (np.repeat(np.repeat((WB - Wb0).reshape(((dims[0] - 1) // ssub_B + 1, (dims[1] - 1) // ssub_B + 1, -1), order='F'),
+                                     ssub_B, 0), ssub_B, 1)[:dims[0], :dims[1]].reshape((-1, B.shape[-1]), order='F'))
+            B = B.reshape(dims + (-1,), order='F').transpose([2, 0, 1])
+        elif self.b is not None and self.f is not None:
+            B = self.b.dot(self.f[:, frame_range])
+            if 'matrix' in str(type(B)):
+                B = B.toarray()
+            B = B.reshape(dims + (-1,), order='F').transpose([3, 0, 1, 2])
+        else:
+            B = np.zeros_like(Y_rec)
+        if bpx > 0:
+            B = B[:, bpx:-bpx, bpx:-bpx]
+            Y_rec = Y_rec[:, bpx:-bpx, bpx:-bpx]
+            imgs = imgs[:, bpx:-bpx, bpx:-bpx]
+
+        Y_res = imgs - Y_rec - B
+        if use_color:
+            if bpx > 0:
+                Y_rec_color = Y_rec_color[:, bpx:-bpx, bpx:-bpx]
+            mov = caiman.concatenate((np.repeat(np.expand_dims(imgs - (not include_bck) * B, -1), 3, 3),
+                                      Y_rec_color + include_bck * np.expand_dims(B*gain_bck, -1),
+                                      np.repeat(np.expand_dims(Y_res * gain_res, -1), 3, 3)), axis=2)
+        else:
+            mov = caiman.concatenate((imgs[frame_range] - (not include_bck) * B,
+                                      Y_rec + include_bck * B, Y_res * gain_res), axis=3)
+        if not display:
+            return mov
+
+        if thr > 0:
+            import cv2
+            if save_movie:
+                fourcc = cv2.VideoWriter_fourcc(*opencv_codec)
+                out = cv2.VideoWriter(movie_name, fourcc, 30.0,
+                                      tuple([int(magnification*s) for s in mov.shape[1:][::-1]]))
+            contours = []
+            for a in self.A.T.toarray():
+                a = a.reshape(dims, order='F')
+                if bpx > 0:
+                    a = a[bpx:-bpx, bpx:-bpx]
+                # a = cv2.GaussianBlur(a, (9, 9), .5)
+                if magnification != 1:
+                    a = cv2.resize(a, None, fx=magnification, fy=magnification,
+                                   interpolation=cv2.INTER_LINEAR)
+                ret, thresh = cv2.threshold(a, thr * np.max(a), 1., 0)
+                contour, hierarchy = cv2.findContours(
+                    thresh.astype('uint8'), cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
+                contours.append(contour)
+                contours.append(list([c + np.array([[a.shape[1], 0]]) for c in contour]))
+                contours.append(list([c + np.array([[2 * a.shape[1], 0]]) for c in contour]))
+
+            maxmov = np.nanpercentile(mov[0:10], q_max) if q_max < 100 else np.nanmax(mov)
+            minmov = np.nanpercentile(mov[0:10], q_min) if q_min > 0 else np.nanmin(mov)
+            for iddxx, frame in enumerate(mov):
+                if magnification != 1:
+                    frame = cv2.resize(frame, None, fx=magnification, fy=magnification,
+                                       interpolation=cv2.INTER_LINEAR)
+                frame = np.clip((frame - minmov) * 255. / (maxmov - minmov), 0, 255)
+                if frame.ndim < 3:
+                    frame = np.repeat(frame[..., None], 3, 2)
+                for contour in contours:
+                    cv2.drawContours(frame, contour, -1, (0, 255, 255), 1)
+                cv2.imshow('frame', frame.astype('uint8'))
+                if save_movie:
+                    out.write(frame.astype('uint8'))
+                if cv2.waitKey(30) & 0xFF == ord('q'):
+                    break
+            if save_movie:
+                out.release()
+            cv2.destroyAllWindows()
+
+        else:
+            mov.play(q_min=q_min, q_max=q_max, magnification=magnification,
+                     save_movie=save_movie, movie_name=movie_name)
+
+        return mov
 
     def compute_background(self, Yr):
         """compute background (has big memory requirements)
