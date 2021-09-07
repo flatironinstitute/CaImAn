@@ -22,7 +22,9 @@ pyqtgraph
 scikit-image
 scikit-learn
 scipy
-tensorflow
+spyder
+tensorflow==2.4.1
+tensorflow-addons==0.12.1
 tifffile
 tk
 tqdm
