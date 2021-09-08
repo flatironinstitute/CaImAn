@@ -18,9 +18,11 @@ import tensorflow as tf
 tf.compat.v1.disable_eager_execution()
 import tensorflow.keras as keras
 from threading import Thread
-import tensorflow_addons as tfa
+#import tensorflow_addons as tfa
 import timeit
 from time import time
+
+from caiman.source_extraction.fiola.tf_image_translation import translate
 
 class MotionCorrect(keras.layers.Layer):
     def __init__(self, template, batch_size=1, ms_h=5, ms_w=5, min_mov=0, 
@@ -125,7 +127,9 @@ class MotionCorrect(keras.layers.Layer):
         ncc = tf.where(tf.math.is_nan(ncc), tf.zeros_like(ncc), ncc)
         sh_x, sh_y = self.extract_fractional_peak(ncc, self.ms_h, self.ms_w)
         self.shifts = [sh_x, sh_y]
-        fr_corrected = tfa.image.translate(fr[0], (tf.squeeze(tf.stack([sh_y, sh_x], axis=1))), 
+        #fr_corrected = tfa.image.translate(fr[0], (tf.squeeze(tf.stack([sh_y, sh_x], axis=1))), 
+        #                                    interpolation="bilinear")
+        fr_corrected = translate(fr[0], (tf.squeeze(tf.stack([sh_y, sh_x], axis=1))), 
                                             interpolation="bilinear")
         if self.return_shifts:
             return tf.reshape(tf.transpose(tf.squeeze(fr_corrected, axis=3), perm=[0,2,1]), (self.batch_size, self.shp_0[0]*self.shp_0[1])), self.shifts

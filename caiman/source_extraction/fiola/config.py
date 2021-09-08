@@ -71,8 +71,7 @@ def load_fiola_config(fnames, mode='voltage', mask=None):
             'flip': flip,
             'ms': ms,
             'hals_movie': hals_movie,
-            'center_dims':center_dims, 
-            'hals_move': hals_movie}
+            'center_dims':center_dims}
     
     else:
         raise ValueError('mode has to be "calcium" or "voltage"')

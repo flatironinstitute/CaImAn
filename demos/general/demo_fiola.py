@@ -28,7 +28,7 @@ logging.basicConfig(format=
                     level=logging.INFO)
     
 #%% load movie and masks
-folder_idx = 1
+folder_idx = 0
 movie_folder = ['/home/nel/NEL-LAB Dropbox/NEL/Papers/VolPy_online/data/voltage_data', 
                 '/home/nel/NEL-LAB Dropbox/NEL/Papers/VolPy_online/data/voltage_data/demo_K53'][folder_idx]
 name = ['demo_voltage_imaging.hdf5', 'k53.tif'][folder_idx]
@@ -36,8 +36,8 @@ mode = ['voltage', 'calcium'][folder_idx]
 
 fnames = os.path.join(movie_folder, name)
 mov = cm.load(os.path.join(movie_folder, name))
-#mask = cm.load(os.path.join(movie_folder, name.split('.')[0]+'_ROIs.hdf5'))
-mask = None
+mask = cm.load(os.path.join(movie_folder, name.split('.')[0]+'_ROIs.hdf5'))
+#mask = None
 
 #%% load configuration; set up FIOLA object
 # In the first part, we will first show each part (motion correct, source separation and spike extraction) of 
@@ -120,15 +120,11 @@ fio.compute_estimates()
 #%% visualize the result, the last component is the background
 if display_images:
     fio.view_components(fio.corr)
-
-
-    
-    from caiman.source_extraction.cnmf import cnmf 
-    cnm = cnmf.load_CNMF('/home/nel/NEL-LAB Dropbox/NEL/Papers/VolPy_online/data/voltage_data/k53/memmap__d1_512_d2_512_d3_1_order_C_frames_3000_.hdf5').estimates
+    #from caiman.source_extraction.cnmf import cnmf 
+    #cnm = cnmf.load_CNMF('/home/nel/NEL-LAB Dropbox/NEL/Papers/VolPy_online/data/voltage_data/k53/memmap__d1_512_d2_512_d3_1_order_C_frames_3000_.hdf5').estimates
     #np.save('/home/nel/NEL-LAB Dropbox/NEL/Papers/VolPy_online/data/voltage_data/demo/Ab.npy', fio.Ab)
     #plt.plot(cnm.C)
-
-    fio.view_components(fio.corr, cnm_estimates=cnm)
+    #fio.view_components(fio.corr, cnm_estimates=cnm)
         
 #%% save the result
 save_name = f'{os.path.join(movie_folder, name.split(".")[0])}_fiola_result'
