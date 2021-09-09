@@ -14,7 +14,7 @@ from scipy import signal
 from time import time
 
 from caiman.source_extraction.volpy.spikepursuit import adaptive_thresh
-from caiman.source_extraction.fiola.utilities import compute_std, non_symm_median_filter 
+from caiman.fiola.utilities import compute_std, non_symm_median_filter 
 
 class SignalAnalysisOnlineZ(object):
     def __init__(self, mode='voltage', window = 10000, step = 5000, detrend=True, flip=True, 

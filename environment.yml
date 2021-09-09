@@ -1,7 +1,7 @@
 channels:
 - conda-forge
 dependencies:
-- python == 3.8.0
+- python < 3.9
 - bokeh
 - coverage
 - cython
@@ -15,7 +15,7 @@ dependencies:
 - matplotlib
 - mypy
 - nose
-- numpy==1.19.5
+- numpy
 - numpydoc
 - opencv
 - peakutils

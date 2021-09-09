@@ -31,6 +31,8 @@ def load_fiola_config(fnames, mode='voltage', mask=None):
             'fnames': fnames,
             'fr': fr,
             'ROIs': ROIs,
+            'mode': mode,
+            'init_method':init_method,
             'num_frames_init': num_frames_init, 
             'num_frames_total':num_frames_total,
             'offline_batch_size': offline_batch_size,

@@ -20,12 +20,12 @@ for gpu in gpus:
 import timeit
 
 import caiman as cm
-from caiman.source_extraction.fiola.gpu_mc_nnls import get_mc_model, get_nnls_model, get_model, Pipeline
-from caiman.source_extraction.fiola.signal_analysis_online import SignalAnalysisOnlineZ
+from caiman.fiola.gpu_mc_nnls import get_mc_model, get_nnls_model, get_model, Pipeline
+from caiman.fiola.signal_analysis_online import SignalAnalysisOnlineZ
 from caiman.source_extraction.volpy.spikepursuit import signal_filter
 from caiman.source_extraction.volpy.utils import quick_annotation
-from caiman.source_extraction.fiola.utilities import hals_for_fiola, normalize, nmf_sequential
-from caiman.source_extraction.fiola.caiman_init import run_caiman_init
+from caiman.fiola.utilities import hals_for_fiola, normalize, nmf_sequential
+from caiman.fiola.caiman_init import run_caiman_init
 
 class FIOLA(object):
     def __init__(self, fnames=None, fr=None, ROIs=None, mode='voltage', init_method='binary_masks', num_frames_init=10000, num_frames_total=20000, 
@@ -561,8 +561,11 @@ class FIOLA(object):
         saoz.fit(trace, num_frames=self.params.data['num_frames_total'])    
         times.append(timeit.default_timer()-start)
         logging.info('finish spike extraction')
-        logging.info(f'total timing:{times[-1]}')
-        logging.info(f'average timing per neuron:{times[-1] / len(trace)}')
+        if self.params.data['mode'] == 'calcium':
+            logging.info('calcium deconvolution is not implemented yet')
+        else:
+            logging.info(f'total timing:{times[-1]}')
+            logging.info(f'average timing per neuron:{times[-1] / len(trace)}')
                   
         return saoz      
     

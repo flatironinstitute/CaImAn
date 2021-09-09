@@ -8,6 +8,7 @@ Calcium dataset courtesy of Sue Ann Koay and David Tank (Princeton University)
 @author: @agiovann, @caichangjia, @cynthia
 """
 import glob
+import logging
 import matplotlib.pyplot as plt
 import numpy as np
 from numpy.linalg import norm
@@ -17,15 +18,22 @@ from time import time, sleep
 from threading import Thread
 
 import caiman as cm
-from caiman.source_extraction.fiola.config import load_fiola_config, load_caiman_config
-from caiman.source_extraction.fiola.fiolaparams import fiolaparams
-from caiman.source_extraction.fiola.fiola import FIOLA
+from caiman.fiola.config import load_fiola_config, load_caiman_config
+from caiman.fiola.fiolaparams import fiolaparams
+from caiman.fiola.fiola import FIOLA
 
-import logging
 logging.basicConfig(format=
                     "%(relativeCreated)12d [%(filename)s:%(funcName)20s():%(lineno)s]"\
                     "[%(process)d] %(message)s",
                     level=logging.INFO)
+
+from tensorflow.python.client import device_lib
+logging.info(device_lib.list_local_devices())
+
+from tensorflow.config import list_physical_devices
+if len(list_physical_devices('GPU')) < 1:
+    logging.warning('GPU is not detected')
+    logging.warning('Try to reinstall tensorflow with "pip install tensorflow==2.4.1"')
     
 #%% load movie and masks
 folder_idx = 0
@@ -34,6 +42,7 @@ movie_folder = ['/home/nel/NEL-LAB Dropbox/NEL/Papers/VolPy_online/data/voltage_
 name = ['demo_voltage_imaging.hdf5', 'k53.tif'][folder_idx]
 mode = ['voltage', 'calcium'][folder_idx]
 
+#name = 'k53_half.tif'
 fnames = os.path.join(movie_folder, name)
 mov = cm.load(os.path.join(movie_folder, name))
 mask = cm.load(os.path.join(movie_folder, name.split('.')[0]+'_ROIs.hdf5'))
@@ -47,6 +56,7 @@ options = load_fiola_config(fnames, mode, mask)
 params = fiolaparams(params_dict=options)
 fio = FIOLA(params=params)
 
+
 #%% offline motion correction
 fio.dims = mov.shape[1:]
 template = mov.bin_median()
@@ -56,7 +66,7 @@ display_images = False
 if display_images:
     plt.figure(); plt.plot(shifts);plt.legend(['x shifts', 'y shifts']); plt.title('shifts'); plt.show()
     moviehandle = cm.movie(mc_mov.copy()).reshape((-1, template.shape[0], template.shape[1]), order='F')
-    moviehandle.play(gain=3, q_min=5, q_max=99.99)
+    moviehandle.play(gain=3, q_min=5, q_max=99.99, fr=400)
 
 #%% optimize masks using hals or initialize masks with CaImAn
 if mode == 'voltage':
@@ -65,7 +75,7 @@ if mode == 'voltage':
 elif mode == 'calcium':
     # we don't need to optimize masks as we are using spatial footprints from CaImAn
     if fio.params.data['init_method'] == 'caiman':
-        #from caiman.source_extraction.cnmf import cnmf 
+        #from caiman.cnmf import cnmf 
         #estimates = cnmf.load_CNMF('/home/nel/NEL-LAB Dropbox/NEL/Papers/VolPy_online/data/voltage_data/demo_K53/memmap__d1_512_d2_512_d3_1_order_C_frames_1000_.hdf5').estimates
         fio.params.mc_dict, fio.params.opts_dict, fio.params.quality_dict = load_caiman_config(fnames)
         _, _, mask = fio.fit_caiman_init(mc_mov[:fio.params.data['num_frames_init']], 
@@ -120,7 +130,7 @@ fio.compute_estimates()
 #%% visualize the result, the last component is the background
 if display_images:
     fio.view_components(fio.corr)
-    #from caiman.source_extraction.cnmf import cnmf 
+    #from caiman.cnmf import cnmf 
     #cnm = cnmf.load_CNMF('/home/nel/NEL-LAB Dropbox/NEL/Papers/VolPy_online/data/voltage_data/k53/memmap__d1_512_d2_512_d3_1_order_C_frames_3000_.hdf5').estimates
     #np.save('/home/nel/NEL-LAB Dropbox/NEL/Papers/VolPy_online/data/voltage_data/demo/Ab.npy', fio.Ab)
     #plt.plot(cnm.C)

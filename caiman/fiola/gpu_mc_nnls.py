@@ -18,11 +18,8 @@ import tensorflow as tf
 tf.compat.v1.disable_eager_execution()
 import tensorflow.keras as keras
 from threading import Thread
-#import tensorflow_addons as tfa
 import timeit
-from time import time
-
-from caiman.source_extraction.fiola.tf_image_translation import translate
+import math
 
 class MotionCorrect(keras.layers.Layer):
     def __init__(self, template, batch_size=1, ms_h=5, ms_w=5, min_mov=0, 
@@ -95,7 +92,21 @@ class MotionCorrect(keras.layers.Layer):
         self.shp_m_x, self.shp_m_y = self.shp[0]//2, self.shp[1]//2
         self.target_freq = tf.signal.fft3d(tf.cast(self.template_zm[:,:,:,0], tf.complex128))
         self.target_freq = tf.repeat(self.target_freq[None,:,:,0], repeats=[self.batch_size], axis=0)
-     
+                
+        self.nc = self.template_0.shape[0]
+        self.nr = self.template_0.shape[1]
+        self.nd = 1
+        self.Nr = tf.signal.ifftshift(tf.range(-tf.experimental.numpy.fix(self.nr / 2.), tf.math.ceil(self.nr / 2.)))
+        self.Nc = tf.signal.ifftshift(tf.range(-tf.experimental.numpy.fix(self.nc / 2.), tf.math.ceil(self.nc / 2.)))
+        self.Nd = tf.signal.ifftshift(tf.range(-tf.experimental.numpy.fix(self.nd / 2.), tf.math.ceil(self.nd / 2.)))
+        self.Nr = tf.cast(self.Nr, tf.float32)
+        self.Nc = tf.cast(self.Nc, tf.float32)
+        self.Nd = tf.cast(self.Nd, tf.float32)
+        #self.Nr, self.Nc, self.Nd = tf.meshgrid(self.Nr, self.Nc, self.Nd)        
+        self.Nr = tf.repeat(self.Nr[None], self.Nc.shape[0], axis=0)[..., None]
+        self.Nc = tf.repeat(self.Nc[:, None], self.Nr.shape[0], axis=1)[..., None]
+        self.Nd = tf.zeros((self.nc, self.nr, self.nd))
+        
     @tf.function
     def call(self, fr):
         if self.min_mov != 0:
@@ -129,8 +140,8 @@ class MotionCorrect(keras.layers.Layer):
         self.shifts = [sh_x, sh_y]
         #fr_corrected = tfa.image.translate(fr[0], (tf.squeeze(tf.stack([sh_y, sh_x], axis=1))), 
         #                                    interpolation="bilinear")
-        fr_corrected = translate(fr[0], (tf.squeeze(tf.stack([sh_y, sh_x], axis=1))), 
-                                            interpolation="bilinear")
+        fr_corrected = self.apply_shifts_dft_tf(fr[0], [-sh_x, -sh_y])
+        
         if self.return_shifts:
             return tf.reshape(tf.transpose(tf.squeeze(fr_corrected, axis=3), perm=[0,2,1]), (self.batch_size, self.shp_0[0]*self.shp_0[1])), self.shifts
         else:
@@ -197,6 +208,28 @@ class MotionCorrect(keras.layers.Layer):
 
         # stack and return 2D coordinates
         return tf.cast(tf.stack((argmax_x, argmax_y), axis=1), tf.float32)
+    
+    def apply_shifts_dft_tf(self, img, shifts, diffphase=[0]):
+        img = tf.cast(img, dtype=tf.complex128)
+        if len(shifts) == 3:
+            shifts =  (shifts[1], shifts[0], shifts[2]) 
+        elif len(shifts) == 2:
+            shifts = (shifts[1], shifts[0], tf.zeros(shifts[1].shape))
+        src_freq = tf.signal.fft3d(img)
+        
+        sh_0 = tf.tensordot(-shifts[0], self.Nr[None], axes=[[1], [0]]) / self.nr
+        sh_1 = tf.tensordot(-shifts[1], self.Nc[None], axes=[[1], [0]]) / self.nc
+        sh_2 = tf.tensordot(-shifts[2], self.Nd[None], axes=[[1], [0]]) / self.nd
+        sh_tot = (sh_0 + sh_1 + sh_2)
+        Greg = src_freq * tf.math.exp(-1j * 2 * math.pi * tf.cast(sh_tot, dtype=tf.complex128))
+        
+        #todo: check difphase and eventually dot product?
+        diffphase = tf.cast(diffphase,dtype=tf.complex128)
+        Greg = Greg * tf.math.exp(1j * diffphase)
+        new_img = tf.math.real(tf.signal.ifft3d(Greg)) 
+        new_img = tf.cast(new_img, tf.float32)
+        
+        return new_img
         
     def get_config(self):
         base_config = super().get_config().copy()
