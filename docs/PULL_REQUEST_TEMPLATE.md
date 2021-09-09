@@ -14,9 +14,8 @@ Please delete options that are not relevant.
 - [ ] Changes in documentation or new examples for demos and/or use cases.
 
 # Branching
-
-- Pull requests with non breaking bug fixes should be made against the **master** branch.
-- All other PRs should be made against the **dev** branch.
+- All PRs should be made against the **dev** branch. The master branch is not often merged back to dev.
+- If you want to get your PR out to the world faster (urgent bugfix), poke pgunn to cut a release; this will get it onto github and into conda faster
 
 # Has your PR been tested?
 
