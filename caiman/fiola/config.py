@@ -50,7 +50,7 @@ def load_fiola_config(fnames, mode='voltage', mask=None):
         ROIs = mask                     # a 3D matrix contains all region of interests
 
         mode = 'calcium'                # 'voltage' or 'calcium 'fluorescence indicator
-        init_method = 'caiman'          # initialization method 'caiman', 'weighted_masks' or 'binary_masks'. Needs to provide masks or using gui to draw masks if choosing 'masks'
+        init_method = 'weighted_masks'#'caiman'          # initialization method 'caiman', 'weighted_masks' or 'binary_masks'. Needs to provide masks or using gui to draw masks if choosing 'masks'
         num_frames_init =  1500         # number of frames used for initialization
         num_frames_total =  3000        # estimated total number of frames for processing, this is used for generating matrix to store data
         offline_batch_size = 1          # number of frames for one batch to perform offline motion correction

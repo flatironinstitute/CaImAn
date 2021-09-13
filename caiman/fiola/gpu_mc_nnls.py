@@ -138,6 +138,7 @@ class MotionCorrect(keras.layers.Layer):
         ncc = tf.where(tf.math.is_nan(ncc), tf.zeros_like(ncc), ncc)
         sh_x, sh_y = self.extract_fractional_peak(ncc, self.ms_h, self.ms_w)
         self.shifts = [sh_x, sh_y]
+        
         #fr_corrected = tfa.image.translate(fr[0], (tf.squeeze(tf.stack([sh_y, sh_x], axis=1))), 
         #                                    interpolation="bilinear")
         fr_corrected = self.apply_shifts_dft_tf(fr[0], [-sh_x, -sh_y])

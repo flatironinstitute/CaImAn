@@ -14,6 +14,7 @@ import numpy as np
 from numpy.linalg import norm
 import os
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
+from tensorflow.python.client import device_lib
 from time import time, sleep
 from threading import Thread
 
@@ -27,26 +28,26 @@ logging.basicConfig(format=
                     "[%(process)d] %(message)s",
                     level=logging.INFO)
 
-from tensorflow.python.client import device_lib
 logging.info(device_lib.list_local_devices())
-
-from tensorflow.config import list_physical_devices
-if len(list_physical_devices('GPU')) < 1:
-    logging.warning('GPU is not detected')
-    logging.warning('Try to reinstall tensorflow with "pip install tensorflow==2.4.1"')
+# if GPU is not detected, try to reinstall tensorflow with pip install tensorflow==2.4.1
     
 #%% load movie and masks
-folder_idx = 0
+folder_idx = 1
 movie_folder = ['/home/nel/NEL-LAB Dropbox/NEL/Papers/VolPy_online/data/voltage_data', 
                 '/home/nel/NEL-LAB Dropbox/NEL/Papers/VolPy_online/data/voltage_data/demo_K53'][folder_idx]
 name = ['demo_voltage_imaging.hdf5', 'k53.tif'][folder_idx]
 mode = ['voltage', 'calcium'][folder_idx]
 
-#name = 'k53_half.tif'
 fnames = os.path.join(movie_folder, name)
 mov = cm.load(os.path.join(movie_folder, name))
 mask = cm.load(os.path.join(movie_folder, name.split('.')[0]+'_ROIs.hdf5'))
 #mask = None
+
+display_images = False
+if display_images:
+    plt.figure(); plt.imshow(mov.mean(0), vmax=np.percentile(mov.mean(0), 99.9)); plt.title('Mean img')
+    if mask is not None:
+        plt.figure(); plt.imshow(mask.mean(0)); plt.title('Masks')
 
 #%% load configuration; set up FIOLA object
 # In the first part, we will first show each part (motion correct, source separation and spike extraction) of 
@@ -56,36 +57,38 @@ options = load_fiola_config(fnames, mode, mask)
 params = fiolaparams(params_dict=options)
 fio = FIOLA(params=params)
 
-
 #%% offline motion correction
 fio.dims = mov.shape[1:]
 template = mov.bin_median()
 mc_mov, shifts, _ = fio.fit_gpu_motion_correction(mov, template, fio.params.mc_nnls['offline_batch_size'], mov.min())
 
-display_images = False
 if display_images:
     plt.figure(); plt.plot(shifts);plt.legend(['x shifts', 'y shifts']); plt.title('shifts'); plt.show()
     moviehandle = cm.movie(mc_mov.copy()).reshape((-1, template.shape[0], template.shape[1]), order='F')
     moviehandle.play(gain=3, q_min=5, q_max=99.99, fr=400)
 
 #%% optimize masks using hals or initialize masks with CaImAn
+fio.params.data['init_method'] = 'weighted_masks'
 if mode == 'voltage':
     if fio.params.data['init_method'] == 'binary_masks':
         fio.fit_hals(mc_mov, mask)
 elif mode == 'calcium':
-    # we don't need to optimize masks as we are using spatial footprints from CaImAn
-    if fio.params.data['init_method'] == 'caiman':
-        #from caiman.cnmf import cnmf 
-        #estimates = cnmf.load_CNMF('/home/nel/NEL-LAB Dropbox/NEL/Papers/VolPy_online/data/voltage_data/demo_K53/memmap__d1_512_d2_512_d3_1_order_C_frames_1000_.hdf5').estimates
+    # we don't need to optimize masks using hals as we are using spatial footprints from CaImAn
+    if fio.params.data['init_method'] == 'weighted_masks':
+        logging.info('use weighted masks from CaImAn')     
+    elif fio.params.data['init_method'] == 'caiman':
+    # if masks are not provided, we can use caiman for initialization
         fio.params.mc_dict, fio.params.opts_dict, fio.params.quality_dict = load_caiman_config(fnames)
         _, _, mask = fio.fit_caiman_init(mc_mov[:fio.params.data['num_frames_init']], 
                                          fio.params.mc_dict, fio.params.opts_dict, fio.params.quality_dict)
-        mask_2D = cm.movie(mask).to_2D(order='C')
-        Ab = mask_2D.T
-        fio.Ab = Ab / norm(Ab, axis=0)
+   
+    mask_2D = cm.movie(mask).to_2D(order='C')
+    Ab = mask_2D.T
+    fio.Ab = Ab / norm(Ab, axis=0)
         
 #%% source extraction (nnls)
-trace = fio.fit_gpu_nnls(mc_mov, fio.Ab, batch_size=1)
+# when FOV and number of neurons is large, use batch_size=1
+trace = fio.fit_gpu_nnls(mc_mov, fio.Ab, batch_size=1) 
 
 #%% offline spike detection (only available for voltage currently)
 fio.saoz = fio.fit_spike_extraction(trace)
@@ -120,9 +123,8 @@ fio.pipeline.load_frame_thread.start()
 
 start = time()
 fio.fit_online()
-sleep(0.1) # wait finish
-print(f'total time online: {time()-start}')
-print(f'time per frame online: {(time()-start)/(scope[1]-scope[0])}')
+logging.info(f'total time online: {time()-start}')
+logging.info(f'time per frame online: {(time()-start)/(scope[1]-scope[0])}')
 
 #%% put the result in fio.estimates object
 fio.compute_estimates()
@@ -130,11 +132,7 @@ fio.compute_estimates()
 #%% visualize the result, the last component is the background
 if display_images:
     fio.view_components(fio.corr)
-    #from caiman.cnmf import cnmf 
-    #cnm = cnmf.load_CNMF('/home/nel/NEL-LAB Dropbox/NEL/Papers/VolPy_online/data/voltage_data/k53/memmap__d1_512_d2_512_d3_1_order_C_frames_3000_.hdf5').estimates
-    #np.save('/home/nel/NEL-LAB Dropbox/NEL/Papers/VolPy_online/data/voltage_data/demo/Ab.npy', fio.Ab)
-    #plt.plot(cnm.C)
-    #fio.view_components(fio.corr, cnm_estimates=cnm)
+
         
 #%% save the result
 save_name = f'{os.path.join(movie_folder, name.split(".")[0])}_fiola_result'

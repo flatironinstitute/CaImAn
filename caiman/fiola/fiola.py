@@ -203,9 +203,12 @@ class FIOLA(object):
             
         return self
     
-    def fit_caiman_init(self, mov, mc_dict, opts_dict, quality_dict):
-        init_name = self.params.mc_dict['fnames'].split('.')[0] + f'_{mov.shape[0]}.tif'
-        estimates = run_caiman_init(mov, init_name, mc_dict, opts_dict, quality_dict)
+    def fit_caiman_init(self, mov, mc_dict, opts_dict, quality_dict, save_movie=True):
+        if save_movie == True:
+            init_name = self.params.mc_dict['fnames'].split('.')[0] + f'_{mov.shape[0]}.tif'
+        else:
+            init_name = self.params.mc_dict['fnames']
+        estimates = run_caiman_init(mov, init_name, mc_dict, opts_dict, quality_dict, save_movie=save_movie)
         estimates.plot_contours(img=estimates.Cn)
         plt.title('Found components'); plt.show()
         mask = np.hstack((estimates.A.toarray(), estimates.b)).reshape([mov.shape[1], mov.shape[2], -1]).transpose([2, 0, 1])

@@ -44,12 +44,15 @@ from caiman.summary_images import local_correlations_movie_offline
 #                    level=logging.WARNING)
 
 #%%
-def run_caiman_init(mov, fnames, mc_dict, opts_dict, quality_dict):
+def run_caiman_init(mov, fnames, mc_dict, opts_dict, quality_dict, save_movie):
 
 #%% Select file(s) to be processed (download if not present)
-    m = cm.movie(mov)    
-    m.save(fnames)    
-    logging.info(f'save movie of shape {m.shape} into {fnames}')
+    if save_movie == True:
+        m = cm.movie(mov)    
+        m.save(fnames)    
+        logging.info(f'save movie of shape {m.shape} into {fnames}')
+    else:
+        logging.info(f'not saving movie')
 
 #%% First setup some parameters for data and motion correction
     logging.info('start motion correction')

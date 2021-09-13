@@ -65,7 +65,7 @@ If you use this code please cite the corresponding papers where original methods
 
 ### FIOLA: an accelerated pipeline for Fluorescence Imaging OnLine Analysis
 
-In FIOLA, we exploit accelerated hardware (GPU) and computational graphs in tensorflow to preprocess fluorescence imaging movies and extract fluorescence traces at speeds in excess of 300Hz on calcium imaging datasets and at speeds over 400Hz on voltage imaging datasets. An example for real-time analysis of voltage imaging data is shown in the demos/general/demo_fiola.py.
+In FIOLA, we exploit accelerated hardware (GPU) and computational graphs in tensorflow to preprocess fluorescence imaging movies and extract fluorescence traces at speeds in excess of 300Hz on calcium imaging datasets and at speeds over 400Hz on voltage imaging datasets. An example for real-time analysis of calcium and voltage imaging data is shown in the demos/general/demo_fiola.py.
 
 ### Real-time analysis of microendoscopic 1p data
 
