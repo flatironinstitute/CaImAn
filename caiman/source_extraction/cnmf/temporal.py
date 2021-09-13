@@ -72,10 +72,10 @@ def update_temporal_components(Y, A, b, Cin, fin, bl=None, c1=None, g=None, sn=N
             input data with time in the last axis (d x T)
 
         A: sparse matrix (crc format)
-            matrix of temporal components (d x K)
+            matrix of spatial components (d x K)
 
         b: ndarray (dx1)
-            current estimate of background component
+            current estimate of spatial background component
 
         Cin: np.ndarray
             current estimate of temporal components (K x T)
