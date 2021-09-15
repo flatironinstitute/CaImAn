@@ -1,7 +1,5 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
-Created on Thu May 21 12:12:44 2020
 Fiola uses SignalAnalysisOnlineZ object for online spike extraction which
 is based on template matching method 
 @author: @caichangjia @andrea.giovannucci
@@ -388,7 +386,7 @@ def find_spikes_tm(img, freq, fr, do_scale=False, filt_window=15, template_windo
         t_s = np.convolve(data, np.flipud(PTA), 'same')
         data = t_s.copy()
     else:
-        logging.info('skip template matching')
+        logging.info('skipping template matching')
         data = t.copy()
         t_s = t.copy()
 
@@ -408,18 +406,18 @@ def find_spikes_tm(img, freq, fr, do_scale=False, filt_window=15, template_windo
             thresh2, falsePosRate, detectionRate, low_spikes = adaptive_thresh(pks2, clip=0, pnorm=0.5, min_spikes=10)  # clip=0 means no clipping
             thresh_factor = thresh2 / std
             if thresh_factor < minimal_thresh:
-                logging.info(f'Adaptive threshold factor is lower than minimal theshold: {minimal_thresh}, choose thresh factor to be {minimal_thresh}')
+                logging.warning(f'adaptive threshold factor is lower than minimal theshold: {minimal_thresh}, choose thresh factor to be {minimal_thresh}')
                 thresh_factor = minimal_thresh
             thresh2 = thresh_factor * std
         except:
-            logging.info('Adaptive threshold fails, automatically choose thresh factor to be 3')
+            logging.warning('adaptive threshold fails, automatically choose thresh factor to be 3')
             thresh_factor = 3
             thresh2 = thresh_factor * std
     else:
-        raise ValueError('other methods are not implemented yet')
+        raise ValueError('method not supported')
 
     index = signal.find_peaks(data, height=thresh2)[0]
-    logging.info(f'final threshhold equals: {thresh2/std}')
+    logging.info(f'final threshhold: {thresh2/std}')
                 
     # plot signal, threshold, template and peak distribution
     if do_plot:
@@ -445,10 +443,9 @@ def find_spikes_tm(img, freq, fr, do_scale=False, filt_window=15, template_windo
         plt.figure()
         plt.hist(pks2, 500)
         plt.axvline(x=thresh2, c='r')
-        plt.title('distribution of spikes')
+        plt.title('spike distribution')
         plt.tight_layout()
         plt.show()  
-        plt.pause(5)
         
     peak_to_std = data[index] / std    
     try:

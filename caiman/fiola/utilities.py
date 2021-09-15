@@ -1,7 +1,5 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
-Created on Tue Jun 29 16:42:18 2021
 Relevant functions used in FIOLA
 @author: @caichangjia
 """
@@ -100,6 +98,15 @@ def normalize_piecewise(data, step=5000):
         data_norm.append(normalize(d))
     data_norm = np.hstack(data_norm)
     return data_norm
+
+def HALS4activity(Yr, A, C, iters=2):
+    U = A.T.dot(Yr)
+    V = A.T.dot(A) + np.finfo(A.dtype).eps
+    for _ in range(iters):
+        for m in range(len(U)):  # neurons and background
+            C[m] = np.clip(C[m] + (U[m] - V[m].dot(C)) /
+                       V[m, m], 0, np.inf)
+    return C
 
 def hals_for_fiola(Y, A, C, b, f, bSiz=3, maxIter=5, semi_nmf=False, update_bg=True, use_spikes=False, hals_orig=False, fr=400):
     """ Hierarchical alternating least square method for solving NMF problem.

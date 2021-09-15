@@ -1,7 +1,5 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
-Created on Tue Jun 16 10:48:17 2020
 Pipeline for online analysis of fluorescence imaging data
 Voltage dataset courtesy of Karel Svoboda Lab (Janelia Research Campus).
 Calcium dataset courtesy of Sue Ann Koay and David Tank (Princeton University)
@@ -15,13 +13,14 @@ from numpy.linalg import norm
 import os
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 from tensorflow.python.client import device_lib
-from time import time
 from threading import Thread
+from time import time
 
 import caiman as cm
 from caiman.fiola.config import load_fiola_config, load_caiman_config
 from caiman.fiola.fiolaparams import fiolaparams
 from caiman.fiola.fiola import FIOLA
+from caiman.utils.utils import download_demo
 
 logging.basicConfig(format=
                     "%(relativeCreated)12d [%(filename)s:%(funcName)20s():%(lineno)s]"\
@@ -34,21 +33,28 @@ logging.info(device_lib.list_local_devices())
 #%%
 def main():
     #%% load movie and masks
-    folder_idx = 0
-    movie_folder = ['/home/nel/NEL-LAB Dropbox/NEL/Papers/VolPy_online/data/voltage_data', 
-                    '/home/nel/NEL-LAB Dropbox/NEL/Papers/VolPy_online/data/voltage_data/demo_K53'][folder_idx]
-    name = ['demo_voltage_imaging.hdf5', 'k53.tif'][folder_idx]
-    mode = ['voltage', 'calcium'][folder_idx]
+    mode_idx = 0
+    mode = ['voltage', 'calcium'][mode_idx]
     
-    fnames = os.path.join(movie_folder, name)
-    mov = cm.load(os.path.join(movie_folder, name))
-    mask = cm.load(os.path.join(movie_folder, name.split('.')[0]+'_ROIs.hdf5'))
+    if mode_idx == 0:
+        fnames = download_demo('demo_voltage_imaging.hdf5', 'volpy')
+        path_ROIs = download_demo('demo_voltage_imaging_ROIs.hdf5', 'volpy')
+    elif mode_idx == 1:
+        fnames = download_demo('k53.tif')
+        path_ROIs = download_demo('k53_ROIs.hdf5')
+
+    mov = cm.load(os.path.join(fnames))
+    mask = cm.load(path_ROIs)
     
-    display_images = False
+    display_images = True
     if display_images:
-        plt.figure(); plt.imshow(mov.mean(0), vmax=np.percentile(mov.mean(0), 99.9)); plt.title('Mean img')
+        plt.figure()
+        plt.imshow(mov.mean(0), vmax=np.percentile(mov.mean(0), 99.9))
+        plt.title('Mean img')
         if mask is not None:
-            plt.figure(); plt.imshow(mask.mean(0)); plt.title('Masks')
+            plt.figure()
+            plt.imshow(mask.mean(0))
+            plt.title('Masks')
     
     #%% load configuration; set up FIOLA object
     # In the first part, we will first show each part (motion correct, source separation and spike extraction) of 
@@ -64,7 +70,11 @@ def main():
     mc_mov, shifts, _ = fio.fit_gpu_motion_correction(mov, template, fio.params.mc_nnls['offline_batch_size'], mov.min())
     
     if display_images:
-        plt.figure(); plt.plot(shifts);plt.legend(['x shifts', 'y shifts']); plt.title('shifts'); plt.show()
+        plt.figure()
+        plt.plot(shifts)
+        plt.legend(['x shifts', 'y shifts'])
+        plt.title('shifts')
+        plt.show()
         moviehandle = cm.movie(mc_mov.copy()).reshape((-1, template.shape[0], template.shape[1]), order='F')
         moviehandle.play(gain=3, q_min=5, q_max=99.99, fr=400)
     
@@ -78,6 +88,7 @@ def main():
             logging.info('use weighted masks from CaImAn')     
         elif fio.params.data['init_method'] == 'caiman':
         # if masks are not provided, we can use caiman for initialization
+        # we need to set init_method = 'caiman' in the config.py file for caiman initialization
             fio.params.mc_dict, fio.params.opts_dict, fio.params.quality_dict = load_caiman_config(fnames)
             _, _, mask = fio.fit_caiman_init(mc_mov[:fio.params.data['num_frames_init']], 
                                              fio.params.mc_dict, fio.params.opts_dict, fio.params.quality_dict)
@@ -88,7 +99,7 @@ def main():
             
     #%% source extraction (nnls)
     # when FOV and number of neurons is large, use batch_size=1
-    trace = fio.fit_gpu_nnls(mc_mov, fio.Ab, batch_size=1) 
+    trace = fio.fit_gpu_nnls(mc_mov, fio.Ab, batch_size=fio.params.mc_nnls['offline_batch_size']) 
     
     #%% offline spike detection (only available for voltage currently)
     fio.saoz = fio.fit_spike_extraction(trace)
@@ -115,16 +126,23 @@ def main():
     scope = [fio.params.data['num_frames_init'], fio.params.data['num_frames_total']]
     fio.fit(mov[:scope[0]])
     
-    #%% now fit online
-    fio.pipeline.load_frame_thread = Thread(target=fio.pipeline.load_frame, 
-                                            daemon=True, 
-                                            args=(mov[scope[0]:scope[1], :, :],))
-    fio.pipeline.load_frame_thread.start()
-    
+    #%% fit online frame by frame 
     start = time()
-    fio.fit_online()
+    for idx in range(scope[0], scope[1]):
+        fio.fit_online_frame(mov[idx:idx+1])   
     logging.info(f'total time online: {time()-start}')
     logging.info(f'time per frame online: {(time()-start)/(scope[1]-scope[0])}')
+        
+    #%% fit online with a thread loading frames
+    # fio.pipeline.load_frame_thread = Thread(target=fio.pipeline.load_frame, 
+    #                                         daemon=True, 
+    #                                         args=(mov[scope[0]:scope[1], :, :],))
+    # fio.pipeline.load_frame_thread.start()
+    
+    # start = time()
+    # fio.fit_online()
+    # logging.info(f'total time online: {time()-start}')
+    # logging.info(f'time per frame online: {(time()-start)/(scope[1]-scope[0])}')
     
     #%% put the result in fio.estimates object
     fio.compute_estimates()
@@ -134,14 +152,14 @@ def main():
         fio.view_components(fio.corr)
             
     #%% save the result
-    save_name = f'{os.path.join(movie_folder, name.split(".")[0])}_fiola_result'
-    np.save(os.path.join(movie_folder, save_name), fio.estimates)
+    save_name = f'{fnames.split(".")[0]}_fiola_result'
+    np.save(save_name, fio.estimates)
     
     #%%
     log_files = glob.glob('*_LOG_*')
     for log_file in log_files:
         os.remove(log_file)
-
+    
 #%%
 if __name__ == "__main__":
     main()

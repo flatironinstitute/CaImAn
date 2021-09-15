@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 Created on Thu Sep  9 14:33:54 2021
 This file is used for testing fiola
@@ -32,7 +31,6 @@ def demo_test_fiola():
     
     # setting params
     # dataset dependent parameters
-    fnames = fnames                 # name of the movie, we don't put a name here as movie is already loaded above
     fr = 400                        # sample rate of the movie
     ROIs = mask                     # a 3D matrix contains all region of interests
     

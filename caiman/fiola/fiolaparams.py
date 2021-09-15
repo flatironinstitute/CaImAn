@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
 Created on Tue Jun 16 10:30:42 2020
 This file includes parameters for online analysis of fluorescence (calcium/voltage) imaging data.
@@ -9,7 +8,7 @@ import logging
 import numpy as np
 
 class fiolaparams(object):
-    def __init__(self, fnames=None, fr=None, ROIs=None, mode='voltage', init_method='binary_masks', num_frames_init=10000, num_frames_total=20000, 
+    def __init__(self, fnames=None, fr=400, ROIs=None, mode='voltage', init_method='binary_masks', num_frames_init=10000, num_frames_total=20000, 
                  ms=[10,10], offline_batch_size=200, border_to_0=0, freq_detrend = 1/3, do_plot_init=False, erosion=0, 
                  hals_movie='hp_thresh', use_rank_one_nmf=False, semi_nmf=False,
                  update_bg=True, use_spikes=False, batch_size=1, use_fft=True, normalize_cc=True,
@@ -85,18 +84,18 @@ class fiolaparams(object):
         """
 
         if not hasattr(self, group):
-            raise KeyError('No group in CNMFParams named {0}'.format(group))
+            raise KeyError(f'No group in params named {group}')
 
         d = getattr(self, group)
         for k, v in val_dict.items():
             if k not in d and not set_if_not_exists:
                 if verbose:
                     logging.warning(
-                        "NOT setting value of key {0} in group {1}, because no prior key existed...".format(k, group))
+                        f"NOT setting value of key {k} in group {group}, because no prior key existed...")
             else:
                 if np.any(d[k] != v):
                     logging.warning(
-                        "Changing key {0} in group {1} from {2} to {3}".format(k, group, d[k], v))
+                        f"Changing key {k} in group {group} from {d[k]} to {v}")
                 d[k] = v
 
     def get(self, group, key):
@@ -110,11 +109,11 @@ class fiolaparams(object):
         """
 
         if not hasattr(self, group):
-            raise KeyError('No group in CNMFParams named {0}'.format(group))
+            raise KeyError(f'No group in params named {group}')
 
         d = getattr(self, group)
         if key not in d:
-            raise KeyError('No key {0} in group {1}'.format(key, group))
+            raise KeyError(f'No key {key} in group {group}')
 
         return d[key]
 
@@ -126,7 +125,7 @@ class fiolaparams(object):
         """
 
         if not hasattr(self, group):
-            raise KeyError('No group in CNMFParams named {0}'.format(group))
+            raise KeyError(f'No group in params named {group}')
 
         return getattr(self, group)
 
@@ -140,5 +139,5 @@ class fiolaparams(object):
                 if k in d:
                     flag = False
             if flag:
-                logging.warning('No parameter {0} found!'.format(k))
+                logging.warning(f'No parameter {k} found!')
         return self

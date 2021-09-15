@@ -1,25 +1,23 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
-Created on Mon Aug 30 11:01:52 2021
 This file includes class for gpu motion correction, source extraction(NNLS) and
 pipeline which process motion correction, source extraction, spike detection frame
 by-frame.
 @author: @caichangjia, @cynthia, @agiovann
 """
 import logging
+import math
 import numpy as np
 import os
-os.environ["CUDA_VISIBLE_DEVICES"] = "0";
 os.environ["TF_CPP_MIN_LOG_LEVEL"] = "3"
 from queue import Queue
-from scipy.optimize import nnls  
 import tensorflow as tf
 tf.compat.v1.disable_eager_execution()
 import tensorflow.keras as keras
+from tensorflow.signal import fft3d, ifft3d, ifftshift
 from threading import Thread
 import timeit
-import math
+from caiman.fiola.utilities import HALS4activity
 
 class MotionCorrect(keras.layers.Layer):
     def __init__(self, template, batch_size=1, ms_h=5, ms_w=5, min_mov=0, 
@@ -69,7 +67,7 @@ class MotionCorrect(keras.layers.Layer):
         self.template_0 = template
         self.shp_0 = self.template_0.shape
         
-        self.xmin, self.ymin = self.shp_0[0]-2*ms_w, self.shp_0[1]-2*ms_h
+        self.xmin, self.ymin = self.shp_0[0] - 2 * ms_w, self.shp_0[1] - 2 * ms_h
         if self.xmin < 10 or self.ymin < 10:
             raise ValueError("The frame dimensions you entered are too small. Please provide a larger field of view or resize your movie.") 
         
@@ -82,30 +80,20 @@ class MotionCorrect(keras.layers.Layer):
             self.shp_c_x, self.shp_c_y = (0, 0)
         if self.use_fft == False:
             self.template = self.template_0[(ms_w+self.shp_c_x):-(ms_w+self.shp_c_x),(ms_h+self.shp_c_y):-(ms_h+self.shp_c_y)]
-        # else:
-        #     self.template[:ms_w] = 0
-        #     self.template[:, :ms_h] = 0
-        #     self.template[-ms_w:] = 0
-        #     self.template[:, -ms_h:] = 0
+
         self.template_zm, self.template_var = self.normalize_template(self.template[:,:,None,None], epsilon=self.epsilon)
         self.shp = self.template.shape
         self.shp_m_x, self.shp_m_y = self.shp[0]//2, self.shp[1]//2
-        self.target_freq = tf.signal.fft3d(tf.cast(self.template_zm[:,:,:,0], tf.complex128))
+        self.target_freq = fft3d(tf.cast(self.template_zm[:,:,:,0], tf.complex128))
         self.target_freq = tf.repeat(self.target_freq[None,:,:,0], repeats=[self.batch_size], axis=0)
                 
-        self.nc = self.template_0.shape[0]
-        self.nr = self.template_0.shape[1]
-        self.nd = 1
-        self.Nr = tf.signal.ifftshift(tf.range(-tf.experimental.numpy.fix(self.nr / 2.), tf.math.ceil(self.nr / 2.)))
-        self.Nc = tf.signal.ifftshift(tf.range(-tf.experimental.numpy.fix(self.nc / 2.), tf.math.ceil(self.nc / 2.)))
-        self.Nd = tf.signal.ifftshift(tf.range(-tf.experimental.numpy.fix(self.nd / 2.), tf.math.ceil(self.nd / 2.)))
-        self.Nr = tf.cast(self.Nr, tf.float32)
-        self.Nc = tf.cast(self.Nc, tf.float32)
-        self.Nd = tf.cast(self.Nd, tf.float32)
+        self.Nr = tf.cast(ifftshift(tf.range(-tf.math.floor(self.shp_0[1] / 2.), tf.math.ceil(self.shp_0[1] / 2.))), tf.float32)
+        self.Nc = tf.cast(ifftshift(tf.range(-tf.math.floor(self.shp_0[0] / 2.), tf.math.ceil(self.shp_0[0] / 2.))), tf.float32)
+        self.Nd = tf.cast(ifftshift(tf.range(-tf.math.floor(1 / 2.), tf.math.ceil(1 / 2.))), tf.float32)
         #self.Nr, self.Nc, self.Nd = tf.meshgrid(self.Nr, self.Nc, self.Nd)        
         self.Nr = tf.repeat(self.Nr[None], self.Nc.shape[0], axis=0)[..., None]
         self.Nc = tf.repeat(self.Nc[:, None], self.Nr.shape[0], axis=1)[..., None]
-        self.Nd = tf.zeros((self.nc, self.nr, self.nd))
+        self.Nd = tf.zeros((self.shp_0[0], self.shp_0[1], 1))
         
     @tf.function
     def call(self, fr):
@@ -121,9 +109,9 @@ class MotionCorrect(keras.layers.Layer):
         denominator = tf.sqrt(self.template_var * imgs_var)
 
         if self.use_fft:
-            fr_freq = tf.signal.fft3d(tf.cast(imgs_zm[:,:,:,0], tf.complex128))
+            fr_freq = fft3d(tf.cast(imgs_zm[:,:,:,0], tf.complex128))
             img_product = fr_freq *  tf.math.conj(self.target_freq)
-            cross_correlation = tf.cast(tf.math.abs(tf.signal.ifft3d(img_product)), tf.float32)
+            cross_correlation = tf.cast(tf.math.abs(ifft3d(img_product)), tf.float32)
             rolled_cc =  tf.roll(cross_correlation,(self.batch_size, self.shp_m_x,self.shp_m_y), axis=(0,1,2))
             nominator = rolled_cc[:,self.shp_m_x-self.ms_w:self.shp_m_x+self.ms_w+1, self.shp_m_y-self.ms_h:self.shp_m_y+self.ms_h+1, None] 
         else:
@@ -179,18 +167,21 @@ class MotionCorrect(keras.layers.Layer):
         sh_x, sh_y = shifts_int_cast[:,0],shifts_int_cast[:,1]
         sh_x_n = tf.cast(-(sh_x - ms_h), tf.float32)
         sh_y_n = tf.cast(-(sh_y - ms_w), tf.float32)
+        sh_x = tf.squeeze(sh_x, axis=1)
+        sh_y = tf.squeeze(sh_y, axis=1)
         ncc_log = tf.math.log(ncc)
 
         n_batches = np.arange(self.batch_size)
-        idx = tf.transpose(tf.stack([n_batches, tf.squeeze(sh_x-1,axis=1), tf.squeeze(sh_y,axis=1)]))
+        idx = tf.transpose(tf.stack([n_batches, sh_x-1, sh_y]))
         log_xm1_y = tf.gather_nd(ncc_log, idx)
-        idx = tf.transpose(tf.stack([n_batches, tf.squeeze(sh_x+1,axis=1), tf.squeeze(sh_y,axis=1)]))
+        idx = tf.transpose(tf.stack([n_batches, sh_x+1, sh_y]))
         log_xp1_y = tf.gather_nd(ncc_log, idx)
-        idx = tf.transpose(tf.stack([n_batches, tf.squeeze(sh_x, axis=1), tf.squeeze(sh_y-1, axis=1)]))
+        idx = tf.transpose(tf.stack([n_batches, sh_x, sh_y-1]))
         log_x_ym1 = tf.gather_nd(ncc_log, idx)
-        idx = tf.transpose(tf.stack([n_batches, tf.squeeze(sh_x, axis=1), tf.squeeze(sh_y+1, axis=1)]))
+        idx = tf.transpose(tf.stack([n_batches, sh_x, sh_y+1]))
         log_x_yp1 =  tf.gather_nd(ncc_log, idx)
-        idx = tf.transpose(tf.stack([n_batches, tf.squeeze(sh_x, axis=1), tf.squeeze(sh_y, axis=1)]))
+        idx = tf.transpose(tf.stack([n_batches, sh_x, sh_y]))
+        
         four_log_xy = 4 * tf.gather_nd(ncc_log, idx)
         sh_x_n = sh_x_n - tf.math.truediv((log_xm1_y - log_xp1_y), (2 * log_xm1_y - four_log_xy + 2 * log_xp1_y))
         sh_y_n = sh_y_n - tf.math.truediv((log_x_ym1 - log_x_yp1), (2 * log_x_ym1 - four_log_xy + 2 * log_x_yp1))
@@ -216,18 +207,18 @@ class MotionCorrect(keras.layers.Layer):
             shifts =  (shifts[1], shifts[0], shifts[2]) 
         elif len(shifts) == 2:
             shifts = (shifts[1], shifts[0], tf.zeros(shifts[1].shape))
-        src_freq = tf.signal.fft3d(img)
+        src_freq = fft3d(img)
         
-        sh_0 = tf.tensordot(-shifts[0], self.Nr[None], axes=[[1], [0]]) / self.nr
-        sh_1 = tf.tensordot(-shifts[1], self.Nc[None], axes=[[1], [0]]) / self.nc
-        sh_2 = tf.tensordot(-shifts[2], self.Nd[None], axes=[[1], [0]]) / self.nd
+        sh_0 = tf.tensordot(-shifts[0], self.Nr[None], axes=[[1], [0]]) / self.shp_0[1]
+        sh_1 = tf.tensordot(-shifts[1], self.Nc[None], axes=[[1], [0]]) / self.shp_0[0]
+        sh_2 = tf.tensordot(-shifts[2], self.Nd[None], axes=[[1], [0]]) / 1
         sh_tot = (sh_0 + sh_1 + sh_2)
         Greg = src_freq * tf.math.exp(-1j * 2 * math.pi * tf.cast(sh_tot, dtype=tf.complex128))
         
         #todo: check difphase and eventually dot product?
         diffphase = tf.cast(diffphase,dtype=tf.complex128)
         Greg = Greg * tf.math.exp(1j * diffphase)
-        new_img = tf.math.real(tf.signal.ifft3d(Greg)) 
+        new_img = tf.math.real(ifft3d(Greg)) 
         new_img = tf.cast(new_img, tf.float32)
         
         return new_img
@@ -262,8 +253,25 @@ class NNLS(keras.layers.Layer):
 
     def call(self, X):
         """
-        pass as inputs the new Y, and the old X. see  https://angms.science/doc/NMF/nnls_pgd.pdf
-        """
+        NNLS for each iteration. see https://angms.science/doc/NMF/nnls_pgd.pdf
+        
+        Parameters
+        ----------
+        X : tuple
+            output of previous iteration
+
+        Returns
+        -------
+        Y_new : ndarray
+            auxilary variables
+        new_X : ndarray
+            new extracted traces
+        k : int
+            number of iterations
+        weight : ndarray
+            equals to theta_2
+
+        """        
         (Y,X_old,k,weight) = X
         mm = tf.matmul(self.th1, Y)
         new_X = tf.nn.relu(mm + weight)
@@ -413,7 +421,8 @@ class Pipeline_mc_nnls(object):
                 logging.debug(f'{name}, {value}')
         
         b = self.mov[0:self.batch_size].T.reshape((-1, self.batch_size), order='F')         
-        x0 = np.array([nnls(self.Ab,b[:,i])[0] for i in range(self.batch_size)]).T
+        C_init = np.dot(Ab.T, b)
+        x0 = np.array([HALS4activity(Yr=b[:,i], A=Ab, C=C_init[:, i].copy(), iters=10) for i in range(batch_size)]).T
         self.x_0, self.y_0 = np.array(x0[None,:]), np.array(x0[None,:]) 
         self.num_components = self.Ab.shape[-1]
         self.dim_x, self.dim_y = self.mov.shape[1], self.mov.shape[2]
@@ -511,7 +520,8 @@ class Pipeline(object):
         
         self.n = mov.shape[0]
         b = self.mov[0:self.batch_size].T.reshape((-1, self.batch_size), order='F')         
-        x0 = np.array([nnls(self.Ab,b[:,i])[0] for i in range(self.batch_size)]).T
+        C_init = np.dot(Ab.T, b)
+        x0 = np.array([HALS4activity(Yr=b[:,i], A=Ab, C=C_init[:, i].copy(), iters=10) for i in range(batch_size)]).T
         self.x_0, self.y_0 = np.array(x0[None,:]), np.array(x0[None,:]) 
         self.num_components = self.Ab.shape[-1]
         self.dim_x, self.dim_y = self.mov.shape[1], self.mov.shape[2]
@@ -561,8 +571,8 @@ class Pipeline(object):
     
     def load_frame(self, mov_online):
         if len(mov_online) % self.batch_size > 0:
-            logging.info('Batch size is not a factor of number of frames')
-            logging.info(f'Take the first {len(mov_online)-len(mov_online) % self.batch_size} frames instead')
+            logging.info('batch size is not a factor of number of frames')
+            logging.info(f'take the first {len(mov_online)-len(mov_online) % self.batch_size} frames instead')
         for i in range(int(len(mov_online) / self.batch_size)):
             self.frame_input_q.put(mov_online[i * self.batch_size : (i + 1) * self.batch_size, :, :, None][None,:])
             

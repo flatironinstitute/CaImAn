@@ -1,7 +1,5 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 """
-Created on Mon Sep  6 15:30:43 2021
 Config.py file is used to load parameters for FIOLA and CaImAn objects
 @author: @caichangjia
 """
@@ -10,7 +8,6 @@ def load_fiola_config(fnames, mode='voltage', mask=None):
     if mode == 'voltage':
         # setting params
         # dataset dependent parameters
-        fnames = fnames                 # name of the movie, we don't put a name here as movie is already loaded above
         fr = 400                        # sample rate of the movie
         ROIs = mask                     # a 3D matrix contains all region of interests
 
@@ -19,7 +16,7 @@ def load_fiola_config(fnames, mode='voltage', mask=None):
         num_frames_init =  10000        # number of frames used for initialization
         num_frames_total =  20000       # estimated total number of frames for processing, this is used for generating matrix to store data
         offline_batch_size = 200        # number of frames for one batch to perform offline motion correction
-        batch_size = 40                 # number of frames processing at the same time using gpu 
+        batch_size = 1                  # number of frames processing at the same time using gpu 
         flip = True                     # whether to flip signal to find spikes   
         ms = [10, 10]                   # maximum shift in x and y axis respectively. Will not perform motion correction if None.
         update_bg = True                # update background components for spatial footprints
@@ -45,15 +42,14 @@ def load_fiola_config(fnames, mode='voltage', mask=None):
             'template_window':template_window}
         
     elif mode == 'calcium':
-        fnames = ''                     # name of the movie, we don't put a name here as movie is already loaded above
         fr = 30                         # sample rate of the movie
         ROIs = mask                     # a 3D matrix contains all region of interests
 
         mode = 'calcium'                # 'voltage' or 'calcium 'fluorescence indicator
-        init_method = 'weighted_masks'  # initialization method 'caiman', 'weighted_masks' or 'binary_masks'. Needs to provide masks or using gui to draw masks if choosing 'masks'
+        init_method = 'caiman'          # initialization method 'caiman', 'weighted_masks' or 'binary_masks'. Needs to provide masks or using gui to draw masks if choosing 'masks'
         num_frames_init =  1500         # number of frames used for initialization
         num_frames_total =  3000        # estimated total number of frames for processing, this is used for generating matrix to store data
-        offline_batch_size = 1          # number of frames for one batch to perform offline motion correction
+        offline_batch_size = 5          # number of frames for one batch to perform offline motion correction
         batch_size= 1                   # number of frames processing at the same time using gpu 
         flip = False                    # whether to flip signal to find spikes   
         ms = [5, 5]                     # maximum shift in x and y axis respectively. Will not perform motion correction if None.
@@ -76,7 +72,7 @@ def load_fiola_config(fnames, mode='voltage', mask=None):
             'center_dims':center_dims}
     
     else:
-        raise ValueError('mode has to be "calcium" or "voltage"')
+        raise ValueError('mode must be "calcium" or "voltage"')
     
     return options
 
