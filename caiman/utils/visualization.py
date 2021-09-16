@@ -262,9 +262,6 @@ def nb_view_patches(Yr, A, C, b, f, d1, d2, YrA=None, image_neurons=None, thr=0.
         plot.line('x', 'y2', source=source, line_width=1,
                   line_alpha=0.6, color=denoised_color)
 
-    slider = bokeh.models.Slider(start=1, end=Y_r.shape[0], value=1, step=1,
-                                 title="Neuron Number")
-    slider.js_on_change('value', callback)
     xr = Range1d(start=0, end=image_neurons.shape[1])
     yr = Range1d(start=image_neurons.shape[0], end=0)
     plot1 = bpl.figure(x_range=xr, y_range=yr,
@@ -277,6 +274,9 @@ def nb_view_patches(Yr, A, C, b, f, d1, d2, YrA=None, image_neurons=None, thr=0.
                 line_width=2, source=source2)
 
     if Y_r.shape[0] > 1:
+        slider = bokeh.models.Slider(start=1, end=Y_r.shape[0], value=1, step=1,
+                                    title="Neuron Number")
+        slider.js_on_change('value', callback)
         bpl.show(bokeh.layouts.layout([[slider], [bokeh.layouts.row(
             plot1 if r_values is None else bokeh.layouts.column(plot1, plot2), plot)]]))
     else:
@@ -368,8 +368,12 @@ def hv_view_patches(Yr, A, C, b, f, d1, d2, YrA=None, image_neurons=None, denois
                 .opts(aspect='equal', frame_height=200))
         return hv.Layout([im_u] + [trace]).cols(1) #im_u + trace
 
-    return (hv.DynamicMap(plot_unit, kdims=['unit_id', 'scale'])
-            .redim.range(unit_id=(0, nr-1), scale=(0.0, 1.0)))
+    if nr==1:
+        return (hv.DynamicMap(lambda scl: plot_unit(0, scl), kdims=['scale'])
+                .redim.range(scale=(0.0, 1.0)))
+    else:
+        return (hv.DynamicMap(plot_unit, kdims=['unit_id', 'scale'])
+                .redim.range(unit_id=(0, nr-1), scale=(0.0, 1.0)))
 
 
 def get_contours(A, dims, thr=0.9, thr_method='nrg', swap_dim=False):
