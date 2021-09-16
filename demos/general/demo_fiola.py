@@ -43,7 +43,7 @@ def main():
         fnames = download_demo('k53.tif')
         path_ROIs = download_demo('k53_ROIs.hdf5')
 
-    mov = cm.load(os.path.join(fnames))
+    mov = cm.load(fnames)
     mask = cm.load(path_ROIs)
     
     display_images = True
