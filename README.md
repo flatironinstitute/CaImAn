@@ -63,6 +63,10 @@ CaImAn implements a variety of algorithms for analyzing calcium (and voltage) im
  
 If you use this code please cite the corresponding papers where original methods appeared as well the companion paper.
 
+### FIOLA: an accelerated pipeline for Fluorescence Imaging OnLine Analysis
+
+In FIOLA, we exploit accelerated hardware (GPU) and computational graphs in tensorflow to preprocess fluorescence imaging movies and extract fluorescence traces at speeds in excess of 300Hz on calcium imaging datasets and at speeds over 400Hz on voltage imaging datasets. An example for real-time analysis of calcium and voltage imaging data is shown in the demos/general/demo_fiola.py. It is tested on Ubuntu 18.04 with GPU RTX3090, CUDA 11.0, Python 3.8.0 and tensorflow 2.4.1.
+
 ### Real-time analysis of microendoscopic 1p data
 
 Our online algorithms can be used for real-time analysis of live-streaming data. An example for real-time analysis of microendoscopic 1p data is shown in the notebook `demos/notebooks/demo_realtime_cnmfE.ipynb`.
