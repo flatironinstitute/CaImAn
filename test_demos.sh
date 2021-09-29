@@ -44,6 +44,8 @@ for demo in demos/general/*.py; do
 		echo "	Skipping tests on $demo: This uses Keras, an optional install"
 	elif [ $demo == "demos/general/demo_pipeline_NWB.py" ]; then
 		echo "	Skipping tests on $demo: Skip for interactivity"
+	elif [ $demo == "demos/general/demo_fiola.py" ]; then
+		echo "	Skipping tests on $demo: non-GPU usage has perf issues"
 	elif [ -d $demo ]; then
 		true
 	else

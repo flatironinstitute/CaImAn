@@ -341,11 +341,15 @@ class Estimates(object):
 
         if idx is None:
             caiman.utils.visualization.view_patches_bar(Yr, self.A, self.C,
-                    self.b, self.f, self.dims[0], self.dims[1], YrA=self.R, img=img)
+                    self.b, self.f, self.dims[0], self.dims[1], YrA=self.R, img=img,
+                    r_values=self.r_values, SNR=self.SNR_comp, cnn_preds=self.cnn_preds)
         else:
-            caiman.utils.visualization.view_patches_bar(Yr, self.A.tocsc()[:,idx],
-                                                        self.C[idx], self.b, self.f,
-                                                        self.dims[0], self.dims[1], YrA=self.R[idx], img=img)
+            caiman.utils.visualization.view_patches_bar(
+                Yr, self.A.tocsc()[:,idx], self.C[idx], self.b, self.f,
+                self.dims[0], self.dims[1], YrA=self.R[idx], img=img,
+                r_values=None if self.r_values is None else self.r_values[idx],
+                SNR=None if self.SNR_comp is None else self.SNR_comp[idx],
+                cnn_preds=None if np.sum(self.cnn_preds) in (0, None) else self.cnn_preds[idx])
         return self
 
     def nb_view_components(self, Yr=None, img=None, idx=None,
@@ -389,14 +393,18 @@ class Estimates(object):
             img = np.reshape(np.array(self.A.mean(axis=1)), self.dims, order='F')
 
         if idx is None:
-            caiman.utils.visualization.nb_view_patches(Yr, self.A, self.C,
-                    self.b, self.f, self.dims[0], self.dims[1], YrA=self.R, image_neurons=img,
-                    thr=thr, denoised_color=denoised_color, cmap=cmap)
+            caiman.utils.visualization.nb_view_patches(
+                Yr, self.A, self.C, self.b, self.f, self.dims[0], self.dims[1],
+                YrA=self.R, image_neurons=img, thr=thr, denoised_color=denoised_color, cmap=cmap,
+                r_values=self.r_values, SNR=self.SNR_comp, cnn_preds=self.cnn_preds)
         else:
-            caiman.utils.visualization.nb_view_patches(Yr, self.A.tocsc()[:,idx],
-                                                        self.C[idx], self.b, self.f,
-                                                        self.dims[0], self.dims[1], YrA=self.R[idx], image_neurons=img,
-                                                        thr=thr, denoised_color=denoised_color, cmap=cmap)
+            caiman.utils.visualization.nb_view_patches(
+                Yr, self.A.tocsc()[:,idx], self.C[idx], self.b, self.f,
+                self.dims[0], self.dims[1], YrA=self.R[idx], image_neurons=img,
+                thr=thr, denoised_color=denoised_color, cmap=cmap,
+                r_values=None if self.r_values is None else self.r_values[idx],
+                SNR=None if self.SNR_comp is None else self.SNR_comp[idx],
+                cnn_preds=None if np.sum(self.cnn_preds) in (0, None) else self.cnn_preds[idx])
         return self
 
     def hv_view_components(self, Yr=None, img=None, idx=None,
@@ -439,13 +447,16 @@ class Estimates(object):
         if idx is None:
             hv_plot = caiman.utils.visualization.hv_view_patches(
                 Yr, self.A, self.C, self.b, self.f, self.dims[0], self.dims[1],
-                YrA=self.R, image_neurons=img, denoised_color=denoised_color,
-                cmap=cmap)
+                YrA=self.R, image_neurons=img, denoised_color=denoised_color, cmap=cmap,
+                r_values=self.r_values, SNR=self.SNR_comp, cnn_preds=self.cnn_preds)
         else:
             hv_plot = caiman.utils.visualization.hv_view_patches(
                 Yr, self.A.tocsc()[:, idx], self.C[idx], self.b, self.f,
                 self.dims[0], self.dims[1], YrA=self.R[idx], image_neurons=img,
-                denoised_color=denoised_color, cmap=cmap)
+                denoised_color=denoised_color, cmap=cmap,
+                r_values=None if self.r_values is None else self.r_values[idx],
+                SNR=None if self.SNR_comp is None else self.SNR_comp[idx],
+                cnn_preds=None if np.sum(self.cnn_preds) in (0, None) else self.cnn_preds[idx])
         return hv_plot
 
     def nb_view_components_3d(self, Yr=None, image_type='mean', dims=None,
