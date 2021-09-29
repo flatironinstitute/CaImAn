@@ -21,7 +21,7 @@ def load_fiola_config(fnames, mode='voltage', mask=None):
         ms = [10, 10]                   # maximum shift in x and y axis respectively. Will not perform motion correction if None.
         update_bg = True                # update background components for spatial footprints
         filt_window = 15                # window size for removing the subthreshold activities 
-        minimal_thresh = 3              # minimal of the threshold 
+        minimal_thresh = 3.5            # minimal of the threshold 
         template_window = 2             # half window size of the template; will not perform template matching if window size equals 0
 
         options = {
