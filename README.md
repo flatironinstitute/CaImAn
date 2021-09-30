@@ -29,11 +29,13 @@ CaImAn presently targets Python 3.8. Parts of CaImAn are written in C++, but apa
 
 The supported ways to install CaImAn use the Anaconda python distribution. If you do not already have it, first install a 3.x version for your platform from [here](https://docs.conda.io/en/latest/miniconda.html). Familiarise yourself with Conda before going further.
 
+We strongly recommend installing the mamba package into your base environment, with 'conda install -c conda-forge mamba', using it to build your conda environment. Mamba performs the same environment creation tasks that the base conda tool does, but far faster. In the instructions below, we assume you're using mamba, but if you're not, you can run the same commands with the conda tool instead.
+
 There are a few supported install methods.
 
-The easiest (and strongly recommended on Windows) is to use a binary conda package, installed as the environment is built. Install this with 'conda create -n caiman -c conda-forge caiman'. This is suitable for most use, if you don't need to change the internals of the caiman package. You do not need to fetch the source code with this approach.
+The easiest (and strongly recommended on Windows) is to use a binary conda package, installed as the environment is built. Install this with 'mamba create -n caiman -c conda-forge caiman'. This is suitable for most use, if you don't need to change the internals of the caiman package. You do not need to fetch the source code with this approach.
 
-Another option is to build it yourself; you will need a working compiler (easy on Linux, fairly easy on OSX, fairly involved on Windows). Clone the sources of this repo, and do a 'pip install .' or 'pip install -e .' The former is a standard install, the latter is more suitable for active development on the caiman sources.
+Another option is to build it yourself; you will need a working compiler (easy on Linux, fairly easy on OSX, fairly involved on Windows). Clone the sources of this repo, create an environment with all the prereqs with 'mamba env create -n caiman -f environment.yml', activate the environment, and then do a 'pip install .' or 'pip install -e .' The former is a user install, the latter is more suitable for active development on the caiman sources.
 
 There are other ways to build/use caiman, but they may get less or no support depending on how different they are.
 
@@ -87,7 +89,7 @@ VolPy is an analysis pipeline for voltage imaging data. The analysis is based on
 * `volparams`: An object for setting parameters of voltage imaging. It can be set and changed easily and is passed into the algorithms.
 * `VOLPY`: An object for running the spike detection algorithm and saving results.
 
-In order to use VolPy, you must install Keras into your conda environment. You can do this by activating your environment, and then issuing the command "conda install -c conda-forge keras".
+In order to use VolPy, you must install Keras into your conda environment. You can do this by activating your environment, and then issuing the command "mamba install -c conda-forge keras".
 
 To see examples of how these methods are used, please consult the `demo_pipeline_voltage_imaging.py` script in the `demos/general` folder. For more information about the approach check the [preprint](https://www.biorxiv.org/content/10.1101/2020.01.02.892323v1).
 
