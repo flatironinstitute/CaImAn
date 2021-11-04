@@ -608,7 +608,7 @@ def threshold_components_parallel(pars):
     Ath = np.squeeze(np.reshape(A_temp, (d, 1)))
     Ath2 = np.zeros((d))
     # we do that to have a full closed structure even if the values have been trehsolded
-    BW = binary_closing(BW.astype(np.int), structure=se)
+    BW = binary_closing(BW.astype(np.int), structure=se.T) # transpose cause A_temp is C-order
 
     # if we have deleted the element
     if BW.max() == 0:
@@ -617,7 +617,7 @@ def threshold_components_parallel(pars):
     # we want to extract the largest connected component ( to remove small unconnected pixel )
     if extract_cc:
         # we extract each future as independent with the cross structuring element
-        labeled_array, num_features = label(BW, structure=ss)
+        labeled_array, num_features = label(BW, structure=ss.T)
         labeled_array = np.squeeze(np.reshape(labeled_array, (d, 1)))
         nrg = np.zeros((num_features, 1))
         # we extract the energy for each component

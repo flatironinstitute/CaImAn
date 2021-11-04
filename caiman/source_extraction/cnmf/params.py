@@ -738,8 +738,8 @@ class CNMFParams(object):
             'normalize_yyt_one': True,
             'nrgthr': 0.9999,                # Energy threshold
             'num_blocks_per_run_spat': num_blocks_per_run_spat, # number of process to parallelize residual computation ** DECREASE IF MEMORY ISSUES
-            'se': np.ones((3, 3), dtype='uint8'),  # Morphological closing structuring element
-            'ss': np.ones((3, 3), dtype='uint8'),  # Binary element for determining connectivity
+            'se': None,  # Morphological closing structuring element
+            'ss': None,  # Binary element for determining connectivity
             'thr_method': 'nrg',             # Method of thresholding ('max' or 'nrg')
             # whether to update the background components in the spatial phase
             'update_background_components': update_background_components,

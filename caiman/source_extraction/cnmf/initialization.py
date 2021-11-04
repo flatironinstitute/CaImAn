@@ -1422,7 +1422,7 @@ def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
             minimum local correlation coefficients for selecting a seed pixel.
         min_pnr: float
             minimum peak-to-noise ratio for selecting a seed pixel.
-        seed_method: str {'auto', 'manual'}
+        seed_method: str {'auto', 'manual'} or list/array/tuple of seed pixels
             methods for choosing seed pixels
             if running as notebook 'manual' requires a backend that does not
             inline figures, e.g. %matplotlib tk
@@ -1580,7 +1580,15 @@ def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
 
     all_centers = []
     while continue_searching:
-        if seed_method.lower() == 'manual':
+        tmp_kernel = np.ones(shape=tuple([int(round(gSiz / 4.))] * 2))
+        if not isinstance(seed_method, str):
+            rsub_max, csub_max = np.transpose(np.round(seed_method).astype(int))
+            v_max = cv2.dilate(v_search, tmp_kernel)
+            local_max = v_max[rsub_max, csub_max]
+            ind_local_max = local_max.argsort()[::-1]
+            continue_searching = False 
+
+        elif seed_method.lower() == 'manual':
             # manually pick seed pixels
             fig = plt.figure(figsize=(14,6))
             ax = plt.axes([.03, .05, .96, .22])
@@ -1633,7 +1641,6 @@ def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
                 break
             all_centers += centers
             csub_max, rsub_max = np.transpose(centers)
-            tmp_kernel = np.ones(shape=tuple([int(round(gSiz / 4.))] * 2))
             v_max = cv2.dilate(v_search, tmp_kernel)
             local_max = v_max[rsub_max, csub_max]
             ind_local_max = local_max.argsort()[::-1]
@@ -1644,7 +1651,6 @@ def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
             # add an extra value to avoid repeated seed pixels within one ROI.
             v_search = cv2.medianBlur(v_search, 3) + pixel_v
             v_search[ind_search] = 0
-            tmp_kernel = np.ones(shape=tuple([int(round(gSiz / 4.))] * 2))
             v_max = cv2.dilate(v_search, tmp_kernel)
 
             # automatically select seed pixels as the local maximums

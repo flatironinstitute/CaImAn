@@ -141,8 +141,6 @@ def cnmf_patches(args_in):
                 cnm.estimates.neurons_sn, cnm.estimates.g, cnm.estimates.sn,
                 cnm.params.to_dict(), cnm.estimates.YrA]
     else:
-        raise RuntimeError('cannot merge if there are empty patches.')
-
         return None
 # %%
 

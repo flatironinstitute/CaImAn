@@ -479,10 +479,10 @@ class CNMF(object):
 
         # update/set all options that depend on data dimensions
         # number of rows, columns [and depths]
-        self.params.set('spatial', {'medw': (3,) * len(self.dims),
-                                    'se': np.ones((3,) * len(self.dims), dtype=np.uint8),
-                                    'ss': np.ones((3,) * len(self.dims), dtype=np.uint8)
-                                    })
+        # self.params.set('spatial', {'medw': (3,) * len(self.dims),
+        #                             'se': np.ones((3,) * len(self.dims), dtype=np.uint8),
+        #                             'ss': np.ones((3,) * len(self.dims), dtype=np.uint8)
+        #                             })
 
         logging.info(('Using ' + str(self.params.get('patch', 'n_processes')) + ' processes'))
         if self.params.get('preprocess', 'n_pixels_per_process') is None:
