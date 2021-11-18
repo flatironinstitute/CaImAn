@@ -1544,7 +1544,7 @@ def load(file_name: Union[str, List[str]],
                                                                       np.arange(shape[1]))
                                                          ).reshape((len(ts),) + shape[1:])
                         else:
-                            input_arr = tffl.asarray()
+                            input_arr = tffl.asarray(out='memmap')
                             input_arr = input_arr[subindices]
 
                 else:
