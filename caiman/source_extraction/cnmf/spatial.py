@@ -184,27 +184,24 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
     # we compute the indicator from distance indicator
     ind2_, nr, C, f, b_, A_in = computing_indicator(
         Y, A_in, b_in, C, f, nb, method_exp, dims, min_size, max_size, dist, expandCore, dview)
-    
-    # remove components that have a nan
-    ff = np.where(np.isnan(np.sum(C, axis=1)))
-    if np.size(ff) > 0:
-        logging.info("Eliminating nan components: {}".format(ff))
-        ff = ff[0]
-        A_in = csc_column_remove(A_in, list(ff))
-        C = np.delete(C, list(ff), 0)
-        
-    # remove empty components    
-    ff = np.where(np.sum(C, axis=1)==0)
-    if np.size(ff) > 0:
-        logging.info("Eliminating empty components: {}".format(ff))
-        ff = ff[0]
-        A_in = csc_column_remove(A_in, list(ff))
-        C = np.delete(C, list(ff), 0)
 
+    # remove components that are empty or have a nan
+    ff = np.where((np.sum(C, axis=1)==0) + np.isnan(np.sum(C, axis=1)))[0]
+    if np.size(ff) > 0:
+        logging.info("Eliminating empty and nan components: {}".format(ff))
+        A_in = csc_column_remove(A_in, list(ff))
+        C = np.delete(C, list(ff), 0)
+        # update indices
+        ind_list = list(range(nr-np.size(ff)))
+        for i in ff:
+            ind_list.insert(i, 0)
+        ind_list = np.array(ind_list, dtype=int)
+        ind2_ = [ind_list[np.setdiff1d(a,ff)] if len(a) else a for a in ind2_]
+
+    nr = np.shape(C)[0]
     if normalize_yyt_one and C is not None:
         C = np.array(C)
-        nr_C = np.shape(C)[0]
-        d_ = scipy.sparse.lil_matrix((nr_C, nr_C))
+        d_ = scipy.sparse.lil_matrix((nr, nr))
         d_.setdiag(np.sqrt(np.sum(C ** 2, 1)))
         A_in = A_in * d_
         C = C/(np.sqrt((C**2).sum(1))[:, np.newaxis] + np.finfo(np.float32).eps)

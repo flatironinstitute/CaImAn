@@ -1734,7 +1734,7 @@ def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
             [ai, ci_raw, ind_success] = extract_ac(data_filtered_box,
                                                    data_raw_box, ind_ctr, patch_dims)
 
-            if (np.sum(ai > 0) < min_pixel) or (not ind_success):
+            if (not ind_success) or (np.sum(ai > 0) < min_pixel):
                 # bad initialization. discard and continue
                 continue
             else:
@@ -1903,6 +1903,8 @@ def extract_ac(data_filtered, data_raw, ind_ctr, patch_dims):
     y_diff = np.concatenate([[-1], np.diff(ci)])
     b = np.median(ci[(y_diff >= 0) * (y_diff < sn)])
     ci -= b
+    if np.isnan(ci.sum()):
+        return None, None, False
 
     # return results
     return ai, ci, True
