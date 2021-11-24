@@ -1055,14 +1055,15 @@ def computing_indicator(Y, A_in, b, C, f, nb, method, dims, min_size, max_size, 
             dist_indicator_av = old_div(dist_indicator.astype(
                 'float32'), np.sum(dist_indicator.astype('float32'), axis=0))
             px = (np.sum(dist_indicator, axis=1) > 0)
-            not_px = 1 - px
+            not_px = ~px
             if Y.shape[-1] < 30000:
                 f = Y[not_px, :].mean(0)
-            else:  # memory mapping fails here for some reasons
+            else:
                 print('estimating f')
                 f = 0
-                for xxx in not_px:
-                    f = (f + Y[xxx]) / 2
+                for xxx in np.where(not_px)[0]:
+                    f += Y[xxx]
+                f /= not_px.sum()
 
             f = np.atleast_2d(f)
 
