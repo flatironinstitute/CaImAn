@@ -29,6 +29,8 @@ from scipy.ndimage.morphology import binary_closing
 from scipy.ndimage.morphology import generate_binary_structure, iterate_structure
 import shutil
 from sklearn.decomposition import NMF
+from sklearn.preprocessing import StandardScaler
+from sklearn.pipeline import make_pipeline
 import tempfile
 import time
 import psutil
@@ -405,13 +407,12 @@ def regression_ipyparallel(pars):
             elif method_least_square == 'lasso_lars':  # lasso lars function from scikit learn
                 lambda_lasso = 0 if np.size(cct_) == 0 else \
                     .5 * noise_sn[px] * np.sqrt(np.max(cct_)) / T
-                clf = linear_model.LassoLars(alpha=lambda_lasso, positive=True,
-                                             fit_intercept=True)
-#                clf = linear_model.Lasso(alpha=lambda_lasso, positive=True,
-#                                         fit_intercept=True, normalize=True,
-#                                         selection='random')
-                a_lrs = clf.fit(np.array(c.T), np.ravel(y))
-                a = a_lrs.coef_
+                model = make_pipeline(
+                    StandardScaler(with_mean=False),
+                    linear_model.LassoLars(alpha=lambda_lasso, positive=True,
+                                                 fit_intercept=True, normalize=False)
+                    )
+                a = model.fit(np.array(c.T), np.ravel(y))['lassolars'].coef_
 
             else:
                 raise Exception(
