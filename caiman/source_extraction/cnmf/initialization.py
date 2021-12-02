@@ -30,9 +30,11 @@ from scipy.ndimage.filters import correlate
 import scipy.sparse as spr
 from skimage.morphology import disk
 from sklearn.decomposition import NMF, FastICA
+from sklearn.exceptions import ConvergenceWarning
 from sklearn.utils.extmath import randomized_svd, squared_norm, randomized_range_finder
 import sys
 from typing import List
+import warnings
 
 import caiman
 from .deconvolution import constrained_foopsi
@@ -46,6 +48,8 @@ try:
     cv2.setNumThreads(0)
 except:
     pass
+
+warnings.filterwarnings(action='ignore', category=ConvergenceWarning)
 
 def resize(Y, size, interpolation=cv2.INTER_LINEAR):
     """faster and 3D compatible version of skimage.transform.resize"""
@@ -1274,7 +1278,7 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
         for i in range(init_iter - 1):
             if max_number is not None:
                 max_number -= A.shape[-1]
-            if max_number is not 0:
+            if max_number != 0:
                 if i == init_iter-2 and seed_method.lower()[:4] == 'semi':
                     seed_method, min_corr, min_pnr = 'manual', 0, 0
                 logging.info('Searching for more neurons in the residual')
