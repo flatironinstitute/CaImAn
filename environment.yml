@@ -1,12 +1,12 @@
 channels:
 - conda-forge
 dependencies:
-- python >=3.7
+- python >=3.9
 - bokeh
 - coverage
 - cython
 - future
-- h5py >=2.10.0,<3
+- h5py
 - holoviews
 - ipykernel
 - ipython
@@ -21,7 +21,7 @@ dependencies:
 - peakutils
 - pims
 - psutil
-- pynwb==1.4.0
+- pynwb
 - pyqtgraph
 - scikit-image
 - scikit-learn
