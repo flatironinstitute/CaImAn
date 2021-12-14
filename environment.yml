@@ -1,7 +1,7 @@
 channels:
 - conda-forge
 dependencies:
-- python >=3.7
+- python >=3.9
 - bokeh
 - coverage
 - cython
@@ -21,9 +21,9 @@ dependencies:
 - peakutils
 - pims
 - psutil
-- pynwb==1.4.0
+- pynwb
 - pyqtgraph
-- scikit-image
+- scikit-image >=0.19.0
 - scikit-learn
 - scipy
 - tensorflow
