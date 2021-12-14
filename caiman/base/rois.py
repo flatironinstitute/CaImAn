@@ -19,16 +19,19 @@ import matplotlib.patches as mpatches
 import numpy as np
 import os
 from past.utils import old_div
+
+import scipy
 from scipy.ndimage.filters import gaussian_filter
 from scipy.ndimage import label, center_of_mass
-from skimage.morphology import remove_small_objects, remove_small_holes, dilation, closing
-import scipy
-from scipy import ndimage as ndi
 from scipy.optimize import linear_sum_assignment
+
 import shutil
-from skimage.filters import sobel
-from skimage.morphology import watershed
+
 from skimage.draw import polygon
+from skimage.filters import sobel
+from skimage.morphology import remove_small_objects, remove_small_holes, dilation, closing
+from skimage.segmentation import watershed
+
 import tempfile
 import time
 from typing import Any, Dict, List, Optional, Tuple
@@ -251,16 +254,15 @@ def nf_match_neurons_in_binary_masks(masks_gt,
     ), order='F'))
 
     # have the center of mass of each element of the two masks
-    cm_ben = [scipy.ndimage.center_of_mass(mm) for mm in masks_gt]
+    cm_ben  = [scipy.ndimage.center_of_mass(mm) for mm in masks_gt]
     cm_cnmf = [scipy.ndimage.center_of_mass(mm) for mm in masks_comp]
 
     if D is None:
         #% find distances and matches
         # find the distance between each masks
         D = distance_masks([A_ben, A_cnmf], [cm_ben, cm_cnmf], min_dist, enclosed_thr=enclosed_thr)
-        level = 0.98
-    else:
-        level = .98
+
+    level = 0.98
 
     matches, costs = find_matches(D, print_assignment=print_assignment)
     matches = matches[0]
@@ -1178,13 +1180,13 @@ def extract_binary_masks_blob(A,
         markers[gray_image > thr_2] = 2
         edges = watershed(elevation_map, markers) - 1
         # only keep largest object
-        label_objects, _ = ndi.label(edges)
+        label_objects, _ = scipy.ndimage.label(edges)
         sizes = np.bincount(label_objects.ravel())
 
         if len(sizes) > 1:
             idx_largest = np.argmax(sizes[1:])
             edges = (label_objects == (1 + idx_largest))
-            edges = ndi.binary_fill_holes(edges)
+            edges = scipy.ndimage.binary_fill_holes(edges)
         else:
             logging.warning('empty component')
             edges = np.zeros_like(edges)
