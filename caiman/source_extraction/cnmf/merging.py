@@ -224,14 +224,14 @@ def merge_components(Y, A, b, C, R, f, S, sn_pix, temporal_params,
             R_merged = np.vstack([res[7] for res in merge_res])
         else:
             # we initialize the values
-            A_merged = lil_matrix((d, nbmrg))
-            C_merged = np.zeros((nbmrg, t))
-            R_merged = np.zeros((nbmrg, t))
-            S_merged = np.zeros((nbmrg, t))
-            bl_merged = np.zeros((nbmrg, 1))
-            c1_merged = np.zeros((nbmrg, 1))
-            sn_merged = np.zeros((nbmrg, 1))
-            g_merged = np.zeros((nbmrg, p))
+            A_merged = lil_matrix((d, nbmrg), dtype=np.float32)
+            C_merged = np.zeros((nbmrg, t), dtype=np.float32)
+            R_merged = np.zeros((nbmrg, t), dtype=np.float32)
+            S_merged = np.zeros((nbmrg, t), dtype=np.float32)
+            bl_merged = np.zeros((nbmrg, 1), dtype=np.float32)
+            c1_merged = np.zeros((nbmrg, 1), dtype=np.float32)
+            sn_merged = np.zeros((nbmrg, 1), dtype=np.float32)
+            g_merged = np.zeros((nbmrg, p), dtype=np.float32)
             merged_ROIs = []
             for i in range(nbmrg):
                 merged_ROI = np.where(list_conxcomp[:, ind[i]])[0]

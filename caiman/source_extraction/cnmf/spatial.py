@@ -203,7 +203,7 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
     nr = np.shape(C)[0]
     if normalize_yyt_one and C is not None:
         C = np.array(C)
-        d_ = scipy.sparse.lil_matrix((nr, nr))
+        d_ = scipy.sparse.lil_matrix((nr, nr), dtype=np.float32)
         d_.setdiag(np.sqrt(np.sum(C ** 2, 1)))
         A_in = A_in * d_
         C = C/(np.sqrt((C**2).sum(1))[:, np.newaxis] + np.finfo(np.float32).eps)
@@ -534,7 +534,7 @@ def threshold_components(A, dims, medw=None, thr_method='max', maxthr=0.1, nrgth
         indices.extend(At.indices.tolist())
         data.extend(At.data.tolist())
 
-    Ath = csc_matrix((data, indices, indptr), shape=(d, nr))
+    Ath = csc_matrix((data, indices, indptr), shape=(d, nr), dtype=np.float32)
     return Ath
 
 
@@ -610,7 +610,7 @@ def threshold_components_parallel(pars):
 
     # if we have deleted the element
     if BW.max() == 0:
-        return csr_matrix(Ath2), i
+        return csr_matrix(Ath2, dtype=np.float32), i
     #
     # we want to extract the largest connected component ( to remove small unconnected pixel )
     if extract_cc:
@@ -628,7 +628,7 @@ def threshold_components_parallel(pars):
         BW = BW.flatten()
         Ath2[BW] = Ath[BW]
 
-    return csr_matrix(Ath2), i
+    return csr_matrix(Ath2, dtype=np.float32), i
 
 def nnls_L0(X, Yp, noise):
     """
