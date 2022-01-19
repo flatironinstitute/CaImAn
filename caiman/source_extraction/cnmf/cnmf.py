@@ -397,7 +397,7 @@ class CNMF(object):
         for log_file in log_files:
             os.remove(log_file)
 
-        if return_mc:
+        if return_mc & motion_correct:
             return cnm2, mc
 
         return cnm2
