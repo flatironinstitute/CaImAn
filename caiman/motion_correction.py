@@ -184,9 +184,10 @@ class MotionCorrect(object):
 
         """
         if 'ndarray' in str(type(fname)):
-            logging.info(f'Creating file for motion correction "{pathlib.Path(output_dir).joinpath("tmp_mov_mot_corr.hdf5")}"')
-            cm.movie(fname).save(f'{output_dir}/tmp_mov_mot_corr.hdf5')
-            fname = [pathlib.Path(output_dir).joinpath("tmp_mov_mot_corr.hdf5").as_posix()]
+            tmp_mov_mot_corr_fp = pathlib.Path(output_dir) / 'tmp_mov_mot_corr.hdf5'
+            logging.info(f'Creating file for motion correction "{tmp_mov_mot_corr_fp }"')
+            cm.movie(fname).save(tmp_mov_mot_corr_fp.as_posix())
+            fname = [tmp_mov_mot_corr_fp.as_posix()]
 
         if not isinstance(fname, list):
             fname = [fname]
