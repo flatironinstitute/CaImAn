@@ -2837,7 +2837,7 @@ def motion_correct_batch_rigid(fname, max_shifts, dview=None, splits=56, num_spl
         if isinstance(fname, tuple):
             base_name=os.path.split(fname[0])[-1][:-4] + '_rig_'
         else:
-            base_name=os.path.split(fname)[-1][:-4] + '_rig_'   
+            base_name=os.path.split(fname)[-1][:-4] + '_rig_'
 
         fname_tot_rig, res_rig = motion_correction_piecewise(fname, splits, strides=None, overlaps=None,
                                                              add_to_movie=add_to_movie, template=old_templ, max_shifts=max_shifts, max_deviation_rigid=0,
