@@ -342,7 +342,7 @@ class CNMF(object):
             logging.warning("Error: File not found, with file list:\n" + fnames[0])
             raise Exception('File not found!')
 
-        base_name = (pathlib.Path(output_dir) / (pathlib.Path(fnames[0]).stem + "_memmap_")).as_posix()
+        base_name = pathlib.Path(fnames[0]).stem + "_memmap_"
         if extension == '.mmap':
             fname_new = fnames[0]
             Yr, dims, T = mmapping.load_memmap(fnames[0])
