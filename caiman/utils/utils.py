@@ -495,7 +495,7 @@ def recursively_save_dict_contents_to_group(h5file:h5py.File, path:str, dic:Dict
             h5file[path + key] = item
             logging.debug(f'Saving numeric or string {key}')
             if not h5file[path + key][()] == item:
-                raise ValueError(f'Error while saving numeric or string {key}: assigned value {h5file[key][()]} does not match intended value {item}')
+                raise ValueError(f'Error while saving numeric or string {key}: assigned value {h5file[path + key][()]} does not match intended value {item}')
         # save numpy arrays
         elif isinstance(item, np.ndarray):
             logging.debug(f'Saving {key}')
