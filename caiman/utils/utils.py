@@ -492,14 +492,14 @@ def recursively_save_dict_contents_to_group(h5file:h5py.File, path:str, dic:Dict
             raise ValueError("dict keys must be strings to save to hdf5")
         # save strings, numpy.int64, numpy.int32, and numpy.float64 types
         if isinstance(item, str):
-            h5file.create_dataset(path + key, (), h5py.string_dtype(), str(item))
+            h5file.create_dataset(path + key, (), h5py.string_dtype(), item)
             if not h5file[path + key][()] == item:
-                raise ValueError(f'Error while saving string {path + key}: assigned value {h5file[path + key][()]} does not match intended value {item}')
+                raise ValueError(f'Error (v {h5py.__version__}) while saving string {path + key}: assigned value {h5file[path + key][()]} does not match intended value {item}')
         elif isinstance(item, (np.int64, np.int32, np.float64, np.float, float, np.float32, int)):
             h5file[path + key] = item
             logging.debug(f'Saving numeric {path + key}')
             if not h5file[path + key][()] == item:
-                raise ValueError(f'Error while saving numeric {path + key}: assigned value {h5file[path + key][()]} does not match intended value {item}')
+                raise ValueError(f'Error (v {h5py.__version__}) while saving numeric {path + key}: assigned value {h5file[path + key][()]} does not match intended value {item}')
         # save numpy arrays
         elif isinstance(item, np.ndarray):
             logging.debug(f'Saving {key}')
