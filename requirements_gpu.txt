@@ -25,3 +25,4 @@ tifffile
 tk
 tqdm
 yapf
+z5py

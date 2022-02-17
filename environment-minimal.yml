@@ -20,3 +20,4 @@ dependencies:
 - tensorflow
 - tifffile
 - tqdm
+- z5py
