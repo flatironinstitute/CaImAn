@@ -49,12 +49,6 @@ try:
 except:
     pass
 
-try:
-    import sima
-    HAS_SIMA = True
-except ImportError:
-    HAS_SIMA = False
-
 from . import timeseries as ts
 from .traces import trace
 
@@ -1453,8 +1447,6 @@ def load(file_name: Union[str, List[str]],
     
         Exception 'Subindices not implemented'
     
-        Exception 'sima module unavailable'
-    
         Exception 'Unknown file type'
     
         Exception 'File not found!'
@@ -1481,10 +1473,11 @@ def load(file_name: Union[str, List[str]],
                                 var_name_hdf5=var_name_hdf5,
                                 is3D=is3D)
 
-    elif isinstance(file_name,tuple):
-        print('**** PROCESSING AS SINGLE FRAMES *****')
+    elif isinstance(file_name, tuple):
+        print(f'**** Processing input file {file_name} as individualframes *****')
         if shape is not None:
-            logging.error('shape not supported for multiple movie input')
+            # XXX Should this be an Exception?
+            logging.error('movies.py:load(): A shape parameter is not supported for multiple movie input')
         else:
             return load_movie_chain(tuple([iidd for iidd in np.array(file_name)[subindices]]),
                      fr=fr, start_time=start_time,
@@ -1492,11 +1485,12 @@ def load(file_name: Union[str, List[str]],
                      bottom=bottom, top=top, left=left, right=right,
                      channel = channel, outtype=outtype)
 
+    # If we got here we're parsing a single movie file
     if max(top, bottom, left, right) > 0:
-        logging.error('top bottom etc... not supported for single movie input')
+        logging.error('movies.py:load(): Parameters top,bottom,left,right are not supported for single movie input')
 
     if channel is not None:
-        logging.error('channel not supported for single movie input')
+        logging.error('movies.py:load(): channel parameter is not supported for single movie input')
 
     if os.path.exists(file_name):
         _, extension = os.path.splitext(file_name)[:2]
@@ -1729,20 +1723,7 @@ def load(file_name: Union[str, List[str]],
                 return movie(sbxread(file_name[:-4], k=0, n_frames=np.inf), fr=fr).astype(outtype)
 
         elif extension == '.sima':
-            if not HAS_SIMA:
-                raise Exception("sima module unavailable")
-
-            dataset = sima.ImagingDataset.load(file_name)
-            frame_step = 1000
-            if subindices is None:
-                input_arr = np.empty(
-                    (dataset.sequences[0].shape[0], dataset.sequences[0].shape[2], dataset.sequences[0].shape[3]),
-                    dtype=outtype)
-                for nframe in range(0, dataset.sequences[0].shape[0], frame_step):
-                    input_arr[nframe:nframe + frame_step] = np.array(
-                        dataset.sequences[0][nframe:nframe + frame_step, 0, :, :, 0]).astype(outtype).squeeze()
-            else:
-                input_arr = np.array(dataset.sequences[0])[subindices, :, :, :, :].squeeze()
+            raise Exception("movies.py:load(): FATAL: sima support was removed in 1.9.8")
 
         else:
             raise Exception('Unknown file type')
@@ -2165,8 +2146,6 @@ def load_iter(file_name, subindices=None, var_name_hdf5: str = 'mov', outtype=np
 
     Raises:
         Exception 'Subindices not implemented'
-
-        Exception 'sima module unavailable'
 
         Exception 'Unknown file type'
 
