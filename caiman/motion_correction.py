@@ -2976,8 +2976,7 @@ def motion_correct_batch_pwrigid(fname, max_shifts, strides, overlaps, add_to_mo
                                                             newoverlaps=newoverlaps, newstrides=newstrides,
                                                             upsample_factor_grid=upsample_factor_grid, order='F', dview=dview, save_movie=save_movie,
                                                             base_name=base_name, num_splits=num_splits_to_process,
-                                                            shifts_opencv=shifts_opencv, nonneg_movie=nonneg_movie, base_name_prefix=base_name_prefix,
-                                                            gSig_filt=gSig_filt,
+                                                            shifts_opencv=shifts_opencv, nonneg_movie=nonneg_movie, gSig_filt=gSig_filt,
                                                             use_cuda=use_cuda, border_nan=border_nan, var_name_hdf5=var_name_hdf5, is3D=is3D,
                                                             indices=indices)
 
