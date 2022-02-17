@@ -38,6 +38,7 @@ import tifffile
 from tqdm import tqdm
 from typing import Any, Dict, List, Tuple, Union
 import warnings
+import z5py
 from zipfile import ZipFile
 
 import caiman as cm
@@ -1429,9 +1430,14 @@ def load(file_name: Union[str, List[str]],
         var_name_hdf5: str
             if loading from hdf5 name of the variable to load
 
-        in_memory: (undocumented)
+        in_memory: bool=False
+            This changes the behaviour of the function for npy files to be a readwrite rather than readonly memmap,
+            And it adds a type conversion for .mmap files.
+            Use of this flag is discouraged (and it may be removed in the future)
 
-        is_behavior: (undocumented)
+        is_behavior: bool=False
+            This invokes special code to load multiple datasets from a single hdf5 file for demo_behavior.
+            Not intended for other use (and may be removed in the future)
 
         bottom,top,left,right: (undocumented)
 
@@ -1657,7 +1663,7 @@ def load(file_name: Union[str, List[str]],
             if is_behavior:
                 with h5py.File(file_name, "r") as f:
                     kk = list(f.keys())
-                    kk.sort(key=lambda x: np.int(x.split('_')[-1]))
+                    kk.sort(key=lambda x: int(x.split('_')[-1]))
                     input_arr = []
                     for trial in kk:
                         logging.info('Loading ' + trial)
