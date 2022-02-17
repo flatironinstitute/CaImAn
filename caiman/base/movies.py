@@ -1435,10 +1435,6 @@ def load(file_name: Union[str, List[str]],
             And it adds a type conversion for .mmap files.
             Use of this flag is discouraged (and it may be removed in the future)
 
-        is_behavior: bool=False
-            This invokes special code to load multiple datasets from a single hdf5 file for demo_behavior.
-            Not intended for other use (and may be removed in the future)
-
         bottom,top,left,right: (undocumented)
 
         channel: (undocumented)
@@ -1660,49 +1656,34 @@ def load(file_name: Union[str, List[str]],
                 return movie(**f).astype(outtype)
 
         elif extension in ('.hdf5', '.h5', '.nwb'):
-            if is_behavior:
-                with h5py.File(file_name, "r") as f:
-                    kk = list(f.keys())
-                    kk.sort(key=lambda x: int(x.split('_')[-1]))
-                    input_arr = []
-                    for trial in kk:
-                        logging.info('Loading ' + trial)
-                        input_arr.append(np.array(f[trial]['mov']))
+           with h5py.File(file_name, "r") as f:
+                fkeys = list(f.keys())
+                if len(fkeys) == 1:
+                    var_name_hdf5 = fkeys[0]
 
-                    input_arr = np.vstack(input_arr)
+                if extension == '.nwb':
+                    try:
+                        fgroup = f[var_name_hdf5]['data']
+                    except:
+                        fgroup = f['acquisition'][var_name_hdf5]['data']
+                else:
+                    fgroup = f[var_name_hdf5]
 
-            else:
-                with h5py.File(file_name, "r") as f:
-                    fkeys = list(f.keys())
-                    if len(fkeys) == 1:
-                        var_name_hdf5 = fkeys[0]
-
-                    if extension == '.nwb':
-                        try:
-                            fgroup = f[var_name_hdf5]['data']
-                        except:
-                            fgroup = f['acquisition'][var_name_hdf5]['data']
+                if var_name_hdf5 in f or var_name_hdf5 in f['acquisition']:
+                    if subindices is None:
+                        images = np.array(fgroup).squeeze()
                     else:
-                        fgroup = f[var_name_hdf5]
-
-                    if var_name_hdf5 in f or var_name_hdf5 in f['acquisition']:
-                        if subindices is None:
-                            images = np.array(fgroup).squeeze()
-                            #if images.ndim > 3:
-                            #    images = images[:, 0]
+                        if type(subindices).__module__ == 'numpy':
+                            subindices = subindices.tolist()
+                        if len(fgroup.shape) > 3:
+                            images = np.array(fgroup[subindices]).squeeze()
                         else:
-                            if type(subindices).__module__ == 'numpy':
-                                subindices = subindices.tolist()
-                            if len(fgroup.shape) > 3:
-                                images = np.array(fgroup[subindices]).squeeze()
-                            else:
-                                images = np.array(fgroup[subindices]).squeeze()
+                            images = np.array(fgroup[subindices]).squeeze()
 
-                        #input_arr = images
-                        return movie(images.astype(outtype))
-                    else:
-                        logging.debug('KEYS:' + str(f.keys()))
-                        raise Exception('Key not found in hdf5 file')
+                    return movie(images.astype(outtype))
+                else:
+                    logging.debug('KEYS:' + str(f.keys()))
+                    raise Exception('Key not found in hdf5 file')
 
         elif extension == '.mmap':
 
@@ -1809,6 +1790,50 @@ def load_movie_chain(file_list: List[str],
         mov.append(m)
     return ts.concatenate(mov, axis=0)
 
+####
+# This is only used for demo_behavior, and used to be part of cm.load(), activated with the
+# 'is_behavior' boolean flag.
+
+def _load_behavior(file_name:str) -> Any:
+	# This is custom code (that used to belong to movies.load() above, once activated by
+	# the undocumented "is_behavior" flag, to perform a custom load of data from an hdf5 file
+	# with a particular inner structure. The keys in that file are things like trial_1, trial_12, ..
+	# I refactored this out of load() to improve clarity of that function and to make it more clear
+	# that user code should not do things that way.
+
+    if not isinstance(file_name, str):
+        raise Exception(f'Invalid type in _load_behavior(); please do not use this function outside of demo_behavior.py')
+    if os.path.exists(file_name):
+        _, extension = os.path.splitext(file_name)[:2]
+        extension = extension.lower()
+        if extension == '.h5'):
+            with h5py.File(file_name, "r") as f:
+                kk = list(f.keys())
+                kk.sort(key=lambda x: int(x.split('_')[-1]))
+                input_arr = []
+                for trial in kk:
+                    logging.info('Loading ' + trial)
+                    input_arr.append(np.array(f[trial]['mov']))
+
+                input_arr = np.vstack(input_arr)
+        else:
+            raise Exception(f'_load_behavior() only accepts hdf5 files formatted a certain way. Please do not use this function.')
+ 
+    else:
+        logging.error(f"File request:[{file_name}] not found!")
+        raise Exception(f'File {file_name} not found!')
+
+    # Defaults from movies.load() at time this was refactored out
+    fr = float(30)
+    start_time = float(0)
+    meta_data = dict()
+    outtype = np.float32
+    # Wrap it up
+    return movie(input_arr.astype(outtype),
+                 fr=fr,
+                 start_time=start_time,
+                 file_name=os.path.split(file_name)[-1],
+                 meta_data=meta_data)
 
 ####
 # TODO: Consider pulling these functions that work with .mat files into a separate file
