@@ -1410,7 +1410,7 @@ def load(file_name: Union[str, List[str]],
 
     Args:
         file_name: string or List[str]
-            name of file. Possible extensions are tif, avi, npy, (npz and hdf5 are usable only if saved by calblitz)
+            name of file. Possible extensions are tif, avi, npy, h5, n5, zarr (npz and hdf5 are usable only if saved by calblitz)
 
         fr: float
             frame rate
@@ -1428,7 +1428,7 @@ def load(file_name: Union[str, List[str]],
             dimension of the movie along x and y if loading from a two dimensional numpy array
 
         var_name_hdf5: str
-            if loading from hdf5 name of the variable to load
+            if loading from hdf5/n5 name of the dataset inside the file to load (ignored if the file only has one dataset)
 
         in_memory: bool=False
             This changes the behaviour of the function for npy files to be a readwrite rather than readonly memmap,
@@ -1658,10 +1658,10 @@ def load(file_name: Union[str, List[str]],
         elif extension in ('.hdf5', '.h5', '.nwb'):
            with h5py.File(file_name, "r") as f:
                 fkeys = list(f.keys())
-                if len(fkeys) == 1:
+                if len(fkeys) == 1: # If the hdf5 file we're parsing has only one dataset inside it, ignore the arg and pick that dataset
                     var_name_hdf5 = fkeys[0]
 
-                if extension == '.nwb':
+                if extension == '.nwb': # Apparently nwb files are specially-formatted hdf5 files
                     try:
                         fgroup = f[var_name_hdf5]['data']
                     except:
@@ -1676,17 +1676,38 @@ def load(file_name: Union[str, List[str]],
                         if type(subindices).__module__ == 'numpy':
                             subindices = subindices.tolist()
                         if len(fgroup.shape) > 3:
-                            images = np.array(fgroup[subindices]).squeeze()
-                        else:
-                            images = np.array(fgroup[subindices]).squeeze()
+                            logging.warning(f'fgroup.shape has dimensionality greater than 3 {fgroup.shape} in load')
+                        images = np.array(fgroup[subindices]).squeeze()
 
                     return movie(images.astype(outtype))
                 else:
                     logging.debug('KEYS:' + str(f.keys()))
                     raise Exception('Key not found in hdf5 file')
 
-        elif extension == '.mmap':
+        elif extension in ('.n5', '.zarr'):
+           with z5py.File(file_name, "r") as f:
+                fkeys = list(f.keys())
+                if len(fkeys) == 1: # If the n5/zarr file we're parsing has only one dataset inside it, ignore the arg and pick that dataset
+                    var_name_hdf5 = fkeys[0]
 
+                fgroup = f[var_name_hdf5]
+
+                if var_name_hdf5 in f or var_name_hdf5 in f['acquisition']:
+                    if subindices is None:
+                        images = np.array(fgroup).squeeze()
+                    else:
+                        if type(subindices).__module__ == 'numpy':
+                            subindices = subindices.tolist()
+                        if len(fgroup.shape) > 3:
+                            logging.warning(f'fgroup.shape has dimensionality greater than 3 {fgroup.shape} in load')
+                        images = np.array(fgroup[subindices]).squeeze()
+
+                    return movie(images.astype(outtype))
+                else:
+                    logging.debug('KEYS:' + str(f.keys()))
+                    raise Exception('Key not found in n5 or zarr file')
+
+        elif extension == '.mmap':
             filename = os.path.split(file_name)[-1]
             Yr, dims, T = load_memmap(
                 os.path.join(                  # type: ignore # same dims typing issue as above
@@ -1806,7 +1827,7 @@ def _load_behavior(file_name:str) -> Any:
     if os.path.exists(file_name):
         _, extension = os.path.splitext(file_name)[:2]
         extension = extension.lower()
-        if extension == '.h5'):
+        if extension == '.h5':
             with h5py.File(file_name, "r") as f:
                 kk = list(f.keys())
                 kk.sort(key=lambda x: int(x.split('_')[-1]))
