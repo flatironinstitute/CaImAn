@@ -23,7 +23,6 @@ pipeline {
             HOME = pwd(tmp:true)
           }
           steps {
-            sh 'conda install -n base -c conda-forge mamba'
             sh 'conda clean --index-cache'
             sh 'mamba env create -q -f environment.yml -p $CONDA_ENV'
             sh '''#!/bin/bash -ex
