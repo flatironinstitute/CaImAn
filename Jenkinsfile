@@ -23,7 +23,7 @@ pipeline {
             HOME = pwd(tmp:true)
           }
           steps {
-            sh 'conda install -n base mamba'
+            sh 'conda install -n base -c conda-forge mamba'
             sh 'conda clean --index-cache'
             sh 'mamba env create -q -f environment.yml -p $CONDA_ENV'
             sh '''#!/bin/bash -ex
@@ -50,7 +50,7 @@ pipeline {
             LANG = "en_US.UTF-8"
           }
           steps {
-            sh '$ANACONDA3/bin/conda install -n base mamba'
+            sh '$ANACONDA3/bin/conda install -n base -c conda-forge mamba'
             sh '$ANACONDA3/bin/mamba env create -q -f environment.yml -p $CONDA_ENV'
             sh '''#!/bin/bash -ex
               source $ANACONDA3/bin/activate $CONDA_ENV
@@ -75,7 +75,7 @@ pipeline {
           steps {
             bat '%ANACONDA3%\\scripts\\conda info'
             bat 'if exist "%CONDA_ENV%" rd /s /q %CONDA_ENV%'
-            bat '%ANACONDA3%\\scripts\\conda install -n base mamba'
+            bat '%ANACONDA3%\\scripts\\conda install -n base -c conda-forge mamba'
             bat '%ANACONDA3%\\scripts\\mamba env create -q --force -f environment.yml -p %CONDA_ENV%'
             bat 'if exist "%CONDA_ENV%\\etc\\conda\\activate.d\\vs*_compiler_vars.bat" del "%CONDA_ENV%\\etc\\conda\\activate.d\\vs*_compiler_vars.bat"'
             bat '%ANACONDA3%\\scripts\\activate %CONDA_ENV% && %ANACONDA3%\\scripts\\conda list'
