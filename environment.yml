@@ -31,3 +31,4 @@ dependencies:
 - tk
 - tqdm
 - yapf
+- z5py

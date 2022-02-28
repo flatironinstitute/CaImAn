@@ -38,6 +38,7 @@ import tifffile
 from tqdm import tqdm
 from typing import Any, Dict, List, Tuple, Union
 import warnings
+import z5py
 from zipfile import ZipFile
 
 import caiman as cm
@@ -48,12 +49,6 @@ try:
     cv2.setNumThreads(0)
 except:
     pass
-
-try:
-    import sima
-    HAS_SIMA = True
-except ImportError:
-    HAS_SIMA = False
 
 from . import timeseries as ts
 from .traces import trace
@@ -1415,7 +1410,7 @@ def load(file_name: Union[str, List[str]],
 
     Args:
         file_name: string or List[str]
-            name of file. Possible extensions are tif, avi, npy, (npz and hdf5 are usable only if saved by calblitz)
+            name of file. Possible extensions are tif, avi, npy, h5, n5, zarr (npz and hdf5 are usable only if saved by calblitz)
 
         fr: float
             frame rate
@@ -1433,11 +1428,12 @@ def load(file_name: Union[str, List[str]],
             dimension of the movie along x and y if loading from a two dimensional numpy array
 
         var_name_hdf5: str
-            if loading from hdf5 name of the variable to load
+            if loading from hdf5/n5 name of the dataset inside the file to load (ignored if the file only has one dataset)
 
-        in_memory: (undocumented)
-
-        is_behavior: (undocumented)
+        in_memory: bool=False
+            This changes the behaviour of the function for npy files to be a readwrite rather than readonly memmap,
+            And it adds a type conversion for .mmap files.
+            Use of this flag is discouraged (and it may be removed in the future)
 
         bottom,top,left,right: (undocumented)
 
@@ -1452,8 +1448,6 @@ def load(file_name: Union[str, List[str]],
         Exception 'Subindices not implemented'
     
         Exception 'Subindices not implemented'
-    
-        Exception 'sima module unavailable'
     
         Exception 'Unknown file type'
     
@@ -1481,10 +1475,11 @@ def load(file_name: Union[str, List[str]],
                                 var_name_hdf5=var_name_hdf5,
                                 is3D=is3D)
 
-    elif isinstance(file_name,tuple):
-        print('**** PROCESSING AS SINGLE FRAMES *****')
+    elif isinstance(file_name, tuple):
+        print(f'**** Processing input file {file_name} as individualframes *****')
         if shape is not None:
-            logging.error('shape not supported for multiple movie input')
+            # XXX Should this be an Exception?
+            logging.error('movies.py:load(): A shape parameter is not supported for multiple movie input')
         else:
             return load_movie_chain(tuple([iidd for iidd in np.array(file_name)[subindices]]),
                      fr=fr, start_time=start_time,
@@ -1492,11 +1487,12 @@ def load(file_name: Union[str, List[str]],
                      bottom=bottom, top=top, left=left, right=right,
                      channel = channel, outtype=outtype)
 
+    # If we got here we're parsing a single movie file
     if max(top, bottom, left, right) > 0:
-        logging.error('top bottom etc... not supported for single movie input')
+        logging.error('movies.py:load(): Parameters top,bottom,left,right are not supported for single movie input')
 
     if channel is not None:
-        logging.error('channel not supported for single movie input')
+        logging.error('movies.py:load(): channel parameter is not supported for single movie input')
 
     if os.path.exists(file_name):
         _, extension = os.path.splitext(file_name)[:2]
@@ -1660,52 +1656,58 @@ def load(file_name: Union[str, List[str]],
                 return movie(**f).astype(outtype)
 
         elif extension in ('.hdf5', '.h5', '.nwb'):
-            if is_behavior:
-                with h5py.File(file_name, "r") as f:
-                    kk = list(f.keys())
-                    kk.sort(key=lambda x: np.int(x.split('_')[-1]))
-                    input_arr = []
-                    for trial in kk:
-                        logging.info('Loading ' + trial)
-                        input_arr.append(np.array(f[trial]['mov']))
+           with h5py.File(file_name, "r") as f:
+                fkeys = list(f.keys())
+                if len(fkeys) == 1: # If the hdf5 file we're parsing has only one dataset inside it, ignore the arg and pick that dataset
+                    var_name_hdf5 = fkeys[0]
 
-                    input_arr = np.vstack(input_arr)
+                if extension == '.nwb': # Apparently nwb files are specially-formatted hdf5 files
+                    try:
+                        fgroup = f[var_name_hdf5]['data']
+                    except:
+                        fgroup = f['acquisition'][var_name_hdf5]['data']
+                else:
+                    fgroup = f[var_name_hdf5]
 
-            else:
-                with h5py.File(file_name, "r") as f:
-                    fkeys = list(f.keys())
-                    if len(fkeys) == 1:
-                        var_name_hdf5 = fkeys[0]
-
-                    if extension == '.nwb':
-                        try:
-                            fgroup = f[var_name_hdf5]['data']
-                        except:
-                            fgroup = f['acquisition'][var_name_hdf5]['data']
+                if var_name_hdf5 in f or var_name_hdf5 in f['acquisition']:
+                    if subindices is None:
+                        images = np.array(fgroup).squeeze()
                     else:
-                        fgroup = f[var_name_hdf5]
+                        if type(subindices).__module__ == 'numpy':
+                            subindices = subindices.tolist()
+                        if len(fgroup.shape) > 3:
+                            logging.warning(f'fgroup.shape has dimensionality greater than 3 {fgroup.shape} in load')
+                        images = np.array(fgroup[subindices]).squeeze()
 
-                    if var_name_hdf5 in f or var_name_hdf5 in f['acquisition']:
-                        if subindices is None:
-                            images = np.array(fgroup).squeeze()
-                            #if images.ndim > 3:
-                            #    images = images[:, 0]
-                        else:
-                            if type(subindices).__module__ == 'numpy':
-                                subindices = subindices.tolist()
-                            if len(fgroup.shape) > 3:
-                                images = np.array(fgroup[subindices]).squeeze()
-                            else:
-                                images = np.array(fgroup[subindices]).squeeze()
+                    return movie(images.astype(outtype))
+                else:
+                    logging.debug('KEYS:' + str(f.keys()))
+                    raise Exception('Key not found in hdf5 file')
 
-                        #input_arr = images
-                        return movie(images.astype(outtype))
+        elif extension in ('.n5', '.zarr'):
+           with z5py.File(file_name, "r") as f:
+                fkeys = list(f.keys())
+                if len(fkeys) == 1: # If the n5/zarr file we're parsing has only one dataset inside it, ignore the arg and pick that dataset
+                    var_name_hdf5 = fkeys[0]
+
+                fgroup = f[var_name_hdf5]
+
+                if var_name_hdf5 in f or var_name_hdf5 in f['acquisition']:
+                    if subindices is None:
+                        images = np.array(fgroup).squeeze()
                     else:
-                        logging.debug('KEYS:' + str(f.keys()))
-                        raise Exception('Key not found in hdf5 file')
+                        if type(subindices).__module__ == 'numpy':
+                            subindices = subindices.tolist()
+                        if len(fgroup.shape) > 3:
+                            logging.warning(f'fgroup.shape has dimensionality greater than 3 {fgroup.shape} in load')
+                        images = np.array(fgroup[subindices]).squeeze()
+
+                    return movie(images.astype(outtype))
+                else:
+                    logging.debug('KEYS:' + str(f.keys()))
+                    raise Exception('Key not found in n5 or zarr file')
 
         elif extension == '.mmap':
-
             filename = os.path.split(file_name)[-1]
             Yr, dims, T = load_memmap(
                 os.path.join(                  # type: ignore # same dims typing issue as above
@@ -1729,20 +1731,7 @@ def load(file_name: Union[str, List[str]],
                 return movie(sbxread(file_name[:-4], k=0, n_frames=np.inf), fr=fr).astype(outtype)
 
         elif extension == '.sima':
-            if not HAS_SIMA:
-                raise Exception("sima module unavailable")
-
-            dataset = sima.ImagingDataset.load(file_name)
-            frame_step = 1000
-            if subindices is None:
-                input_arr = np.empty(
-                    (dataset.sequences[0].shape[0], dataset.sequences[0].shape[2], dataset.sequences[0].shape[3]),
-                    dtype=outtype)
-                for nframe in range(0, dataset.sequences[0].shape[0], frame_step):
-                    input_arr[nframe:nframe + frame_step] = np.array(
-                        dataset.sequences[0][nframe:nframe + frame_step, 0, :, :, 0]).astype(outtype).squeeze()
-            else:
-                input_arr = np.array(dataset.sequences[0])[subindices, :, :, :, :].squeeze()
+            raise Exception("movies.py:load(): FATAL: sima support was removed in 1.9.8")
 
         else:
             raise Exception('Unknown file type')
@@ -1822,6 +1811,50 @@ def load_movie_chain(file_list: List[str],
         mov.append(m)
     return ts.concatenate(mov, axis=0)
 
+####
+# This is only used for demo_behavior, and used to be part of cm.load(), activated with the
+# 'is_behavior' boolean flag.
+
+def _load_behavior(file_name:str) -> Any:
+	# This is custom code (that used to belong to movies.load() above, once activated by
+	# the undocumented "is_behavior" flag, to perform a custom load of data from an hdf5 file
+	# with a particular inner structure. The keys in that file are things like trial_1, trial_12, ..
+	# I refactored this out of load() to improve clarity of that function and to make it more clear
+	# that user code should not do things that way.
+
+    if not isinstance(file_name, str):
+        raise Exception(f'Invalid type in _load_behavior(); please do not use this function outside of demo_behavior.py')
+    if os.path.exists(file_name):
+        _, extension = os.path.splitext(file_name)[:2]
+        extension = extension.lower()
+        if extension == '.h5':
+            with h5py.File(file_name, "r") as f:
+                kk = list(f.keys())
+                kk.sort(key=lambda x: int(x.split('_')[-1]))
+                input_arr = []
+                for trial in kk:
+                    logging.info('Loading ' + trial)
+                    input_arr.append(np.array(f[trial]['mov']))
+
+                input_arr = np.vstack(input_arr)
+        else:
+            raise Exception(f'_load_behavior() only accepts hdf5 files formatted a certain way. Please do not use this function.')
+ 
+    else:
+        logging.error(f"File request:[{file_name}] not found!")
+        raise Exception(f'File {file_name} not found!')
+
+    # Defaults from movies.load() at time this was refactored out
+    fr = float(30)
+    start_time = float(0)
+    meta_data = dict()
+    outtype = np.float32
+    # Wrap it up
+    return movie(input_arr.astype(outtype),
+                 fr=fr,
+                 start_time=start_time,
+                 file_name=os.path.split(file_name)[-1],
+                 meta_data=meta_data)
 
 ####
 # TODO: Consider pulling these functions that work with .mat files into a separate file
@@ -2165,8 +2198,6 @@ def load_iter(file_name, subindices=None, var_name_hdf5: str = 'mov', outtype=np
 
     Raises:
         Exception 'Subindices not implemented'
-
-        Exception 'sima module unavailable'
 
         Exception 'Unknown file type'
 

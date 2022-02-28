@@ -480,7 +480,7 @@ def recursively_save_dict_contents_to_group(h5file:h5py.File, path:str, dic:Dict
         if key in ['groups', 'idx_tot', 'ind_A', 'Ab_epoch', 'coordinates',
                    'loaded_model', 'optional_outputs', 'merged_ROIs', 'tf_in',
                    'tf_out', 'empty_merged']:
-            logging.info('Key {} is not saved.'.format(key))
+            logging.info(f'Key {key} is not saved')
             continue
 
         if isinstance(item, (list, tuple)):
@@ -491,21 +491,25 @@ def recursively_save_dict_contents_to_group(h5file:h5py.File, path:str, dic:Dict
         if not isinstance(key, str):
             raise ValueError("dict keys must be strings to save to hdf5")
         # save strings, numpy.int64, numpy.int32, and numpy.float64 types
-        if isinstance(item, (np.int64, np.int32, np.float64, str, np.float, float, np.float32,int)):
-            h5file[path + key] = item
-            logging.debug('Saving {}'.format(key))
+        if isinstance(item, str):
+            h5file.create_dataset(path + key, (), h5py.string_dtype(), item)
             if not h5file[path + key][()] == item:
-                raise ValueError('Error while saving {}.'.format(key))
+                raise ValueError(f'Error (v {h5py.__version__}) while saving string {path + key}: assigned value {h5file[path + key][()]} does not match intended value {item}')
+        elif isinstance(item, (np.int64, np.int32, np.float64, np.float, float, np.float32, int)):
+            h5file[path + key] = item
+            logging.debug(f'Saving numeric {path + key}')
+            if not h5file[path + key][()] == item:
+                raise ValueError(f'Error (v {h5py.__version__}) while saving numeric {path + key}: assigned value {h5file[path + key][()]} does not match intended value {item}')
         # save numpy arrays
         elif isinstance(item, np.ndarray):
-            logging.debug('Saving {}'.format(key))
+            logging.debug(f'Saving {key}')
             try:
                 h5file[path + key] = item
             except:
                 item = np.array(item).astype('|S32')
                 h5file[path + key] = item
             if not np.array_equal(h5file[path + key][()], item):
-                raise ValueError('Error while saving {}.'.format(key))
+                raise ValueError(f'Error while saving ndarray {key}')
         # save dictionaries
         elif isinstance(item, dict):
             recursively_save_dict_contents_to_group(h5file, path + key + '/', item)
