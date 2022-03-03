@@ -38,7 +38,8 @@ import tifffile
 from tqdm import tqdm
 from typing import Any, Dict, List, Tuple, Union
 import warnings
-import z5py
+# Flip to normal import if this is ever resolved: https://github.com/constantinpape/z5/issues/146
+# import z5py
 from zipfile import ZipFile
 
 import caiman as cm
@@ -1288,7 +1289,7 @@ class movie(ts.timeseries):
             im.axes.figure.canvas.draw()
             pl.pause(1)
 
-        if backend == 'notebook':
+        elif backend == 'notebook':
             # First set up the figure, the axis, and the plot element we want to animate
             fig = pl.figure()
             im = pl.imshow(self[0], interpolation='None', cmap=pl.cm.gray)
@@ -1685,6 +1686,10 @@ def load(file_name: Union[str, List[str]],
                     raise Exception('Key not found in hdf5 file')
 
         elif extension in ('.n5', '.zarr'):
+           try:
+               import z5py
+           except ImportError:
+               raise Exception("z5py library not available; if you need this functionality use the conda package")
            with z5py.File(file_name, "r") as f:
                 fkeys = list(f.keys())
                 if len(fkeys) == 1: # If the n5/zarr file we're parsing has only one dataset inside it, ignore the arg and pick that dataset
