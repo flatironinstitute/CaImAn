@@ -35,7 +35,8 @@ from scipy.sparse import spdiags, issparse, csc_matrix, csr_matrix
 import scipy.ndimage.morphology as morph
 import tifffile
 from typing import List
-import z5py
+# https://github.com/constantinpape/z5/issues/146
+#import z5py
 
 from .initialization import greedyROI
 from ...base.rois import com
@@ -1029,6 +1030,11 @@ def get_file_size(file_name, var_name_hdf5='mov'):
                         raise Exception('Variable not found. Use one of the above')
                 T, dims = siz[0], siz[1:]
             elif extension in ('.n5', '.zarr'):
+                try:
+                    import z5py
+                except:
+                    raise Exception("z5py not available; if you need this use the conda-based setup")
+
                 with z5py.File(file_name, "r") as f:
                     kk = list(f.keys())
                     if len(kk) == 1:
