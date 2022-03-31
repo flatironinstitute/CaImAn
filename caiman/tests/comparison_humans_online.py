@@ -41,7 +41,7 @@ from builtins import str
 try:
     cv2.setNumThreads(1)
 except:
-    print('Open CV is naturally single threaded')
+    print('OpenCV is naturally single threaded')
 
 logging.basicConfig(format=
                     "%(relativeCreated)12d [%(filename)s:%(funcName)20s():%(lineno)s]"\

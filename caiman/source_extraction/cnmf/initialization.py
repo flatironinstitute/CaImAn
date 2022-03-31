@@ -1034,7 +1034,7 @@ def imblur(Y, sig=5, siz=11, nDimBlur=None, kernel=None, opencv=True):
             if you want to specify a kernel
 
         opencv: [optional]
-            if you want to process to the blur using open cv method
+            if you want to process to the blur using OpenCV method
 
     Returns:
         the blurred image

@@ -359,7 +359,7 @@ class CNMF(object):
                 # sub-optimal behavior. See
                 # https://github.com/flatironinstitute/CaImAn/pull/618#discussion_r313960370
                 # for further details.
-                # b0 = 0 if self.params.get('motion', 'border_nan') is 'copy' else 0
+                # b0 = 0 if self.params.get('motion', 'border_nan') == 'copy' else 0
                 b0 = 0
                 fname_new = mmapping.save_memmap(fname_mc, base_name=base_name, order='C',
                                                  border_to_0=b0)

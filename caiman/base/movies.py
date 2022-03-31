@@ -658,7 +658,7 @@ class movie(ts.timeseries):
         movBL = np.percentile(movBL, quantilMin, axis=0)
         logging.debug("interpolating data ...")
         sys.stdout.flush()
-        logging.debug("movBL shape is " + str(movBL.shape))
+        logging.debug(f"movBL shape is {movBL.shape}")
         movBL = scipy.ndimage.zoom(np.array(movBL, dtype=np.float32), [downsampfact, 1, 1],
                                    order=1,
                                    mode='constant',
@@ -1075,7 +1075,7 @@ class movie(ts.timeseries):
                 t, h, w = self.shape
                 newshape = (int(w * fy), int(h * fx))
                 mov = []
-                logging.debug("New shape is " + str(newshape))
+                logging.debug(f"New shape is {newshape}")
                 for frame in self:
                     mov.append(cv2.resize(frame, newshape, fx=fx, fy=fy, interpolation=interpolation))
                 self = movie(np.asarray(mov), **self.__dict__)

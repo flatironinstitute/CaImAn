@@ -162,7 +162,7 @@ def apply_to_patch(mmap_file, shape: Tuple[Any, Any, Any], dview, rf, stride, fu
     if d2 <= rf2 * 2:
         shape_grid = (shape_grid[0], 1)
 
-    logger.debug("Shape of grid is " + str(shape_grid))
+    logger.debug(f"Shape of grid is {shape_grid}")
 
     args_in = []
 
