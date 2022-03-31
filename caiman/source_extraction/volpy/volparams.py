@@ -4,7 +4,7 @@ import numpy as np
 class volparams(object):
 
     def __init__(self, fnames=None, fr=None, index=None, ROIs=None, weights=None,
-                 context_size=35, censor_size=12, visualize_ROI=False, flip_signal=True, 
+                 template_size=0.02, context_size=35, censor_size=12, visualize_ROI=False, flip_signal=True, 
                  hp_freq_pb=1/3, nPC_bg=8, ridge_bg=0.01, hp_freq=1, clip=100, 
                  threshold_method='adaptive_threshold', min_spikes=10, pnorm=0.5, threshold=3, 
                  sigmas=np.array([1, 1.5, 2]), n_iter=2, weight_update='ridge', do_plot=False,  
@@ -23,6 +23,7 @@ class volparams(object):
         }
 
         self.volspike = {
+            'template_size': template_size, # half size of the window length for spike templates, default is 20 ms 
             'context_size': context_size, #number of pixels surrounding the ROI to use as context
             'censor_size': censor_size, # number of pixels surrounding the ROI to censor from the background PCA;
             # roughly the spatial scale of scattered/dendritic neural signals, in pixels.
