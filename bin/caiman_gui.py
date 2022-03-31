@@ -22,7 +22,7 @@ app = QtGui.QApplication([])
 try:
     cv2.setNumThreads(1)
 except:
-    print('Open CV is naturally single threaded')
+    print('OpenCV is naturally single threaded')
 
 try:
     if __IPYTHON__:
