@@ -1020,7 +1020,7 @@ def load_CNMF(filename, n_processes=1, dview=None):
                 estims = Estimates()
                 for kk, vv in val.items():
                     if kk == 'discarded_components':
-                        if vv is not None:
+                        if vv is not None and vv != b'NoneType':
                             discarded_components = Estimates()
                             for kk__, vv__ in vv.items():
                                 setattr(discarded_components, kk__, vv__)

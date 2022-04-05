@@ -492,10 +492,11 @@ def recursively_save_dict_contents_to_group(h5file:h5py.File, path:str, dic:Dict
             raise ValueError("dict keys must be strings to save to hdf5")
         # save strings, numpy.int64, numpy.int32, and numpy.float64 types
         if isinstance(item, str):
-            h5file.create_dataset(path + key, (), h5py.string_dtype(), item)
-            if not h5file[path + key][()] == item:
-                raise ValueError(f'Error (v {h5py.__version__}) while saving string {path + key}: assigned value {h5file[path + key][()]} does not match intended value {item}')
+            if path not in h5file:
+                h5file.create_group(path)
+            h5file[path].attrs[key] = item
         elif isinstance(item, (np.int64, np.int32, np.float64, np.float, float, np.float32, int)):
+            # TODO In the future we may store all scalars, including these, as attributes too, although strings suffer the most from being stored as datasets
             h5file[path + key] = item
             logging.debug(f'Saving numeric {path + key}')
             if not h5file[path + key][()] == item:
@@ -533,17 +534,23 @@ def recursively_save_dict_contents_to_group(h5file:h5py.File, path:str, dic:Dict
 
 
 def recursively_load_dict_contents_from_group(h5file:h5py.File, path:str) -> Dict:
-    '''load dictionary from hdf5 object
+    ''' load dictionary from hdf5 object
     Args:
         h5file: hdf5 object
             object where dictionary is stored
         path: str
             path within the hdf5 file
+
+    Starting with Caiman 1.9.9 we started saving strings as attributes rather than independent datasets,
+    which gets us a better syntax and less damage to the strings, at the cost of scanning properly for them
+    being a little more involved. In future versions of Caiman we may store all scalars as attributes.
     '''
 
     ans:Dict = {}
-    for key, item in h5file[path].items():
+    for akey, aitem in h5file[path].attrs.items():
+        ans[akey] = aitem
 
+    for key, item in h5file[path].items():
         if isinstance(item, h5py._hl.dataset.Dataset):
             val_set = np.nan
             if isinstance(item[()], str):
