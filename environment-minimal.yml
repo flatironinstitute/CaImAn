@@ -4,7 +4,7 @@ dependencies:
 - python >=3.9
 - cython
 - future
-- h5py >=2.10.0,<3
+- h5py
 - holoviews
 - ipyparallel
 - matplotlib
