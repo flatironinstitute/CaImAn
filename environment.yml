@@ -26,7 +26,7 @@ dependencies:
 - scikit-image >=0.19.0
 - scikit-learn
 - scipy
-- tensorflow
+- tensorflow >= 2.4.0
 - tifffile
 - tk
 - tqdm
