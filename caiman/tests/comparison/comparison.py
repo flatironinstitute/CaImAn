@@ -433,7 +433,7 @@ def deletesparse(cnm):
             val = deletesparse(val)
         if not isinstance(val, scipy.sparse.coo.coo_matrix) and not isinstance(val, np.ndarray) \
                 and not isinstance(val, scipy.sparse.csc.csc_matrix) and not keys == 'dview':
-            logging.debug("type of val is " + str(type(val)))
+            logging.debug(f"type of val is {type(val)}")
             cnm[keys] = val
         else:
 

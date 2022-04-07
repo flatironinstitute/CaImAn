@@ -168,11 +168,11 @@ def main():
         with h5py.File(path_ROIs, 'r') as fl:
             ROIs = fl['mov'][()]  
 
-    elif method == 'maskrcnn':                 # Important!! Make sure install keras before using mask rcnn. 
-        weights_path = download_model('mask_rcnn')    # also make sure you have downloaded the new weight. The weight was updated on Dec 1st 2020.
+    elif method == 'maskrcnn':                 
+        weights_path = download_model('mask_rcnn')    
         ROIs = utils.mrcnn_inference(img=summary_images.transpose([1, 2, 0]), size_range=[5, 22],
                                      weights_path=weights_path, display_result=True) # size parameter decides size range of masks to be selected
-        cm.movie(ROIs).save(fnames[:-5] + 'mrcnn_ROIs.hdf5')
+        cm.movie(ROIs).save(fnames[:-5] + '_mrcnn_ROIs.hdf5')
 
     elif method == 'gui_annotation':
         # run volpy_gui.py file in the caiman/source_extraction/volpy folder
@@ -194,6 +194,7 @@ def main():
     index = list(range(len(ROIs)))                # index of neurons
     weights = None                                # if None, use ROIs for initialization; to reuse weights check reuse weights block 
 
+    template_size = 0.02                          # half size of the window length for spike templates, default is 20 ms 
     context_size = 35                             # number of pixels surrounding the ROI to censor from the background PCA
     visualize_ROI = False                         # whether to visualize the region of interest inside the context region
     flip_signal = True                            # Important!! Flip signal or not, True for Voltron indicator, False for others
@@ -213,6 +214,7 @@ def main():
                'ROIs': ROIs,
                'index': index,
                'weights': weights,
+               'template_size': template_size, 
                'context_size': context_size,
                'visualize_ROI': visualize_ROI, 
                'flip_signal': flip_signal,

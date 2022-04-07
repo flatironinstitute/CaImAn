@@ -3019,7 +3019,7 @@ def tile_and_correct_wrapper(params):
     try:
         cv2.setNumThreads(0)
     except:
-        pass  # 'Open CV is naturally single threaded'
+        pass  # 'OpenCV is naturally single threaded'
 
     img_name, out_fname, idxs, shape_mov, template, strides, overlaps, max_shifts,\
         add_to_movie, max_deviation_rigid, upsample_factor_grid, newoverlaps, newstrides, \

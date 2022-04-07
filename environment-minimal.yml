@@ -4,7 +4,7 @@ dependencies:
 - python >=3.9
 - cython
 - future
-- h5py >=2.10.0,<3
+- h5py
 - holoviews
 - ipyparallel
 - matplotlib
@@ -17,7 +17,7 @@ dependencies:
 - scikit-image >=0.19.0
 - scikit-learn
 - scipy
-- tensorflow
+- tensorflow >= 2.4.0
 - tifffile
 - tqdm
 - z5py

@@ -359,7 +359,7 @@ class CNMF(object):
                 # sub-optimal behavior. See
                 # https://github.com/flatironinstitute/CaImAn/pull/618#discussion_r313960370
                 # for further details.
-                # b0 = 0 if self.params.get('motion', 'border_nan') is 'copy' else 0
+                # b0 = 0 if self.params.get('motion', 'border_nan') == 'copy' else 0
                 b0 = 0
                 fname_new = mmapping.save_memmap(fname_mc, base_name=base_name, order='C',
                                                  border_to_0=b0)
@@ -1020,7 +1020,7 @@ def load_CNMF(filename, n_processes=1, dview=None):
                 estims = Estimates()
                 for kk, vv in val.items():
                     if kk == 'discarded_components':
-                        if vv is not None:
+                        if vv is not None and vv != b'NoneType':
                             discarded_components = Estimates()
                             for kk__, vv__ in vv.items():
                                 setattr(discarded_components, kk__, vv__)

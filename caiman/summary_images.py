@@ -90,7 +90,7 @@ def local_correlations_fft(Y,
             and moves it in the front
     
         opencv: Boolean
-            If True process using open cv method
+            If True process using OpenCV method
 
         rolling_window: (undocumented)
 

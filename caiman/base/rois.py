@@ -869,7 +869,7 @@ def link_neurons(matches: List[List[Tuple]],
             neurons.append(neuron)
 
     neurons = np.array(neurons).T
-    logging.info(('num_neurons:' + str(num_neurons)))
+    logging.info(f'num_neurons: {num_neurons}')
     return neurons
 
 

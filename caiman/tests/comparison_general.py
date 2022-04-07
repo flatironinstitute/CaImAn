@@ -233,7 +233,7 @@ def test_general():
     gSig = params_movie['gSig']
 
     if params_movie['is_dendrites'] == True:
-        if params_movie['init_method'] is not 'sparse_nmf':
+        if params_movie['init_method'] != 'sparse_nmf':
             raise Exception('dendritic requires sparse_nmf')
         if params_movie['alpha_snmf'] is None:
             raise Exception('need to set a value for alpha_snmf')
