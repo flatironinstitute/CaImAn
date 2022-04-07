@@ -168,11 +168,11 @@ def main():
         with h5py.File(path_ROIs, 'r') as fl:
             ROIs = fl['mov'][()]  
 
-    elif method == 'maskrcnn':                 # Important!! Make sure install keras before using mask rcnn. 
-        weights_path = download_model('mask_rcnn')    # also make sure you have downloaded the new weight. The weight was updated on Dec 1st 2020.
+    elif method == 'maskrcnn':                 
+        weights_path = download_model('mask_rcnn')    
         ROIs = utils.mrcnn_inference(img=summary_images.transpose([1, 2, 0]), size_range=[5, 22],
                                      weights_path=weights_path, display_result=True) # size parameter decides size range of masks to be selected
-        cm.movie(ROIs).save(fnames[:-5] + 'mrcnn_ROIs.hdf5')
+        cm.movie(ROIs).save(fnames[:-5] + '_mrcnn_ROIs.hdf5')
 
     elif method == 'gui_annotation':
         # run volpy_gui.py file in the caiman/source_extraction/volpy folder
