@@ -381,7 +381,7 @@ class Estimates(object):
 
         plt.ion()
         nr, T = self.C.shape
-        if self.R is None:
+        if self.R is None or self.R == b'NoneType':
             self.R = self.YrA
         if self.R.shape != [nr, T]:
             if self.YrA is None:
@@ -433,7 +433,7 @@ class Estimates(object):
 
         plt.ion()
         nr, T = self.C.shape
-        if self.R is None:
+        if self.R is None or self.R == b'NoneType':
             self.R = self.YrA
         if self.R.shape != [nr, T]:
             if self.YrA is None:
@@ -500,7 +500,7 @@ class Estimates(object):
             dims = self.dims
         plt.ion()
         nr, T = self.C.shape
-        if self.R is None:
+        if self.R is None or self.R == b'NoneType':
             self.R = self.YrA
         if self.R.shape != [nr, T]:
             if self.YrA is None:
