@@ -223,9 +223,9 @@ def start_server(slurm_script: str = None, ipcluster: str = "ipcluster", ncpus: 
     if slurm_script is None:
 
         if ipcluster == "ipcluster":
-            subprocess.Popen("ipcluster start -n {0}".format(ncpus), shell=True, close_fds=(os.name != 'nt'))
+            subprocess.Popen(f"ipcluster start -n {ncpus}", shell=True, close_fds=(os.name != 'nt'))
         else:
-            subprocess.Popen(shlex.split("{0} start -n {1}".format(ipcluster, ncpus)),
+            subprocess.Popen(shlex.split(f"{ipcluster} start -n {ncpus}"),
                              shell=True,
                              close_fds=(os.name != 'nt'))
         time.sleep(1.5)

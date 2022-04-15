@@ -438,8 +438,8 @@ class MotionCorrect(object):
         if rigid_shifts is not None:
             logging.warning('The rigid_shifts flag is deprecated and it is ' +
                             'being ignored. The value is read directly from' +
-                            ' mc.pw_rigid and is current set to the opposite' +
-                            ' of {}'.format(self.pw_rigid))            
+                            ' mc.pw_rigid and is currently set to the opposite' +
+                            f' of {self.pw_rigid}')
         
         if self.pw_rigid is False:
             if self.is3D:
@@ -3097,7 +3097,7 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
     dims, T = cm.source_extraction.cnmf.utilities.get_file_size(fname, var_name_hdf5=var_name_hdf5)
     z = np.zeros(dims)
     dims = z[indices].shape
-    logging.debug('Number of Splits: {}'.format(splits))
+    logging.debug(f'Number of Splits: {splits}')
     if isinstance(splits, int):
         if subidx is None:
             rng = range(T)
@@ -3110,7 +3110,7 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
         idxs = splits
         save_movie = False
     if template is None:
-        raise Exception('Not implemented')
+        raise Exception('motion_correction_piecewise(): Templateless not implemented')
     
     shape_mov = (np.prod(dims), T)
 #    if is3D:
@@ -3133,13 +3133,13 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
 
         np.memmap(fname_tot, mode='w+', dtype=np.float32,
                   shape=prepare_shape(shape_mov), order=order)
-        logging.info('Saving file as {}'.format(fname_tot))
+        logging.info(f'Saving file as {fname_tot}')
     else:
         fname_tot = None
 
     pars = []
     for idx in idxs:
-        logging.debug('Processing: frames: {}'.format(idx))
+        logging.debug(f'Processing: frames: {idx}')
         pars.append([fname, fname_tot, idx, shape_mov, template, strides, overlaps, max_shifts, np.array(
             add_to_movie, dtype=np.float32), max_deviation_rigid, upsample_factor_grid,
             newoverlaps, newstrides, shifts_opencv, nonneg_movie, gSig_filt, is_fiji,
