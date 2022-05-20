@@ -455,7 +455,7 @@ def construct_ellipse_parallel(pars):
     return np.sqrt(np.sum([old_div((dist_cm * V[:, k]) ** 2, dkk[k]) for k in range(len(dkk))], 0)) <= dist
 
 def threshold_components(A, dims, medw=None, thr_method='max', maxthr=0.1, nrgthr=0.9999, extract_cc=True,
-                         se=None, ss=None, dview=None):
+                         se=None, ss=None, dview=None) -> np.ndarray:
     """
     Post-processing of spatial components which includes the following steps
 
