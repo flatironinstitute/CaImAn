@@ -3125,6 +3125,8 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
     if save_movie:
         if base_name is None:
             base_name = os.path.split(fname)[1][:-4]
+        base_name = caiman.paths.fn_relocated(base_name)
+
         fname_tot:Optional[str] = caiman.paths.memmap_frames_filename(base_name, dims, T, order)
         if isinstance(fname, tuple):
             fname_tot = os.path.join(os.path.split(fname[0])[0], fname_tot)
