@@ -381,7 +381,7 @@ class Estimates(object):
 
         plt.ion()
         nr, T = self.C.shape
-        if self.R is None:
+        if self.R is None or self.R == b'NoneType':
             self.R = self.YrA
         if self.R.shape != [nr, T]:
             if self.YrA is None:
@@ -433,7 +433,7 @@ class Estimates(object):
 
         plt.ion()
         nr, T = self.C.shape
-        if self.R is None:
+        if self.R is None or self.R == b'NoneType':
             self.R = self.YrA
         if self.R.shape != [nr, T]:
             if self.YrA is None:
@@ -500,7 +500,7 @@ class Estimates(object):
             dims = self.dims
         plt.ion()
         nr, T = self.C.shape
-        if self.R is None:
+        if self.R is None or self.R == b'NoneType':
             self.R = self.YrA
         if self.R.shape != [nr, T]:
             if self.YrA is None:
@@ -1421,7 +1421,7 @@ class Estimates(object):
                 indeces of components with size within the acceptable range
         '''
         if self.A_thr is None:
-            raise Exception('You need to compute thresolded components before calling remove_duplicates: use the threshold_components method')
+            raise Exception('You need to compute thresholded components before calling remove_duplicates: use the threshold_components method')
 
         A_gt_thr_bin = self.A_thr.toarray() > 0
         size_neurons_gt = A_gt_thr_bin.sum(0)
@@ -1451,7 +1451,7 @@ class Estimates(object):
             plot_duplicates
         '''
         if self.A_thr is None:
-            raise Exception('You need to compute thresolded components before calling remove_duplicates: use the threshold_components method')
+            raise Exception('You need to compute thresholded components before calling remove_duplicates: use the threshold_components method')
 
         A_gt_thr_bin = (self.A_thr.toarray() > 0).reshape([self.dims[0], self.dims[1], -1], order='F').transpose([2, 0, 1]) * 1.
 
@@ -1492,7 +1492,7 @@ class Estimates(object):
         """
         if self.A_thr is None:
             raise Exception(
-                'You need to compute thresolded components before calling this method: use the threshold_components method')
+                'You need to compute thresholded components before calling this method: use the threshold_components method')
         bin_masks = self.A_thr.reshape([self.dims[0], self.dims[1], -1], order='F').transpose([2, 0, 1])
         return nf_masks_to_neurof_dict(bin_masks, dataset_name)
 
@@ -1711,10 +1711,10 @@ def compare_components(estimate_gt, estimate_cmp,  Cn=None, thresh_cost=.8, min_
                        labels=['GT', 'CMP'], plot_results=False):
     if estimate_gt.A_thr is None:
         raise Exception(
-            'You need to compute thresolded components for first argument before calling remove_duplicates: use the threshold_components method')
+            'You need to compute thresholded components for first argument before calling remove_duplicates: use the threshold_components method')
     if estimate_cmp.A_thr is None:
         raise Exception(
-            'You need to compute thresolded components for second argument before calling remove_duplicates: use the threshold_components method')
+            'You need to compute thresholded components for second argument before calling remove_duplicates: use the threshold_components method')
 
     if plot_results:
         plt.figure(figsize=(20, 10))

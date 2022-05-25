@@ -299,7 +299,7 @@ def evaluate_components_CNN(A,
                 model_file = model_name + ".json"
                 model_weights = model_name + ".h5"
             else:
-                raise FileNotFoundError("File for requested model {} not found".format(model_name))
+                raise FileNotFoundError(f"File for requested model {model_name} not found")
             with open(model_file, 'r') as json_file:
                 print('USING MODEL:' + model_file)
                 loaded_model_json = json_file.read()
@@ -313,7 +313,7 @@ def evaluate_components_CNN(A,
             elif os.path.isfile(model_name + ".h5.pb"):
                 model_file = model_name + ".h5.pb"
             else:
-                raise FileNotFoundError("File for requested model {} not found".format(model_name))
+                raise FileNotFoundError(f"File for requested model {model_name} not found")
             loaded_model = load_graph(model_file)
 
         logging.debug("Loaded model from disk")

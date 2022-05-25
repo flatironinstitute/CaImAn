@@ -1014,8 +1014,9 @@ def get_file_size(file_name, var_name_hdf5='mov'):
                 # FIXME this doesn't match the logic in movies.py:load()
                 # Consider pulling a lot of the "data source" code out into one place
                 with h5py.File(file_name, "r") as f:
-                    kk = list(f.keys())
-                    if len(kk) == 1:
+                    ignore_keys = ['__DATA_TYPES__'] # Known metadata that tools provide, add to this as needed. Sync with movies.my:load() !!
+                    kk = list(filter(lambda x: x not in ignore_keys, f.keys()))
+                    if len(kk) == 1 and 'Dataset' in str(type(f[kk[0]])): # TODO: Consider recursing into a group to find a dataset
                         siz = f[kk[0]].shape
                     elif var_name_hdf5 in f:
                         if extension == '.nwb':

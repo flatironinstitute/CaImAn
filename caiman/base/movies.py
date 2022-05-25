@@ -1657,9 +1657,13 @@ def load(file_name: Union[str, List[str]],
                 return movie(**f).astype(outtype)
 
         elif extension in ('.hdf5', '.h5', '.nwb'):
+           # TODO: Merge logic here with utilities.py:get_file_size()
            with h5py.File(file_name, "r") as f:
-                fkeys = list(f.keys())
-                if len(fkeys) == 1: # If the hdf5 file we're parsing has only one dataset inside it, ignore the arg and pick that dataset
+                ignore_keys = ['__DATA_TYPES__'] # Known metadata that tools provide, add to this as needed. Sync with utils.py:get_file_size() !!
+                fkeys = list(filter(lambda x: x not in ignore_keys, f.keys()))
+                if len(fkeys) == 1 and 'Dataset' in str(type(f[fkeys[0]])): # If the hdf5 file we're parsing has only one dataset inside it,
+                                                                            # ignore the arg and pick that dataset
+                                                                            # TODO: Consider recursing into a group to find a dataset
                     var_name_hdf5 = fkeys[0]
 
                 if extension == '.nwb': # Apparently nwb files are specially-formatted hdf5 files

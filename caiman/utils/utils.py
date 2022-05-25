@@ -544,6 +544,10 @@ def recursively_load_dict_contents_from_group(h5file:h5py.File, path:str) -> Dic
     Starting with Caiman 1.9.9 we started saving strings as attributes rather than independent datasets,
     which gets us a better syntax and less damage to the strings, at the cost of scanning properly for them
     being a little more involved. In future versions of Caiman we may store all scalars as attributes.
+
+    There's some special casing here that should be solved in a more general way; anything serialised into
+    hdf5 and then deserialised should probably go back through the class constructor, and revalidated
+    so all the fields end up with appropriate data types.
     '''
 
     ans:Dict = {}
@@ -560,7 +564,6 @@ def recursively_load_dict_contents_from_group(h5file:h5py.File, path:str) -> Dic
                     ans[key] = item[()]
 
             elif key in ['dims', 'medw', 'sigma_smooth_snmf', 'dxy', 'max_shifts', 'strides', 'overlaps']:
-
                 if isinstance(item[()], np.ndarray):
                     ans[key] = tuple(item[()])
                 else:
@@ -570,6 +573,8 @@ def recursively_load_dict_contents_from_group(h5file:h5py.File, path:str) -> Dic
                     ans[key] = bool(item[()])
                 else:
                     ans[key] = item[()]
+                    if isinstance(ans[key], bytes) and ans[key] == b'NoneType':
+                        ans[key] = None
 
         elif isinstance(item, h5py._hl.group.Group):
             if key in ('A', 'W', 'Ab', 'downscale_matrix', 'upscale_matrix'):
