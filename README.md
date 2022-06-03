@@ -18,7 +18,7 @@ Right now, CaImAn works and is supported on the following platforms:
 
 16G RAM is required for a good experience, and depending on datasets, 32G or more may be necessary.
 
-CaImAn presently targets Python 3.8. Parts of CaImAn are written in C++, but apart possibly during install, this is not visible to the user. There is also an [older implementation](https://github.com/flatironinstitute/CaImAn-MATLAB) of CaImAn in Matlab (unsupported). That version can be used with [MCMC spike inference](https://github.com/epnev/continuous_time_ca_sampler) 
+CaImAn presently targets Python 3.9. Parts of CaImAn are written in C++, but apart possibly during install, this is not visible to the user. There is also an [older implementation](https://github.com/flatironinstitute/CaImAn-MATLAB) of CaImAn in Matlab (unsupported). That version can be used with [MCMC spike inference](https://github.com/epnev/continuous_time_ca_sampler) 
 
 ### Other hardware
 * ARM-based versions of Apple hardware work (if on a 16G model), but currently happen under x86 emulation and we cannot support them as well. A native OSX port is planned for late 2021/early 2022.
@@ -27,7 +27,7 @@ CaImAn presently targets Python 3.8. Parts of CaImAn are written in C++, but apa
 
 ## Install
 
-The supported ways to install CaImAn use the Anaconda python distribution. If you do not already have it, first install a 3.x version for your platform from [here](https://docs.conda.io/en/latest/miniconda.html). Familiarise yourself with Conda before going further.
+The supported ways to install CaImAn use the Anaconda python distribution. If you do not already have it, first install a 3.x version for your platform from [here](https://docs.conda.io/en/latest/miniconda.html). Familiarise yourself with Conda before going further. If you are using an M1-based Mac, please ignore the ARM builds of conda; install an x86 version instead (ignore any warnings you get while doing so; it will work fine).
 
 We strongly recommend installing the mamba package into your base environment, with 'conda install -c conda-forge mamba', using it to build your conda environment. Mamba performs the same environment creation tasks that the base conda tool does, but far faster. In the instructions below, we assume you're using mamba, but if you're not, you can run the same commands with the conda tool instead.
 
