@@ -1031,6 +1031,8 @@ def load_CNMF(filename, n_processes=1, dview=None):
                 setattr(new_obj, key, estims)
             else:
                 setattr(new_obj, key, val)
+        if new_obj.estimates.dims is None or new_obj.estimates.dims == b'NoneType':
+            new_obj.estimates.dims = new_obj.dims
     elif os.path.splitext(filename)[1].lower() == '.nwb':
         from pynwb import NWBHDF5IO
         with NWBHDF5IO(filename, 'r') as io:
