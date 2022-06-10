@@ -344,6 +344,7 @@ class CNMF(object):
             if np.isfortran(Yr):
                 raise Exception('The file should be in C order (see save_memmap function)')
         else:
+            data_set_name = self.params.get('data', 'var_name_hdf5')
             if motion_correct:
                 mc = MotionCorrect(fnames, dview=self.dview, **self.params.motion)
                 mc.motion_correct(save_movie=True)
@@ -362,9 +363,9 @@ class CNMF(object):
                 # b0 = 0 if self.params.get('motion', 'border_nan') == 'copy' else 0
                 b0 = 0
                 fname_new = mmapping.save_memmap(fname_mc, base_name=base_name, order='C',
-                                                 border_to_0=b0)
+                                                 var_name_hdf5=data_set_name, border_to_0=b0)
             else:
-                fname_new = mmapping.save_memmap(fnames, base_name=base_name, order='C')
+                fname_new = mmapping.save_memmap(fnames, base_name=base_name, var_name_hdf5=data_set_name, order='C')
             Yr, dims, T = mmapping.load_memmap(fname_new)
 
         images = np.reshape(Yr.T, [T] + list(dims), order='F')
@@ -420,8 +421,6 @@ class CNMF(object):
     def fit(self, images, indices=(slice(None), slice(None))):
         """
         This method uses the cnmf algorithm to find sources in data.
-        it is calling every function from the cnmf folder
-        you can find out more at how the functions are called and how they are laid out at the ipython notebook
 
         Args:
             images : mapped np.ndarray of shape (t,x,y[,z]) containing the images that vary over time.
@@ -430,12 +429,6 @@ class CNMF(object):
 
         Returns:
             self: updated using the cnmf algorithm with C,A,S,b,f computed according to the given initial values
-
-        Raises:
-        Exception 'You need to provide a memory mapped file as input if you use patches!!'
-
-        See Also:
-        ..image::docs/img/quickintro.png
 
         http://www.cell.com/neuron/fulltext/S0896-6273(15)01084-3
 
