@@ -740,7 +740,7 @@ def motion_correct_online_multifile(list_files, add_to_movie, order='C', **kwarg
     for file_ in list_files:
         logging.info(('Processing:' + file_))
         kwargs_['template'] = template
-        kwargs_['save_base_name'] = file_[:-4]
+        kwargs_['save_base_name'] = os.path.splitext(file_)[0]
         tffl = tifffile.TiffFile(file_)
         shifts, xcorrs, template, fname_tot = motion_correct_online(
             tffl, add_to_movie, **kwargs_)[0:4]
@@ -2706,7 +2706,7 @@ def compute_metrics_motion_correction(fname, final_size_x, final_size_y, swap_di
     if play_flow and opencv:
         cv2.destroyAllWindows()
 
-    np.savez(fname[:-4] + '_metrics', flows=flows, norms=norms, correlations=correlations, smoothness=smoothness,
+    np.savez(os.path.splitext(fname)[0] + '_metrics', flows=flows, norms=norms, correlations=correlations, smoothness=smoothness,
              tmpl=tmpl, smoothness_corr=smoothness_corr, img_corr=img_corr)
     return tmpl, correlations, flows, norms, smoothness
 
@@ -2827,9 +2827,9 @@ def motion_correct_batch_rigid(fname, max_shifts, dview=None, splits=56, num_spl
 
 
         if isinstance(fname, tuple):
-            base_name=os.path.split(fname[0])[-1][:-4] + '_rig_'
+            base_name=os.path.splitext(os.path.split(fname[0])[-1])[0] + '_rig_'
         else:
-            base_name=os.path.split(fname)[-1][:-4] + '_rig_'
+            base_name=os.path.splitext(os.path.split(fname)[-1])[0] + '_rig_'
 
         fname_tot_rig, res_rig = motion_correction_piecewise(fname, splits, strides=None, overlaps=None,
                                                              add_to_movie=add_to_movie, template=old_templ, max_shifts=max_shifts, max_deviation_rigid=0,
@@ -2957,9 +2957,9 @@ def motion_correct_batch_pwrigid(fname, max_shifts, strides, overlaps, add_to_mo
                     logging.debug(f'saving mmap of {fname}')
 
         if isinstance(fname, tuple):
-            base_name=os.path.split(fname[0])[-1][:-4] + '_els_'
+            base_name=os.path.splitext(os.path.split(fname[0])[-1])[0] + '_els_'
         else:
-            base_name=os.path.split(fname)[-1][:-4] + '_els_'
+            base_name=os.path.splitext(os.path.split(fname)[-1])[0] + '_els_'
 
         fname_tot_els, res_el = motion_correction_piecewise(fname, splits, strides, overlaps,
                                                             add_to_movie=add_to_movie, template=old_templ, max_shifts=max_shifts,
@@ -3124,7 +3124,7 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
 
     if save_movie:
         if base_name is None:
-            base_name = os.path.split(fname)[1][:-4]
+            base_name = os.path.splitext(os.path.split(fname)[1])[0]
         base_name = caiman.paths.fn_relocated(base_name)
 
         fname_tot:Optional[str] = caiman.paths.memmap_frames_filename(base_name, dims, T, order)
