@@ -107,6 +107,10 @@ class Estimates(object):
             ecc: np.ndarray
                 eccentricity values
         """
+        # Sanity checks (right now these just warn, but eventually we would like to fail)
+        if R is not None and not isinstance(R, np.ndarray):
+            logging.warning(f"Estimates.R should be an np.ndarray but was assigned a {type(R)}")
+
         # variables related to the estimates of traces, footprints, deconvolution and background
         self.A = A
         self.C = C
@@ -435,7 +439,7 @@ class Estimates(object):
         nr, T = self.C.shape
         if self.R is None or self.R == b'NoneType':
             self.R = self.YrA
-        if self.R.shape != [nr, T]:
+        if self.R.shape != (nr, T):
             if self.YrA is None:
                 self.compute_residuals(Yr)
             else:
