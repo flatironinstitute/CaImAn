@@ -2179,11 +2179,14 @@ def rolling_window(ndarr, window_size, stride):
                 iterator with views of the input array
                 
         """
-        for i in range(0,ndarr.shape[-1]-window_size-stride+1,stride): 
-            yield ndarr[:,i:np.minimum(i+window_size, ndarr.shape[-1])]
-            
-        if i+stride != ndarr.shape[-1]:
-           yield ndarr[:,i+stride:]
+
+        i = 0 # force i to be defined in case the range below is nothing,
+              # so the last "if" works out. Because Python
+        for i in range(0, ndarr.shape[-1] - window_size - stride + 1, stride): 
+            yield ndarr[:, i:np.minimum(i + window_size, ndarr.shape[-1])]
+
+        if i + stride != ndarr.shape[-1]:
+           yield ndarr[:, i + stride:]
 
 
 def load_iter(file_name, subindices=None, var_name_hdf5: str = 'mov', outtype=np.float32):
