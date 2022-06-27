@@ -22,6 +22,7 @@ import logging
 from matplotlib import animation
 import numpy as np
 import os
+import pims
 from PIL import Image  # $ pip install pillow
 import pylab as pl
 import scipy.ndimage
@@ -1609,8 +1610,6 @@ def load(file_name: Union[str, List[str]],
                 if len(subindices) > 2:
                     input_arr = input_arr[:, :, subindices[2]]
             else:      #use pims to load movie
-                import pims
-
                 def rgb2gray(rgb):
                     return np.dot(rgb[..., :3], [0.299, 0.587, 0.114])
 

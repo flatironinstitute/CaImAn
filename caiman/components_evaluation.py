@@ -14,6 +14,7 @@ import itertools
 import logging
 import numpy as np
 import os
+import peakutils
 import tensorflow as tf
 import scipy
 from scipy.sparse import csc_matrix
@@ -143,7 +144,6 @@ def compute_eccentricity(A, dims, order='F'):
 #%%
 def find_activity_intervals(C, Npeaks: int = 5, tB=-3, tA=10, thres: float = 0.3) -> List:
     # todo todocument
-    import peakutils
     K, T = np.shape(C)
     L: List = []
     for i in range(K):
@@ -278,7 +278,7 @@ def evaluate_components_CNN(A,
 
     """
 
-    import os
+    # TODO: Find a less ugly way to do this
     if not isGPU:
         os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
     try:

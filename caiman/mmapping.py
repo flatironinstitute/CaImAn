@@ -548,7 +548,6 @@ def parallel_dot_product(A: np.ndarray, b, block_size: int = 5000, dview=None, t
         b: time x comps
     """
 
-    import pickle
     pars = []
     d1, d2 = np.shape(A)
     b = pickle.dumps(b)
