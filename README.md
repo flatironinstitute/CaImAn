@@ -41,9 +41,19 @@ There are other ways to build/use caiman, but they may get less or no support de
 
 More detailed docs on installation can be found [here](./docs/source/Installation.rst).
 
-After installing the software, the caimanmanager.py script (which will be put in your path on Linux and OSX) is used to unpack datafiles and demos into a directory called caiman\_data. 
+After installing the software, the caimanmanager.py script (which will be put in your path on Linux and OSX) is used to unpack datafiles and demos into a directory called caiman\_data. Invoke it with the "install" argument.
 
-If you want to use GPU functionality and have a GPU where you're running CaImAn (most likely a Linux system), you'll want, after you build your conda environment, to switch to a GPU build of the tensorflow package (conda list will tell you, after the version string, what build variant you have - you most likely will get an mlk build, but a "conda search tensorflow" will probably show you some gpu variants you can switch to - pick one appropriate for your conda version, ideally of the same version of tensorflow you otherwise got). If you need help switching versions, reach out to us on the gitter channel.
+If you are on Windows, the mechanism to put caimanmanager.py in your path may not work; in this case, you can locate it by typing python to bring up an interactive shell, and then
+```bash
+>>> import sysconfig
+>>> sysconfig.get_path('scripts')
+```
+You can invoke it as follows:
+```bash
+python C:/PATH/ABOVE/caimanmanager.py install
+```
+
+If you want to use GPU functionality and have a GPU where you're running CaImAn (most likely a Linux system), you'll want, after you build your conda environment, to switch to a GPU build of the tensorflow package (conda list will tell you, after the version string, what build variant you have - you most likely will get an mlk build, but a "conda search -c conda-forge tensorflow" will probably show you some gpu variants you can switch to - pick one appropriate for your conda version, ideally of the same version of tensorflow you otherwise got). If you need help switching versions, reach out to us on the gitter channel.
 
 ## Getting Started
 
