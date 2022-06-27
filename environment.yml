@@ -31,4 +31,4 @@ dependencies:
 - tk
 - tqdm
 - yapf
-- z5py
+- z5py >= 2.0.15

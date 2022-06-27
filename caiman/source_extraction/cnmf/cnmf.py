@@ -24,6 +24,7 @@ See Also:
 from builtins import object
 from builtins import str
 
+from copy import deepcopy
 import cv2
 import inspect
 import logging
@@ -407,7 +408,6 @@ class CNMF(object):
             cnm
                 A new CNMF object
         """
-        from copy import deepcopy
         cnm = CNMF(self.params.patch['n_processes'], params=self.params, dview=dview)
         cnm.params.patch['rf'] = None
         cnm.params.patch['only_init'] = False
