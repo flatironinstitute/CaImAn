@@ -470,12 +470,32 @@ class MotionCorrect(object):
                 x_grid, y_grid, z_grid = np.meshgrid(np.arange(0., dims[1]).astype(
                     np.float32), np.arange(0., dims[0]).astype(np.float32),
                     np.arange(0., dims[2]).astype(np.float32))
-                m_reg = [warp_sk(img, np.stack((resize_sk(shiftX.astype(np.float32), dims) + y_grid,
-                                 resize_sk(shiftY.astype(np.float32), dims) + x_grid,
-                                 resize_sk(shiftZ.astype(np.float32), dims) + z_grid), axis=0),
-                                 order=3, mode='constant')
-                         for img, shiftX, shiftY, shiftZ in zip(Y, shifts_x, shifts_y, shifts_z)]
-                                 # borderValue=add_to_movie)
+                if self.border_nan is not False:
+                    if self.border_nan is True:
+                        m_reg = [warp_sk(img, np.stack((resize_sk(shiftX.astype(np.float32), dims) + y_grid,
+                                                        resize_sk(shiftY.astype(np.float32), dims) + x_grid,
+                                                        resize_sk(shiftZ.astype(np.float32), dims) + z_grid), axis=0),
+                                         order=3, mode='constant', cval=np.nan)
+                                 for img, shiftX, shiftY, shiftZ in zip(Y, shifts_x, shifts_y, shifts_z)]
+                    elif self.border_nan == 'min':
+                        m_reg = [warp_sk(img, np.stack((resize_sk(shiftX.astype(np.float32), dims) + y_grid,
+                                                        resize_sk(shiftY.astype(np.float32), dims) + x_grid,
+                                                        resize_sk(shiftZ.astype(np.float32), dims) + z_grid), axis=0),
+                                         order=3, mode='constant', cval=np.min(img))
+                                 for img, shiftX, shiftY, shiftZ in zip(Y, shifts_x, shifts_y, shifts_z)]
+                    elif self.border_nan == 'copy':
+                        m_reg = [warp_sk(img, np.stack((resize_sk(shiftX.astype(np.float32), dims) + y_grid,
+                                                        resize_sk(shiftY.astype(np.float32), dims) + x_grid,
+                                                        resize_sk(shiftZ.astype(np.float32), dims) + z_grid), axis=0),
+                                         order=3, mode='edge')
+                                 for img, shiftX, shiftY, shiftZ in zip(Y, shifts_x, shifts_y, shifts_z)]
+                else:
+                    m_reg = [warp_sk(img, np.stack((resize_sk(shiftX.astype(np.float32), dims) + y_grid,
+                                     resize_sk(shiftY.astype(np.float32), dims) + x_grid,
+                                     resize_sk(shiftZ.astype(np.float32), dims) + z_grid), axis=0),
+                                     order=3, mode='constant')
+                             for img, shiftX, shiftY, shiftZ in zip(Y, shifts_x, shifts_y, shifts_z)]
+                                     # borderValue=add_to_movie)                                 # borderValue=add_to_movie)
             else:
                 xy_grid = [(it[0], it[1]) for it in sliding_window(Y[0], self.overlaps, self.strides)]
                 dims_grid = tuple(np.max(np.stack(xy_grid, axis=1), axis=1) - np.min(
@@ -487,10 +507,31 @@ class MotionCorrect(object):
                 dims = Y.shape[1:]
                 x_grid, y_grid = np.meshgrid(np.arange(0., dims[1]).astype(
                     np.float32), np.arange(0., dims[0]).astype(np.float32))
-                m_reg = [cv2.remap(img, -cv2.resize(shiftY, dims[::-1]) + x_grid,
-                                   -cv2.resize(shiftX, dims[::-1]) + y_grid,
-                                   cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
-                         for img, shiftX, shiftY in zip(Y, shifts_x, shifts_y)]
+                if self.border_nan is not False:
+                    if self.border_nan is True:
+                        m_reg = [cv2.remap(img, -cv2.resize(shiftY, dims[::-1]) + x_grid,
+                                           -cv2.resize(shiftX, dims[::-1]) + y_grid,
+                                           cv2.INTER_CUBIC, borderMode=cv2.BORDER_CONSTANT,
+                                           borderValue=np.nan)
+                                 for img, shiftX, shiftY in zip(Y, shifts_x, shifts_y)]
+
+                    elif self.border_nan == 'min':
+                        m_reg = [cv2.remap(img, -cv2.resize(shiftY, dims[::-1]) + x_grid,
+                                           -cv2.resize(shiftX, dims[::-1]) + y_grid,
+                                           cv2.INTER_CUBIC, borderMode=cv2.BORDER_CONSTANT,
+                                           borderValue=np.min(img))
+                                 for img, shiftX, shiftY in zip(Y, shifts_x, shifts_y)]
+                    elif self.border_nan == 'copy':
+                        m_reg = [cv2.remap(img, -cv2.resize(shiftY, dims[::-1]) + x_grid,
+                                           -cv2.resize(shiftX, dims[::-1]) + y_grid,
+                                           cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
+                                 for img, shiftX, shiftY in zip(Y, shifts_x, shifts_y)]
+                else:
+                    m_reg = [cv2.remap(img, -cv2.resize(shiftY, dims[::-1]) + x_grid,
+                                       -cv2.resize(shiftX, dims[::-1]) + y_grid,
+                                       cv2.INTER_CUBIC, borderMode=cv2.BORDER_CONSTANT,
+                                       borderValue=0.0)
+                             for img, shiftX, shiftY in zip(Y, shifts_x, shifts_y)]
         m_reg = np.stack(m_reg, axis=0)
         if save_memmap:
             dims = m_reg.shape
@@ -2451,11 +2492,27 @@ def tile_and_correct_3d(img:np.ndarray, template:np.ndarray, strides:Tuple, over
             x_grid, y_grid, z_grid = np.meshgrid(np.arange(0., dims[1]).astype(
                 np.float32), np.arange(0., dims[0]).astype(np.float32),
                 np.arange(0., dims[2]).astype(np.float32))
-            m_reg = warp_sk(img, np.stack((resize_sk(shift_img_x.astype(np.float32), dims) + y_grid,
-                              resize_sk(shift_img_y.astype(np.float32), dims) + x_grid,
-                              resize_sk(shift_img_z.astype(np.float32), dims) + z_grid),axis=0),
-                              order=3, mode='constant')
-                             # borderValue=add_to_movie)
+            if border_nan is not False:
+                if border_nan is True:
+                    m_reg = warp_sk(img, np.stack((resize_sk(shift_img_x.astype(np.float32), dims) + y_grid,
+                                    resize_sk(shift_img_y.astype(np.float32), dims) + x_grid,
+                                    resize_sk(shift_img_z.astype(np.float32), dims) + z_grid), axis=0),
+                                    order=3, mode='constant', cval=np.nan)
+                elif border_nan == 'min':
+                    m_reg = warp_sk(img, np.stack((resize_sk(shift_img_x.astype(np.float32), dims) + y_grid,
+                                    resize_sk(shift_img_y.astype(np.float32), dims) + x_grid,
+                                    resize_sk(shift_img_z.astype(np.float32), dims) + z_grid), axis=0),
+                                    order=3, mode='constant', cval=np.min(img))
+                elif border_nan == 'copy':
+                    m_reg = warp_sk(img, np.stack((resize_sk(shift_img_x.astype(np.float32), dims) + y_grid,
+                                    resize_sk(shift_img_y.astype(np.float32), dims) + x_grid,
+                                    resize_sk(shift_img_z.astype(np.float32), dims) + z_grid), axis=0),
+                                    order=3, mode='edge')
+            else:
+                m_reg = warp_sk(img, np.stack((resize_sk(shift_img_x.astype(np.float32), dims) + y_grid,
+                                resize_sk(shift_img_y.astype(np.float32), dims) + x_grid,
+                                resize_sk(shift_img_z.astype(np.float32), dims) + z_grid), axis=0),
+                                order=3, mode='constant')
             total_shifts = [
                     (-x, -y, -z) for x, y, z in zip(shift_img_x.reshape(num_tiles), shift_img_y.reshape(num_tiles), shift_img_z.reshape(num_tiles))]
             return m_reg - add_to_movie, total_shifts, None, None
