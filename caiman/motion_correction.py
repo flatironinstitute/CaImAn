@@ -160,6 +160,8 @@ class MotionCorrect(object):
 
            border_nan : bool or string, optional
                Specifies how to deal with borders. (True, False, 'copy', 'min')
+               TODO: make this just the bool, and make another variable called
+                     border_strategy to hold the how
 
            num_frames_split: int, default: 80
                Number of frames in each batch. Used when cosntructing the options
@@ -206,7 +208,7 @@ class MotionCorrect(object):
         self.nonneg_movie = nonneg_movie
         self.gSig_filt = gSig_filt
         self.use_cuda = bool(use_cuda)
-        self.border_nan = border_nan
+        self.border_nan = border_nan # FIXME (see comments)
         self.pw_rigid = bool(pw_rigid)
         self.var_name_hdf5 = var_name_hdf5
         self.is3D = bool(is3D)
