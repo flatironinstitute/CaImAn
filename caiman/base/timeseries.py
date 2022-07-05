@@ -179,8 +179,12 @@ class timeseries(np.ndarray):
                         curfr = self[i].copy()
                         if to32 and not ('float32' in str(self.dtype)):
                             curfr = curfr.astype(np.float32)
-                        return curfr             
-                    tif.save([foo(i) for i in range(self.shape[0])], compress=compress)
+                        return curfr
+                    if compress == 0:
+                        compressor = 'none'
+                    else:
+                        compressor = 'zlib'
+                    tif.write([foo(i) for i in range(self.shape[0])], compression=compressor)
                 else:
                     for i in range(self.shape[0]):
                         if i % 200 == 0:
