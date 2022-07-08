@@ -131,7 +131,7 @@ stored inside the cnmf object, i.e. it can be accessed using
    dimensions (# of pixels X # of components). Each column corresponds to a
    spatial component.
 -  ``estimates.C``: Set of temporal components. Saved as a numpy array with dimensions (# of components X # of timesteps).
-   Each row corresponds to a background component denoised and deconvolved.
+   Each row corresponds to a temporal component denoised and deconvolved.
 -  ``estimates.b``: Set of background spatial components (for 2p
    analysis): Saved as a numpy array with dimensions (# of pixels X # of
    components). Each column corresponds to a spatial background component.
