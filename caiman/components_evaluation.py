@@ -280,6 +280,7 @@ def evaluate_components_CNN(A,
 
     # TODO: Find a less ugly way to do this
     if not isGPU:
+        print("GPU run not requested, disabling use of GPUs")
         os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
     try:
         os.environ["KERAS_BACKEND"] = "tensorflow"
