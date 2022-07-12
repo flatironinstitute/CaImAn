@@ -276,10 +276,12 @@ def evaluate_components_CNN(A,
                             isGPU: bool = False) -> Tuple[Any, np.array]:
     """ evaluate component quality using a CNN network
 
+        if isGPU is false, and the environment variable 'CAIMAN_ALLOW_GPU' is not set,
+        then this code will try not to use a GPU. Otherwise it will use one if it finds it.
     """
 
     # TODO: Find a less ugly way to do this
-    if not isGPU:
+    if not isGPU and 'CAIMAN_ALLOW_GPU' not in os.environ:
         print("GPU run not requested, disabling use of GPUs")
         os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
     try:
@@ -302,12 +304,11 @@ def evaluate_components_CNN(A,
             else:
                 raise FileNotFoundError(f"File for requested model {model_name} not found")
             with open(model_file, 'r') as json_file:
-                print('USING MODEL:' + model_file)
+                print(f"USING MODEL (keras API): {model_file}")
                 loaded_model_json = json_file.read()
 
             loaded_model = model_from_json(loaded_model_json)
             loaded_model.load_weights(model_name + '.h5')
-            #loaded_model.compile('sgd', 'mse')
         else:
             if os.path.isfile(os.path.join(caiman_datadir(), model_name + ".h5.pb")):
                 model_file = os.path.join(caiman_datadir(), model_name + ".h5.pb")
@@ -315,6 +316,7 @@ def evaluate_components_CNN(A,
                 model_file = model_name + ".h5.pb"
             else:
                 raise FileNotFoundError(f"File for requested model {model_name} not found")
+            print(f"USING MODEL (tensorflow API): {model_file}")
             loaded_model = load_graph(model_file)
 
         logging.debug("Loaded model from disk")
@@ -656,6 +658,8 @@ def select_components_from_metrics(A,
     or a different scale parameter is used, the values are computed from within
     the script.
     '''
+
+    # TODO Refactoring note: kwargs is unused and should be refactored carefully out
 
     idx_components_r = np.where(r_values >= r_values_min)[0]
     idx_components_raw = np.where(comp_SNR > min_SNR)[0]
