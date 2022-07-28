@@ -73,7 +73,7 @@ crucial to be adapted to the specific dataset for proper analysis performance:
    precisely fit the data, approximations are enough.
 -  ``p``: Order of the autoregressive model. ``p = 0`` turns deconvolution off. If transients in your data rise
    instantaneously, set ``p = 1`` (occurs at low sample rate or slow indicator). If transients have visible rise time,
-    set ``p = 2``. If the wrong order is chosen, spikes are extracted unreliably.
+   set ``p = 2``. If the wrong order is chosen, spikes are extracted unreliably.
 -  ``nb``: Number of global background components. This is a measure of the complexity of your background noise. Defaults
    to ``nb = 2``, assuming a relatively homogeneous background. ``nb = 3`` might fit for more complex noise, ``nb = 1``
    is usually too low. If ``nb`` is set too low, extracted traces appear too noisy, if ``nb`` is set too high, neuronal
