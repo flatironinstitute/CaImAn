@@ -15,4 +15,4 @@ python:
   install:
     - requirements: docs/docs_require.txt
     - method: pip
-      path .
+      path: .
