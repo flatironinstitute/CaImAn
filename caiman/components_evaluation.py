@@ -65,7 +65,7 @@ def compute_event_exceptionality(traces: np.ndarray,
             Fluorescence traces
 
         N: int
-            N number of consecutive events
+            N number of consecutive events (N must be greater than 0)
 
         sigma_factor: float
             multiplicative factor for noise estimate (added for backwards compatibility)
@@ -80,6 +80,9 @@ def compute_event_exceptionality(traces: np.ndarray,
         noise_est: ndarray
             the components ordered according to the fitness
     """
+    if N == 0:
+        # Without this, numpy ranged syntax does not work correctly, and also N=0 is conceptually incoherent
+        raise Exception("FATAL: N=0 is not a valid value for compute_event_exceptionality()")
 
     T = np.shape(traces)[-1]
     if use_mode_fast:
