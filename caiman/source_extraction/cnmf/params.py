@@ -635,7 +635,7 @@ class CNMFParams(object):
                 Flag for reusing an already trained model (saved in path to model)
         """
 
-        if int(decay_time) == 0:
+        if decay_time == 0 or decay_time == 0.0:
             raise Exception("A decay time of 0 is not permitted")
 
         self.data = {
