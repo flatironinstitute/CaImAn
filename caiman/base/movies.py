@@ -549,19 +549,15 @@ class movie(ts.timeseries):
 
     def crop(self, crop_top=0, crop_bottom=0, crop_left=0, crop_right=0, crop_begin=0, crop_end=0) -> None:
         """
-        Crop movie
+        Crop movie (inline)
 
         Args:
             crop_top/crop_bottom/crop_left,crop_right: (undocumented)
 
             crop_begin/crop_end: (undocumented)
-            
-        Return:
-            cropped movie
         """
         t, h, w = self.shape
-        cropped_movie = self[crop_begin:t - crop_end, crop_top:h - crop_bottom, crop_left:w - crop_right]
-        return cropped_movie
+        self[:, :, :] = self[crop_begin:t - crop_end, crop_top:h - crop_bottom, crop_left:w - crop_right]
     
     def removeBL(self, windowSize:int=100, quantilMin:int=8, in_place:bool=False, returnBL:bool=False):                   
         """
