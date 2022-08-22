@@ -187,7 +187,7 @@ class movie(ts.timeseries):
         self = self.apply_shifts(shifts, interpolation=interpolation, method=method)
 
         if remove_blanks:
-            raise Exception("The remove_blanks parameter was never functional and should not be used")
+            raise Exception("motion_correct(): The remove_blanks parameter was never functional and should not be used")
 
         return self, shifts, xcorrs, template
 
@@ -271,7 +271,7 @@ class movie(ts.timeseries):
         self = self.apply_shifts_3d(shifts, interpolation=interpolation, method=method)
 
         if remove_blanks:
-            raise Exception("The remove_blanks parameter was never functional and should not be used")
+            raise Exception("motion_correct_3d(): The remove_blanks parameter was never functional and should not be used")
 
         return self, shifts, xcorrs, template
 
@@ -488,7 +488,7 @@ class movie(ts.timeseries):
                 raise Exception('Unknown shift application method')
 
         if remove_blanks:
-            raise Exception("The remove_blanks parameter was never functional and should not be used")
+            raise Exception("apply_shifts(): The remove_blanks parameter was never functional and should not be used")
 
         return self
 
