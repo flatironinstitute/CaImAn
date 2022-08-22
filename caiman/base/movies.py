@@ -535,7 +535,7 @@ class movie(ts.timeseries):
             crop_begin/crop_end: (undocumented)
         """
         t, h, w = self.shape
-        ret = np.resize(self, ( t - crop_end - crop_begin, h - crop_bottom - crop_top, w - crop_right - crop_left))
+        ret = np.zeros(( t - crop_end - crop_begin, h - crop_bottom - crop_top, w - crop_right - crop_left))
         ret[:,:,:] = self[crop_begin:t - crop_end, crop_top:h - crop_bottom, crop_left:w - crop_right]
         return ret
 
