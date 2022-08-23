@@ -528,6 +528,7 @@ class movie(ts.timeseries):
     def return_cropped(self, crop_top=0, crop_bottom=0, crop_left=0, crop_right=0, crop_begin=0, crop_end=0) -> np.ndarray:
         """
         Return a cropped version of the movie
+	The returned version is independent of the original, which is less memory-efficient but also less likely to be surprising.
 
         Args:
             crop_top/crop_bottom/crop_left,crop_right: how much to trim from each side
