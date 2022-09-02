@@ -170,16 +170,16 @@ def run_CNMF_patches(file_name, shape, params, gnb=1, dview=None,
         gnb: int
             number of global background components
 
-        backend: string
-            'ipyparallel' or 'single_thread' or SLURM
-
-        n_processes: int
-            nuber of cores to be used (should be less than the number of cores started with ipyparallel)
+        dview: 
+            TODO
 
         memory_fact: double
             unitless number accounting how much memory should be used.
             It represents the fration of patch processed in a single thread.
              You will need to try different values to see which one would work
+
+        border_pix: int
+            TODO
 
         low_rank_background: bool
             if True the background is approximated with gnb components. If false every patch keeps its background (overlaps are randomly assigned to one spatial component only)
@@ -189,10 +189,20 @@ def run_CNMF_patches(file_name, shape, params, gnb=1, dview=None,
             I.e. neurons that are closer to the center of another patch are removed to
             avoid duplicates, cause the other patch should already account for them.
 
+        indices: List[slice]
+            TODO
+
     Returns:
+
         A_tot: matrix containing all the components from all the patches
 
         C_tot: matrix containing the calcium traces corresponding to A_tot
+        
+        YrA_tot: TODO
+
+        b: TODO
+
+        f: TODO
 
         sn_tot: per pixel noise estimate
 
