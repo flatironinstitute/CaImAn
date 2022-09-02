@@ -47,7 +47,7 @@ def cnmf_patches(args_in):
                 dimensions of the original movie across y, x, and time
 
             params:
-                CNMFParms object containing all the parameters for the various algorithms
+                CNMFParams object containing all the parameters for the various algorithms
 
             rf: int
                 half-size of the square patch in pixel
