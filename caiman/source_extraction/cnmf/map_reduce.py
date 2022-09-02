@@ -165,7 +165,7 @@ def run_CNMF_patches(file_name, shape, params, gnb=1, dview=None,
             dimensions of the original movie across y, x, and time
 
         params:
-            CNMFParms object containing all the parameters for the various algorithms
+            CNMFParams object containing all the parameters for the various algorithms
 
         gnb: int
             number of global background components
