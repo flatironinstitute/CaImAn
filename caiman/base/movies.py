@@ -187,14 +187,7 @@ class movie(ts.timeseries):
         self = self.apply_shifts(shifts, interpolation=interpolation, method=method)
 
         if remove_blanks:
-            max_h, max_w = np.max(shifts, axis=0)
-            min_h, min_w = np.min(shifts, axis=0)
-            self.crop(crop_top=max_h,
-                      crop_bottom=-min_h + 1,
-                      crop_left=max_w,
-                      crop_right=-min_w,
-                      crop_begin=0,
-                      crop_end=0)
+            raise Exception("motion_correct(): The remove_blanks parameter was never functional and should not be used")
 
         return self, shifts, xcorrs, template
 
@@ -278,15 +271,7 @@ class movie(ts.timeseries):
         self = self.apply_shifts_3d(shifts, interpolation=interpolation, method=method)
 
         if remove_blanks:
-            max_z, max_h, max_w = np.max(shifts, axis=0)
-            min_z, min_h, min_w = np.min(shifts, axis=0)
-            self.crop(
-                crop_top=max_z,
-                crop_bottom=min_z,             # NOTE: edge boundaries for z dimension need to be tested
-                crop_left=max_h,
-                crop_right=-min_h + 1,
-                crop_begin=max_w,
-                crop_end=-min_w)
+            raise Exception("motion_correct_3d(): The remove_blanks parameter was never functional and should not be used")
 
         return self, shifts, xcorrs, template
 
@@ -503,14 +488,7 @@ class movie(ts.timeseries):
                 raise Exception('Unknown shift application method')
 
         if remove_blanks:
-            max_h, max_w = np.max(shifts, axis=0)
-            min_h, min_w = np.min(shifts, axis=0)
-            self.crop(crop_top=max_h,
-                      crop_bottom=-min_h + 1,
-                      crop_left=max_w,
-                      crop_right=-min_w,
-                      crop_begin=0,
-                      crop_end=0)
+            raise Exception("apply_shifts(): The remove_blanks parameter was never functional and should not be used")
 
         return self
 
@@ -547,18 +525,21 @@ class movie(ts.timeseries):
 
         return self
 
-    def crop(self, crop_top=0, crop_bottom=0, crop_left=0, crop_right=0, crop_begin=0, crop_end=0) -> None:
+    def return_cropped(self, crop_top=0, crop_bottom=0, crop_left=0, crop_right=0, crop_begin=0, crop_end=0) -> np.ndarray:
         """
-        Crop movie (inline)
+        Return a cropped version of the movie
+	The returned version is independent of the original, which is less memory-efficient but also less likely to be surprising.
 
         Args:
-            crop_top/crop_bottom/crop_left,crop_right: (undocumented)
+            crop_top/crop_bottom/crop_left,crop_right: how much to trim from each side
 
             crop_begin/crop_end: (undocumented)
         """
         t, h, w = self.shape
-        self[:, :, :] = self[crop_begin:t - crop_end, crop_top:h - crop_bottom, crop_left:w - crop_right]
-    
+        ret = np.zeros(( t - crop_end - crop_begin, h - crop_bottom - crop_top, w - crop_right - crop_left))
+        ret[:,:,:] = self[crop_begin:t - crop_end, crop_top:h - crop_bottom, crop_left:w - crop_right]
+        return ret
+
     def removeBL(self, windowSize:int=100, quantilMin:int=8, in_place:bool=False, returnBL:bool=False):                   
         """
         Remove baseline from movie using percentiles over a window
