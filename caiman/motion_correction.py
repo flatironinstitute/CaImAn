@@ -164,7 +164,7 @@ class MotionCorrect(object):
                      border_strategy to hold the how
 
            num_frames_split: int, default: 80
-               Number of frames in each batch. Used when cosntructing the options
+               Number of frames in each batch. Used when constructing the options
                through the params object
 
            var_name_hdf5: str, default: 'mov'
