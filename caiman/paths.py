@@ -5,7 +5,7 @@
 
 import os
 import logging
-from typing import Tuple
+from typing import Dict, Tuple
 
 
 #######
@@ -77,4 +77,38 @@ def memmap_frames_filename(basename: str, dims: Tuple, frames: int, order: str =
         dimfield_2 = dims[2]
     else:
         dimfield_2 = 1
-    return f"{basename}_d1_{dimfield_0}_d2_{dimfield_1}_d3_{dimfield_2}_order_{order}_frames_{frames}_.mmap"
+    return f"{basename}_d1_{dimfield_0}_d2_{dimfield_1}_d3_{dimfield_2}_order_{order}_frames_{frames}.mmap"
+
+def fname_derived_presuffix(basename:str, addition:str, swapsuffix:str = None) -> str:
+    # Given a filename with an extension, extend the pre-extension part of the filename with the
+    # desired addition, adding an underscore first if needed
+    fn_base, fn_ext = os.path.splitext(basename)
+    if not addition.startswith('_') and not basename.endswith('_'):
+        addition = '_' + addition
+    if swapsuffix is not None:
+        if not swapsuffix.startswith('.'):
+            swapsuffix = '.' + swapsuffix
+        return fn_base + addition + swapsuffix
+    else:
+        return fn_base + addition + fn_ext
+
+def decode_mmap_filename_dict(basename:str) -> Dict:
+    # For a mmap file we (presumably) made, return a dict with the information encoded in its
+    # filename. This will usually be params like d1, d2, T, and order.
+    # This function is not general; it knows the fields it wants to extract.
+    ret = {}
+    _, fn = os.path.split(basename)
+    fn_base, _ = os.path.splitext(fn)
+    fpart = fn_base.split('_')[1:] # First part will (probably) reference the datasets
+    for field in ['d1', 'd2', 'd3', 'order', 'frames']:
+        # look for the last index of fpart and look at the next index for the value, saving into ret
+        for i in range(len(fpart)-1, -1, -1): # Step backwards through the list; defensive programming
+            if field == fpart[i]:
+                if field == 'order': # a string
+                    ret[field] = fpart[i + 1] # Assume no filenames will be constructed to end with a key and not a value
+                else: # numeric
+                    ret[field] = int(fpart[i + 1]) # Assume no filenames will be constructed to end with a key and not a value
+    ret['T'] = int(fpart[-1]) # XXX Unclear how 'T' differs from frames; my sample datasets have T and frames have the same value
+    if 'T' in ret and 'frames' in ret and ret['T'] != ret['frames']:
+        print(f"D: The value of 'T' {ret['T']} differs from 'frames' {ret['frames']}")
+    return ret

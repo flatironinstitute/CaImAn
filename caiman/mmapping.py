@@ -54,9 +54,16 @@ def load_memmap(filename: str, mode: str = 'r') -> Tuple[Any, Tuple, int]:
         raise ValueError(f'Unknown file extension for file {filename} (should be .mmap)')
     # Strip path components and use CAIMAN_DATA/example_movies
     # TODO: Eventually get the code to save these in a different dir
-    fn_without_path = os.path.split(filename)[-1]
-    fpart = fn_without_path.split('_')[1:-1]  # The filename encodes the structure of the map
-    d1, d2, d3, T, order = int(fpart[-9]), int(fpart[-7]), int(fpart[-5]), int(fpart[-1]), fpart[-3]
+    #fn_without_path = os.path.split(filename)[-1]
+    #fpart = fn_without_path.split('_')[1:]  # The filename encodes the structure of the map
+    decoded_fn = caiman.paths.decode_mmap_filename_dict(filename)
+    d1		= decoded_fn['d1']
+    d2		= decoded_fn['d2']
+    d3		= decoded_fn['d3']
+    T		= decoded_fn['T']
+    order  	= decoded_fn['order']
+
+    #d1, d2, d3, T, order = int(fpart[-9]), int(fpart[-7]), int(fpart[-5]), int(fpart[-1]), fpart[-3]
 
     filename = caiman.paths.fn_relocated(filename)
     Yr = np.memmap(filename, mode=mode, shape=prepare_shape((d1 * d2 * d3, T)), dtype=np.float32, order=order)
