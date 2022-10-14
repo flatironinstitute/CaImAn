@@ -96,6 +96,7 @@ def decode_mmap_filename_dict(basename:str) -> Dict:
     # For a mmap file we (presumably) made, return a dict with the information encoded in its
     # filename. This will usually be params like d1, d2, T, and order.
     # This function is not general; it knows the fields it wants to extract.
+    print(f"Decode mmap filename {basename}")
     ret = {}
     _, fn = os.path.split(basename)
     fn_base, _ = os.path.splitext(fn)
@@ -108,7 +109,10 @@ def decode_mmap_filename_dict(basename:str) -> Dict:
                     ret[field] = fpart[i + 1] # Assume no filenames will be constructed to end with a key and not a value
                 else: # numeric
                     ret[field] = int(fpart[i + 1]) # Assume no filenames will be constructed to end with a key and not a value
-    ret['T'] = int(fpart[-1]) # XXX Unclear how 'T' differs from frames; my sample datasets have T and frames have the same value
+    if fpart[-1] != '':
+        ret['T'] = int(fpart[-1]) # XXX Unclear how 'T' differs from frames; my sample datasets have T and frames have the same value
     if 'T' in ret and 'frames' in ret and ret['T'] != ret['frames']:
         print(f"D: The value of 'T' {ret['T']} differs from 'frames' {ret['frames']}")
+    if 'T' not in ret and 'frames' in ret:
+        ret['T'] = ret['frames']
     return ret

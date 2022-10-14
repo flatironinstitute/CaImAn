@@ -533,7 +533,7 @@ def save_memmap(filenames: List[str],
             sys.stdout.flush()
             Ttot = Ttot + T
 
-        fname_new = caiman.paths.fn_relocated(fname_tot + f'_frames_{Ttot}_.mmap')
+        fname_new = caiman.paths.fn_relocated(fname_tot + f'_frames_{Ttot}.mmap')
         try:
             # need to explicitly remove destination on windows
             os.unlink(fname_new)
