@@ -3,9 +3,10 @@
 
 """
 
-import os
 import logging
-from typing import Dict, Tuple
+import os
+import re
+from typing import Dict, List, Tuple
 
 
 #######
@@ -103,16 +104,26 @@ def decode_mmap_filename_dict(basename:str) -> Dict:
     fpart = fn_base.split('_')[1:] # First part will (probably) reference the datasets
     for field in ['d1', 'd2', 'd3', 'order', 'frames']:
         # look for the last index of fpart and look at the next index for the value, saving into ret
-        for i in range(len(fpart)-1, -1, -1): # Step backwards through the list; defensive programming
+        for i in range(len(fpart) - 1, -1, -1): # Step backwards through the list; defensive programming
             if field == fpart[i]:
                 if field == 'order': # a string
                     ret[field] = fpart[i + 1] # Assume no filenames will be constructed to end with a key and not a value
                 else: # numeric
                     ret[field] = int(fpart[i + 1]) # Assume no filenames will be constructed to end with a key and not a value
     if fpart[-1] != '':
-        ret['T'] = int(fpart[-1]) # XXX Unclear how 'T' differs from frames; my sample datasets have T and frames have the same value
+        ret['T'] = int(fpart[-1])
     if 'T' in ret and 'frames' in ret and ret['T'] != ret['frames']:
         print(f"D: The value of 'T' {ret['T']} differs from 'frames' {ret['frames']}")
     if 'T' not in ret and 'frames' in ret:
         ret['T'] = ret['frames']
+    return ret
+
+def generate_fname_tot(base_name:str, dims:List[int], order:str) -> str:
+    # Generate a "fname_tot" style filename, decoded by the above
+    if len(dims) == 2:
+        d1, d2, d3 = dims[0], dims[1], 1
+    else:
+        d1, d2, d3 = dims[0], dims[1], dims[2]
+    ret = '_'.join([base_name, 'd1', str(d1), 'd2', str(d2), 'd3', str(d3), 'order', order])
+    ret = re.sub(r'(_)+', '_', ret) # Turn repeated underscores into just one
     return ret

@@ -355,7 +355,7 @@ def save_memmap(filenames: List[str],
             list of tif files or list of numpy arrays
 
         base_name: str
-            the base used to build the file name. IT MUST NOT CONTAIN "_"
+            the base used to build the file name. WARNING: Names containing underscores may collide with internal semantics.
 
         resize_fact: tuple
             x,y, and z downsampling factors (0.5 means downsampled by a factor 2)
@@ -504,9 +504,7 @@ def save_memmap(filenames: List[str],
             Yr = np.ascontiguousarray(Yr, dtype=np.float32) + np.float32(0.0001) + np.float32(add_to_movie)
 
             if idx == 0:
-                fname_tot = base_name + '_d1_' + str(
-                    dims[0]) + '_d2_' + str(dims[1]) + '_d3_' + str(1 if len(dims) == 2 else dims[2]) + '_order_' + str(
-                        order) # TODO: Rewrite more legibly, move to caiman.paths
+                fname_tot = cm.paths.generate_fname_tot(base_name, dims, order)
                 if isinstance(f, str):
                     fname_tot = caiman.paths.fn_relocated(os.path.join(os.path.split(f)[0], fname_tot))
                 if len(filenames) > 1:
