@@ -12,11 +12,11 @@ CaImAn implements a set of essential methods required in the analysis pipeline o
 ## Requirements
 
 Right now, CaImAn works and is supported on the following platforms:
-* Linux on Intel CPUs
-* MacOS on Intel CPUs
-* Windows on Intel CPUs
+* Linux on 64-bit x86 CPUs
+* MacOS on 64-bit x86 CPUs
+* Windows on 64-bit x86 CPUs
 
-16G RAM is required for a good experience, and depending on datasets, 32G or more may be necessary.
+32G RAM is required for a good experience, and depending on datasets, more may be necessary.
 
 CaImAn presently targets Python 3.9. Parts of CaImAn are written in C++, but apart possibly during install, this is not visible to the user. There is also an [older implementation](https://github.com/flatironinstitute/CaImAn-MATLAB) of CaImAn in Matlab (unsupported). That version can be used with [MCMC spike inference](https://github.com/epnev/continuous_time_ca_sampler) 
 

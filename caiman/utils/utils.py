@@ -510,7 +510,7 @@ def recursively_save_dict_contents_to_group(h5file:h5py.File, path:str, dic:Dict
                 item = np.array(item).astype('|S32')
                 h5file[path + key] = item
             if not np.array_equal(h5file[path + key][()], item):
-                raise ValueError(f'Error while saving ndarray {key}')
+                raise ValueError(f'Error while saving ndarray {key} of dtype {item.dtype}')
         # save dictionaries
         elif isinstance(item, dict):
             recursively_save_dict_contents_to_group(h5file, path + key + '/', item)

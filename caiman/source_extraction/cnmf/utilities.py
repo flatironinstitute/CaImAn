@@ -993,7 +993,12 @@ def get_file_size(file_name, var_name_hdf5='mov'):
             if extension in ['.tif', '.tiff', '.btf']:
                 tffl = tifffile.TiffFile(file_name)
                 siz = tffl.series[0].shape
-                T, dims = siz[0], siz[1:]
+                # tiff files written in append mode
+                if len(siz) < 3:
+                    dims = siz
+                    T = len(tffl.pages)
+                else:
+                    T, dims = siz[0], siz[1:]
             elif extension in ('.avi', '.mkv'):
                 cap = cv2.VideoCapture(file_name)
                 dims = [0, 0]
