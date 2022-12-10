@@ -410,7 +410,7 @@ def regression_ipyparallel(pars):
                 model = make_pipeline(
                     StandardScaler(with_mean=False),
                     linear_model.LassoLars(alpha=lambda_lasso, positive=True,
-                                                 fit_intercept=True, normalize=False)
+                                                 fit_intercept=True)
                     )
                 a = model.fit(np.array(c.T), np.ravel(y))['lassolars'].coef_
 
