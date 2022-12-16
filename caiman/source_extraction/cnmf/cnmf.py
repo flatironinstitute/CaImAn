@@ -377,7 +377,7 @@ class CNMF(object):
         fit_cnm = self.fit(images, indices=indices)
         Cn = summary_images.local_correlations(images[::max(T//1000, 1)], swap_dim=False)
         Cn[np.isnan(Cn)] = 0
-        fit_cnm.save(fname_new[:-5]+'_init.hdf5')
+        fit_cnm.save(fname_new[:-5] + '_init.hdf5')
         #fit_cnm.params.change_params({'p': self.params.get('preprocess', 'p')})
         # RE-RUN seeded CNMF on accepted patches to refine and perform deconvolution
         cnm2 = fit_cnm.refit(images, dview=self.dview)
