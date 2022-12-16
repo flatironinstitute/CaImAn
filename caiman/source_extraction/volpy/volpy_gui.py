@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-Created on Thu Aug  6 10:48:16 2020
 VolPy GUI interface is used to correct outputs of Mask R-CNN or annotate new datasets.
 VolPy GUI uses summary images and ROIs as the input. It outputs binary masks for the trace denoising 
 and spike extraction step of VolPy.
@@ -11,82 +10,25 @@ import cv2
 import h5py
 import numpy as np
 import os
+from pathlib import Path
 import pyqtgraph as pg
 from pyqtgraph import FileDialog
 from pyqtgraph.Qt import QtGui
 from pyqtgraph.parametertree import Parameter, ParameterTree
-from PyQt5.QtWidgets import QShortcut
+import PyQt5
+from PyQt5 import QtWidgets
+from PyQt5.QtWidgets import QApplication, QShortcut
 import random
 from skimage.draw import polygon
+import sys
 
 import caiman as cm
 from caiman.external.cell_magic_wand import cell_magic_wand_single_point
-
-try:
-    cv2.setNumThreads(1)
-except:
-    print('OpenCV is naturally single threaded')
-
-try:
-    if __IPYTHON__:
-        print(1)
-        # This is used for debugging purposes only. Automatically reloads imports if they change
-        get_ipython().magic('load_ext autoreload')
-        get_ipython().magic('autoreload 2')
-except NameError:
-    print('Not launched under iPython')
     
+os.environ["QT_QPA_PLATFORM_PLUGIN_PATH"] = os.fspath(
+    Path(PyQt5.__file__).resolve().parent / "Qt5" / "plugins")
 
-#%%
-## Always start by initializing Qt (only once per application)
-app = QtGui.QApplication([])
 
-## Define a top-level widget to hold everything
-w = QtGui.QWidget()
-
-## Create some widgets to be placed inside
-hist = pg.HistogramLUTItem()  # Contrast/color control
-win = pg.GraphicsLayoutWidget()
-win.setMaximumWidth(300)
-win.setMinimumWidth(200)
-win.addItem(hist)
-p1 = pg.PlotWidget()
-neuron_action = ParameterTree()
-neuron_list = QtGui.QListWidget()
-
-## Create a grid layout to manage the widgets size and position
-layout = QtGui.QGridLayout()
-w.setLayout(layout)
-
-## Add widgets to the layout in their proper positions
-layout.addWidget(win, 0, 1)  
-layout.addWidget(p1, 0, 2)  
-layout.addWidget(neuron_action, 0, 3)   
-layout.addWidget(neuron_list, 0, 4)  
-img = pg.ImageItem()
-p1.addItem(img)
-hist.setImageItem(img)
-
-params_action = [{'name': 'LOAD DATA', 'type':'action'},
-                 {'name': 'LOAD ROIS', 'type':'action'},
-                 {'name': 'SAVE', 'type':'action'},                 
-                 {'name': 'ADD', 'type': 'action'}, 
-                 {'name': 'REMOVE', 'type': 'action'}, 
-                 {'name': 'SHOW ALL', 'type': 'action'},
-                 {'name': 'CLEAR', 'type': 'action'}, 
-                 {'name': 'IMAGES', 'type': 'list', 'values': ['MEAN','CORR']},
-                 {'name': 'DISPLAY', 'type': 'list', 'values': ['CONTOUR','SPATIAL FOOTPRINTS']},
-                 {'name': 'MODE', 'type': 'list', 'values': ['POLYGON','CELL MAGIC WAND', 'CHOOSE NEURONS']},
-                 {'name': 'MAGIC WAND PARAMS', 'type': 'group', 'children': [{'name': 'MIN RADIUS', 'type': 'int', 'value': 4},
-                                                                    {'name': 'MAX RADIUS', 'type': 'int', 'value': 10},
-                                                                    {'name': 'ROUGHNESS', 'type': 'int', 'value': 1}]}]
-
-pars_action = Parameter.create(name='params_action', type='group', children=params_action) 
-
-neuron_action.setParameters(pars_action, showTop=False)
-neuron_action.setWindowTitle('Parameter Action')
-mode = pars_action.getValues()['MODE'][0]
-    
 def mouseClickEvent(event):
     global mode, x, y, i, j, pts, roi, cur_image
     if mode == "POLYGON":
@@ -99,26 +41,28 @@ def mouseClickEvent(event):
         p1.plot(x=[i], y=[j], symbol='o', pen=None, symbolBrush='y', symbolSize=5)#, symbolBrush=pg.intColor(i,6,maxValue=128))
         pts.append([i, j])
     elif mode == "CELL MAGIC WAND":
-        p1.clear()
-        p1.addItem(img)
         if pars_action.param('DISPLAY').value() == 'SPATIAL FOOTPRINTS':
             overlay(all_ROIs)
         pts = []
         pos = img.mapFromScene(event.pos())
+        p1.clear()
+        p1.addItem(img)
         try:
             x = int(pos.x())
             y = int(pos.y())
             j, i = pos.y(), pos.x()
+            i = int(np.clip(i, 0, dims[0] - 1))
+            j = int(np.clip(j, 0, dims[1] - 1))
             p1.plot(x=[i], y=[j], symbol='o', pen=None, symbolBrush='y', symbolSize=5)#, symbolBrush=pg.intColor(i,6,maxValue=128))
             min_radius = pars_action.param('MAGIC WAND PARAMS').child('MIN RADIUS').value()
             max_radius = pars_action.param('MAGIC WAND PARAMS').child('MAX RADIUS').value()
             roughness = pars_action.param('MAGIC WAND PARAMS').child('ROUGHNESS').value()
             roi, edge = cell_magic_wand_single_point(adjust_contrast(cur_img.copy().T, hist.getLevels()[0], hist.getLevels()[1]), (j, i), 
-                                               min_radius=min_radius, max_radius=max_radius, 
-                                               roughness=roughness, zoom_factor=1)
+                                                min_radius=min_radius, max_radius=max_radius, 
+                                                roughness=roughness, zoom_factor=1)
             ROI8 = np.uint8(roi * 255)
             contours = cv2.findContours(cv2.threshold(ROI8, 100, 255, 0)[1], cv2.RETR_TREE,
-                                             cv2.CHAIN_APPROX_NONE)[0][0][:,0,:]
+                                              cv2.CHAIN_APPROX_NONE)[0][0][:,0,:]
             pts = contours.tolist()
             pp = pts.copy()
             pp.append(pp[0])
@@ -128,9 +72,9 @@ def mouseClickEvent(event):
             pass
     
     elif mode == 'CHOOSE NEURONS':
+        pos = img.mapFromScene(event.pos())
         p1.clear()
         p1.addItem(img)
-        pos = img.mapFromScene(event.pos())
         x = int(pos.x())
         y = int(pos.y())
         j, i = pos.y(), pos.x()
@@ -148,16 +92,11 @@ def mouseClickEvent(event):
         except:
             pass
         
-p1.mousePressEvent = mouseClickEvent
-
-#  A general rule in Qt is that if you override one mouse event handler, you must override all of them.
 def release(event):
     pass
-p1.mouseReleaseEvent = release
 
 def move(event):
     pass
-p1.mouseMoveEvent = move 
 
 def add():
     global mode, pts, all_pts,all_centers, img, p1, neuron_list, neuron_idx, roi
@@ -183,13 +122,9 @@ def add():
         pp = pts.copy()
         pp.append(pp[0])
         p1.plot(x=np.array(pp)[:,0], y=np.array(pp)[:,1], pen=pen)
-        #p1.clear()
-        #p1.addItem(img)
         pts = []
         
     show_all()
-        
-pars_action.param('ADD').sigActivated.connect(add)
 
 def remove():
     try:
@@ -202,8 +137,6 @@ def remove():
     except:
         pass
 
-pars_action.param('REMOVE').sigActivated.connect(remove)
-
 def show_all():
     global all_pts, pen, all_ROIs, neuron_list, img_overlay
     p1.clear()
@@ -214,15 +147,10 @@ def show_all():
             p1.plot(x=np.array(pp)[:,0], y=np.array(pp)[:,1], pen=pen)
     else:
         overlay(all_ROIs)
-            
-
-pars_action.param('SHOW ALL').sigActivated.connect(show_all)
 
 def clear():
     p1.clear()
     p1.addItem(img)
-
-pars_action.param('CLEAR').sigActivated.connect(clear)
 
 def show_neuron():
     global all_pts
@@ -236,8 +164,6 @@ def show_neuron():
     else:
         p1.plot(x=np.array(pp)[:,0], y=np.array(pp)[:,1], pen=pen)
 
-neuron_list.itemClicked.connect(show_neuron)
-
 def load():
     global summary_images, dims, cur_img, p1
     fpath = F.getOpenFileName(caption='Load Summary Images',
@@ -249,10 +175,7 @@ def load():
     dims = summary_images[0].shape
     #p1.resize(dims[0], dims[1])
     img.setImage(cur_img)
-    p1.setAspectLocked()
-
-    
-pars_action.param('LOAD DATA').sigActivated.connect(load)
+    p1.setAspectLocked()   
 
 def load_rois():
     global summary_images, neuron_list, all_pts, all_centers, all_ROIs, dims
@@ -281,9 +204,7 @@ def load_rois():
         all_pts[neuron_idx] = pts
         all_centers[neuron_idx] = np.array(pts).mean(0)
         all_ROIs[neuron_idx] = roi
-    show_all()
-    
-pars_action.param('LOAD ROIS').sigActivated.connect(load_rois)
+    show_all()    
 
 def save():
     global all_ROIs, save_ROIs, summary_images
@@ -297,8 +218,6 @@ def save():
         cm.movie(save_ROIs).save(ffll[0])
     summary_images = summary_images.transpose([0, 2, 1])
     summary_images = np.flip(summary_images, axis=1)
-
-pars_action.param('SAVE').sigActivated.connect(save)
 
 def change(param, changes):
     global mode, cur_img
@@ -319,8 +238,6 @@ def change(param, changes):
         print(change)
         print(data)
 
-pars_action.sigTreeStateChanged.connect(change)
-
 def down():
     global all_pts
     try:
@@ -337,9 +254,6 @@ def down():
     except:
         pass
 
-shortcut_down = QShortcut(QtGui.QKeySequence("down"), w)
-shortcut_down.activated.connect(down)
-
 def up():
     global all_pts
     try:
@@ -355,9 +269,6 @@ def up():
             p1.plot(x=np.array(pp)[:,0], y=np.array(pp)[:,1], pen=pen)
     except:
         pass
-
-shortcut_up = QShortcut(QtGui.QKeySequence("up"), w)
-shortcut_up.activated.connect(up)
 
 def adjust_contrast(img, min_value, max_value):
     img[img < min_value] = min_value
@@ -379,21 +290,88 @@ def overlay(all_ROIs):
         p1.addItem(img_overlay)
         img_overlay.setZValue(10) # make sure this image is on top
         img_overlay.setOpacity(0.2)   
-    
 
-
-F = FileDialog()
-all_pts = {}
-all_centers = {}
-all_ROIs = {}
-pts = []
-pen = pg.mkPen(color=(255, 255, 0), width=4)#, style=Qt.DashDotLine)
-
-## Display the widget as a new window
-w.show()
-
-## Start the Qt event loop
-app.exec_()
+if __name__ == "__main__":    
+    ## Always start by initializing Qt (only once per application)
+    app = QApplication(sys.argv)
     
+    ## Define a top-level widget to hold everything
+    w = QtWidgets.QWidget()
     
+    ## Create some widgets to be placed inside
+    hist = pg.HistogramLUTItem()  # Contrast/color control
+    win = pg.GraphicsLayoutWidget()
+    win.setMaximumWidth(300)
+    win.setMinimumWidth(200)
+    win.addItem(hist)
+    p1 = pg.PlotWidget()
+    neuron_action = ParameterTree()
+    neuron_list = QtWidgets.QListWidget()
     
+    ## Create a grid layout to manage the widgets size and position
+    layout = QtWidgets.QGridLayout()
+    w.setLayout(layout)
+    
+    ## Add widgets to the layout in their proper positions
+    layout.addWidget(win, 0, 1)  
+    layout.addWidget(p1, 0, 2)  
+    layout.addWidget(neuron_action, 0, 3)   
+    layout.addWidget(neuron_list, 0, 4)  
+    img = pg.ImageItem()
+    p1.addItem(img)
+    hist.setImageItem(img)
+    
+    # Add actions    
+    params_action = [{'name': 'LOAD DATA', 'type':'action'},
+                     {'name': 'LOAD ROIS', 'type':'action'},
+                     {'name': 'SAVE', 'type':'action'},                 
+                     {'name': 'ADD', 'type': 'action'}, 
+                     {'name': 'REMOVE', 'type': 'action'}, 
+                     {'name': 'SHOW ALL', 'type': 'action'},
+                     {'name': 'CLEAR', 'type': 'action'}, 
+                     {'name': 'IMAGES', 'type': 'list', 'values': ['MEAN','CORR']},
+                     {'name': 'DISPLAY', 'type': 'list', 'values': ['CONTOUR','SPATIAL FOOTPRINTS']},
+                     {'name': 'MODE', 'type': 'list', 'values': ['POLYGON','CELL MAGIC WAND', 'CHOOSE NEURONS']},
+                     {'name': 'MAGIC WAND PARAMS', 'type': 'group', 'children': [{'name': 'MIN RADIUS', 'type': 'int', 'value': 4},
+                                                                        {'name': 'MAX RADIUS', 'type': 'int', 'value': 10},
+                                                                        {'name': 'ROUGHNESS', 'type': 'int', 'value': 1}]}]
+    
+    pars_action = Parameter.create(name='params_action', type='group', children=params_action) 
+    neuron_action.setParameters(pars_action, showTop=False)
+    neuron_action.setWindowTitle('Parameter Action')
+    mode = pars_action.getValues()['MODE'][0]
+    
+    # Add event
+    p1.mousePressEvent = mouseClickEvent
+    p1.mouseReleaseEvent = release
+    p1.mouseMoveEvent = move 
+    pars_action.param('ADD').sigActivated.connect(add)
+    pars_action.param('REMOVE').sigActivated.connect(remove)
+    pars_action.param('SHOW ALL').sigActivated.connect(show_all)
+    pars_action.param('CLEAR').sigActivated.connect(clear)
+    pars_action.param('LOAD DATA').sigActivated.connect(load)
+    pars_action.param('LOAD ROIS').sigActivated.connect(load_rois)
+    pars_action.param('SAVE').sigActivated.connect(save)
+    pars_action.sigTreeStateChanged.connect(change)    
+    shortcut_down = QShortcut(QtGui.QKeySequence("down"), w)
+    shortcut_down.activated.connect(down)
+    shortcut_up = QShortcut(QtGui.QKeySequence("up"), w)
+    shortcut_up.activated.connect(up)
+    neuron_list.itemClicked.connect(show_neuron)
+    
+    # Create dictionary for saving 
+    F = FileDialog()
+    all_pts = {}
+    all_centers = {}
+    all_ROIs = {}
+    pts = []
+    pen = pg.mkPen(color=(255, 255, 0), width=4)#, style=Qt.DashDotLine)
+    
+    ## Display the widget as a new window
+    w.show()
+    
+    ## Start the Qt event loop
+    app.exec_()
+        
+        
+        

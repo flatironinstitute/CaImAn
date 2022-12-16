@@ -1,4 +1,4 @@
-**The object detection network Mask R-CNN in VolPy is now compatible with tensorflow 2.4.1.**
+**The object detection network Mask R-CNN in VolPy is now compatible with tensorflow 2.4 or above**
 
 This folder contains Mask_RCNN source code obtained through the repository: https://github.com/matterport/Mask_RCNN
 Please refer to that repository for issues regarding this code.
