@@ -95,11 +95,9 @@ VolPy is an analysis pipeline for voltage imaging data. The analysis is based on
 * `volparams`: An object for setting parameters of voltage imaging. It can be set and changed easily and is passed into the algorithms.
 * `VOLPY`: An object for running the spike detection algorithm and saving results.
 
-The object detection network Mask R-CNN in VolPy is now compatible with tensorflow 2.4.1.
+The object detection network Mask R-CNN in VolPy is now compatible with tensorflow 2.4 or above.
 
-To see examples of how these methods are used, please consult the `demo_pipeline_voltage_imaging.py` script in the `demos/general` folder. For more information about the approach check the [preprint](https://www.biorxiv.org/content/10.1101/2020.01.02.892323v1).
-
-There is also a [general paper](https://journals.plos.org/ploscompbiol/article/comments?id=10.1371/journal.pcbi.1008806) on this pipeline
+To see examples of how these methods are used, please consult the `demo_pipeline_voltage_imaging.py` script in the `demos/general` folder. For more information about the approach check the [general paper](https://journals.plos.org/ploscompbiol/article/comments?id=10.1371/journal.pcbi.1008806) on this pipeline.
 
 ## Documentation & Wiki
 
