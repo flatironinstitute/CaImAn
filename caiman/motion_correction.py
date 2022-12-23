@@ -268,7 +268,7 @@ class MotionCorrect(object):
         else:
             self.motion_correct_rigid(template=template, save_movie=save_movie)
             b0 = np.ceil(np.max(np.abs(self.shifts_rig)))
-        self.border_to_0 = b0.astype(np.int)
+        self.border_to_0 = b0.astype(int)
         self.mmap_file = self.fname_tot_els if self.pw_rigid else self.fname_tot_rig
         return self
 
@@ -558,9 +558,9 @@ def apply_shift_iteration(img, shift, border_nan:bool=False, border_type=cv2.BOR
     if border_nan is not False:
         max_w, max_h, min_w, min_h = 0, 0, 0, 0
         max_h, max_w = np.ceil(np.maximum(
-            (max_h, max_w), shift)).astype(np.int)
+            (max_h, max_w), shift)).astype(int)
         min_h, min_w = np.floor(np.minimum(
-            (min_h, min_w), shift)).astype(np.int)
+            (min_h, min_w), shift)).astype(int)
         if border_nan is True:
             img[:max_h, :] = np.nan
             if min_h < 0:
@@ -884,9 +884,9 @@ def motion_correct_online(movie_iterable, add_to_movie, max_shift_w=25, max_shif
                 img, template, count, max_shift_w=max_shift_w, max_shift_h=max_shift_h, bilateral_blur=bilateral_blur)
 
             max_h, max_w = np.ceil(np.maximum(
-                (max_h, max_w), shift)).astype(np.int)
+                (max_h, max_w), shift)).astype(int)
             min_h, min_w = np.floor(np.minimum(
-                (min_h, min_w), shift)).astype(np.int)
+                (min_h, min_w), shift)).astype(int)
 
             if count < (buffer_size_frames + init_frames_template):
                 template_old = template
@@ -1071,7 +1071,7 @@ def bin_median(mat, window=10, exclude_nans=True):
     T, d1, d2 = np.shape(mat)
     if T < window:
         window = T
-    num_windows = np.int(old_div(T, window))
+    num_windows = int(old_div(T, window))
     num_frames = num_windows * window
     if exclude_nans:
         img = np.nanmedian(np.nanmean(np.reshape(
@@ -1103,7 +1103,7 @@ def bin_median_3d(mat, window=10, exclude_nans=True):
     T, d1, d2, d3 = np.shape(mat)
     if T < window:
         window = T
-    num_windows = np.int(old_div(T, window))
+    num_windows = int(old_div(T, window))
     num_frames = num_windows * window
     if exclude_nans:
         img = np.nanmedian(np.nanmean(np.reshape(
@@ -1916,12 +1916,12 @@ def apply_shifts_dft(src_freq, shifts, diffphase, is_freq=True, border_nan=True)
     if border_nan is not False:
         max_w, max_h, min_w, min_h = 0, 0, 0, 0
         max_h, max_w = np.ceil(np.maximum(
-            (max_h, max_w), shifts[:2])).astype(np.int)
+            (max_h, max_w), shifts[:2])).astype(int)
         min_h, min_w = np.floor(np.minimum(
-            (min_h, min_w), shifts[:2])).astype(np.int)
+            (min_h, min_w), shifts[:2])).astype(int)
         if is3D:
-            max_d = np.ceil(np.maximum(0, shifts[2])).astype(np.int)
-            min_d = np.floor(np.minimum(0, shifts[2])).astype(np.int)
+            max_d = np.ceil(np.maximum(0, shifts[2])).astype(int)
+            min_d = np.floor(np.minimum(0, shifts[2])).astype(int)
         if border_nan is True:
             new_img[:max_h, :] = np.nan
             if min_h < 0:
@@ -2261,7 +2261,7 @@ def tile_and_correct(img, template, strides, overlaps, max_shifts, newoverlaps=N
             newoverlaps = overlaps
         if newstrides is None:
             newstrides = tuple(
-                np.round(np.divide(strides, upsample_factor_grid)).astype(np.int))
+                np.round(np.divide(strides, upsample_factor_grid)).astype(int))
 
         newshapes = np.add(newstrides, newoverlaps)
 
@@ -2322,8 +2322,8 @@ def tile_and_correct(img, template, strides, overlaps, max_shifts, newoverlaps=N
             new_img = old_div(new_img, normalizer)
 
         else:  # in case the difference in shift between neighboring patches is larger than 0.5 pixels we do not interpolate in the overlaping area
-            half_overlap_x = np.int(newoverlaps[0] / 2)
-            half_overlap_y = np.int(newoverlaps[1] / 2)
+            half_overlap_x = int(newoverlaps[0] / 2)
+            half_overlap_y = int(newoverlaps[1] / 2)
             for (x, y), (idx_0, idx_1), im, (_, _), weight_mat in zip(start_step, xy_grid, imgs, total_shifts, weight_matrix):
 
                 if idx_0 == 0:
@@ -2522,7 +2522,7 @@ def tile_and_correct_3d(img:np.ndarray, template:np.ndarray, strides:Tuple, over
             newoverlaps = overlaps
         if newstrides is None:
             newstrides = tuple(
-                np.round(np.divide(strides, upsample_factor_grid)).astype(np.int))
+                np.round(np.divide(strides, upsample_factor_grid)).astype(int))
 
         newshapes = np.add(newstrides, newoverlaps)
 
@@ -2586,9 +2586,9 @@ def tile_and_correct_3d(img:np.ndarray, template:np.ndarray, strides:Tuple, over
             new_img = old_div(new_img, normalizer)
 
         else:  # in case the difference in shift between neighboring patches is larger than 0.5 pixels we do not interpolate in the overlaping area
-            half_overlap_x = np.int(newoverlaps[0] / 2)
-            half_overlap_y = np.int(newoverlaps[1] / 2)
-            half_overlap_z = np.int(newoverlaps[2] / 2)
+            half_overlap_x = int(newoverlaps[0] / 2)
+            half_overlap_y = int(newoverlaps[1] / 2)
+            half_overlap_z = int(newoverlaps[2] / 2)
             
             for (x, y, z), (idx_0, idx_1, idx_2), im, (_, _, _), weight_mat in zip(start_step, xyz_grid, imgs, total_shifts, weight_matrix):
 
@@ -2661,8 +2661,8 @@ def compute_metrics_motion_correction(fname, final_size_x, final_size_y, swap_di
     m_min = mi + (ma - mi) / 100
     m_max = mi + (ma - mi) / 4
 
-    max_shft_x = np.int(np.ceil((np.shape(m)[1] - final_size_x) / 2))
-    max_shft_y = np.int(np.ceil((np.shape(m)[2] - final_size_y) / 2))
+    max_shft_x = int(np.ceil((np.shape(m)[1] - final_size_x) / 2))
+    max_shft_y = int(np.ceil((np.shape(m)[2] - final_size_y) / 2))
     max_shft_x_1 = - ((np.shape(m)[1] - max_shft_x) - (final_size_x))
     max_shft_y_1 = - ((np.shape(m)[2] - max_shft_y) - (final_size_y))
     if max_shft_x_1 == 0:

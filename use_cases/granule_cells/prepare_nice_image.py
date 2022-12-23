@@ -54,10 +54,10 @@ from caiman.source_extraction import cnmf as cnmf
 # backend='SLURM'
 backend = 'local'
 if backend == 'SLURM':
-    n_processes = np.int(os.environ.get('SLURM_NPROCS'))
+    n_processes = int(os.environ.get('SLURM_NPROCS'))
 else:
     # roughly number of cores on your machine minus 1
-    n_processes = np.maximum(np.int(psutil.cpu_count()), 1)
+    n_processes = np.maximum(int(psutil.cpu_count()), 1)
 print(('using ' + str(n_processes) + ' processes'))
 #%% start cluster for efficient computation
 single_thread = False
@@ -377,8 +377,8 @@ for iid in sure_in_idx[np.hstack([idx_to_show, 7])]:
     pl.subplot(7, 7, counter)
     mmsk = np.reshape(A.tocsc()[:, iid].todense(), dims, order='F')
     cx, cy = scipy.ndimage.measurements.center_of_mass(np.array(mmsk))
-    cx = np.int(cx)
-    cy = np.int(cy)
+    cx = int(cx)
+    cy = int(cy)
     print((cx, cy))
     pl.imshow(mmsk[np.maximum(cx - 15, 0):cx + 15,
                    np.maximum(cy - 15, 0):cy + 15], cmap='gray')
@@ -718,8 +718,8 @@ cb.trace(trs[np.hstack([sure_in_idx[idx_to_show], 7])].T, fr=6).plot()
 #    US_ALONE=   1
 #    CS_US=2
 #
-#    samples_before=np.int(2.8*f_rate)
-#    samples_after=np.int(7.3*f_rate)-samples_before
+#    samples_before=int(2.8*f_rate)
+#    samples_after=int(7.3*f_rate)-samples_before
 #
 #
 #    if interpolate:
@@ -738,7 +738,7 @@ cb.trace(trs[np.hstack([sure_in_idx[idx_to_show], 7])].T, fr=6).plot()
 #    idx_trig_US=triggers_img[:][:,1]
 #    trial_type=triggers_img[:][:,2]
 #    length=triggers_img[:][:,-1]
-#    ISI=np.int(np.nanmedian(idx_trig_US)-np.nanmedian(idx_trig_CS))
+#    ISI=int(np.nanmedian(idx_trig_US)-np.nanmedian(idx_trig_CS))
 #
 #    for idx,fr in enumerate(chunk_sizes):
 #
@@ -759,9 +759,9 @@ cb.trace(trs[np.hstack([sure_in_idx[idx_to_show], 7])].T, fr=6).plot()
 #        else:
 #
 #            if trial_type[idx] == CS_ALONE:
-#                    Ftraces_mat[idx]=Ftraces[idx][:,np.int(idx_trig_CS[idx]+ISI-samples_before):np.int(idx_trig_CS[idx]+ISI+samples_after)]
+#                    Ftraces_mat[idx]=Ftraces[idx][:,int(idx_trig_CS[idx]+ISI-samples_before):int(idx_trig_CS[idx]+ISI+samples_after)]
 #            else:
-#                    Ftraces_mat[idx]=Ftraces[idx][:,np.int(idx_trig_US[idx]-samples_before):np.int(idx_trig_US[idx]+samples_after)]
+#                    Ftraces_mat[idx]=Ftraces[idx][:,int(idx_trig_US[idx]-samples_before):int(idx_trig_US[idx]+samples_after)]
 #
 #    #%%
 #    wheel_traces, movement_at_CS, trigs_mov = gc.process_wheel_traces(np.array(res_bt['wheel']),tm,thresh_MOV_iqr=1000,time_CS_on=-.25,time_US_on=0)
@@ -927,8 +927,8 @@ cb.trace(trs[np.hstack([sure_in_idx[idx_to_show], 7])].T, fr=6).plot()
 # rois=np.asarray(dt['roi'],np.float32)
 ###
 ###        trials = f.keys()
-# trials.sort(key=lambda(x): np.int(x.replace('trial_','')))
-###        trials_idx=[np.int(x.replace('trial_',''))-1 for x in trials]
+# trials.sort(key=lambda(x): int(x.replace('trial_','')))
+###        trials_idx=[int(x.replace('trial_',''))-1 for x in trials]
 ###
 ###
 ###

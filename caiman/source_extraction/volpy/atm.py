@@ -234,7 +234,7 @@ def volspike(pars):
     output['spatialFilter'] = np.zeros((X.max() + 2, Y.max() + 2))
     output['spatialFilter'][(X, Y)] = -output['weights']
     output['spatialFilter'] = cv2.GaussianBlur(output['spatialFilter'],
-                                               (np.int(2 * np.ceil(2 * sigma) + 1),) * 2,
+                                               (int(2 * np.ceil(2 * sigma) + 1),) * 2,
                                                sigma, borderType=cv2.BORDER_REPLICATE)
     output['passedLocalityTest'] = None
     output['low_spk'] = output['num_spikes'] < 30

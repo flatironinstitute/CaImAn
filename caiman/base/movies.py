@@ -108,7 +108,7 @@ class movie(ts.timeseries):
         tmp = []
         bins = np.linspace(0, self.shape[0], 10).round(0)
         for i in range(9):
-            tmp.append(np.nanmin(self[np.int(bins[i]):np.int(bins[i + 1]), :, :]).tolist() + 1)
+            tmp.append(np.nanmin(self[int(bins[i]):int(bins[i + 1]), :, :]).tolist() + 1)
         minval = np.ndarray(1)
         minval[0] = np.nanmin(tmp)
         return movie(input_arr=minval)
@@ -291,7 +291,7 @@ class movie(ts.timeseries):
 
         """
         T, d1, d2 = np.shape(self)
-        num_windows = np.int(old_div(T, window))
+        num_windows = int(old_div(T, window))
         num_frames = num_windows * window
         return np.nanmedian(np.nanmean(np.reshape(self[:num_frames], (window, num_windows, d1, d2)), axis=0), axis=0)
 
@@ -311,7 +311,7 @@ class movie(ts.timeseries):
 
         """
         T, d1, d2, d3 = np.shape(self)
-        num_windows = np.int(old_div(T, window))
+        num_windows = int(old_div(T, window))
         num_frames = num_windows * window
         return np.nanmedian(np.nanmean(np.reshape(self[:num_frames], (window, num_windows, d1, d2, d3)), axis=0),
                             axis=0)
@@ -1964,7 +1964,7 @@ def sbxreadskip(filename: str, subindices: slice) -> np.ndarray:
         factor = 2
 
     # Determine number of frames in whole file
-    max_idx = np.int(os.path.getsize(filename + '.sbx') / info['recordsPerBuffer'] / info['sz'][1] * factor / 4 - 1)
+    max_idx = int(os.path.getsize(filename + '.sbx') / info['recordsPerBuffer'] / info['sz'][1] * factor / 4 - 1)
 
     # Paramters
     if isinstance(subindices, slice):
@@ -1976,7 +1976,7 @@ def sbxreadskip(filename: str, subindices: slice) -> np.ndarray:
         if subindices.stop is None:
             N = max_idx + 1    # Last frame
         else:
-            N = np.minimum(subindices.stop, max_idx + 1).astype(np.int)
+            N = np.minimum(subindices.stop, max_idx + 1).astype(int)
 
         if subindices.step is None:
             skip = 1

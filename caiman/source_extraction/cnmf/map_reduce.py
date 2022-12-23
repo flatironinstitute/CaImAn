@@ -496,7 +496,7 @@ def run_CNMF_patches(file_name, shape, params, gnb=1, dview=None,
                 idx_mask_repeat = processed_idx_prev.intersection(idx_mask)
             processed_idx = processed_idx.union(idx_mask)
             if len(idx_mask_repeat) > 0:
-                B_tot[np.array(list(idx_mask_repeat), dtype=np.int), _b] = 0
+                B_tot[np.array(list(idx_mask_repeat), dtype=int), _b] = 0
 
         b = B_tot
         f = F_tot

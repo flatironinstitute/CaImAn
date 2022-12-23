@@ -392,8 +392,8 @@ def apply_magic_wand(A, gSig, dims, A_thr=None, coms=None, dview=None,
         coms = [scipy.ndimage.center_of_mass(mm.reshape(dims, order='F')) for
                 mm in A_thr.T]
 
-    min_radius = np.round(np.min(gSig)*min_frac).astype(np.int)
-    max_radius = np.round(max_frac*np.max(gSig)).astype(np.int)
+    min_radius = np.round(np.min(gSig)*min_frac).astype(int)
+    max_radius = np.round(max_frac*np.max(gSig)).astype(int)
 
 
     params = []
@@ -475,9 +475,9 @@ def recursively_save_dict_contents_to_group(h5file:h5py.File, path:str, dic:Dict
             try:
                 item = np.array(list(item))
             except:
-                item = np.asarray(item, dtype=np.float)
+                item = np.asarray(item, dtype=float)
         if key == 'g_tot':
-            item = np.asarray(item, dtype=np.float)
+            item = np.asarray(item, dtype=float)
         if key in ['groups', 'idx_tot', 'ind_A', 'Ab_epoch', 'coordinates',
                    'loaded_model', 'optional_outputs', 'merged_ROIs', 'tf_in',
                    'tf_out', 'empty_merged']:
@@ -496,7 +496,7 @@ def recursively_save_dict_contents_to_group(h5file:h5py.File, path:str, dic:Dict
             if path not in h5file:
                 h5file.create_group(path)
             h5file[path].attrs[key] = item
-        elif isinstance(item, (np.int64, np.int32, np.float64, np.float, float, np.float32, int)):
+        elif isinstance(item, (np.int64, np.int32, np.float64, float, np.float32, int)):
             # TODO In the future we may store all scalars, including these, as attributes too, although strings suffer the most from being stored as datasets
             h5file[path + key] = item
             logging.debug(f'Saving numeric {path + key}')

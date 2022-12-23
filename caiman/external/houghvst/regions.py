@@ -35,7 +35,7 @@ def patch_selection(img, n_patches, patch_size=32, overlapping=False):
 
             patch_idx.append((k0, k1))
             patches.append(img[k0:k0 + patch_size, k1:k1 + patch_size])
-            m = np.zeros(img.shape, dtype=np.bool)
+            m = np.zeros(img.shape, dtype=bool)
             m[k0:k0 + patch_size, k1:k1 + patch_size] = True
             masks.append(m)
 

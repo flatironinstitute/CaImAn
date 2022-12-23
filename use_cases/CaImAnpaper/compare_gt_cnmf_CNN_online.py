@@ -239,7 +239,7 @@ print(fls)
 ds_factor = params_movie[ind_dataset]['ds_factor']
 # expected half size of neurons
 gSig = tuple(
-    np.ceil(np.array(params_movie[ind_dataset]['gSig']) / ds_factor).astype(np.int))
+    np.ceil(np.array(params_movie[ind_dataset]['gSig']) / ds_factor).astype(int))
 # number of files used for initialization
 init_files = 1
 # number of files used for online
@@ -446,21 +446,21 @@ for iter in range(epochs):
                     f[:, t - 1]).reshape(cnm2.dims, order='F') * img_norm / np.max(img_norm)
                 # spatial shapes
                 all_comps = (np.array(A.sum(-1)).reshape(cnm2.dims, order='F'))
-                frame_comp_1 = cv2.resize(np.concatenate([frame_ / np.max(img_norm), all_comps * 3.], axis=-1), (2 * np.int(
-                    cnm2.dims[1] * resize_fact), np.int(cnm2.dims[0] * resize_fact)))
-                frame_comp_2 = cv2.resize(np.concatenate([comps_frame * 10., comps_frame + bgkrnd_frame], axis=-1), (2 * np.int(
-                    cnm2.dims[1] * resize_fact), np.int(cnm2.dims[0] * resize_fact)))
+                frame_comp_1 = cv2.resize(np.concatenate([frame_ / np.max(img_norm), all_comps * 3.], axis=-1), (2 * int(
+                    cnm2.dims[1] * resize_fact), int(cnm2.dims[0] * resize_fact)))
+                frame_comp_2 = cv2.resize(np.concatenate([comps_frame * 10., comps_frame + bgkrnd_frame], axis=-1), (2 * int(
+                    cnm2.dims[1] * resize_fact), int(cnm2.dims[0] * resize_fact)))
                 frame_pn = np.concatenate(
                     [frame_comp_1, frame_comp_2], axis=0).T
                 vid_frame = np.repeat(frame_pn[:, :, None], 3, axis=-1)
                 vid_frame = np.minimum((vid_frame * 255.), 255).astype('u1')
                 cv2.putText(vid_frame, 'Raw Data', (5, 20), fontFace=5,
                             fontScale=1.2, color=(0, 255, 0), thickness=1)
-                cv2.putText(vid_frame, 'Inferred Activity', (np.int(
+                cv2.putText(vid_frame, 'Inferred Activity', (int(
                     cnm2.dims[0] * resize_fact) + 5, 20), fontFace=5, fontScale=1.2, color=(0, 255, 0), thickness=1)
-                cv2.putText(vid_frame, 'Identified Components', (5, np.int(
+                cv2.putText(vid_frame, 'Identified Components', (5, int(
                     cnm2.dims[1] * resize_fact) + 20), fontFace=5, fontScale=1.2, color=(0, 255, 0), thickness=1)
-                cv2.putText(vid_frame, 'Denoised Data', (np.int(cnm2.dims[0] * resize_fact) + 5, np.int(
+                cv2.putText(vid_frame, 'Denoised Data', (int(cnm2.dims[0] * resize_fact) + 5, int(
                     cnm2.dims[1] * resize_fact) + 20), fontFace=5, fontScale=1.2, color=(0, 255, 0), thickness=1)
                 cv2.putText(vid_frame, 'Frame = ' + str(t), (vid_frame.shape[1] // 2 - vid_frame.shape[1] //
                                                              10, vid_frame.shape[0] - 20), fontFace=5, fontScale=1.2, color=(0, 255, 255), thickness=1)

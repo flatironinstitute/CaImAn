@@ -43,7 +43,7 @@ try:
     if 'pydevconsole' in sys.argv[0]:
         raise Exception()
     ID = sys.argv[1]
-    ID = str(np.int(ID)+1)
+    ID = str(int(ID)+1)
     print('Processing ID:'+ str(ID))
     ploton = False
     save_results = True
@@ -70,8 +70,8 @@ min_num_trial = 50
 
 mmm = cm.load(fls,subindices = 0)
 dims = mmm.shape
-K = np.maximum(K,np.round(600/1602720*np.prod(mmm.shape)).astype(np.int))
-min_num_trial = np.maximum(min_num_trial,np.round(200/1602720*np.prod(mmm.shape)).astype(np.int))
+K = np.maximum(K,np.round(600/1602720*np.prod(mmm.shape)).astype(int))
+min_num_trial = np.maximum(min_num_trial,np.round(200/1602720*np.prod(mmm.shape)).astype(int))
 # your list of files should look something like this
 print(fls)
 
@@ -351,7 +351,7 @@ pl.close()
 
 #%% predictions for Plan 11 to choose nicely looking neurons
 from  skimage.util._montage import  montage2d
-predictions, final_crops = cm.components_evaluation.evaluate_components_CNN(Ab[()][:,gnb:], dims, np.array(gSig).astype(np.int), model_name=os.path.join(caiman_datadir(), 'model', 'cnn_model'), patch_size=50, loaded_model=None, isGPU=False)
+predictions, final_crops = cm.components_evaluation.evaluate_components_CNN(Ab[()][:,gnb:], dims, np.array(gSig).astype(int), model_name=os.path.join(caiman_datadir(), 'model', 'cnn_model'), patch_size=50, loaded_model=None, isGPU=False)
 #%% FIGURE 6 a,b
 idx = np.argsort(predictions[:,0])[:10]#[[0,1,2,3,5,9]]
 Ab_part = Ab[()][:,gnb:][:,idx]

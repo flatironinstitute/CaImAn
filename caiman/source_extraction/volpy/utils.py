@@ -233,7 +233,7 @@ def view_components(estimates, img, idx, frame_times=None, gt_times=None):
             s_comp.set_val(new_val)
         
     def update(val):
-        i = np.int(np.round(s_comp.val))
+        i = int(np.round(s_comp.val))
         print(f'Component:{i}')
 
         if i < n:

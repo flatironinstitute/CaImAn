@@ -306,7 +306,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
     d, T = np.shape(Y)[:-1], np.shape(Y)[-1]
     # rescale according to downsampling factor
     gSig = np.asarray(gSig, dtype=float) / ssub
-    gSiz = np.round(np.asarray(gSiz) / ssub).astype(np.int)
+    gSiz = np.round(np.asarray(gSiz) / ssub).astype(int)
 
     if normalize_init is True:
         logging.info('Variance Normalization')
@@ -401,7 +401,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
 
         # Define CNMF parameters
         _, _, _ = cnmf_obj.fit(
-            np.array(Y_ds.transpose([2, 0, 1]), dtype=np.float), cent)
+            np.array(Y_ds.transpose([2, 0, 1]), dtype=float), cent)
 
         Ain = cnmf_obj.A
         Cin = cnmf_obj.C
@@ -837,7 +837,7 @@ def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1,
             xySig = np.meshgrid(*[np.arange(s[0], s[1])
                                   for s in ijSig], indexing='xy')
             arr = np.array([np.reshape(s, (1, np.size(s)), order='F').squeeze()
-                            for s in xySig], dtype=np.int)
+                            for s in xySig], dtype=int)
             indices = np.ravel_multi_index(arr, d[0:-1], order='F')
 
             A[indices, k] = np.reshape(
@@ -936,7 +936,7 @@ def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1,
                 xySig = np.meshgrid(*[np.arange(s[0], s[1])
                                       for s in ijSig], indexing='xy')
                 arr = np.array([np.reshape(s, (1, np.size(s)), order='F').squeeze()
-                                for s in xySig], dtype=np.int)
+                                for s in xySig], dtype=int)
                 indices = np.ravel_multi_index(arr, d[0:-1], order='F')
 
                 A_[indices, k] = np.reshape(
@@ -1521,7 +1521,7 @@ def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
 
     # pixels near the boundaries are ignored because of artifacts
     ind_bd = np.zeros(shape=(d1, d2)).astype(
-        np.bool)  # indicate boundary pixels
+        bool)  # indicate boundary pixels
     if bd > 0:
         ind_bd[:bd, :] = True
         ind_bd[-bd:, :] = True
