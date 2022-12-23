@@ -2016,7 +2016,7 @@ def compute_W(Y, A, C, dims, radius, data_fits_in_memory=True, ssub=1, tsub=1, p
             return index, data
 
     Q = list((parmap if parallel else map)(process_pixel, range(d1 * d2)))
-    indices, data = np.transpose(Q)
+    indices, data = np.array(Q, dtype=object).T
     indptr = np.concatenate([[0], np.cumsum(list(map(len, indices)))])
     indices = np.concatenate(indices)
     data = np.concatenate(data)

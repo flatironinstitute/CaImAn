@@ -618,7 +618,7 @@ class movie(ts.timeseries):
         padbefore = int(np.floor(old_div(elm_missing, 2.0)))
         padafter = int(np.ceil(old_div(elm_missing, 2.0)))
 
-        logging.debug('Initial Size Image:' + np.str(np.shape(self)))
+        logging.debug('Initial Size Image:' + str(np.shape(self)))
         sys.stdout.flush()
         mov_out = movie(np.pad(self.astype(np.float32), ((padbefore, padafter), (0, 0), (0, 0)), mode='reflect'),
                         **self.__dict__)
@@ -661,7 +661,7 @@ class movie(ts.timeseries):
             mov_out = movBL
             
         mov_out = mov_out[padbefore:len(movBL) - padafter, :, :]
-        logging.debug('Final Size Movie:' + np.str(self.shape))
+        logging.debug('Final Size Movie:' + str(self.shape))
         return mov_out, movie(movBL,
                               fr=self.fr,
                               start_time=self.start_time,
