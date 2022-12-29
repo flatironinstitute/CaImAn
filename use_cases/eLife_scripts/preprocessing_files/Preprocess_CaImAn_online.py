@@ -59,9 +59,9 @@ try:
     if 'pydevconsole' in sys.argv[0]:
         raise Exception()
     ID = sys.argv[1]
-    ID = str(np.int(ID))
+    ID = str(int(ID))
     print('Processing ID:' + str(ID))
-    ID = [np.int(ID)]
+    ID = [int(ID)]
 
 except:
     ID = range(9)
@@ -198,7 +198,7 @@ for ind_dataset in ID:
     if len(fls) == 0:
         fls = from_zipfiles_to_movie_lists(fname_zip)
 
-    fls = sorted(fls, key=lambda x: np.int(x.split('_')[-1][:-4]))
+    fls = sorted(fls, key=lambda x: int(x.split('_')[-1][:-4]))
     print(fls)
 
     Cn = np.array(cm.load(os.path.join(base_folder, params_movie[ind_dataset]['folder_name'], 
@@ -210,7 +210,7 @@ for ind_dataset in ID:
     fr = params_movie[ind_dataset]['fr']
     decay_time = params_movie[ind_dataset]['decay_time']
     gSig = tuple(np.ceil(np.array(params_movie[ind_dataset]['gSig']) / ds_factor).astype(
-        np.int))  # expected half size of neurons
+        int))  # expected half size of neurons
     init_batch = 200  # number of frames for initialization (presumably from the first file)
     expected_comps = 1000  # maximum number of expected components used for memory pre-allocation (exaggerate here)
     K = 2  # initial number of components    

@@ -201,7 +201,7 @@ def save_memmap_join(mmap_fnames: List[str], base_name: str = None, n_chunks: in
 
     big_mov = np.memmap(fname_tot, mode='w+', dtype=np.float32, shape=prepare_shape((d, tot_frames)), order='C')
 
-    step = np.int(old_div(d, n_chunks))
+    step = int(old_div(d, n_chunks))
     pars = []
     for ref in range(0, d - step + 1, step):
         pars.append([fname_tot, d, tot_frames, mmap_fnames, ref, ref + step, add_to_mov])

@@ -44,10 +44,10 @@ from caiman.cluster import apply_to_patch
 # backend='SLURM'
 backend = 'local'
 if backend == 'SLURM':
-    n_processes = np.int(os.environ.get('SLURM_NPROCS'))
+    n_processes = int(os.environ.get('SLURM_NPROCS'))
 else:
     # roughly number of cores on your machine minus 1
-    n_processes = np.maximum(np.int(psutil.cpu_count()), 1)
+    n_processes = np.maximum(int(psutil.cpu_count()), 1)
 print(('using ' + str(n_processes) + ' processes'))
 #%% start cluster for efficient computation
 single_thread = False
@@ -165,7 +165,7 @@ for r, idx_mat in zip(res_p, idfl):
     img_temp[idx_mat] = 1
     img_temp = np.reshape(img_temp, dim_r, order='F')
 #    pl.imshow(img_temp)
-    x1, x2 = np.round(scipy.ndimage.center_of_mass(img_temp)).astype(np.int)
+    x1, x2 = np.round(scipy.ndimage.center_of_mass(img_temp)).astype(int)
     print((x1, x2))
     movie_shifts_x[:, x1, x2] = np.array(r[0][-1])[:, 0]
     movie_shifts_y[:, x1, x2] = np.array(r[0][-1])[:, 1]

@@ -166,7 +166,7 @@ try:
     dims_online = all_results_online[name_file_online]['dims']
 except:
     downsamp_factor = np.sqrt(A.shape[0]/A_online.shape[0])
-    dims_online = tuple(np.array(np.round(np.divide(dims, downsamp_factor))).astype(np.int))
+    dims_online = tuple(np.array(np.round(np.divide(dims, downsamp_factor))).astype(int))
 
 C_online = all_results_online[name_file_online]['C']
 A_gt_online = all_results_online[name_file_online]['A_gt']
@@ -199,7 +199,7 @@ images_nice_gt = (A_gt.tocsc()[:, idx_comps_high_r_gt].toarray().reshape(dims + 
 
 images_nice_online = (A_online[:, idx_comps_high_r_online].reshape(dims + (-1,), order='F')).transpose(2, 0, 1)
 
-cms = np.array([scipy.ndimage.center_of_mass(img) for img in images_nice]).astype(np.int)
+cms = np.array([scipy.ndimage.center_of_mass(img) for img in images_nice]).astype(int)
 
 
 images_nice_crop = [img[cm_[0] - 15:cm_[0] + 15, cm_[1] - 15:cm_[1] + 15] for cm_, img in zip(cms, images_nice)]

@@ -13,7 +13,7 @@ def main():
     fnames = [os.path.join(caiman_datadir(), 'example_movies', 'demoMovie.tif')]
 
     movie = cm.load(fnames)
-    movie = movie.astype(np.float)
+    movie = movie.astype(float)
 
     # makes estimation numerically better:
     movie -= movie.mean()

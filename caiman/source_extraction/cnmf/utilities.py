@@ -162,11 +162,11 @@ def peak_local_max(image, min_distance=1, threshold_abs=None,
     if isinstance(exclude_border, bool):
         exclude_border = min_distance if exclude_border else 0
 
-    out = np.zeros_like(image, dtype=np.bool)
+    out = np.zeros_like(image, dtype=bool)
 
     if np.all(image == image.flat[0]):
         if indices is True:
-            return np.empty((0, 2), np.int)
+            return np.empty((0, 2), int)
         else:
             return out
 
@@ -643,7 +643,7 @@ def manually_refine_components(Y, xxx_todo_changeme, A, C, Cn, thr=0.9, display_
 
         if pts != []:
             print(pts)
-            xx, yy = np.round(pts[0]).astype(np.int)
+            xx, yy = np.round(pts[0]).astype(int)
             coords_y = np.array(list(range(yy - dy, yy + dy + 1)))
             coords_x = np.array(list(range(xx - dx, xx + dx + 1)))
             coords_y = coords_y[(coords_y >= 0) & (coords_y < d1)]

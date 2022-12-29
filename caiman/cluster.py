@@ -70,7 +70,7 @@ def extract_patch_coordinates(dims: Tuple,
     shapes = []
     iters = [list(range(rf[i], dims[i] - rf[i], 2 * rf[i] - stride[i])) + [dims[i] - rf[i]] for i in range(len(dims))]
 
-    coords = np.empty(list(map(len, iters)) + [len(dims)], dtype=np.object)
+    coords = np.empty(list(map(len, iters)) + [len(dims)], dtype=object)
     for count_0, xx in enumerate(iters[0]):
         coords_x = np.arange(xx - rf[0], xx + rf[0] + 1)
         coords_x = coords_x[(coords_x >= 0) & (coords_x < dims[0])]
@@ -156,7 +156,7 @@ def apply_to_patch(mmap_file, shape: Tuple[Any, Any, Any], dview, rf, stride, fu
 
     idx_flat, idx_2d = extract_patch_coordinates((d1, d2), rf=(rf1, rf2), stride=(stride1, stride2))
 
-    shape_grid = tuple(np.ceil((d1 * 1. / (rf1 * 2 - stride1), d2 * 1. / (rf2 * 2 - stride2))).astype(np.int))
+    shape_grid = tuple(np.ceil((d1 * 1. / (rf1 * 2 - stride1), d2 * 1. / (rf2 * 2 - stride2))).astype(int))
     if d1 <= rf1 * 2:
         shape_grid = (1, shape_grid[1])
     if d2 <= rf2 * 2:
@@ -370,10 +370,10 @@ def setup_cluster(backend: str = 'multiprocessing',
 
     if n_processes is None:
         if backend == 'SLURM':
-            n_processes = np.int(os.environ.get('SLURM_NPROCS'))
+            n_processes = int(os.environ.get('SLURM_NPROCS'))
         else:
             # roughly number of cores on your machine minus 1
-            n_processes = np.maximum(np.int(psutil.cpu_count() - 1), 1)
+            n_processes = np.maximum(int(psutil.cpu_count() - 1), 1)
 
     if single_thread:
         dview = None
