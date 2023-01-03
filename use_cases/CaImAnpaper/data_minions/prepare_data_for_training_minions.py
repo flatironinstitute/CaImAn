@@ -117,7 +117,7 @@ count = 0
 for a in grouper(50, to_be_checked):
 
     a_ = [aa for aa in a if aa is not None]
-    a_ = np.array(a_).astype(np.int)
+    a_ = np.array(a_).astype(int)
     print(np.max(a_))
     print(count)
     count += 1
@@ -129,7 +129,7 @@ for a in grouper(50, to_be_checked):
     pl.imshow(img_mont)
     inp = pl.ginput(n=0, timeout=-100000)
     imgs_to_exclude = []
-    inp = np.ceil(np.array(inp) / 50).astype(np.int) - 1
+    inp = np.ceil(np.array(inp) / 50).astype(int) - 1
     if len(inp) > 0:
         imgs_to_exclude = img_mont_[np.ravel_multi_index(
             [inp[:, 1], inp[:, 0]], shps_img_mont)]

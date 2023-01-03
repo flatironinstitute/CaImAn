@@ -53,8 +53,8 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
                               expandCore=None, dview=None, n_pixels_per_process=128,
                               medw=(3, 3), thr_method='max', maxthr=0.1,
                               nrgthr=0.9999, extract_cc=True, b_in=None,
-                              se=np.ones((3, 3), dtype=np.int),
-                              ss=np.ones((3, 3), dtype=np.int), nb=1,
+                              se=np.ones((3, 3), dtype=int),
+                              ss=np.ones((3, 3), dtype=int), nb=1,
                               method_ls='lasso_lars', update_background_components=True,
                               low_rank_background=True, block_size_spat=1000,
                               num_blocks_per_run_spat=20):
@@ -410,7 +410,7 @@ def regression_ipyparallel(pars):
                 model = make_pipeline(
                     StandardScaler(with_mean=False),
                     linear_model.LassoLars(alpha=lambda_lasso, positive=True,
-                                                 fit_intercept=True, normalize=False)
+                                                 fit_intercept=True)
                     )
                 a = model.fit(np.array(c.T), np.ravel(y))['lassolars'].coef_
 
@@ -606,7 +606,7 @@ def threshold_components_parallel(pars):
     Ath = np.squeeze(np.reshape(A_temp, (d, 1)))
     Ath2 = np.zeros((d))
     # we do that to have a full closed structure even if the values have been trehsolded
-    BW = binary_closing(BW.astype(np.int), structure=se.T) # transpose cause A_temp is C-order
+    BW = binary_closing(BW.astype(int), structure=se.T) # transpose cause A_temp is C-order
 
     # if we have deleted the element
     if BW.max() == 0:
@@ -1095,7 +1095,7 @@ def computing_indicator(Y, A_in, b, C, f, nb, method, dims, min_size, max_size, 
                 scipy.sparse.hstack([A_in, scipy.sparse.coo_matrix(b)]), dims, method=method, min_size=min_size, max_size=max_size, dist=dist, expandCore=expandCore,
                 dview=dview)
 
-        ind2_ = [np.where(iid_.squeeze())[0]  for iid_ in dist_indicator.astype(np.bool).toarray()]
+        ind2_ = [np.where(iid_.squeeze())[0]  for iid_ in dist_indicator.astype(bool).toarray()]
         ind2_ = [iid_ if (np.size(iid_) > 0) and (np.min(iid_) < nr) else [] for iid_ in ind2_]
 
     return ind2_, nr, C, f, b, A_in

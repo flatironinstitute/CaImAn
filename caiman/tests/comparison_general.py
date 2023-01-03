@@ -178,7 +178,7 @@ def test_general():
                        nonneg_movie=True)
     mc.motion_correct_rigid(save_movie=True)
     m_rig = cm.load(mc.fname_tot_rig)
-    bord_px_rig = np.ceil(np.max(mc.shifts_rig)).astype(np.int)
+    bord_px_rig = np.ceil(np.max(mc.shifts_rig)).astype(int)
     comp.comparison['rig_shifts']['timer'] = time.time() - t1
     comp.comparison['rig_shifts']['ourdata'] = mc.shifts_rig
     ###########################################

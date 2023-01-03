@@ -41,10 +41,10 @@ from ipyparallel import Client
 #%%
 backend = 'local'
 if backend == 'SLURM':
-    n_processes = np.int(os.environ.get('SLURM_NPROCS'))
+    n_processes = int(os.environ.get('SLURM_NPROCS'))
 else:
     # roughly number of cores on your machine minus 1
-    n_processes = np.maximum(np.int(psutil.cpu_count()), 1)
+    n_processes = np.maximum(int(psutil.cpu_count()), 1)
 print(('using ' + str(n_processes) + ' processes'))
 
 #%% start cluster for efficient computation
@@ -101,7 +101,7 @@ idx_xy = None
 base_name = 'Yr'
 name_new = cse.utilities.save_memmap_each(fnames, dview=dview, base_name=base_name, resize_fact=(
     1, 1, downsample_factor), remove_init=0, idx_xy=idx_xy)
-name_new.sort(key=lambda fn: np.int(os.path.split(
+name_new.sort(key=lambda fn: int(os.path.split(
     fn)[-1][len(base_name):os.path.split(fn)[-1].find('_')]))
 print(name_new)
 #%%
@@ -154,8 +154,8 @@ crd = cse.utilities.plot_contours(A_tot, Cn, thr=0.9)
 #%% set parameters for full field of view analysis
 options = cse.utilities.CNMFSetParms(
     Y, n_processes, p=0, gSig=gSig, K=A_tot.shape[-1], thr=merge_thresh)
-pix_proc = np.minimum(np.int((d1 * d2) / n_processes / (old_div(T, 2000.))),
-                      np.int(old_div((d1 * d2), n_processes)))  # regulates the amount of memory used
+pix_proc = np.minimum(int((d1 * d2) / n_processes / (old_div(T, 2000.))),
+                      int(old_div((d1 * d2), n_processes)))  # regulates the amount of memory used
 options['spatial_params']['n_pixels_per_process'] = pix_proc
 options['temporal_params']['n_pixels_per_process'] = pix_proc
 #%% merge spatially overlaping and temporally correlated components

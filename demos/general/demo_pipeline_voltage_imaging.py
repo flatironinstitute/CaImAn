@@ -176,6 +176,7 @@ def main():
 
     elif method == 'gui_annotation':
         # run volpy_gui.py file in the caiman/source_extraction/volpy folder
+        # or run the following in the ipython:  %run volpy_gui.py
         gui_ROIs =  caiman_datadir() + '/example_movies/volpy/gui_roi.hdf5'
         with h5py.File(gui_ROIs, 'r') as fl:
             ROIs = fl['mov'][()]

@@ -358,7 +358,7 @@ else:
     roi_cons = scipy.io.loadmat(params_movie['seed_name'][0])['comps'].reshape(
         (dims[1], dims[0], -1), order='F').transpose([2, 1, 0]) * 1.
 
-radius = np.int(np.median(np.sqrt(np.sum(roi_cons, (1, 2)) / np.pi)))
+radius = int(np.median(np.sqrt(np.sum(roi_cons, (1, 2)) / np.pi)))
 
 print(radius)
 #roi_cons = caiman.base.rois.nf_read_roi_zip('/mnt/ceph/neuro/labeling/neurofinder.03.00.test/regions/ben_active_regions_nd_sonia_active_regions_nd__lindsey_active_regions_nd_matches.zip',dims)
@@ -392,7 +392,7 @@ if images.shape[0] > 10000:
 else:
     check_nan = True
 
-cnm = cnmf.CNMF(check_nan=check_nan, n_processes=1, k=A_in.shape[-1], gSig=[radius, radius], merge_thresh=params_movie['merge_thresh'], p=params_movie['p'], Ain=A_in.astype(np.bool),
+cnm = cnmf.CNMF(check_nan=check_nan, n_processes=1, k=A_in.shape[-1], gSig=[radius, radius], merge_thresh=params_movie['merge_thresh'], p=params_movie['p'], Ain=A_in.astype(bool),
                 dview=dview, rf=None, stride=None, gnb=params_movie['gnb'], method_deconvolution='oasis', border_pix=0, low_rank_background=params_movie['low_rank_background'], n_pixels_per_process=1000)
 cnm = cnm.fit(images)
 

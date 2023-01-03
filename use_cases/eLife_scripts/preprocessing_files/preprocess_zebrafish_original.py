@@ -52,7 +52,7 @@ try:
     if 'pydevconsole' in sys.argv[0]:
         raise Exception('Running in PYCHARM')
     ID = sys.argv[1]
-    ID = str(np.int(ID)+1)
+    ID = str(int(ID)+1)
     print('Processing ID:'+ str(ID))
     ploton = False
     save_results = True
@@ -76,8 +76,8 @@ min_num_trial = 50
 
 mmm = cm.load(fls,subindices = 0)
 dims = mmm.shape
-K = np.maximum(K,np.round(600/1602720*np.prod(mmm.shape)).astype(np.int))
-min_num_trial = np.maximum(min_num_trial,np.round(200/1602720*np.prod(mmm.shape)).astype(np.int))
+K = np.maximum(K,np.round(600/1602720*np.prod(mmm.shape)).astype(int))
+min_num_trial = np.maximum(min_num_trial,np.round(200/1602720*np.prod(mmm.shape)).astype(int))
 # your list of files should look something like this
 print(fls)
 
@@ -227,22 +227,22 @@ def create_frame(cnm2, img_norm, captions):
 
 
     frame_comp_1 = cv2.resize(np.concatenate([frame_ / np.max(img_norm), all_comps * 3.], axis=-1),
-                              (2 * np.int(cnm2.dims[1] * resize_fact), np.int(cnm2.dims[0] * resize_fact)))
+                              (2 * int(cnm2.dims[1] * resize_fact), int(cnm2.dims[0] * resize_fact)))
 
     frame_comp_2 = cv2.resize(np.concatenate([comps_frame_ * 10., comps_frame + bgkrnd_frame],
-                                             axis=-1), (2 * np.int(cnm2.dims[1] * resize_fact), np.int(cnm2.dims[0] * resize_fact)))
+                                             axis=-1), (2 * int(cnm2.dims[1] * resize_fact), int(cnm2.dims[0] * resize_fact)))
 
     frame_pn = np.concatenate([frame_comp_1, frame_comp_2], axis=0).T
     vid_frame = np.repeat(frame_pn[:, :, None], 3, axis=-1)
     vid_frame = np.minimum((vid_frame * 255.), 255).astype('u1')
 
     if show_residuals and cnm2.ind_new_all:
-        add_v = np.int(cnm2.dims[1]*resize_fact)
+        add_v = int(cnm2.dims[1]*resize_fact)
         for ind_new in cnm2.ind_new_all:
             cv2.rectangle(vid_frame,(int(ind_new[0][1]*resize_fact),int(ind_new[1][1]*resize_fact)+add_v),
                                          (int(ind_new[0][0]*resize_fact),int(ind_new[1][0]*resize_fact)+add_v),(255,255,255),1)
     if show_residuals and cnm2.ind_new:
-        add_v = np.int(cnm2.dims[1]*resize_fact)
+        add_v = int(cnm2.dims[1]*resize_fact)
         for ind_new in cnm2.ind_new:
             cv2.rectangle(vid_frame,(int(ind_new[0][1]*resize_fact),int(ind_new[1][1]*resize_fact)+add_v),
                                          (int(ind_new[0][0]*resize_fact),int(ind_new[1][0]*resize_fact)+add_v),(255,0,255),1)
@@ -250,11 +250,11 @@ def create_frame(cnm2, img_norm, captions):
 
     cv2.putText(vid_frame, captions[0], (5, 20), fontFace=5, fontScale=1.2, color=(
         0, 255, 0), thickness=1)
-    cv2.putText(vid_frame, captions[1], (np.int(
+    cv2.putText(vid_frame, captions[1], (int(
         cnm2.dims[0] * resize_fact) + 5, 20), fontFace=5, fontScale=1.2, color=(0, 255, 0), thickness=1)
-    cv2.putText(vid_frame, captions[2], (5, np.int(
+    cv2.putText(vid_frame, captions[2], (5, int(
         cnm2.dims[1] * resize_fact) + 20), fontFace=5, fontScale=1.2, color=(0, 255, 0), thickness=1)
-    cv2.putText(vid_frame, captions[3], (np.int(cnm2.dims[0] * resize_fact) + 5, np.int(
+    cv2.putText(vid_frame, captions[3], (int(cnm2.dims[0] * resize_fact) + 5, int(
         cnm2.dims[1] * resize_fact) + 20), fontFace=5, fontScale=1.2, color=(0, 255, 0), thickness=1)
     cv2.putText(vid_frame, 'Frame = ' + str(t), (vid_frame.shape[1] // 2 - vid_frame.shape[1] //
                                                  10, vid_frame.shape[0] - 20), fontFace=5, fontScale=1.2, color=(0, 255, 255), thickness=1)
@@ -462,7 +462,7 @@ if ploton:
     from scipy.stats import norm
 
     min_SNR = 2.5
-    N_samples = np.ceil(fr*decay_time).astype(np.int)   # number of timesteps to consider when testing new neuron candidates
+    N_samples = np.ceil(fr*decay_time).astype(int)   # number of timesteps to consider when testing new neuron candidates
     fitness, erf, noi, what = compute_event_exceptionality(C+cnm2.noisyC[cnm2.gnb:cnm2.M, t - t // epochs:t],N=N_samples)
     COMP_SNR = -norm.ppf(np.exp(erf/ N_samples))
     COMP_SNR  = np.vstack([np.ones_like(f),COMP_SNR])
@@ -695,7 +695,7 @@ if ploton:
     pl.tight_layout()
     #%% predictions for Plan 11
     from skimage.util.montage import  montage2d
-    predictions, final_crops = cm.components_evaluation.evaluate_components_CNN(Ab[()][:,gnb:], dims, np.array(gSig).astype(np.int), model_name='model/cnn_model', patch_size=50, loaded_model=None, isGPU=False)
+    predictions, final_crops = cm.components_evaluation.evaluate_components_CNN(Ab[()][:,gnb:], dims, np.array(gSig).astype(int), model_name='model/cnn_model', patch_size=50, loaded_model=None, isGPU=False)
     #%%
     idx = np.argsort(predictions[:,0])[:10]#[[0,1,2,3,5,9]]
     Ab_part = Ab[()][:,gnb:][:,idx]

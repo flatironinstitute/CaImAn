@@ -352,10 +352,10 @@ class CNMF(object):
                 fname_mc = mc.fname_tot_els if self.params.motion['pw_rigid'] else mc.fname_tot_rig
                 if self.params.get('motion', 'pw_rigid'):
                     b0 = np.ceil(np.maximum(np.max(np.abs(mc.x_shifts_els)),
-                                            np.max(np.abs(mc.y_shifts_els)))).astype(np.int)
+                                            np.max(np.abs(mc.y_shifts_els)))).astype(int)
                     self.estimates.shifts = [mc.x_shifts_els, mc.y_shifts_els]
                 else:
-                    b0 = np.ceil(np.max(np.abs(mc.shifts_rig))).astype(np.int)
+                    b0 = np.ceil(np.max(np.abs(mc.shifts_rig))).astype(int)
                     self.estimates.shifts = mc.shifts_rig
                 # TODO - b0 is currently direction inspecific, which can cause
                 # sub-optimal behavior. See
@@ -377,7 +377,7 @@ class CNMF(object):
         fit_cnm = self.fit(images, indices=indices)
         Cn = summary_images.local_correlations(images[::max(T//1000, 1)], swap_dim=False)
         Cn[np.isnan(Cn)] = 0
-        fit_cnm.save(fname_new[:-5]+'_init.hdf5')
+        fit_cnm.save(fname_new[:-5] + '_init.hdf5')
         #fit_cnm.params.change_params({'p': self.params.get('preprocess', 'p')})
         # RE-RUN seeded CNMF on accepted patches to refine and perform deconvolution
         cnm2 = fit_cnm.refit(images, dview=self.dview)
@@ -482,8 +482,8 @@ class CNMF(object):
             avail_memory_per_process = psutil.virtual_memory()[
                 1] / 2.**30 / self.params.get('patch', 'n_processes')
             mem_per_pix = 3.6977678498329843e-09
-            npx_per_proc = np.int(avail_memory_per_process / 8. / mem_per_pix / T)
-            npx_per_proc = np.int(np.minimum(npx_per_proc, np.prod(self.dims) // self.params.get('patch', 'n_processes')))
+            npx_per_proc = int(avail_memory_per_process / 8. / mem_per_pix / T)
+            npx_per_proc = int(np.minimum(npx_per_proc, np.prod(self.dims) // self.params.get('patch', 'n_processes')))
             self.params.set('preprocess', {'n_pixels_per_process': npx_per_proc})
 
         self.params.set('spatial', {'n_pixels_per_process': self.params.get('preprocess', 'n_pixels_per_process')})
@@ -582,7 +582,7 @@ class CNMF(object):
 
         else:  # use patches
             if self.params.get('patch', 'stride') is None:
-                self.params.set('patch', {'stride': np.int(self.params.get('patch', 'rf') * 2 * .1)})
+                self.params.set('patch', {'stride': int(self.params.get('patch', 'rf') * 2 * .1)})
                 logging.info(
                     ('Setting the stride to 10% of 2*rf automatically:' + str(self.params.get('patch', 'stride'))))
 

@@ -247,7 +247,7 @@ def classify_components_ep(Y, A, C, b, f, Athresh=0.1, Npeaks=5, tB=-3, tA=10, t
                                 'jointly with neighboring components. Space ' +
                                 'correlation calculation might be unreliable.')
 
-            indexes = np.array(list(indexes)).astype(np.int)
+            indexes = np.array(list(indexes)).astype(int)
             px = np.where(atemp > 0)[0]
             if px.size < 3:
                 logging.warning('Component {0} is almost empty. '.format(i) + 'Space correlation is set to 0.')
@@ -328,7 +328,7 @@ def evaluate_components_CNN(A,
     dims = np.array(dims)
     coms = [scipy.ndimage.center_of_mass(mm.toarray().reshape(dims, order='F')) for mm in A.tocsc().T]
     coms = np.maximum(coms, half_crop)
-    coms = np.array([np.minimum(cms, dims - half_crop) for cms in coms]).astype(np.int)
+    coms = np.array([np.minimum(cms, dims - half_crop) for cms in coms]).astype(int)
     crop_imgs = [
         mm.toarray().reshape(dims, order='F')[com[0] - half_crop[0]:com[0] + half_crop[0], com[1] -
                                               half_crop[1]:com[1] + half_crop[1]] for mm, com in zip(A.tocsc().T, coms)
@@ -599,7 +599,7 @@ def estimate_components_quality_auto(Y,
     '''
 
     # number of timesteps to consider when testing new neuron candidates
-    N_samples = np.ceil(frate * decay_time).astype(np.int)
+    N_samples = np.ceil(frate * decay_time).astype(int)
     # inclusion probability of noise transient
     thresh_fitness_raw = scipy.special.log_ndtr(-min_SNR) * N_samples
 
@@ -694,7 +694,7 @@ def select_components_from_metrics(A,
     idx_components = np.setdiff1d(idx_components, bad_comps)
     idx_components_bad = np.setdiff1d(list(range(len(r_values))), idx_components)
 
-    return idx_components.astype(np.int), idx_components_bad.astype(np.int), cnn_values
+    return idx_components.astype(int), idx_components_bad.astype(int), cnn_values
 
 
 def estimate_components_quality(traces,

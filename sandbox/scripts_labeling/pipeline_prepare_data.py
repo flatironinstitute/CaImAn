@@ -189,7 +189,7 @@ for each_file in fname:
     mc.motion_correct_rigid(save_movie=True, template=new_templ)
     new_templ = mc.total_template_rig
     m_rig = cm.load(mc.fname_tot_rig)
-    bord_px_rig = np.ceil(np.max(mc.shifts_rig)).astype(np.int)
+    bord_px_rig = np.ceil(np.max(mc.shifts_rig)).astype(int)
 
     # TODO : needinfo
     pl.imshow(new_templ, cmap='gray')

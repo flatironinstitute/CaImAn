@@ -209,7 +209,7 @@ def get_behavior_traces(fname, t0, t1, freq, ISI, draw_rois=False, plot_traces=F
     T = len(time_abs)
     t_us = 0
     t_cs = 0
-    n_samples_ISI = np.int(ISI * freq)
+    n_samples_ISI = int(ISI * freq)
     t_uss = []
     ISIs = []
     eye_traces = []
@@ -224,9 +224,9 @@ def get_behavior_traces(fname, t0, t1, freq, ISI, draw_rois=False, plot_traces=F
 
             trials = list(f.keys())
 
-            trials.sort(key=lambda x: np.int(x.replace('trial_', '')))
+            trials.sort(key=lambda x: int(x.replace('trial_', '')))
 
-            trials_idx = [np.int(x.replace('trial_', '')) - 1 for x in trials]
+            trials_idx = [int(x.replace('trial_', '')) - 1 for x in trials]
 
             trials_idx_ = []
 
@@ -322,7 +322,7 @@ def get_behavior_traces(fname, t0, t1, freq, ISI, draw_rois=False, plot_traces=F
 
                                 ISIs.append(ISI)
 
-                                n_samples_ISI = np.int(ISI * freq)
+                                n_samples_ISI = int(ISI * freq)
 
                             else:
 
@@ -340,11 +340,11 @@ def get_behavior_traces(fname, t0, t1, freq, ISI, draw_rois=False, plot_traces=F
 
                             f_rate = np.median(np.diff(ts[:, 0]))
                             ISI = t_US - t_CS
-                            idx_US = np.int(old_div(t_US, f_rate))
-                            idx_CS = np.int(old_div(t_CS, f_rate))
-                            fr_before_US = np.int(
+                            idx_US = int(old_div(t_US, f_rate))
+                            idx_CS = int(old_div(t_CS, f_rate))
+                            fr_before_US = int(
                                 old_div((t_US - start - .1), f_rate))
-                            fr_after_US = np.int(
+                            fr_after_US = int(
                                 old_div((end - .1 - t_US), f_rate))
                             idx_abs = np.arange(-fr_before_US, fr_after_US)
                             time_abs = idx_abs * f_rate
@@ -935,8 +935,8 @@ def extract_traces_mat(traces, triggers_idx, f_rate, time_before=2.7, time_after
 
     time_mat: associated time vector
     """
-    samples_before = np.int(time_before * f_rate)
-    samples_after = np.int(time_after * f_rate)
+    samples_before = int(time_before * f_rate)
+    samples_after = int(time_after * f_rate)
 
     if traces[0].ndim > 1:
         traces_mat = np.zeros(
@@ -946,9 +946,9 @@ def extract_traces_mat(traces, triggers_idx, f_rate, time_before=2.7, time_after
 
     for idx, tr in enumerate(traces):
         #            print samples_before,samples_after
-        #            print np.int(triggers_idx[idx]-samples_before),np.int(triggers_idx[idx]+samples_after)
-        traces_mat[idx] = traces[idx][:, np.int(
-            triggers_idx[idx] - samples_before):np.int(triggers_idx[idx] + samples_after)]
+        #            print int(triggers_idx[idx]-samples_before),int(triggers_idx[idx]+samples_after)
+        traces_mat[idx] = traces[idx][:, int(
+            triggers_idx[idx] - samples_before):int(triggers_idx[idx] + samples_after)]
 
     time_mat = old_div(np.arange(-samples_before, samples_after), f_rate)
 
@@ -1052,7 +1052,7 @@ def load_data_from_stored_results(base_folder, load_masks=False, thresh_CR=0.1, 
     idx_expected_US = triggers_img[:, 1]
     idx_expected_US[idx_CS] = np.nanmedian(triggers_img[:, 1])
     triggers_img = np.concatenate(
-        [triggers_img,   idx_expected_US[:, np.newaxis].astype(np.int)], -1)
+        [triggers_img,   idx_expected_US[:, np.newaxis].astype(int)], -1)
 
     img_descr = cb.utils.get_image_description_SI(
         glob(base_folder + '2016*.tif')[0])[0]
@@ -1106,8 +1106,8 @@ def load_data_from_stored_results(base_folder, load_masks=False, thresh_CR=0.1, 
 
     newf_rate = old_div(1, np.median(np.diff(time_mat)))
     ftraces = traces_mat.copy()
-    samples_before = np.int(time_before * newf_rate)
-    ISI_frames = np.int(ISI * newf_rate)
+    samples_before = int(time_before * newf_rate)
+    ISI_frames = int(ISI * newf_rate)
     ftraces = ftraces - np.median(ftraces[:, :, np.logical_and(
         time_mat > -1, time_mat < -ISI)], axis=(2))[:, :, np.newaxis]
     amplitudes_responses = np.mean(
@@ -1250,7 +1250,7 @@ def process_fast_process_day(base_folders, save_name='temp_save.npz'):
 
             idx_chunks = []
             for name_chunk in movie_names:
-                idx_chunks.append([np.int(
+                idx_chunks.append([int(
                     re.search('_00[0-9][0-9][0-9]_0', nm).group(0)[2:6]) - 1 for nm in name_chunk])
 
             with np.load(base_folder + 'behavioral_traces.npz') as ld:
@@ -1260,7 +1260,7 @@ def process_fast_process_day(base_folders, save_name='temp_save.npz'):
                 ISI = np.median(
                     [rs[3] - rs[2] for rs in res_bt['trial_info'][res_bt['idx_CS_US']]])
                 trig_int = np.hstack([((res_bt['trial_info'][:, 2:4] - res_bt['trial_info'][:, 0][:, None])
-                                       * f_rate_bh), res_bt['trial_info'][:, -1][:, np.newaxis]]).astype(np.int)
+                                       * f_rate_bh), res_bt['trial_info'][:, -1][:, np.newaxis]]).astype(int)
                 trig_int[trig_int < 0] = -1
                 trig_int = np.hstack([trig_int, len(tm) + trig_int[:, :1] * 0])
                 trig_US = np.argmin(np.abs(tm))
