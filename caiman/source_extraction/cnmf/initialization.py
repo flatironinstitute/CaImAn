@@ -591,7 +591,7 @@ def sparseNMF(Y_ds, nr, max_iter_snmf=500, alpha=10e2, sigma_smooth=(.5, .5, .5)
     d = np.prod(dims)
     yr = np.reshape(m1, [T, d], order='F')
     mdl = NMF(n_components=nr, verbose=False, init='nndsvd', tol=1e-10,
-              max_iter=max_iter_snmf, shuffle=False, alpha=alpha, l1_ratio=1)
+              max_iter=max_iter_snmf, shuffle=False, alpha=alpha_W, l1_ratio=1)
     C = mdl.fit_transform(yr).T
     A = mdl.components_.T
     A_in = A
