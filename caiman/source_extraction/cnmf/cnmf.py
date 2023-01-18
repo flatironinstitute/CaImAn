@@ -307,7 +307,7 @@ class CNMF(object):
         self.estimates = Estimates(A=Ain, C=Cin, b=b_in, f=f_in,
                                    dims=self.params.data['dims'])
 
-    def fit_file(self, motion_correct=False, indices=None, include_eval=False):
+    def fit_file(self, motion_correct=False, indices=None, include_eval=False, output_dir='', return_mc=False):
         """
         This method packages the analysis pipeline (motion correction, memory
         mapping, patch based CNMF processing and component evaluation) in a
@@ -324,8 +324,13 @@ class CNMF(object):
                 perform analysis only on a part of the FOV
             include_eval (bool)
                 flag for performing component evaluation
+            output_dir (str)
+                directory to save the outputs
+            return_mc (bool)
+                flag to return motion correction object
         Returns:
             cnmf object with the current estimates
+            (optional) motion correction object
         """
         if indices is None:
             indices = (slice(None), slice(None))
@@ -346,7 +351,7 @@ class CNMF(object):
         else:
             if motion_correct:
                 mc = MotionCorrect(fnames, dview=self.dview, **self.params.motion)
-                mc.motion_correct(save_movie=True)
+                mc.motion_correct(save_movie=True, output_dir=output_dir)
                 fname_mc = mc.fname_tot_els if self.params.motion['pw_rigid'] else mc.fname_tot_rig
                 if self.params.get('motion', 'pw_rigid'):
                     b0 = np.ceil(np.maximum(np.max(np.abs(mc.x_shifts_els)),
@@ -391,6 +396,9 @@ class CNMF(object):
         log_files = glob.glob('*_LOG_*')
         for log_file in log_files:
             os.remove(log_file)
+
+        if return_mc & motion_correct:
+            return cnm2, mc
 
         return cnm2
 
