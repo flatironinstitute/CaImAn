@@ -54,7 +54,7 @@ def main():
         # TODO: todocument
         fname = [download_demo(fname[0])]
     # TODO: todocument
-    m = cm.load(fname[0], is_behavior=True)
+    m = cm._load_behavior(fname[0])
 
 #%% load, rotate and eliminate useless pixels
     m = m.transpose([0, 2, 1])

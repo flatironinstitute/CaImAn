@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import logging
 import numpy as np
 import os
@@ -633,6 +635,9 @@ class CNMFParams(object):
                 Flag for reusing an already trained model (saved in path to model)
         """
 
+        if decay_time == 0 or decay_time == 0.0:
+            raise Exception("A decay time of 0 is not permitted")
+
         self.data = {
             'fnames': fnames,
             'dims': dims,
@@ -1005,7 +1010,7 @@ class CNMFParams(object):
 
     def __eq__(self, other):
 
-        if not instance(other, CNMFParams):
+        if not isinstance(other, CNMFParams):
             return False
 
         parent_dict1 = self.to_dict()

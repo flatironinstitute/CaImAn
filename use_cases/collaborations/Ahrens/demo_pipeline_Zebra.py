@@ -225,7 +225,7 @@ pl.legend(['x shifts', 'y shifts'])
 pl.xlabel('frames')
 pl.ylabel('pixels')
 #%% inspect movie
-bord_px_rig = np.ceil(np.max(mc.shifts_rig)).astype(np.int)
+bord_px_rig = np.ceil(np.max(mc.shifts_rig)).astype(int)
 downsample_ratio = .2
 m_rig.resize(1, 1, downsample_ratio).play(
     gain=10, offset=offset_mov * .25, fr=30, magnification=2, bord_px=bord_px_rig)
@@ -246,7 +246,7 @@ pl.ylabel('y_shifts (pixels)')
 pl.xlabel('frames')
 #%%
 bord_px_els = np.ceil(np.maximum(np.max(np.abs(mc.x_shifts_els)),
-                                 np.max(np.abs(mc.y_shifts_els)))).astype(np.int)
+                                 np.max(np.abs(mc.y_shifts_els)))).astype(int)
 
 downsample_ratio = .2
 m_els.resize(1, 1, downsample_ratio).play(

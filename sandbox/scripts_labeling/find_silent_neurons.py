@@ -36,7 +36,7 @@ import scipy
 from ipyparallel import Client
 #%%
 # roughly number of cores on your machine minus 1
-n_processes = np.maximum(np.int(psutil.cpu_count()), 1)
+n_processes = np.maximum(int(psutil.cpu_count()), 1)
 print(('using ' + str(n_processes) + ' processes'))
 
 #%% start cluster for efficient computation
@@ -101,7 +101,7 @@ pl.show()
 pl.figure()
 t1 = time()
 A, b, Cin, f = cse.spatial.update_spatial_components(Yr, C=None, f=None, A_in=Ain.astype(
-    np.bool), sn=sn, dview=None, **options['spatial_params'])
+    bool), sn=sn, dview=None, **options['spatial_params'])
 t_elSPATIAL = time() - t1
 print(t_elSPATIAL)
 pl.figure()

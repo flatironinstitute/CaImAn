@@ -1,30 +1,11 @@
-For better support, please use the template below to submit your issue. When your issue gets resolved please remember to close it.
+Please fill in the following for any issues
 
-Sometimes errors while running CNMF occur during parallel processing which prevents the log to provide a meaningful error message. Please reproduce your error with setting `dview=None`.
-
-If you need to upgrade CaImAn follow the instructions given in the [documentation](https://caiman.readthedocs.io/en/master/Installation.html#upgrading).
-
-- **Tell us a bit about your setup**: 
- 1. Operating system (Linux/macOS/Windows): 
- 
- 2. Python version (3.x): 
- 
- 3. Working environment (Python IDE/Jupyter Notebook/other):
- 
- 4. Which of the demo scripts you're using for your analysis (if applicable):
- 
- 5. CaImAn version*: 
- 
- 6. CaImAn installation process (`pip install .`/`pip install -e .`/conda): 
-
-*You can get the CaImAn version by creating a `params` object and then typing `params.data['caiman_version']`. If the field doesn't exist, type N/A and consider upgrading)
-
-- **Describe the issue that you are experiencing**
-
-
-
-- **Copy error log below**
-
-
-
-- **If you're not reporting an error, type your message below**
+Your setup:
+ 1. Operating System (Linux, MacOS, Windows):
+ 2. Hardware type (x86, ARM..) and RAM:
+ 3. Python Version (e.g. 3.9):
+ 4. Caiman version (e.g. 1.9.12):
+ 5. Which demo exhibits the problem (if applicable):
+ 6. How you installed Caiman (pure conda, conda + compile, colab, ..):
+ 7. Caiman version: 
+ 8. Details: 

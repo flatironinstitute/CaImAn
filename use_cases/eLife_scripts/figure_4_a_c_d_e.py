@@ -138,7 +138,7 @@ try:
     dims_online = all_results_online[name_file_online]['dims']
 except:
     downsamp_factor = np.sqrt(A.shape[0]/A_online.shape[0])
-    dims_online = tuple(np.array(np.round(np.divide(dims, downsamp_factor))).astype(np.int))
+    dims_online = tuple(np.array(np.round(np.divide(dims, downsamp_factor))).astype(int))
 
 C_online = all_results_online[name_file_online]['C']
 A_gt_online = all_results_online[name_file_online]['A_gt']

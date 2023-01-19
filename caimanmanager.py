@@ -108,7 +108,7 @@ def do_check_install(targdir: str, inplace: bool = False) -> None:
 def do_run_nosetests(targdir: str) -> None:
     out, err, ret = runcmd(["nosetests", "--verbose", "--traverse-namespace", "caiman"])
     if ret != 0:
-        print("Nosetests failed with return code " + str(ret))
+        print(f"Nosetests failed with return code {ret}")
         sys.exit(ret)
     else:
         print("Nosetests success!")
@@ -135,7 +135,7 @@ def do_run_coverage_nosetests(targdir: str) -> None:
 def do_run_demotests(targdir: str) -> None:
     out, err, ret = runcmd([os.path.join(caiman_datadir(), "test_demos.sh")])
     if ret != 0:
-        print("Demos failed with return code " + str(ret))
+        print(f"Demos failed with return code {ret}")
         sys.exit(ret)
     else:
         print("Demos success!")
@@ -149,18 +149,18 @@ def do_nt_run_demotests(targdir: str) -> None:
     demos = glob.glob('demos/general/*.py')    # Should still work on windows I think
     for demo in demos:
         print("========================================")
-        print("Testing " + str(demo))
+        print(f"Testing {demo}")
         if "demo_behavior.py" in demo:
-            print("  Skipping tests on " + demo + ": This is interactive")
+            print(f"  Skipping tests on {demo}: This is interactive")
         elif "demo_pipeline_NWB.py" in demo:
             print("  Skipping NWB demo")
         elif "demo_pipeline_voltage_imaging.py" in demo:
-            print("  Skipping tests on " + demo + ": This needs Keras, an optional dependency")
+            print(f"  Skipping tests on {demo}: This needs Keras, an optional dependency")
         else:
             out, err, ret = runcmd(["python", demo], ignore_error=False)
             if ret != 0:
-                print("  Tests failed with returncode " + str(ret))
-                print("  Failed test is " + str(demo))
+                print(f"  Tests failed with returncode {ret}")
+                print(f"  Failed test is {demo}")
                 sys.exit(2)
             print("===================================")
     print("Demos succeeded!")

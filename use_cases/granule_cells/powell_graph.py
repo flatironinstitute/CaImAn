@@ -128,7 +128,7 @@ triggers_img = np.array(triggers_img)
 idx_expected_US = np.repeat(np.nanmedian(
     triggers_img[:, 1]), len(triggers_img[:, 1]))
 triggers_img = np.concatenate(
-    [triggers_img,   idx_expected_US[:, np.newaxis].astype(np.int)], -1)
+    [triggers_img,   idx_expected_US[:, np.newaxis].astype(int)], -1)
 
 img_descr = cb.utils.get_image_description_SI(
     glob(base_folder + '2016*.tif')[0])[0]

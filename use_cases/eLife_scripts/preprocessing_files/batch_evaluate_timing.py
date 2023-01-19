@@ -45,9 +45,9 @@ try:
     if 'pydevconsole' in sys.argv[0]:
         raise Exception()
     ID = sys.argv[1]
-    ID = str(np.int(ID))
+    ID = str(int(ID))
     print('Processing ID:' + str(ID))
-    ID_nproc = np.int(ID)
+    ID_nproc = int(ID)
     ID = range(0, 4)
 except:
     # ID = range(0,1)

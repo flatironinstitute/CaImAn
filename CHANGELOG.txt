@@ -1,5 +1,14 @@
 Please check this file after new releases; it will cover (only) major changes or changes that will impact how CaImAn runs, and will not generally cover new features or minor changes (see the version history on Github for that). Most recent changes are at the top.
 
+1.9.10
+------
+Python 3.8-3.10 are supported versions of Caiman. 3.7 is no longer supported.
+
+1.9.9
+-----
+Dependencies have updated; internal hdf5 file semantics use is changed, and both tensorflow and h5py
+use now is compatible with modern versions of those libraries (tensorflow 2.4.x+ is now required)
+
 1.9.0
 -----
 This implements a storage layer that, if enabled, will try not to write files

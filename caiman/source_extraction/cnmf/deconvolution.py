@@ -758,7 +758,7 @@ def constrained_oasisAR2(y, g, sn, optimize_b=True, b_nonneg=True, optimize_g=0,
         # this window size seems necessary and sufficient
         possible_spikes = [x + np.arange(-2, 3)
                            for x in np.where(s > s.max() / 10.)[0]]
-        ff = np.array(possible_spikes, dtype=np.int).ravel()
+        ff = np.array(possible_spikes, dtype=int).ravel()
         ff = np.unique(ff[(ff >= 0) * (ff < T)])
         mask = np.zeros(T, dtype=bool)
         mask[ff] = True

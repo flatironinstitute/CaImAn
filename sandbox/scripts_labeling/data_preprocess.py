@@ -72,10 +72,10 @@ folders = np.array([el[0] for el in params])
 #%%
 backend = 'local'
 if backend == 'SLURM':
-    n_processes = np.int(os.environ.get('SLURM_NPROCS'))
+    n_processes = int(os.environ.get('SLURM_NPROCS'))
 else:
     # roughly number of cores on your machine minus 1
-    n_processes = np.maximum(np.int(psutil.cpu_count()), 1)
+    n_processes = np.maximum(int(psutil.cpu_count()), 1)
 print(('using ' + str(n_processes) + ' processes'))
 single_thread = False
 

@@ -124,8 +124,8 @@ def get_noise_welch(Y, noise_range=[0.25, 0.5], noise_method='logmexp',
     T = Y.shape[-1]
     if T > max_num_samples_fft:
         Y = np.concatenate((Y[..., 1:max_num_samples_fft // 3 + 1],
-                            Y[..., np.int(T // 2 - max_num_samples_fft / 3 / 2):
-                            np.int(T // 2 + max_num_samples_fft / 3 / 2)],
+                            Y[..., int(T // 2 - max_num_samples_fft / 3 / 2):
+                            int(T // 2 + max_num_samples_fft / 3 / 2)],
                             Y[..., -max_num_samples_fft // 3:]), axis=-1)
         T = np.shape(Y)[-1]
     ff, Pxx = scipy.signal.welch(Y)
@@ -166,8 +166,8 @@ def get_noise_fft(Y, noise_range=[0.25, 0.5], noise_method='logmexp', max_num_sa
 
     if T > max_num_samples_fft:
         Y = np.concatenate((Y[..., 1:max_num_samples_fft // 3 + 1],
-                            Y[..., np.int(T // 2 - max_num_samples_fft / 3 / 2)
-                                          :np.int(T // 2 + max_num_samples_fft / 3 / 2)],
+                            Y[..., int(T // 2 - max_num_samples_fft / 3 / 2)
+                                          :int(T // 2 + max_num_samples_fft / 3 / 2)],
                             Y[..., -max_num_samples_fft // 3:]), axis=-1)
         T = np.shape(Y)[-1]
 

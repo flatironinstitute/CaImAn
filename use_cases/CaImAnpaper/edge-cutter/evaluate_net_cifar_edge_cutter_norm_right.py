@@ -287,10 +287,10 @@ dims = np.array(dims)
 border_size = 6
 #bin_ = 10
 cms_total = [np.array(scipy.ndimage.center_of_mass(np.reshape(a.toarray(
-), dims, order='F'))).astype(np.int) for a in A_gt.tocsc()[:, idx_included].T]
+), dims, order='F'))).astype(int) for a in A_gt.tocsc()[:, idx_included].T]
 cms_total = np.maximum(cms_total, half_crop)
 cms_total = np.array([np.minimum(cms, dims - half_crop)
-                      for cms in cms_total]).astype(np.int)
+                      for cms in cms_total]).astype(int)
 
 all_heatmaps = []
 for count in range(count_start, T):
@@ -331,7 +331,7 @@ for count in range(count_start, T):
     #
     #    cms_1 = cms_2q
     #    cms_1 = np.maximum(cms_1,half_crop)
-    #    cms_1 = np.array([np.minimum(cms,dims-half_crop) for cms in cms_1]).astype(np.int)
+    #    cms_1 = np.array([np.minimum(cms,dims-half_crop) for cms in cms_1]).astype(int)
     #    crop_imgs = [img_avg[com[0]-half_crop:com[0]+half_crop, com[1]-half_crop:com[1]+half_crop] for com in cms_1]
     #    final_crops = np.array([cv2.resize(im/np.linalg.norm(im),(patch_size ,patch_size)) for im in crop_imgs])
 

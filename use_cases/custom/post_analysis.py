@@ -172,7 +172,7 @@ def half_correlation_matrix(matrix):
         Same matrix, with the top right half set to NaN
     """
     # halves a full correlation matrix to remove double values
-    mask = np.zeros_like(matrix, dtype=np.bool)
+    mask = np.zeros_like(matrix, dtype=bool)
     mask[np.triu_indices_from(mask)] = True
     masked_matrix = pd.DataFrame(np.ma.masked_array(matrix, mask=mask))
     return masked_matrix
@@ -295,11 +295,11 @@ def partial_corr(C):
     C = np.asarray(C)
     C = np.column_stack([C, np.ones(C.shape[0])]) # add a column of 1s as an intercept
     p = C.shape[1]
-    P_corr = np.zeros((p, p), dtype=np.float)
+    P_corr = np.zeros((p, p), dtype=float)
     for i in range(p):
         P_corr[i, i] = 1
         for j in range(i + 1, p):
-            idx = np.ones(p, dtype=np.bool)
+            idx = np.ones(p, dtype=bool)
             idx[i] = False
             idx[j] = False
             beta_i = linalg.lstsq(C[:, idx], C[:, j])[0]

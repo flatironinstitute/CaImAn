@@ -798,8 +798,8 @@ def find_matches(D_s, print_assignment: bool = False) -> Tuple[List, List]:
         # we make a copy not to set changes in the original
         DD = D.copy()
         if np.sum(np.where(np.isnan(DD))) > 0:
-            logging.error('Exception: Distance Matrix contains NaN, not allowed!')
-            raise Exception('Distance Matrix contains NaN, not allowed!')
+            logging.error('Exception: Distance Matrix contains invalid value NaN')
+            raise Exception('Distance Matrix contains invalid value NaN')
 
         # we do the hungarian
         indexes = linear_sum_assignment(DD)
@@ -869,7 +869,7 @@ def link_neurons(matches: List[List[Tuple]],
             neurons.append(neuron)
 
     neurons = np.array(neurons).T
-    logging.info(('num_neurons:' + str(num_neurons)))
+    logging.info(f'num_neurons: {num_neurons}')
     return neurons
 
 
