@@ -1,4 +1,4 @@
-FROM continuumio/anaconda3
+FROM continuumio/miniconda3
 
 RUN apt-get update && apt-get install -y \
     gcc g++ \
@@ -8,3 +8,4 @@ RUN apt-get update && apt-get install -y \
   && rm -rf /var/lib/apt/lists/*
 
 RUN mkdir -p /home/jenkins/.conda
+RUN conda install -c conda-forge -n base mamba

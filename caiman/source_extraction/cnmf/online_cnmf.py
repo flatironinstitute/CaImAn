@@ -242,7 +242,7 @@ class OnACID(object):
 
         if not self.is1p:
             self.params.set('init', {'gSiz': np.add(np.multiply(np.ceil(
-                self.params.get('init', 'gSig')).astype(np.int), 2), 1)})
+                self.params.get('init', 'gSig')).astype(int), 2), 1)})
 
         self.estimates.Yr_buf = RingBuffer(Yr[:, self.params.get('online', 'init_batch') - self.params.get('online', 'minibatch_shape'):
                                     self.params.get('online', 'init_batch')].T.copy(), self.params.get('online', 'minibatch_shape'))
@@ -1374,9 +1374,9 @@ class OnACID(object):
         all_comps = np.minimum(np.maximum(all_comps, 0)*fac, 1)
                                                   # spatial shapes
         frame_comp_1 = cv2.resize(np.concatenate([frame_plot, all_comps * 1.], axis=-1),
-                                  (2 * np.int(self.dims[1] * resize_fact), np.int(self.dims[0] * resize_fact)))
+                                  (2 * int(self.dims[1] * resize_fact), int(self.dims[0] * resize_fact)))
         frame_comp_2 = cv2.resize(np.concatenate([comps_frame, denoised_frame], axis=-1), 
-                                  (2 * np.int(self.dims[1] * resize_fact), np.int(self.dims[0] * resize_fact)))
+                                  (2 * int(self.dims[1] * resize_fact), int(self.dims[0] * resize_fact)))
         frame_pn = np.concatenate([frame_comp_1, frame_comp_2], axis=0).T
         if transpose:
             self.dims = self.dims[::-1]
@@ -1387,7 +1387,7 @@ class OnACID(object):
 
         #if show_residuals and est.ind_new:
         if est.ind_new:
-            add_v = np.int(self.dims[1-transpose]*resize_fact)
+            add_v = int(self.dims[1-transpose]*resize_fact)
             for ind_new in est.ind_new:
                 cv2.rectangle(vid_frame,(int(ind_new[transpose][1]*resize_fact) + transpose*add_v,
                                          int(ind_new[1-transpose][1]*resize_fact) + (1-transpose)*add_v),
@@ -1396,11 +1396,11 @@ class OnACID(object):
 
         cv2.putText(vid_frame, captions[0], (5, 20), fontFace=5, fontScale=0.8, color=(
             0, 255, 0), thickness=1)
-        cv2.putText(vid_frame, captions[1+transpose], (np.int(
+        cv2.putText(vid_frame, captions[1+transpose], (int(
             self.dims[0] * resize_fact) + 5, 20), fontFace=5, fontScale=0.8, color=(0, 255, 0), thickness=1)
-        cv2.putText(vid_frame, captions[2-transpose], (5, np.int(
+        cv2.putText(vid_frame, captions[2-transpose], (5, int(
             self.dims[1] * resize_fact) + 20), fontFace=5, fontScale=0.8, color=(0, 255, 0), thickness=1)
-        cv2.putText(vid_frame, captions[3], (np.int(self.dims[0] * resize_fact) + 5, np.int(
+        cv2.putText(vid_frame, captions[3], (int(self.dims[0] * resize_fact) + 5, int(
             self.dims[1] * resize_fact) + 20), fontFace=5, fontScale=0.8, color=(0, 255, 0), thickness=1)
         cv2.putText(vid_frame, 'Frame = ' + str(self.t), (vid_frame.shape[1] // 2 - vid_frame.shape[1] //
                                                      10, vid_frame.shape[0] - 20), fontFace=5, fontScale=0.8, color=(0, 255, 255), thickness=1)
@@ -2086,7 +2086,7 @@ def get_candidate_components(sv, dims, Yres_buf, min_num_trial=3, gSig=(5, 5),
 #        img_select_peaks = clahe.apply(img_select_peaks)
 
         local_maxima = peak_local_max(img_select_peaks,
-                                      min_distance=np.max(np.array(gSig)).astype(np.int),
+                                      min_distance=np.max(np.array(gSig)).astype(int),
                                       num_peaks=min_num_trial,threshold_abs=thresh_img_sel, exclude_border = False)
         min_num_trial = np.minimum(len(local_maxima),min_num_trial)
 

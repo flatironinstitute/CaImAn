@@ -80,7 +80,7 @@ for vl in vals:
             print(vl)
 
         else:
-            diameters.append(np.int(vl[-1]))
+            diameters.append(int(vl[-1]))
             params.append(vl)
 
             m = cb.load_movie_chain(fls, fr=vl[-2])

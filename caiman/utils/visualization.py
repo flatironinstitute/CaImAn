@@ -977,7 +977,7 @@ def view_patches_bar(Yr, A, C, b, f, d1, d2, YrA=None, img=None,
     vmax = np.percentile(img, 95)
 
     def update(val):
-        i = np.int(np.round(s_comp.val))
+        i = int(np.round(s_comp.val))
         print(('Component:' + str(i)))
 
         if i < nr:

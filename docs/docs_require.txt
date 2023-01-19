@@ -8,6 +8,7 @@ numpy
 numpydoc
 opencv-python
 peakutils
+pims
 psutil
 pynwb
 scikit-image

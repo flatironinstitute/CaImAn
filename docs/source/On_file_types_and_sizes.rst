@@ -1,5 +1,5 @@
 On file types and sizes
-======================
+=======================
 
 CaImAn is designed to perform analysis on datasets saved over a single
 or multiple files. However maximum efficiency is achieved when each

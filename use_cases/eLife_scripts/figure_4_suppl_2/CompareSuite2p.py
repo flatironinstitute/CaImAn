@@ -87,9 +87,9 @@ try:
     if 'pydevconsole' in sys.argv[0]:
         raise Exception()
     ID = sys.argv[1]
-    ID = str(np.int(ID) - 1)
+    ID = str(int(ID) - 1)
     print('Processing ID:' + str(ID))
-    ID = [np.int(ID)]
+    ID = [int(ID)]
 except:
     ID = np.arange(0, 8)
     print('ID NOT PASSED')

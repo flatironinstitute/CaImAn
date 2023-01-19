@@ -47,7 +47,7 @@ try:
     if 'pydevconsole' in sys.argv[0]:
         raise Exception('Running in PYCHARM')
     ID = sys.argv[1]
-    ID = str(np.int(ID)+1)
+    ID = str(int(ID)+1)
     print('Processing ID:'+ str(ID))
     ploton = False
     save_results = True
@@ -67,8 +67,8 @@ min_num_trial = 50 # number of neuron candidates per trial
 fls = [os.path.join(base_folder_files,'Plane' + str(ID) + '.stack.hdf5')]
 mmm = cm.load(fls,subindices = 0)
 dims = mmm.shape
-K = np.maximum(K,np.round(600/1602720*np.prod(mmm.shape)).astype(np.int))
-min_num_trial = np.maximum(min_num_trial,np.round(200/1602720*np.prod(mmm.shape)).astype(np.int))
+K = np.maximum(K,np.round(600/1602720*np.prod(mmm.shape)).astype(int))
+min_num_trial = np.maximum(min_num_trial,np.round(200/1602720*np.prod(mmm.shape)).astype(int))
 # your list of files should look something like this
 print(fls)
 print([K,min_num_trial])

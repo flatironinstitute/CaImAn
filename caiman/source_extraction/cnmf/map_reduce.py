@@ -47,7 +47,7 @@ def cnmf_patches(args_in):
                 dimensions of the original movie across y, x, and time
 
             params:
-                CNMFParms object containing all the parameters for the various algorithms
+                CNMFParams object containing all the parameters for the various algorithms
 
             rf: int
                 half-size of the square patch in pixel
@@ -165,21 +165,21 @@ def run_CNMF_patches(file_name, shape, params, gnb=1, dview=None,
             dimensions of the original movie across y, x, and time
 
         params:
-            CNMFParms object containing all the parameters for the various algorithms
+            CNMFParams object containing all the parameters for the various algorithms
 
         gnb: int
             number of global background components
 
-        backend: string
-            'ipyparallel' or 'single_thread' or SLURM
-
-        n_processes: int
-            nuber of cores to be used (should be less than the number of cores started with ipyparallel)
+        dview: 
+            TODO
 
         memory_fact: double
             unitless number accounting how much memory should be used.
             It represents the fration of patch processed in a single thread.
              You will need to try different values to see which one would work
+
+        border_pix: int
+            TODO
 
         low_rank_background: bool
             if True the background is approximated with gnb components. If false every patch keeps its background (overlaps are randomly assigned to one spatial component only)
@@ -189,10 +189,20 @@ def run_CNMF_patches(file_name, shape, params, gnb=1, dview=None,
             I.e. neurons that are closer to the center of another patch are removed to
             avoid duplicates, cause the other patch should already account for them.
 
+        indices: List[slice]
+            TODO
+
     Returns:
+
         A_tot: matrix containing all the components from all the patches
 
         C_tot: matrix containing the calcium traces corresponding to A_tot
+        
+        YrA_tot: TODO
+
+        b: TODO
+
+        f: TODO
 
         sn_tot: per pixel noise estimate
 
@@ -438,7 +448,7 @@ def run_CNMF_patches(file_name, shape, params, gnb=1, dview=None,
         # Filter out nan components in the bg components
         nan_components = np.any(np.isnan(F_tot), axis=1)
         F_tot = F_tot[~nan_components, :]
-        _ = mdl.fit_transform(F_tot).T
+        mdl.fit(np.maximum(F_tot, 0))
         Bm = Bm[:, ~nan_components]
         f = mdl.components_.squeeze()
         f = np.atleast_2d(f)
@@ -486,7 +496,7 @@ def run_CNMF_patches(file_name, shape, params, gnb=1, dview=None,
                 idx_mask_repeat = processed_idx_prev.intersection(idx_mask)
             processed_idx = processed_idx.union(idx_mask)
             if len(idx_mask_repeat) > 0:
-                B_tot[np.array(list(idx_mask_repeat), dtype=np.int), _b] = 0
+                B_tot[np.array(list(idx_mask_repeat), dtype=int), _b] = 0
 
         b = B_tot
         f = F_tot

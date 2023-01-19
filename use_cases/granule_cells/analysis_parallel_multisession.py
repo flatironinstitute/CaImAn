@@ -46,10 +46,10 @@ from statsmodels.robust.scale import mad
 if False:
     backend = 'local'
     if backend == 'SLURM':
-        n_processes = np.int(os.environ.get('SLURM_NPROCS'))
+        n_processes = int(os.environ.get('SLURM_NPROCS'))
     else:
         # roughly number of cores on your machine minus 1
-        n_processes = np.maximum(np.int(psutil.cpu_count()), 1)
+        n_processes = np.maximum(int(psutil.cpu_count()), 1)
     print(('using ' + str(n_processes) + ' processes'))
 
     #% start cluster for efficient computation
@@ -150,7 +150,7 @@ if False:
 #
 #        idx_chunks=[]
 #        for name_chunk in movie_names:
-#            idx_chunks.append([np.int(re.search('_00[0-9][0-9][0-9]_0',nm).group(0)[2:6])-1 for nm in name_chunk])
+#            idx_chunks.append([int(re.search('_00[0-9][0-9][0-9]_0',nm).group(0)[2:6])-1 for nm in name_chunk])
 #
 #
 #
@@ -159,7 +159,7 @@ if False:
 #            tm=res_bt['time']
 #            f_rate_bh=1/np.median(np.diff(tm))
 #            ISI=np.median([rs[3]-rs[2] for rs in res_bt['trial_info'][res_bt['idx_CS_US']]])
-#            trig_int=np.hstack([((res_bt['trial_info'][:,2:4]-res_bt['trial_info'][:,0][:,None])*f_rate_bh),res_bt['trial_info'][:,-1][:,np.newaxis]]).astype(np.int)
+#            trig_int=np.hstack([((res_bt['trial_info'][:,2:4]-res_bt['trial_info'][:,0][:,None])*f_rate_bh),res_bt['trial_info'][:,-1][:,np.newaxis]]).astype(int)
 #            trig_int[trig_int<0]=-1
 #            trig_int=np.hstack([trig_int,len(tm)+trig_int[:,:1]*0])
 #            trig_US=np.argmin(np.abs(tm))
@@ -278,8 +278,8 @@ conversion_to_cm_sec = 10
 scale_eye = .14
 for tr_fl, tr_bh, eye, whe, tm, fl, nm, pos_examples, A in zip(triggers_chunk_fluo, triggers_chunk_bh, eyelid_chunk, wheel_chunk, tm_behav, fluo_chunk, names_chunks, pos_examples_chunks, A_chunks):
     print(nm)
-    init, delta = (np.int(nm.split('/')[-1].split('#')[0][-12:-7]),
-                   np.int(nm.split('/')[-1].split('#')[1][1:4].replace('_', '')))
+    init, delta = (int(nm.split('/')[-1].split('#')[0][-12:-7]),
+                   int(nm.split('/')[-1].split('#')[1][1:4].replace('_', '')))
     idx_names = np.arange(init, init + delta)
     fnames_behavior_talmo_tmp = []
     sess_name_chunks.append(nm.split('#')[0].split('/')[-2])
@@ -457,7 +457,7 @@ for tr_fl, tr_bh, eye, whe, tm, fl, nm, pos_examples, A, tiff_names, timestamps_
         nose_traces, movement_at_CS_nose, trigs_mov_nose = process_wheel_traces_talmo(
             nose_vel_TM_, timestamps_TM_.copy(), tm, thresh_MOV=0, time_CS_on=time_CS_on_MOV, time_US_on=time_US_on_MOV)
 
-        n_samples_ISI = np.int(old_div(ISI, np.median(np.diff(tm))))
+        n_samples_ISI = int(old_div(ISI, np.median(np.diff(tm))))
         # FIX FOR US SHIFT IN DATA
         wheel_traces[idxUS] = np.concatenate([wheel_traces[idxUS, :n_samples_ISI].copy(
         ), wheel_traces[idxUS, :-n_samples_ISI].copy()], 1)
@@ -495,13 +495,13 @@ for tr_fl, tr_bh, eye, whe, tm, fl, nm, pos_examples, A, tiff_names, timestamps_
     len_min = np.min([np.array(f).shape for f in fl]
                      )  # minimal length of trial
 
-    def selct(cs, us): return np.int(cs) if np.isnan(us) else np.int(us)
+    def selct(cs, us): return int(cs) if np.isnan(us) else int(us)
     # index of US
     trigs_US = [selct(cs, us) for cs, us in zip(tr_fl[:, 0], tr_fl[:, 1])]
 
     # for binning
-    samplbef = np.int(old_div(time_bef, f_rate_fluo))
-    samplaft = np.int(old_div(time_aft, f_rate_fluo))
+    samplbef = int(old_div(time_bef, f_rate_fluo))
+    samplaft = int(old_div(time_aft, f_rate_fluo))
 
     # create fluorescence matrix
     f_flat = np.concatenate([f[:, tr - samplbef:samplaft + tr]
@@ -726,7 +726,7 @@ for tr_fl, tr_bh, eye, whe, tm, fl, nm, pos_examples, A, tiff_names, timestamps_
         nose_traces, movement_at_CS_nose, trigs_mov_nose = process_wheel_traces_talmo(
             nose_vel_TM_, timestamps_TM_.copy(), tm, thresh_MOV=0, time_CS_on=time_CS_on_MOV, time_US_on=time_US_on_MOV)
 
-        n_samples_ISI = np.int(old_div(ISI, np.median(np.diff(tm))))
+        n_samples_ISI = int(old_div(ISI, np.median(np.diff(tm))))
         # FIX FOR US SHIFT IN DATA
         wheel_traces[idxUS] = np.concatenate([wheel_traces[idxUS, :n_samples_ISI].copy(
         ), wheel_traces[idxUS, :-n_samples_ISI].copy()], 1)
@@ -767,13 +767,13 @@ for tr_fl, tr_bh, eye, whe, tm, fl, nm, pos_examples, A, tiff_names, timestamps_
     len_min = np.min([np.array(f).shape for f in fl]
                      )  # minimal length of trial
 
-    def selct(cs, us): return np.int(cs) if np.isnan(us) else np.int(us)
+    def selct(cs, us): return int(cs) if np.isnan(us) else int(us)
     # index of US
     trigs_US = [selct(cs, us) for cs, us in zip(tr_fl[:, 0], tr_fl[:, 1])]
 
     # for binning
-    samplbef = np.int(old_div(time_bef, f_rate_fluo))
-    samplaft = np.int(old_div(time_aft, f_rate_fluo))
+    samplbef = int(old_div(time_bef, f_rate_fluo))
+    samplaft = int(old_div(time_aft, f_rate_fluo))
 
     # create fluorescence matrix
     f_flat = np.concatenate([f[:, tr - samplbef:samplaft + tr]
@@ -1063,7 +1063,7 @@ for tr_fl, tr_bh, eye, whe, tm, fl, nm, pos_examples, A, tiff_names, timestamps_
         X = np.reshape(amplitudes_responses_CR_fl.transpose(
             [1, 0, 2]), [_n_nr, _trials_ * _timesteps_]).T
         Y = ampl_CR_eye.flatten()
-        CR_eye_fluo = np.array(CR_eye_fluo, dtype=np.float)
+        CR_eye_fluo = np.array(CR_eye_fluo, dtype=float)
         idx_significant = np.where(
             CR_eye_fluo > np.percentile(CR_eye_fluo_rnd, 95))[0]
         ls = sklearn.linear_model.LassoCV(n_alphas=100, eps=1e-3)
@@ -1072,7 +1072,7 @@ for tr_fl, tr_bh, eye, whe, tm, fl, nm, pos_examples, A, tiff_names, timestamps_
 #            scores = cross_val_score(lr, X, Y, cv=ShuffleSplit(30,test_size=.5),scoring=score_)
 
         # [idxHighCorr][::-1]
-        r_neurons = np.array(CR_eye_fluo[idx_significant], dtype=np.float)
+        r_neurons = np.array(CR_eye_fluo[idx_significant], dtype=float)
         X = X[:, idx_significant]
         ls.fit(X, Y)
 
@@ -1686,7 +1686,7 @@ for mat_summary in mat_summaries[:]:
             X = np.reshape(amplitudes_responses_CR_fl.transpose(
                 [1, 0, 2]), [_n_nr, _trials_ * _timesteps_]).T
             Y = ampl_CR_eye.flatten()
-            CR_eye_fluo = np.array(CR_eye_fluo, dtype=np.float)
+            CR_eye_fluo = np.array(CR_eye_fluo, dtype=float)
             idx_significant = np.where(
                 CR_eye_fluo > np.percentile(CR_eye_fluo_rnd, 95))[0]
             ls = sklearn.linear_model.LassoCV(n_alphas=100, eps=1e-3)
@@ -1695,7 +1695,7 @@ for mat_summary in mat_summaries[:]:
 #            scores = cross_val_score(lr, X, Y, cv=ShuffleSplit(30,test_size=.5),scoring=score_)
 
             # [idxHighCorr][::-1]
-            r_neurons = np.array(CR_eye_fluo[idx_significant], dtype=np.float)
+            r_neurons = np.array(CR_eye_fluo[idx_significant], dtype=float)
             X = X[:, idx_significant]
             ls.fit(X, Y)
 

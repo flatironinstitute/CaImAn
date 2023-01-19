@@ -12,22 +12,22 @@ CaImAn implements a set of essential methods required in the analysis pipeline o
 ## Requirements
 
 Right now, CaImAn works and is supported on the following platforms:
-* Linux on Intel CPUs
-* MacOS on Intel CPUs
-* Windows on Intel CPUs
+* Linux on 64-bit x86 CPUs
+* MacOS on 64-bit x86 CPUs
+* Windows on 64-bit x86 CPUs
 
-16G RAM is required for a good experience, and depending on datasets, 32G or more may be necessary.
+32G RAM is required for a good experience, and depending on datasets, more may be necessary.
 
-CaImAn presently targets Python 3.8. Parts of CaImAn are written in C++, but apart possibly during install, this is not visible to the user. There is also an [older implementation](https://github.com/flatironinstitute/CaImAn-MATLAB) of CaImAn in Matlab (unsupported). That version can be used with [MCMC spike inference](https://github.com/epnev/continuous_time_ca_sampler) 
+CaImAn presently targets Python 3.9. Parts of CaImAn are written in C++, but apart possibly during install, this is not visible to the user. There is also an [older implementation](https://github.com/flatironinstitute/CaImAn-MATLAB) of CaImAn in Matlab (unsupported). That version can be used with [MCMC spike inference](https://github.com/epnev/continuous_time_ca_sampler) 
 
 ### Other hardware
-* ARM-based versions of Apple hardware work (if on a 16G model), but currently happen under x86 emaulation and we cannot support them as well. A native OSX port is planned for late 2021/early 2022.
+* ARM-based versions of Apple hardware work (if on a 16G model), but currently happen under x86 emulation and we cannot support them as well. A native OSX port is planned for late 2021/early 2022.
 * Support for Linux on ARM (e.g. AWS Graviton) is not available (but it may work with the port of conda, if you compile Caiman yourself - we do not have binary packages and this is untested). If you care about this, please let us know.
 
 
 ## Install
 
-The supported ways to install CaImAn use the Anaconda python distribution. If you do not already have it, first install a 3.x version for your platform from [here](https://docs.conda.io/en/latest/miniconda.html). Familiarise yourself with Conda before going further.
+The supported ways to install CaImAn use the Anaconda python distribution. If you do not already have it, first install a 3.x version for your platform from [here](https://docs.conda.io/en/latest/miniconda.html). Familiarise yourself with Conda before going further. If you are using an M1-based Mac, please ignore the ARM builds of conda; install an x86 version instead (ignore any warnings you get while doing so; it will work fine).
 
 We strongly recommend installing the mamba package into your base environment, with 'conda install -c conda-forge mamba', using it to build your conda environment. Mamba performs the same environment creation tasks that the base conda tool does, but far faster. In the instructions below, we assume you're using mamba, but if you're not, you can run the same commands with the conda tool instead.
 
@@ -41,9 +41,19 @@ There are other ways to build/use caiman, but they may get less or no support de
 
 More detailed docs on installation can be found [here](./docs/source/Installation.rst).
 
-After installing the software, the caimanmanager.py script (which will be put in your path on Linux and OSX) is used to unpack datafiles and demos into a directory called caiman\_data. 
+After installing the software, the caimanmanager.py script (which will be put in your path on Linux and OSX) is used to unpack datafiles and demos into a directory called caiman\_data. Invoke it with the "install" argument.
 
-If you want to use GPU functionality and have a GPU where you're running CaImAn (most likely a Linux system), you'll want, after you build your conda environment, to switch to a GPU build of the tensorflow package (conda list will tell you, after the version string, what build variant you have - you most likely will get an mlk build, but a "conda search tensorflow" will probably show you some gpu variants you can switch to - pick one appropriate for your conda version, ideally of the same version of tensorflow you otherwise got). If you need help switching versions, reach out to us on the gitter channel.
+If you are on Windows, the mechanism to put caimanmanager.py in your path may not work; in this case, you can locate it by typing python to bring up an interactive shell, and then
+```bash
+>>> import sysconfig
+>>> sysconfig.get_path('scripts')
+```
+You can invoke it as follows:
+```bash
+python C:/PATH/ABOVE/caimanmanager.py install
+```
+
+If you want to use GPU functionality and have a GPU where you're running CaImAn (most likely a Linux system), you'll want, after you build your conda environment, to switch to a GPU build of the tensorflow package (conda list will tell you, after the version string, what build variant you have - you most likely will get an mlk build, but a "conda search -c conda-forge tensorflow" will probably show you some gpu variants you can switch to - pick one appropriate for your conda version, ideally of the same version of tensorflow you otherwise got). If you need help switching versions, reach out to us on the gitter channel.
 
 ## Getting Started
 
@@ -85,11 +95,9 @@ VolPy is an analysis pipeline for voltage imaging data. The analysis is based on
 * `volparams`: An object for setting parameters of voltage imaging. It can be set and changed easily and is passed into the algorithms.
 * `VOLPY`: An object for running the spike detection algorithm and saving results.
 
-In order to use VolPy, you must install Keras into your conda environment. You can do this by activating your environment, and then issuing the command "mamba install -c conda-forge keras".
+The object detection network Mask R-CNN in VolPy is now compatible with tensorflow 2.4 or above.
 
-To see examples of how these methods are used, please consult the `demo_pipeline_voltage_imaging.py` script in the `demos/general` folder. For more information about the approach check the [preprint](https://www.biorxiv.org/content/10.1101/2020.01.02.892323v1).
-
-There is also a [general paper](https://journals.plos.org/ploscompbiol/article/comments?id=10.1371/journal.pcbi.1008806) on this pipeline
+To see examples of how these methods are used, please consult the `demo_pipeline_voltage_imaging.py` script in the `demos/general` folder. For more information about the approach check the [general paper](https://journals.plos.org/ploscompbiol/article/comments?id=10.1371/journal.pcbi.1008806) on this pipeline.
 
 ## Documentation & Wiki
 

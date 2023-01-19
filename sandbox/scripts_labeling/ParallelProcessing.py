@@ -51,10 +51,10 @@ import re
 # backend='SLURM'
 backend = 'local'
 if backend == 'SLURM':
-    n_processes = np.int(os.environ.get('SLURM_NPROCS'))
+    n_processes = int(os.environ.get('SLURM_NPROCS'))
 else:
     # roughly number of cores on your machine minus 1
-    n_processes = np.maximum(np.int(psutil.cpu_count()), 1)
+    n_processes = np.maximum(int(psutil.cpu_count()), 1)
 print(('using ' + str(n_processes) + ' processes'))
 
 
@@ -293,7 +293,7 @@ import re
 for bf in base_folders:
     fls = glob.glob(os.path.join(bf, 'images/*.mmap'))
     try:
-        fls.sort(key=lambda fn: np.int(
+        fls.sort(key=lambda fn: int(
             re.findall('_[0-9]{1,5}_d1_', fn)[0][1:-4]))
     except:
         fls.sort()
@@ -369,7 +369,7 @@ import re
 for bf in base_folders:
     fls = glob.glob(os.path.join(bf, 'images/*.mmap'))
     try:
-        fls.sort(key=lambda fn: np.int(
+        fls.sort(key=lambda fn: int(
             re.findall('_[0-9]{1,5}_d1_', fn)[0][1:-4]))
     except:
         fls.sort()

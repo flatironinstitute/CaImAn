@@ -54,9 +54,16 @@ def load_memmap(filename: str, mode: str = 'r', output_dir: str = '') -> Tuple[A
         raise ValueError(f'Unknown file extension for file {filename} (should be .mmap)')
     # Strip path components and use CAIMAN_DATA/example_movies
     # TODO: Eventually get the code to save these in a different dir
-    fn_without_path = os.path.split(filename)[-1]
-    fpart = fn_without_path.split('_')[1:-1]  # The filename encodes the structure of the map
-    d1, d2, d3, T, order = int(fpart[-9]), int(fpart[-7]), int(fpart[-5]), int(fpart[-1]), fpart[-3]
+    #fn_without_path = os.path.split(filename)[-1]
+    #fpart = fn_without_path.split('_')[1:]  # The filename encodes the structure of the map
+    decoded_fn = caiman.paths.decode_mmap_filename_dict(filename)
+    d1		= decoded_fn['d1']
+    d2		= decoded_fn['d2']
+    d3		= decoded_fn['d3']
+    T		= decoded_fn['T']
+    order  	= decoded_fn['order']
+
+    #d1, d2, d3, T, order = int(fpart[-9]), int(fpart[-7]), int(fpart[-5]), int(fpart[-1]), fpart[-3]
 
     filename = caiman.paths.fn_relocated(filename)
     Yr = np.memmap(filename, mode=mode, shape=prepare_shape((d1 * d2 * d3, T)), dtype=np.float32, order=order)
@@ -194,7 +201,7 @@ def save_memmap_join(mmap_fnames: List[str], base_name: str = None, n_chunks: in
 
     big_mov = np.memmap(fname_tot, mode='w+', dtype=np.float32, shape=prepare_shape((d, tot_frames)), order='C')
 
-    step = np.int(old_div(d, n_chunks))
+    step = int(old_div(d, n_chunks))
     pars = []
     for ref in range(0, d - step + 1, step):
         pars.append([fname_tot, d, tot_frames, mmap_fnames, ref, ref + step, add_to_mov])
@@ -349,7 +356,7 @@ def save_memmap(filenames: List[str],
             list of tif files or list of numpy arrays
 
         base_name: str
-            the base used to build the file name. IT MUST NOT CONTAIN "_"
+            the base used to build the file name. WARNING: Names containing underscores may collide with internal semantics.
 
         resize_fact: tuple
             x,y, and z downsampling factors (0.5 means downsampled by a factor 2)
@@ -498,9 +505,7 @@ def save_memmap(filenames: List[str],
             Yr = np.ascontiguousarray(Yr, dtype=np.float32) + np.float32(0.0001) + np.float32(add_to_movie)
 
             if idx == 0:
-                fname_tot = base_name + '_d1_' + str(
-                    dims[0]) + '_d2_' + str(dims[1]) + '_d3_' + str(1 if len(dims) == 2 else dims[2]) + '_order_' + str(
-                        order) # TODO: Rewrite more legibly, move to caiman.paths
+                fname_tot = cm.paths.generate_fname_tot(base_name, dims, order)
                 if isinstance(f, str):
                     fname_tot = caiman.paths.fn_relocated(os.path.join(os.path.split(f)[0], fname_tot))
                 if len(filenames) > 1:
@@ -527,7 +532,7 @@ def save_memmap(filenames: List[str],
             sys.stdout.flush()
             Ttot = Ttot + T
 
-        fname_new = caiman.paths.fn_relocated(fname_tot + f'_frames_{Ttot}_.mmap')
+        fname_new = caiman.paths.fn_relocated(fname_tot + f'_frames_{Ttot}.mmap')
         try:
             # need to explicitly remove destination on windows
             os.unlink(fname_new)
@@ -549,7 +554,6 @@ def parallel_dot_product(A: np.ndarray, b, block_size: int = 5000, dview=None, t
         b: time x comps
     """
 
-    import pickle
     pars = []
     d1, d2 = np.shape(A)
     b = pickle.dumps(b)

@@ -18,7 +18,7 @@ import glob
 try:
     cv2.setNumThreads(1)
 except:
-    print('Open CV is naturally single threaded')
+    print('OpenCV is naturally single threaded')
 
 try:
     if __IPYTHON__:
@@ -158,6 +158,6 @@ for fl in fls:
                  mc_templs_part=mc_templs_part, mc_fnames=mc_fnames, mc_templs=mc_templs)
 
     print([os.path.split(nm)[-1] for nm in nms])
-    print([np.int(os.path.getsize(nm) / 1e+9 * 100) / 100. for nm in nms])
+    print([int(os.path.getsize(nm) / 1e+9 * 100) / 100. for nm in nms])
 
 #%% fix files

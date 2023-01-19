@@ -62,9 +62,9 @@ try:
     if 'pydevconsole' in sys.argv[0]:
         raise Exception()
     ID = sys.argv[1]
-    ID = str(np.int(ID) - 1)
+    ID = str(int(ID) - 1)
     print('Processing ID:' + str(ID))
-    ID = [np.int(ID)]
+    ID = [int(ID)]
 
 except:
     ID = np.arange(9)
@@ -265,7 +265,7 @@ for params_movie in np.array(params_movies)[ID]:
         fname_zip = os.path.join(base_folder, params_movie['fname'].split('/')[0], 'images', 'images_' + params_movie['fname'].split('/')[0] + '.zip')
         mov_names = glob.glob(os.path.join(base_folder, params_movie['fname'].split('/')[0], 'images', '*.tif'))
         if len(mov_names) > 0:
-            mov_names = sorted(mov_names, key=lambda x: np.int(x.split('_')[-1][:-4]))
+            mov_names = sorted(mov_names, key=lambda x: int(x.split('_')[-1][:-4]))
         else:
             mov_names = from_zipfiles_to_movie_lists(fname_zip)
 
@@ -346,7 +346,7 @@ for params_movie in np.array(params_movies)[ID]:
             for count, ex in enumerate(examples):
                 pl.subplot(6,2,2*count+1)
                 img = cnm2.estimates.A[:, ex].toarray().reshape(cnm2.estimates.dims, order='F')
-                cm_ = np.array(scipy.ndimage.measurements.center_of_mass(img)).astype(np.int)
+                cm_ = np.array(scipy.ndimage.measurements.center_of_mass(img)).astype(int)
                 pl.axis('off')
                 pl.imshow(img[cm_[0]-15:cm_[0]+15,cm_[1]-15:cm_[1]+15])
                 pl.subplot(6, 2, 2 * count + 2)

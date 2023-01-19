@@ -196,7 +196,7 @@ for fl in training_files:
             #            if zoom>1:
             #
             #            elif zoom<1:
-            com = com.astype(np.int)
+            com = com.astype(int)
             # Crop from x, y, w, h -> 100, 200, 300, 400
             crop_img = img[com[0] - half_crop:com[0] + half_crop,
                            com[1] - half_crop:com[1] + half_crop].copy()
@@ -275,7 +275,7 @@ count = 0
 for a in grouper(50, negatives):
     print(np.max(a))
     print(count)
-    a = np.array(a)[np.array(a) > 0].astype(np.int)
+    a = np.array(a)[np.array(a) > 0].astype(int)
     count += 1
     img_mont_ = all_masks_gt[np.array(a)].squeeze()
     shps_img = img_mont_.shape
@@ -285,7 +285,7 @@ for a in grouper(50, negatives):
     pl.imshow(img_mont)
     inp = pl.ginput(n=0, timeout=-100000)
     imgs_to_exclude = []
-    inp = np.ceil(np.array(inp) / 50).astype(np.int) - 1
+    inp = np.ceil(np.array(inp) / 50).astype(int) - 1
     if len(inp) > 0:
 
         imgs_to_exclude = img_mont_[np.ravel_multi_index(

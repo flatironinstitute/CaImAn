@@ -24,6 +24,7 @@ See Also:
 from builtins import object
 from builtins import str
 
+from copy import deepcopy
 import cv2
 import inspect
 import logging
@@ -349,27 +350,28 @@ class CNMF(object):
             if np.isfortran(Yr):
                 raise Exception('The file should be in C order (see save_memmap function)')
         else:
+            data_set_name = self.params.get('data', 'var_name_hdf5')
             if motion_correct:
                 mc = MotionCorrect(fnames, dview=self.dview, **self.params.motion)
                 mc.motion_correct(save_movie=True, output_dir=output_dir)
                 fname_mc = mc.fname_tot_els if self.params.motion['pw_rigid'] else mc.fname_tot_rig
                 if self.params.get('motion', 'pw_rigid'):
                     b0 = np.ceil(np.maximum(np.max(np.abs(mc.x_shifts_els)),
-                                            np.max(np.abs(mc.y_shifts_els)))).astype(np.int)
+                                            np.max(np.abs(mc.y_shifts_els)))).astype(int)
                     self.estimates.shifts = [mc.x_shifts_els, mc.y_shifts_els]
                 else:
-                    b0 = np.ceil(np.max(np.abs(mc.shifts_rig))).astype(np.int)
+                    b0 = np.ceil(np.max(np.abs(mc.shifts_rig))).astype(int)
                     self.estimates.shifts = mc.shifts_rig
                 # TODO - b0 is currently direction inspecific, which can cause
                 # sub-optimal behavior. See
                 # https://github.com/flatironinstitute/CaImAn/pull/618#discussion_r313960370
                 # for further details.
-                # b0 = 0 if self.params.get('motion', 'border_nan') is 'copy' else 0
+                # b0 = 0 if self.params.get('motion', 'border_nan') == 'copy' else 0
                 b0 = 0
                 fname_new = mmapping.save_memmap(fname_mc, base_name=base_name, order='C',
-                                                 border_to_0=b0)
+                                                 var_name_hdf5=data_set_name, border_to_0=b0)
             else:
-                fname_new = mmapping.save_memmap(fnames, base_name=base_name, order='C')
+                fname_new = mmapping.save_memmap(fnames, base_name=base_name, var_name_hdf5=data_set_name, order='C')
             Yr, dims, T = mmapping.load_memmap(fname_new)
 
         images = np.reshape(Yr.T, [T] + list(dims), order='F')
@@ -380,7 +382,7 @@ class CNMF(object):
         fit_cnm = self.fit(images, indices=indices)
         Cn = summary_images.local_correlations(images[::max(T//1000, 1)], swap_dim=False)
         Cn[np.isnan(Cn)] = 0
-        fit_cnm.save(fname_new[:-5]+'_init.hdf5')
+        fit_cnm.save(fname_new[:-5] + '_init.hdf5')
         #fit_cnm.params.change_params({'p': self.params.get('preprocess', 'p')})
         # RE-RUN seeded CNMF on accepted patches to refine and perform deconvolution
         cnm2 = fit_cnm.refit(images, dview=self.dview)
@@ -414,7 +416,6 @@ class CNMF(object):
             cnm
                 A new CNMF object
         """
-        from copy import deepcopy
         cnm = CNMF(self.params.patch['n_processes'], params=self.params, dview=dview)
         cnm.params.patch['rf'] = None
         cnm.params.patch['only_init'] = False
@@ -428,8 +429,6 @@ class CNMF(object):
     def fit(self, images, indices=(slice(None), slice(None))):
         """
         This method uses the cnmf algorithm to find sources in data.
-        it is calling every function from the cnmf folder
-        you can find out more at how the functions are called and how they are laid out at the ipython notebook
 
         Args:
             images : mapped np.ndarray of shape (t,x,y[,z]) containing the images that vary over time.
@@ -438,12 +437,6 @@ class CNMF(object):
 
         Returns:
             self: updated using the cnmf algorithm with C,A,S,b,f computed according to the given initial values
-
-        Raises:
-        Exception 'You need to provide a memory mapped file as input if you use patches!!'
-
-        See Also:
-        ..image::docs/img/quickintro.png
 
         http://www.cell.com/neuron/fulltext/S0896-6273(15)01084-3
 
@@ -497,8 +490,8 @@ class CNMF(object):
             avail_memory_per_process = psutil.virtual_memory()[
                 1] / 2.**30 / self.params.get('patch', 'n_processes')
             mem_per_pix = 3.6977678498329843e-09
-            npx_per_proc = np.int(avail_memory_per_process / 8. / mem_per_pix / T)
-            npx_per_proc = np.int(np.minimum(npx_per_proc, np.prod(self.dims) // self.params.get('patch', 'n_processes')))
+            npx_per_proc = int(avail_memory_per_process / 8. / mem_per_pix / T)
+            npx_per_proc = int(np.minimum(npx_per_proc, np.prod(self.dims) // self.params.get('patch', 'n_processes')))
             self.params.set('preprocess', {'n_pixels_per_process': npx_per_proc})
 
         self.params.set('spatial', {'n_pixels_per_process': self.params.get('preprocess', 'n_pixels_per_process')})
@@ -597,7 +590,7 @@ class CNMF(object):
 
         else:  # use patches
             if self.params.get('patch', 'stride') is None:
-                self.params.set('patch', {'stride': np.int(self.params.get('patch', 'rf') * 2 * .1)})
+                self.params.set('patch', {'stride': int(self.params.get('patch', 'rf') * 2 * .1)})
                 logging.info(
                     ('Setting the stride to 10% of 2*rf automatically:' + str(self.params.get('patch', 'stride'))))
 
@@ -1028,7 +1021,7 @@ def load_CNMF(filename, n_processes=1, dview=None):
                 estims = Estimates()
                 for kk, vv in val.items():
                     if kk == 'discarded_components':
-                        if vv is not None:
+                        if vv is not None and vv != b'NoneType':
                             discarded_components = Estimates()
                             for kk__, vv__ in vv.items():
                                 setattr(discarded_components, kk__, vv__)
@@ -1039,6 +1032,8 @@ def load_CNMF(filename, n_processes=1, dview=None):
                 setattr(new_obj, key, estims)
             else:
                 setattr(new_obj, key, val)
+        if new_obj.estimates.dims is None or new_obj.estimates.dims == b'NoneType':
+            new_obj.estimates.dims = new_obj.dims
     elif os.path.splitext(filename)[1].lower() == '.nwb':
         from pynwb import NWBHDF5IO
         with NWBHDF5IO(filename, 'r') as io:

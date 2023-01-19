@@ -268,7 +268,7 @@ import re
 for bf in base_folders:
     fls = glob.glob(os.path.join(bf, 'images/*.mmap'))
     try:
-        fls.sort(key=lambda fn: np.int(
+        fls.sort(key=lambda fn: int(
             re.findall('_[0-9]{1,5}_d1_', fn)[0][1:-4]))
     except:
         fls.sort()
