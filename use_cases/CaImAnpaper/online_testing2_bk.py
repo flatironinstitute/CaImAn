@@ -253,7 +253,7 @@ print(fls)
 
 #%% Set up some parameters
 ds_factor = params_movie[ind_dataset]['ds_factor']                            # spatial downsampling factor (increases speed but may lose some fine structure)
-gSig = tuple(np.ceil(np.array(params_movie[ind_dataset]['gSig'])/ds_factor).astype(np.int))  # expected half size of neurons
+gSig = tuple(np.ceil(np.array(params_movie[ind_dataset]['gSig'])/ds_factor).astype(int))  # expected half size of neurons
 init_files = 1                                                       # number of files used for initialization
 online_files = len(fls) - 1                                          # number of files used for online
 initbatch = 200                                                      # number of frames for initialization (presumably from the first file)
@@ -474,15 +474,15 @@ for iter in range(epochs):
                 comps_frame = A.dot(C[:,t-1]).reshape(cnm2.dims, order = 'F')*img_norm/np.max(img_norm)   # inferred activity due to components (no background)
                 bgkrnd_frame = b.dot(f[:,t-1]).reshape(cnm2.dims, order = 'F')*img_norm/np.max(img_norm)  # denoised frame (components + background)
                 all_comps = (np.array(A.sum(-1)).reshape(cnm2.dims, order = 'F'))                         # spatial shapes
-                frame_comp_1 = cv2.resize(np.concatenate([frame_/np.max(img_norm),all_comps*3.],axis = -1),(2*np.int(cnm2.dims[1]*resize_fact),np.int(cnm2.dims[0]*resize_fact) ))
-                frame_comp_2 = cv2.resize(np.concatenate([comps_frame*10.,comps_frame+bgkrnd_frame],axis = -1),(2*np.int(cnm2.dims[1]*resize_fact),np.int(cnm2.dims[0]*resize_fact) ))
+                frame_comp_1 = cv2.resize(np.concatenate([frame_/np.max(img_norm),all_comps*3.],axis = -1),(2*int(cnm2.dims[1]*resize_fact),int(cnm2.dims[0]*resize_fact) ))
+                frame_comp_2 = cv2.resize(np.concatenate([comps_frame*10.,comps_frame+bgkrnd_frame],axis = -1),(2*int(cnm2.dims[1]*resize_fact),int(cnm2.dims[0]*resize_fact) ))
                 frame_pn = np.concatenate([frame_comp_1,frame_comp_2],axis=0).T
                 vid_frame = np.repeat(frame_pn[:,:,None],3,axis=-1)
                 vid_frame = np.minimum((vid_frame*255.),255).astype('u1')
                 cv2.putText(vid_frame,'Raw Data',(5,20),fontFace = 5, fontScale = 1.2, color = (0,255,0), thickness = 1)
-                cv2.putText(vid_frame,'Inferred Activity',(np.int(cnm2.dims[0]*resize_fact) + 5,20),fontFace = 5, fontScale = 1.2, color = (0,255,0), thickness = 1)
-                cv2.putText(vid_frame,'Identified Components',(5,np.int(cnm2.dims[1]*resize_fact)  + 20),fontFace = 5, fontScale = 1.2, color = (0,255,0), thickness = 1)
-                cv2.putText(vid_frame,'Denoised Data',(np.int(cnm2.dims[0]*resize_fact) + 5 ,np.int(cnm2.dims[1]*resize_fact)  + 20),fontFace = 5, fontScale = 1.2, color = (0,255,0), thickness = 1)
+                cv2.putText(vid_frame,'Inferred Activity',(int(cnm2.dims[0]*resize_fact) + 5,20),fontFace = 5, fontScale = 1.2, color = (0,255,0), thickness = 1)
+                cv2.putText(vid_frame,'Identified Components',(5,int(cnm2.dims[1]*resize_fact)  + 20),fontFace = 5, fontScale = 1.2, color = (0,255,0), thickness = 1)
+                cv2.putText(vid_frame,'Denoised Data',(int(cnm2.dims[0]*resize_fact) + 5 ,int(cnm2.dims[1]*resize_fact)  + 20),fontFace = 5, fontScale = 1.2, color = (0,255,0), thickness = 1)
                 cv2.putText(vid_frame,'Frame = '+str(t),(vid_frame.shape[1]//2-vid_frame.shape[1]//10,vid_frame.shape[0]-20),fontFace = 5, fontScale = 1.2, color = (0,255,255), thickness = 1)
                 if save_movie:
                     out.write(vid_frame)
@@ -720,7 +720,7 @@ print({a:b.astype(np.float16) for a,b in performance_cons_off.items()})
 #images_nice = (A_us[:,idx_comps_high_r_cnmf].reshape(Cn.shape+(-1,),order = 'F')).transpose(2,0,1)
 #images_nice_gt =  (A_gt_thr_us[:,idx_comps_high_r_gt].reshape(Cn.shape+(-1,),order = 'F')).transpose(2,0,1)
 #
-#cms = np.array([scipy.ndimage.center_of_mass(img) for img in images_nice]).astype(np.int)
+#cms = np.array([scipy.ndimage.center_of_mass(img) for img in images_nice]).astype(int)
 #
 #images_nice_crop = [img[cm_[0]-15:cm_[0]+15,cm_[1]-15:cm_[1]+15] for  cm_,img in zip(cms,images_nice)]
 #

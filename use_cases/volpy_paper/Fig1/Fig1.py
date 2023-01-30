@@ -45,7 +45,7 @@ def neuron_number(A, N, n, n_group):
 
 N = A.shape[0]
 n = N
-n_group = np.int(np.ceil(N/n))
+n_group = int(np.ceil(N/n))
 mat = neuron_number(A, N, n, n_group)
 
 #%% Visualize spatial footprint

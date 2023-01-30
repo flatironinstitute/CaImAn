@@ -140,10 +140,10 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
 # backend='SLURM'
 backend = 'local'
 if backend == 'SLURM':
-    n_processes = np.int(os.environ.get('SLURM_NPROCS'))
+    n_processes = int(os.environ.get('SLURM_NPROCS'))
 else:
     # roughly number of cores on your machine minus 1
-    n_processes = np.maximum(np.int(psutil.cpu_count()), 1)
+    n_processes = np.maximum(int(psutil.cpu_count()), 1)
 print(('using ' + str(n_processes) + ' processes'))
 #%% start cluster for efficient computation
 single_thread = False
@@ -314,8 +314,8 @@ def compute_metrics_motion_correction(fname, final_size_x, final_size_y, swap_di
     vmin, vmax = -1, 1
     m = cm.load(fname)
 
-    max_shft_x = np.int(np.ceil((np.shape(m)[1] - final_size_x) / 2))
-    max_shft_y = np.int(np.ceil((np.shape(m)[2] - final_size_y) / 2))
+    max_shft_x = int(np.ceil((np.shape(m)[1] - final_size_x) / 2))
+    max_shft_y = int(np.ceil((np.shape(m)[2] - final_size_y) / 2))
     max_shft_x_1 = - ((np.shape(m)[1] - max_shft_x) - (final_size_x))
     max_shft_y_1 = - ((np.shape(m)[2] - max_shft_y) - (final_size_y))
     if max_shft_x_1 == 0:

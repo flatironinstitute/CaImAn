@@ -41,7 +41,7 @@ from builtins import str
 try:
     cv2.setNumThreads(1)
 except:
-    print('Open CV is naturally single threaded')
+    print('OpenCV is naturally single threaded')
 
 logging.basicConfig(format=
                     "%(relativeCreated)12d [%(filename)s:%(funcName)20s():%(lineno)s]"\
@@ -62,9 +62,9 @@ try:
     if 'pydevconsole' in sys.argv[0]:
         raise Exception()
     ID = sys.argv[1]
-    ID = str(np.int(ID))
+    ID = str(int(ID))
     print('Processing ID:' + str(ID))
-    ID = [np.int(ID)]
+    ID = [int(ID)]
 
 except:
     ID = np.arange(5)
@@ -178,7 +178,7 @@ for ind_dataset in ID:
     fr = params_movie[ind_dataset]['fr']
     decay_time = params_movie[ind_dataset]['decay_time']
     gSig = tuple(np.ceil(np.array(params_movie[ind_dataset]['gSig']) / ds_factor).astype(
-        np.int))                                                                          # expected half size of neurons
+        int))                                                                          # expected half size of neurons
     init_batch = 200                                                                      # number of frames for initialization (presumably from the first file)
     expected_comps = 1000                                                                 # maximum number of expected components used for memory pre-allocation (exaggerate here)
     K = 2                                                                                 # initial number of components

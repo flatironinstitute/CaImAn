@@ -201,7 +201,7 @@ for inps in inputs[:5]:
 
         #bin_ = 10
         cms_total = [np.array(scipy.ndimage.center_of_mass(np.reshape(a.toarray(
-        ), dims, order='F'))).astype(np.int) for a in A_gt.tocsc()[:, idx_included].T]
+        ), dims, order='F'))).astype(int) for a in A_gt.tocsc()[:, idx_included].T]
         for count in range(count_start, T):
             if count % 100 == 0:
                 print(count)
@@ -214,16 +214,16 @@ for inps in inputs[:5]:
             super_active = np.where(
                 (exceptionality[:, count - count_start:count].min(-1) < -25))[0]
 
-#            cms_1 = [np.array(scipy.ndimage.center_of_mass(np.reshape(a.toarray(),dims,order = 'F'))).astype(np.int) for a in  A_gt.tocsc()[:,idx_included[possibly_active]].T]
-#            cms_2 = [np.array(scipy.ndimage.center_of_mass(np.reshape(a.toarray(),dims,order = 'F'))).astype(np.int) for a in  A_gt.tocsc()[:,idx_included[super_active]].T]
+#            cms_1 = [np.array(scipy.ndimage.center_of_mass(np.reshape(a.toarray(),dims,order = 'F'))).astype(int) for a in  A_gt.tocsc()[:,idx_included[possibly_active]].T]
+#            cms_2 = [np.array(scipy.ndimage.center_of_mass(np.reshape(a.toarray(),dims,order = 'F'))).astype(int) for a in  A_gt.tocsc()[:,idx_included[super_active]].T]
             cms_1 = np.array(cms_total)[possibly_active]
             cms_2 = np.array(cms_total)[super_active]
             cms_1 = np.maximum(cms_1, half_crop)
             cms_1 = np.array([np.minimum(cms, dims - half_crop)
-                              for cms in cms_1]).astype(np.int)
+                              for cms in cms_1]).astype(int)
             cms_2 = np.maximum(cms_2, half_crop)
             cms_2 = np.array([np.minimum(cms, dims - half_crop)
-                              for cms in cms_2]).astype(np.int)
+                              for cms in cms_2]).astype(int)
 
 #            if cnn:
 #                As = []
@@ -286,7 +286,7 @@ for inps in inputs[:5]:
         #
         #    cms_1 = cms_2q
         #    cms_1 = np.maximum(cms_1,half_crop)
-        #    cms_1 = np.array([np.minimum(cms,dims-half_crop) for cms in cms_1]).astype(np.int)
+        #    cms_1 = np.array([np.minimum(cms,dims-half_crop) for cms in cms_1]).astype(int)
         #    crop_imgs = [img_avg[com[0]-half_crop:com[0]+half_crop, com[1]-half_crop:com[1]+half_crop] for com in cms_1]
         #    final_crops = np.array([cv2.resize(im/np.linalg.norm(im),(patch_size ,patch_size)) for im in crop_imgs])
 

@@ -306,7 +306,7 @@ def fun_exc(x):
     from caiman.components_evaluation import compute_event_exceptionality
 
     fluo, param = x
-    N_samples = np.ceil(param['fr'] * param['decay_time']).astype(np.int)
+    N_samples = np.ceil(param['fr'] * param['decay_time']).astype(int)
     ev = compute_event_exceptionality(np.atleast_2d(fluo), N=N_samples)
     return  -norm.ppf(np.exp(np.array(ev[1]) / N_samples))
 #%%
@@ -896,7 +896,7 @@ for params_movie in np.array(params_movies)[:]:
         idx_comps_high_r_gt = idx_components_gt[tp_gt][idx_comps_high_r]
         images_nice = (A.tocsc()[:,idx_comps_high_r_cnmf].toarray().reshape(dims+(-1,),order = 'F')).transpose(2,0,1)
         images_nice_gt =  (A_gt.tocsc()[:,idx_comps_high_r_gt].toarray().reshape(dims+(-1,),order = 'F')).transpose(2,0,1)
-        cms = np.array([scipy.ndimage.center_of_mass(img) for img in images_nice]).astype(np.int)
+        cms = np.array([scipy.ndimage.center_of_mass(img) for img in images_nice]).astype(int)
         images_nice_crop = [img[cm_[0]-15:cm_[0]+15,cm_[1]-15:cm_[1]+15] for  cm_,img in zip(cms,images_nice)]
         images_nice_crop_gt = [img[cm_[0]-15:cm_[0]+15,cm_[1]-15:cm_[1]+15] for  cm_,img in zip(cms,images_nice_gt)]
 

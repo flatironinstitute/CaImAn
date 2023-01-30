@@ -160,6 +160,10 @@ class timeseries(np.ndarray):
             q_max, q_min: float in [0, 100]
                 percentile for maximum/minimum clipping value if saving as avi
                 (If set to None, no automatic scaling to the dynamic range [0, 255] is performed)
+                
+            compress: int
+                if saving as .tif, specifies the compression level
+                if saving as .avi or .mkv, compress=0 uses the IYUV codec, otherwise the FFV1 codec is used
 
         Raises:
             Exception 'Extension Unknown'
@@ -179,8 +183,12 @@ class timeseries(np.ndarray):
                         curfr = self[i].copy()
                         if to32 and not ('float32' in str(self.dtype)):
                             curfr = curfr.astype(np.float32)
-                        return curfr             
-                    tif.save([foo(i) for i in range(self.shape[0])], compress=compress)
+                        return curfr
+                    if compress == 0:
+                        compressor = 'none'
+                    else:
+                        compressor = 'zlib'
+                    tif.write([foo(i) for i in range(self.shape[0])], compression=compressor)
                 else:
                     for i in range(self.shape[0]):
                         if i % 200 == 0:
@@ -203,10 +211,16 @@ class timeseries(np.ndarray):
                      file_name=self.file_name)
         elif extension in ('.avi', '.mkv'):
             codec = None
-            try:
-                codec = cv2.FOURCC('I', 'Y', 'U', 'V')
-            except AttributeError:
-                codec = cv2.VideoWriter_fourcc(*'IYUV')
+            if compress == 0:
+                try:
+                    codec = cv2.FOURCC('I', 'Y', 'U', 'V')
+                except AttributeError:
+                    codec = cv2.VideoWriter_fourcc(*'IYUV')
+            else:
+                try:
+                    codec = cv2.FOURCC('F', 'F', 'V', '1')
+                except AttributeError:
+                    codec = cv2.VideoWriter_fourcc(*'FFV1')
             if q_max is None or q_min is None:
                 data = self.astype(np.uint8)
             else:

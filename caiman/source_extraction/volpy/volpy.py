@@ -22,7 +22,7 @@ class VOLPY(object):
         You can do this by activating your environment, and then issuing the command 
         "conda install -c conda-forge keras".
     """
-    def __init__(self, n_processes, dview=None, context_size=35, censor_size=12, 
+    def __init__(self, n_processes, dview=None, template_size=0.02, context_size=35, censor_size=12, 
                  visualize_ROI=False, flip_signal=True, hp_freq_pb=1/3, nPC_bg=8, ridge_bg=0.01,  
                  hp_freq=1, clip=100, threshold_method='adaptive_threshold', min_spikes=10, 
                  pnorm=0.5, threshold=3, sigmas=np.array([1, 1.5, 2]), n_iter=2, weight_update='ridge', 
@@ -36,6 +36,9 @@ class VOLPY(object):
         
             dview: Direct View object
                 for parallelization pruposes when using ipyparallel
+                
+            template_size: float 
+                template_size, # half size of the window length for spike templates, default is 20 ms 
                 
             context_size: int
                 number of pixels surrounding the ROI to use as context

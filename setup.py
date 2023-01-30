@@ -95,6 +95,6 @@ setup(
     packages=find_packages(exclude=['use_cases', 'use_cases.*']),
     data_files=data_files,
     install_requires=[''],
-    ext_modules=cythonize(ext_modules),
+    ext_modules=cythonize(ext_modules, language_level="3"),
     cmdclass={'build_ext': build_ext}
 )

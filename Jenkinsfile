@@ -24,7 +24,7 @@ pipeline {
           }
           steps {
             sh 'conda clean --index-cache'
-            sh 'conda env create -q -f environment.yml -p $CONDA_ENV'
+            sh 'mamba env create -q -f environment.yml -p $CONDA_ENV'
             sh '''#!/bin/bash -ex
               source activate $CONDA_ENV
               export KERAS_BACKEND=tensorflow
@@ -49,7 +49,8 @@ pipeline {
             LANG = "en_US.UTF-8"
           }
           steps {
-            sh '$ANACONDA3/bin/conda env create -q -f environment.yml -p $CONDA_ENV'
+            sh '$ANACONDA3/bin/conda install -n base -c conda-forge mamba'
+            sh '$ANACONDA3/bin/mamba env create -q -f environment.yml -p $CONDA_ENV'
             sh '''#!/bin/bash -ex
               source $ANACONDA3/bin/activate $CONDA_ENV
               pip install .
@@ -73,7 +74,8 @@ pipeline {
           steps {
             bat '%ANACONDA3%\\scripts\\conda info'
             bat 'if exist "%CONDA_ENV%" rd /s /q %CONDA_ENV%'
-            bat '%ANACONDA3%\\scripts\\conda env create -q --force -f environment.yml -p %CONDA_ENV%'
+            bat '%ANACONDA3%\\scripts\\conda install -n base -c conda-forge mamba'
+            bat '%ANACONDA3%\\scripts\\mamba env create -q --force -f environment.yml -p %CONDA_ENV%'
             bat 'if exist "%CONDA_ENV%\\etc\\conda\\activate.d\\vs*_compiler_vars.bat" del "%CONDA_ENV%\\etc\\conda\\activate.d\\vs*_compiler_vars.bat"'
             bat '%ANACONDA3%\\scripts\\activate %CONDA_ENV% && %ANACONDA3%\\scripts\\conda list'
             bat '%ANACONDA3%\\scripts\\activate %CONDA_ENV% && set KERAS_BACKEND=tensorflow && pip install . && copy caimanmanager.py %TEMP% && cd %TEMP% && set "CAIMAN_DATA=%TEMP%\\caiman_data" && (if exist caiman_data (rmdir caiman_data /s /q && echo "Removed old caiman_data" ) else (echo "Host is fresh")) && python caimanmanager.py install --force && python caimanmanager.py test'

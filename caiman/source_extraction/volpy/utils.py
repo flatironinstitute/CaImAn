@@ -128,7 +128,7 @@ def mrcnn_inference(img, size_range, weights_path, display_result=True):
     with tf.device(DEVICE):
         model = modellib.MaskRCNN(mode="inference", model_dir=model_dir,
                                   config=config)
-    model.load_weights(weights_path, by_name=True)
+    tf.keras.Model.load_weights(model.keras_model, weights_path, by_name=True)
     results = model.detect([img], verbose=1)
     r = results[0]
     selection = np.logical_and(r['masks'].sum(axis=(0,1)) > size_range[0] ** 2, 
@@ -233,7 +233,7 @@ def view_components(estimates, img, idx, frame_times=None, gt_times=None):
             s_comp.set_val(new_val)
         
     def update(val):
-        i = np.int(np.round(s_comp.val))
+        i = int(np.round(s_comp.val))
         print(f'Component:{i}')
 
         if i < n:

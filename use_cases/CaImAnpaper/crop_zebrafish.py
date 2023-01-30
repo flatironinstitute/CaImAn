@@ -26,8 +26,8 @@ with open(fname, "r") as f:
 img = m[:300].std(0)
 pl.imshow(img, vmax = np.std(img)*2)
 coords = pl.ginput(-1)
-min_x, min_y = np.min(coords,0).astype(np.int)
-max_x, max_y = np.max(coords,0).astype(np.int)
+min_x, min_y = np.min(coords,0).astype(int)
+max_x, max_y = np.max(coords,0).astype(int)
 
 pl.imshow(img[min_y:max_y,min_x:max_x],vmax = np.std(img)*2)
 #%%

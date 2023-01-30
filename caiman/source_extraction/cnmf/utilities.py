@@ -35,6 +35,8 @@ from scipy.sparse import spdiags, issparse, csc_matrix, csr_matrix
 import scipy.ndimage.morphology as morph
 import tifffile
 from typing import List
+# https://github.com/constantinpape/z5/issues/146
+#import z5py
 
 from .initialization import greedyROI
 from ...base.rois import com
@@ -98,9 +100,10 @@ def peak_local_max(image, min_distance=1, threshold_abs=None,
         the minimum intensity of the image.
     threshold_rel : float, optional
         Minimum intensity of peaks, calculated as `max(image) * threshold_rel`.
-    exclude_border : int, optional
+    exclude_border : int or bool, optional
         If nonzero, `exclude_border` excludes peaks from
-        within `exclude_border`-pixels of the border of the image.
+          within `exclude_border`-pixels of the border of the image.
+        If boolean and True, treat as min_distance.
     indices : bool, optional
         If True, the output will be an array representing peak
         coordinates.  If False, the output will be a boolean array shaped as
@@ -159,11 +162,11 @@ def peak_local_max(image, min_distance=1, threshold_abs=None,
     if isinstance(exclude_border, bool):
         exclude_border = min_distance if exclude_border else 0
 
-    out = np.zeros_like(image, dtype=np.bool)
+    out = np.zeros_like(image, dtype=bool)
 
     if np.all(image == image.flat[0]):
         if indices is True:
-            return np.empty((0, 2), np.int)
+            return np.empty((0, 2), int)
         else:
             return out
 
@@ -640,7 +643,7 @@ def manually_refine_components(Y, xxx_todo_changeme, A, C, Cn, thr=0.9, display_
 
         if pts != []:
             print(pts)
-            xx, yy = np.round(pts[0]).astype(np.int)
+            xx, yy = np.round(pts[0]).astype(int)
             coords_y = np.array(list(range(yy - dy, yy + dy + 1)))
             coords_x = np.array(list(range(xx - dx, xx + dx + 1)))
             coords_y = coords_y[(coords_y >= 0) & (coords_y < d1)]
@@ -990,7 +993,12 @@ def get_file_size(file_name, var_name_hdf5='mov'):
             if extension in ['.tif', '.tiff', '.btf']:
                 tffl = tifffile.TiffFile(file_name)
                 siz = tffl.series[0].shape
-                T, dims = siz[0], siz[1:]
+                # tiff files written in append mode
+                if len(siz) < 3:
+                    dims = siz
+                    T = len(tffl.pages)
+                else:
+                    T, dims = siz[0], siz[1:]
             elif extension in ('.avi', '.mkv'):
                 cap = cv2.VideoCapture(file_name)
                 dims = [0, 0]
@@ -1008,7 +1016,32 @@ def get_file_size(file_name, var_name_hdf5='mov'):
                 Yr, dims, T = load_memmap(os.path.join(
                         os.path.split(file_name)[0], filename))
             elif extension in ('.h5', '.hdf5', '.nwb'):
+                # FIXME this doesn't match the logic in movies.py:load()
+                # Consider pulling a lot of the "data source" code out into one place
                 with h5py.File(file_name, "r") as f:
+                    ignore_keys = ['__DATA_TYPES__'] # Known metadata that tools provide, add to this as needed. Sync with movies.my:load() !!
+                    kk = list(filter(lambda x: x not in ignore_keys, f.keys()))
+                    if len(kk) == 1 and 'Dataset' in str(type(f[kk[0]])): # TODO: Consider recursing into a group to find a dataset
+                        siz = f[kk[0]].shape
+                    elif var_name_hdf5 in f:
+                        if extension == '.nwb':
+                            siz = f[var_name_hdf5]['data'].shape
+                        else:
+                            siz = f[var_name_hdf5].shape
+                    elif var_name_hdf5 in f['acquisition']:
+                        siz = f['acquisition'][var_name_hdf5]['data'].shape
+                    else:
+                        logging.error('The file does not contain a variable' +
+                                      'named {0}'.format(var_name_hdf5))
+                        raise Exception('Variable not found. Use one of the above')
+                T, dims = siz[0], siz[1:]
+            elif extension in ('.n5', '.zarr'):
+                try:
+                    import z5py
+                except:
+                    raise Exception("z5py not available; if you need this use the conda-based setup")
+
+                with z5py.File(file_name, "r") as f:
                     kk = list(f.keys())
                     if len(kk) == 1:
                         siz = f[kk[0]].shape

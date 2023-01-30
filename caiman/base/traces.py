@@ -77,7 +77,7 @@ class trace(ts.timeseries):
 
         tracesDFF = []
         for tr in self.T:
-            logging.debug("TR Shape is " + str(tr.shape))
+            logging.debug(f"TR Shape is {tr.shape}")
             traceBL = [np.percentile(tr[i:i + window], minQuantile) for i in range(1, len(tr) - window)]
             missing = np.percentile(tr[-window:], minQuantile)
             missing = np.repeat(missing, window + 1)

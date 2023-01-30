@@ -357,8 +357,8 @@ for base_folder in base_folders:
     US_ALONE = 1
     CS_US = 2
 
-    samples_before = np.int(2.8 * f_rate)
-    samples_after = np.int(7.3 * f_rate) - samples_before
+    samples_before = int(2.8 * f_rate)
+    samples_after = int(7.3 * f_rate) - samples_before
 
     if interpolate:
         Ftraces_mat = np.zeros([len(chunk_sizes), len(traces[0]), max_chunk])
@@ -377,7 +377,7 @@ for base_folder in base_folders:
     idx_trig_US = triggers_img[:][:, 1]
     trial_type = triggers_img[:][:, 2]
     length = triggers_img[:][:, -1]
-    ISI = np.int(np.nanmedian(idx_trig_US) - np.nanmedian(idx_trig_CS))
+    ISI = int(np.nanmedian(idx_trig_US) - np.nanmedian(idx_trig_CS))
 
     for idx, fr in enumerate(chunk_sizes):
 
@@ -398,11 +398,11 @@ for base_folder in base_folders:
         else:
 
             if trial_type[idx] == CS_ALONE:
-                Ftraces_mat[idx] = Ftraces[idx][:, np.int(
-                    idx_trig_CS[idx] + ISI - samples_before):np.int(idx_trig_CS[idx] + ISI + samples_after)]
+                Ftraces_mat[idx] = Ftraces[idx][:, int(
+                    idx_trig_CS[idx] + ISI - samples_before):int(idx_trig_CS[idx] + ISI + samples_after)]
             else:
-                Ftraces_mat[idx] = Ftraces[idx][:, np.int(
-                    idx_trig_US[idx] - samples_before):np.int(idx_trig_US[idx] + samples_after)]
+                Ftraces_mat[idx] = Ftraces[idx][:, int(
+                    idx_trig_US[idx] - samples_before):int(idx_trig_US[idx] + samples_after)]
 
     #%%
     wheel_traces, movement_at_CS, trigs_mov = gc.process_wheel_traces(np.array(
@@ -577,8 +577,8 @@ for base_folder in base_folders:
 # rois=np.asarray(dt['roi'],np.float32)
 ##
 ##        trials = f.keys()
-# trials.sort(key=lambda(x): np.int(x.replace('trial_','')))
-##        trials_idx=[np.int(x.replace('trial_',''))-1 for x in trials]
+# trials.sort(key=lambda(x): int(x.replace('trial_','')))
+##        trials_idx=[int(x.replace('trial_',''))-1 for x in trials]
 ##
 ##
 ##

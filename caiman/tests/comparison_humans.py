@@ -10,7 +10,7 @@ import cv2
 try:
     cv2.setNumThreads(1)
 except:
-    print('Open CV is naturally single threaded')
+    print('OpenCV is naturally single threaded')
 
 try:
     if __IPYTHON__:
@@ -54,9 +54,9 @@ try:
     if 'pydevconsole' in sys.argv[0]:
         raise Exception()
     ID = sys.argv[1]
-    ID = str(np.int(ID) - 1)
+    ID = str(int(ID) - 1)
     print('Processing ID:' + str(ID))
-    ID = [np.int(ID)]
+    ID = [int(ID)]
 
 except:
     ID = np.arange(5)

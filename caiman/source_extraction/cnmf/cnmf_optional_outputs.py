@@ -201,7 +201,7 @@ class CNMF(object):
 
         else:  # use patches
             if self.stride is None:
-                self.stride = np.int(self.rf * 2 * .1)
+                self.stride = int(self.rf * 2 * .1)
                 print(
                     ('**** Setting the stride to 10% of 2*rf automatically:' + str(self.stride)))
 
@@ -219,8 +219,8 @@ class CNMF(object):
             self.optional_outputs = optional_outputs
 
             options = CNMFParams(dims, K=A.shape[-1], gSig=self.gSig, p=self.p, thr=self.merge_thresh)
-            pix_proc = np.minimum(np.int((d1 * d2) / self.n_processes / (
-                old_div(T, 2000.))), np.int(old_div((d1 * d2), self.n_processes)))  # regulates the amount of memory used
+            pix_proc = np.minimum(int((d1 * d2) / self.n_processes / (
+                old_div(T, 2000.))), int(old_div((d1 * d2), self.n_processes)))  # regulates the amount of memory used
 
             options['spatial_params']['n_pixels_per_process'] = pix_proc
             options['temporal_params']['n_pixels_per_process'] = pix_proc
