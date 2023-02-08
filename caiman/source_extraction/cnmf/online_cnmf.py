@@ -1153,7 +1153,7 @@ class OnACID(object):
                 sch = None
             else:
                 sch = rate_scheduler(*self.params.get('ring_CNN', 'lr_scheduler'))
-            Y = caiman.base.movies.load(fls[0], subindices=slice(init_batch),
+            Y = caiman.load(fls[0], subindices=slice(init_batch),
                                         var_name_hdf5=self.params.get('data', 'var_name_hdf5'))
             shape = Y.shape[1:] + (1,)
             logging.info('Starting background model training.')
@@ -1215,7 +1215,7 @@ class OnACID(object):
                 Y_ = caiman.base.movies.load_iter(
                     ffll, var_name_hdf5=self.params.get('data', 'var_name_hdf5'),
                     subindices=slice(init_batc_iter[file_count], None, None))
-
+                
                 old_comps = self.N     # number of existing components
                 frame_count = -1
                 while True:   # process each file
@@ -1441,12 +1441,13 @@ def bare_initialization(Y, init_batch=1000, k=1, method_init='greedy_roi', gnb=1
         cnm_init    object
                     caiman CNMF-like object to initialize OnACID
     """
-
+    
+    
     if Y.ndim == 4:  # 3D data
         Y = Y[:, :, :, :init_batch]
     else:
         Y = Y[:, :, :init_batch]
-
+        
     try:
         Ain, Cin, b_in, f_in, center = initialize_components(
             Y, K=k, gSig=gSig, nb=gnb, method_init=method_init, **kwargs)
