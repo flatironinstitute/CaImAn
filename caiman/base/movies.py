@@ -1592,7 +1592,7 @@ def load(file_name: Union[str, List[str]],
                 else:
                     input_arr = np.array(nd2)
 
-        if extension in ['.tif', '.tiff', '.btf']:  # load tif file
+        elif extension in ['.tif', '.tiff', '.btf']:  # load tif file
             with tifffile.TiffFile(file_name) as tffl:
                 
                 if len(tffl.series)>1:
