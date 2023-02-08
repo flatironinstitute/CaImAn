@@ -33,6 +33,7 @@ import pylab as pl
 import scipy
 from scipy.sparse import spdiags, issparse, csc_matrix, csr_matrix
 import scipy.ndimage.morphology as morph
+from nd2reader import ND2Reader
 import tifffile
 from typing import List
 # https://github.com/constantinpape/z5/issues/146
@@ -992,13 +993,23 @@ def get_file_size(file_name, var_name_hdf5='mov'):
                     extension = '.h5'
             if extension in ['.tif', '.tiff', '.btf']:
                 tffl = tifffile.TiffFile(file_name)
-                siz = tffl.series[0].shape
-                # tiff files written in append mode
-                if len(siz) < 3:
-                    dims = siz
-                    T = len(tffl.pages)
+                if len(tffl.series)>1:
+                    T = 0
+                    for series in tffl.series:
+                        T +=len(series.pages)
+                    dims = tffl.series[0].pages[0].shape
                 else:
-                    T, dims = siz[0], siz[1:]
+                    siz = tffl.series[0].shape
+                    # tiff files written in append mode
+                    if len(siz) < 3:
+                        dims = siz
+                        T = len(tffl.pages)
+                    else:
+                        T, dims = siz[0], siz[1:]
+            elif extension == '.nd2':
+                nd2 = ND2Reader(file_name)
+                dims=[0,0]
+                T,dims[0],dims[1] = nd2.shape
             elif extension in ('.avi', '.mkv'):
                 cap = cv2.VideoCapture(file_name)
                 dims = [0, 0]
