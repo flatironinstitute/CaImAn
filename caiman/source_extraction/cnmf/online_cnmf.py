@@ -1,10 +1,8 @@
 #!/usr/bin/env python
 """ Online Constrained Nonnegative Matrix Factorization
-
 The general file class which is used to analyze calcium imaging data in an
 online fashion using the OnACID algorithm. The output of the algorithm
 is storead in an Estimates class
-
 More info:
 ------------
 Giovannucci, A., Friedrich, J., Kaufman, M., Churchland, A., Chklovskii, D., 
@@ -34,6 +32,7 @@ from sklearn.preprocessing import normalize
 import tensorflow as tf
 from time import time
 from typing import List, Tuple
+import tifffile
 
 import caiman
 import caiman.paths
@@ -48,7 +47,7 @@ from ... import mmapping
 from ...components_evaluation import compute_event_exceptionality
 from ...motion_correction import (motion_correct_iteration_fast,
                                   tile_and_correct, high_pass_filter_space,
-                                  sliding_window)
+                                  sliding_window,bin_median)
 from ...utils.utils import save_dict_to_hdf5, load_dict_from_hdf5, parmap, load_graph
 from ...utils.stats import pd_solve
 from ... import summary_images
@@ -68,18 +67,14 @@ class OnACID(object):
     The class can be initialized by passing a "params" object for setting up
     the relevant parameters and an "Estimates" object for setting an initial
     state of the algorithm (optional)
-
     Methods:
         initialize_online: 
             Initialize the online algorithm using a provided method, and prepare
             the online object
-
         _prepare_object: 
             Prepare the online object given a set of estimates
-
         fit_next:
             Fit the algorithm on the next data frame
-
         fit_online:
             Run the entire online pipeline on a given list of files
     """
@@ -395,14 +390,11 @@ class OnACID(object):
         """
         This method fits the next frame using the CaImAn online algorithm and
         updates the object.
-
         Args
             t : int
                 time measured in number of frames
-
             frame_in : array
                 flattened array of shape (x * y [ * z],) containing the t-th image.
-
             num_iters_hals: int, optional
                 maximal number of iterations for HALS (NNLS via blockCD)
         """
@@ -928,6 +920,162 @@ class OnACID(object):
 
         return self
 
+    def motion_correction_online(self,template:np.array=None,save_movie:bool=False, nbits = np.float32):
+        fls = self.params.get('data', 'fnames')
+        
+        if self.params.motion['gSig_filt'] is None:
+            self.is1p=False
+        else:
+            self.is1p=True
+               
+        if len(fls)>1:
+            fls = [fls[0]]
+        dims,T = get_file_size(fls[0])
+
+        logging.info('Analyzing '+str(fls[0]))
+        
+        t0 = time()
+
+        opts = self.params.get_group('online')
+        
+        if template is None:
+            Y = caiman.load(fls[0], subindices=slice(0, opts['init_batch'],
+                     None), var_name_hdf5=self.params.get('data', 'var_name_hdf5')).astype(np.float32)
+            ds_factor = np.maximum(opts['ds_factor'], 1)
+            if ds_factor > 1:
+                Y = Y.resize(1./ds_factor, 1./ds_factor)
+                
+            max_shifts_online = self.params.get('online', 'max_shifts_online')
+            if self.params.get('motion', 'gSig_filt') is None:
+                mc = Y.motion_correct(max_shifts_online, max_shifts_online)
+                Y = mc[0].astype(np.float32)
+            else:
+                Y_filt = np.stack([high_pass_filter_space(yf, self.params.motion['gSig_filt']) for yf in Y], axis=0)
+                Y_filt = caiman.movie(Y_filt)
+                mc = Y_filt.motion_correct(max_shifts_online, max_shifts_online)
+                Y = Y.apply_shifts(mc[1])
+            if self.params.get('motion', 'pw_rigid'):
+                n_p = len([(it[0], it[1])
+                     for it in sliding_window(Y[0], self.params.get('motion', 'overlaps'), self.params.get('motion', 'strides'))])
+                for sh in mc[1]:
+                    self.estimates.shifts.append([tuple(sh) for i in range(n_p)])
+            else:
+                self.estimates.shifts.extend(mc[1])
+            
+            logging.info('Initial template initialized in ' + str(int(time()-t0)) + ' seconds')
+                
+        if (self.params.get('motion','gSig_filt') is None):
+            templ = bin_median(Y)
+        else:
+            templ = bin_median(high_pass_filter_space(Y, self.params.get('motion','gSig_filt')))
+        epochs = self.params.get('online', 'epochs')
+        
+        frame_count = 0
+        template_count = 0
+        template_number = 0
+        
+        corrected_images = np.zeros((500,dims[0],dims[1])) #Variable of corrected frames to save new images and for new template
+        
+        #Create folder to save results (images and files) of the motion correction
+        folderName = os.path.join(os.path.dirname(fls[0]),'MC Results')
+        
+        if (os.path.exists(folderName)==False):
+            os.makedirs(folderName)
+            
+        Y_ = caiman.base.movies.load_iter(
+            fls[0], var_name_hdf5=self.params.get('data', 'var_name_hdf5'),
+            subindices=slice(0, None, None))
+        
+        logging.info('Start processing all frames')
+        t0 = time()
+        while True:   # process each file
+            try:
+                
+                frame = next(Y_)
+                # Downsample and normalize
+                frame_ = frame.copy().astype(np.float32)
+                if self.params.get('online', 'ds_factor') > 1:
+                    frame_ = cv2.resize(frame_, self.img_norm.shape[::-1])
+
+                # if self.params.get('online', 'normalize'):
+                #     frame_ -= self.img_min     # make data non-negative
+                        
+                if self.params.get('online', 'normalize'):
+                    templ *= self.img_norm
+                if self.is1p:
+                    templ = high_pass_filter_space(templ, self.params.motion['gSig_filt'])
+                if self.params.get('motion', 'pw_rigid'):
+                    frame_cor, shift, _, xy_grid = tile_and_correct(
+                        frame, templ, self.params.motion['strides'], self.params.motion['overlaps'],
+                        self.params.motion['max_shifts'], newoverlaps=None, newstrides=None,
+                        upsample_factor_grid=4, upsample_factor_fft=10, show_movie=False,
+                        max_deviation_rigid=self.params.motion['max_deviation_rigid'], add_to_movie=0,
+                        shifts_opencv=True, gSig_filt=None, use_cuda=False, border_nan='copy')
+                else:
+                    if self.is1p:
+                        frame_orig = frame.copy()
+                        frame = high_pass_filter_space(frame, self.params.motion['gSig_filt'])
+                    frame_cor, shift = motion_correct_iteration_fast(
+                            frame, templ, *(self.params.get('online', 'max_shifts_online'),)*2)
+                    if self.is1p:
+                        M = np.float32([[1, 0, shift[1]], [0, 1, shift[0]]])
+                        frame_cor = cv2.warpAffine(frame_orig, M, frame.shape[::-1],
+                                                   flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REFLECT)
+
+                self.estimates.shifts.append(shift)
+                
+                if self.params.get('online', 'normalize'):
+                    frame_cor = frame_cor/self.img_norm
+                    
+                corrected_images[template_count]=np.array(frame_cor)
+                template_count +=1
+                frame_count +=1
+                
+                if template_count ==500:
+                    append=True
+                    if template_number==0:
+                        append=False
+                    
+                    if save_movie == True:
+                        tifffile.imwrite(os.path.join(folderName,os.path.basename(fls[0]).split(sep = '.')[0]+'_MC.tif'), 
+                                         corrected_images.astype(nbits),
+                                  append = append, 
+                                  contiguous = True,
+                                  bigtiff = True)
+                        tifffile.imwrite(os.path.join(folderName,'MC_templates.tif'), 
+                                         templ,
+                                  append = append, 
+                                  contiguous = True,
+                                  bigtiff = True)
+                    
+                    if (self.params.get('motion','gSig_filt') is None):
+                        templ = bin_median(corrected_images)
+                    else:
+                        templ = bin_median(high_pass_filter_space(corrected_images, self.params.get('motion','gSig_filt')))
+                    
+                    logging.info('Processed and saved '+str(frame_count)+" frames in " + str(int(time()-t0)) +' seconds')
+                    corrected_images = np.zeros((500,dims[0],dims[1]))
+                    template_count=0
+                    template_number+=1
+                
+            except(StopIteration, RuntimeError):
+                break
+        if template_count !=0 and save_movie == True:
+                append=True
+                if template_number==0:
+                    append=False
+                tifffile.imwrite(os.path.join(folderName,os.path.basename(fls[0]).split(sep='.')[0]+'_MC.tif'), 
+                                 corrected_images[0:template_number].astype(nbits),
+                          append = append, 
+                          contiguous = True,
+                          bigtiff = True)
+        
+        self.templ = templ
+        
+        return self
+        #save_filename  = os.path.join(os.path.dirname(fls), 'Motion_corrected.tif')
+            
+        
     def initialize_online(self, model_LN=None, T=None):
         fls = self.params.get('data', 'fnames')
         opts = self.params.get_group('online')
@@ -958,7 +1106,11 @@ class OnACID(object):
                 for sh in mc[1]:
                     self.estimates.shifts.append([tuple(sh) for i in range(n_p)])
             else:
-                self.estimates.shifts.extend(mc[1])                
+                self.estimates.shifts.extend(mc[1])
+
+        templates_name = os.path.join(os.path.dirname(fls[0]),"MC_templates.tif")
+        tifffile.imwrite(templates_name,bin_median(Y))
+                
         img_min = Y.min()
 
         if self.params.get('online', 'normalize'):
@@ -1055,7 +1207,6 @@ class OnACID(object):
 
     def save(self,filename):
         """save object in hdf5 file format
-
         Args:
             filename: str
                 path to the hdf5 file containing the saved object
@@ -1115,24 +1266,18 @@ class OnACID(object):
         the same number of frames (except the last one that can be shorter).
         Caiman online is initialized using the seeded or bare initialization
         methods.
-
         Args:
             fls: list
                 list of files to be processed
-
             init_batch: int
                 number of frames to be processed during initialization
-
             epochs: int
                 number of passes over the data
-
             motion_correct: bool
                 flag for performing motion correction
-
             kwargs: dict
                 additional parameters used to modify self.params.online']
                 see options.['online'] for details
-
         Returns:
             self (results of caiman online)
         """
@@ -1199,6 +1344,15 @@ class OnACID(object):
             out = cv2.VideoWriter(self.params.get('online', 'movie_name_online'),
                                   fourcc, 30, tuple([int(resize_fact*2*x) for x in self.params.get('data', 'dims')]),
                                   True)
+            
+        dims, T = get_file_size(fls[0])
+        
+        corrected_frames = np.zeros((500,dims[0],dims[1]))
+        if t%500 == 0:
+            stack_tmpl = True
+        else:
+            stack_tmpl=False
+        
         # Iterate through the epochs
         for iter in range(epochs):
             if iter == epochs - 1 and self.params.get('online', 'stop_detection'):
@@ -1259,6 +1413,19 @@ class OnACID(object):
                         else:
                             templ = None
                             frame_cor = frame_
+
+                        
+                        if t % 500 == 0 and stack_tmpl == True:
+                            templates_name = os.path.join(os.path.dirname(fls[0]),"MC_templates.tif")
+                            tifffile.imwrite(templates_name,bin_median(corrected_frames),
+                                             append = True)
+                            corrected_frames = np.zeros((500,dims[0],dims[1]))
+                            corrected_frames[t % 500]=frame_cor
+                            stack_tmpl = True
+                        
+                        elif stack_tmpl == True:
+                            corrected_frames[t % 500]=frame_cor
+                            
                         self.t_motion.append(time() - t_mot)
                         
                         if self.params.get('online', 'normalize'):
@@ -1418,25 +1585,18 @@ def bare_initialization(Y, init_batch=1000, k=1, method_init='greedy_roi', gnb=1
     Args:
         Y               movie object or np.array
                         matrix of data
-
         init_batch      int
                         number of frames to process
-
         method_init     string
                         initialization method
-
         k               int
                         number of components to find
-
         gnb             int
                         number of background components
-
         gSig            [int,int]
                         half-size of component
-
         motion_flag     bool
                         also perform motion correction
-
     Output:
         cnm_init    object
                     caiman CNMF-like object to initialize OnACID
@@ -1499,23 +1659,17 @@ def seeded_initialization(Y, Ain, dims=None, init_batch=1000, order_init=None, g
     Args:
         Y               movie object or np.array
                         matrix of data
-
         Ain             bool np.array
                         2d np.array with binary masks
-
         dims            tuple
                         dimensions of FOV
-
         init_batch      int
                         number of frames to process
-
         gnb             int
                         number of background components
-
         order_init:     list
                         order of elements to be initalized using rank1 nmf restricted to the support of
                         each component
-
     Output:
         cnm_init    object
                     caiman CNMF-like object to initialize OnACID
@@ -1610,36 +1764,26 @@ def HALS4activity(Yr, A, noisyC, AtA=None, iters=5, tol=1e-3, groups=None,
     """Solves C = argmin_C ||Yr-AC|| using block-coordinate decent. Can use
     groups to update non-overlapping components in parallel or a specified
     order.
-
     Args:
         Yr : np.array (possibly memory mapped, (x,y,[,z]) x t)
             Imaging data reshaped in matrix format
-
         A : scipy.sparse.csc_matrix (or np.array) (x,y,[,z]) x # of components)
             Spatial components and background
-
         noisyC : np.array  (# of components x t)
             Temporal traces (including residuals plus background)
-
         AtA : np.array, optional (# of components x # of components)
             A.T.dot(A) Overlap matrix of shapes A.
-
         iters : int, optional
             Maximum number of iterations.
-
         tol : float, optional
             Change tolerance level
-
         groups : list of sets
             grouped components to be updated simultaneously
-
         order : list
             Update components in that order (used if nonempty and groups=None)
-
     Returns:
         C : np.array (# of components x t)
             solution of HALS
-
         noisyC : np.array (# of components x t)
             solution of HALS + residuals, i.e, (C + YrA)
     """
@@ -1728,7 +1872,6 @@ def demix_and_deconvolve(C, noisyC, AtY, AtA, OASISinstances, iters=3, n_refit=0
     using OASIS within block-coordinate decent
     Newly fits the last elements in buffers C and AtY and possibly refits
     earlier elements.
-
     Args:
         C : ndarray of float
             Buffer containing the denoised fluorescence intensities.
@@ -2432,7 +2575,6 @@ def remove_components_online(ind_rem, gnb, Ab, use_dense, Ab_dense, AtA, CY,
 
     """
     Remove components indexed by ind_r (indexing starts at zero)
-
     Args:
         ind_rem list
             indices of components to be removed (starting from zero)
@@ -2585,7 +2727,6 @@ def initialize_movie_online(Y, K, gSig, rf, stride, base_name,
 
 def load_OnlineCNMF(filename, dview = None):
     """load object saved with the CNMF save method
-
     Args:
         filename: str
             hdf5 file name containing the saved object
