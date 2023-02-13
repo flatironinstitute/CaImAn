@@ -1,0 +1,6 @@
+Please do not move the caiman_data directory after installation, unless
+you set the CAIMAN_DATA environment variable to its new path
+before launching caiman every time.
+
+Caiman depends on being able to find files in that directory when it runs.
+

@@ -39,7 +39,7 @@ os.environ['OMP_NUM_THREADS'] = '1'
 # For in-place caiman installs (which will likely only be used by developers), we need
 # to come up with a similar subset of files that setup.py would install for a normal pip install,
 # focused around the data directory.
-extra_files = ['test_demos.sh', 'README.md', 'LICENSE.txt']
+extra_files = ['test_demos.sh', 'README.md', 'LICENSE.txt', 'do_not_move_caiman_data.txt', 'do_not_move_caiman_data.txt', 'do_not_move_caiman_data.txt', 'do_not_move_caiman_data.txt', 'do_not_move_caiman_data.txt']
 extra_dirs = ['bin', 'demos', 'docs', 'model', 'testdata']
 
 # standard_movies: These are needed by the demo
