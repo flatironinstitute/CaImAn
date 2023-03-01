@@ -79,6 +79,31 @@ estimates.rotation = False                       # flag for rotation
 min_mov = np.min(mov)
 max_mov = np.max(mov)
 
+if estimates.b is None:
+    estimates.b = estimates.b0[:, None]
+    estimates.f = np.ones((1, estimates.C.shape[1]))
+
+    class combodemo(QtWidgets.QWidget):
+        def __init__(self, parent = None):
+            super(combodemo, self).__init__(parent)
+            layout = QtWidgets.QHBoxLayout()
+            self.cb = QtWidgets.QComboBox()
+            self.cb.addItems(["Constant background", "Full background (slow, memory intensive)"])
+            self.cb.currentIndexChanged.connect(self.selectionchange)
+            layout.addWidget(self.cb)
+            self.setLayout(layout)
+            self.setWindowTitle("Handle background for 1p data")
+
+        def selectionchange(self,i):
+            if i==0:
+                estimates.b = estimates.b0[:, None]
+                estimates.f = np.ones((1, estimates.C.shape[1]))
+            elif i==1:
+                estimates.b = estimates.compute_background(mov.reshape(len(mov), -1).T)
+                estimates.f = np.eye(len(mov), dtype='int8')
+
+    cb = combodemo()
+    cb.show()
 
 if not hasattr(estimates, 'Cn'):
     estimates.Cn = cm.local_correlations(mov, swap_dim=False)
