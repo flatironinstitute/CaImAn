@@ -47,8 +47,9 @@ from .utilities import update_order, get_file_size, peak_local_max, decimation_m
 from ... import mmapping
 from ...components_evaluation import compute_event_exceptionality
 from ...motion_correction import (motion_correct_iteration_fast,
-                                  tile_and_correct, high_pass_filter_space,
-                                  sliding_window)
+                                  tile_and_correct, tile_and_correct_3d,
+                                  high_pass_filter_space, sliding_window,
+                                  register_translation_3d, apply_shifts_dft)
 from ...utils.utils import save_dict_to_hdf5, load_dict_from_hdf5, parmap, load_graph
 from ...utils.stats import pd_solve
 from ... import summary_images
@@ -414,10 +415,8 @@ class OnACID(object):
         Ab_ = self.estimates.Ab
         mbs = self.params.get('online', 'minibatch_shape')
         ssub_B = self.params.get('init', 'ssub_B') * self.params.get('init', 'ssub')
-        d1, d2 = self.estimates.dims
         expected_comps = self.params.get('online', 'expected_comps')
         frame = frame_in.astype(np.float32)
-#        print(np.max(1/scipy.sparse.linalg.norm(self.estimates.Ab,axis = 0)))
         self.estimates.Yr_buf.append(frame)
         if len(self.estimates.ind_new) > 0:
             self.estimates.mean_buff = self.estimates.Yres_buf.mean(0)
@@ -945,8 +944,15 @@ class OnACID(object):
         if self.params.get('online', 'motion_correct'):
             max_shifts_online = self.params.get('online', 'max_shifts_online')
             if self.params.get('motion', 'gSig_filt') is None:
-                mc = Y.motion_correct(max_shifts_online, max_shifts_online)
-                Y = mc[0].astype(np.float32)
+                if self.params.get('motion', 'is3D'):
+                    mc = caiman.motion_correction.MotionCorrect(Y, dview=self.dview, **self.params.get_group('motion'))
+                    mc.motion_correct(save_movie=True)
+                    fname_new = caiman.save_memmap(mc.mmap_file, base_name='memmap_', order='C', dview=self.dview)
+                    Y = caiman.load(fname_new, is3D=True)
+                    mc = [None, mc.shifts_rig]
+                else:
+                    mc = Y.motion_correct(max_shifts_online, max_shifts_online)
+                    Y = mc[0].astype(np.float32)
             else:
                 Y_filt = np.stack([high_pass_filter_space(yf, self.params.motion['gSig_filt']) for yf in Y], axis=0)
                 Y_filt = caiman.movie(Y_filt)
@@ -970,7 +976,7 @@ class OnACID(object):
             Y = Y/img_norm[None, :, :]
         if opts['show_movie']:
             self.bnd_Y = np.percentile(Y,(0.001,100-0.001))
-        _, d1, d2 = Y.shape
+        # _, d1, d2 = Y.shape
         Yr = Y.to_2D().T        # convert data into 2D array
         self.img_min = img_min
         self.img_norm = img_norm
@@ -1088,7 +1094,8 @@ class OnACID(object):
         if self.is1p:
             templ = high_pass_filter_space(templ, self.params.motion['gSig_filt'])
         if self.params.get('motion', 'pw_rigid'):
-            frame_cor, shift, _, xy_grid = tile_and_correct(
+            tac = tile_and_correct_3d if self.params.get('motion', 'is3D') else tile_and_correct
+            frame_cor, shift, _, xy_grid = tac(
                 frame, templ, self.params.motion['strides'], self.params.motion['overlaps'],
                 self.params.motion['max_shifts'], newoverlaps=None, newstrides=None,
                 upsample_factor_grid=4, upsample_factor_fft=10, show_movie=False,
@@ -1098,8 +1105,16 @@ class OnACID(object):
             if self.is1p:
                 frame_orig = frame.copy()
                 frame = high_pass_filter_space(frame, self.params.motion['gSig_filt'])
-            frame_cor, shift = motion_correct_iteration_fast(
-                    frame, templ, *(self.params.get('online', 'max_shifts_online'),)*2)
+
+            if self.params.get('motion', 'is3D'):
+                # TODO: write function motion_correct_iteration_fast_3d?
+                shift, sfr_freq, diffphase = register_translation_3d(
+                    frame, templ, upsample_factor=10, max_shifts=self.params.motion['max_shifts'])
+                frame_cor = apply_shifts_dft(
+                    sfr_freq, shift, diffphase, border_nan=self.params.motion['border_nan'])
+            else:
+                frame_cor, shift = motion_correct_iteration_fast(
+                        frame, templ, *(self.params.get('online', 'max_shifts_online'),)*2)
             if self.is1p:
                 M = np.float32([[1, 0, shift[1]], [0, 1, shift[0]]])
                 frame_cor = cv2.warpAffine(frame_orig, M, frame.shape[::-1],
@@ -1183,9 +1198,6 @@ class OnACID(object):
         t = init_batch
         self.Ab_epoch:List = []
         t_online = []
-        ssub_B = self.params.get('init', 'ssub_B') * self.params.get('init', 'ssub')
-        d1, d2 = self.params.get('data', 'dims')
-        max_shifts_online = self.params.get('online', 'max_shifts_online')
         if extra_files == 0:     # check whether there are any additional files
             process_files = fls[:init_files]     # end processing at this file
             init_batc_iter = [init_batch]         # place where to start

@@ -1156,9 +1156,8 @@ class movie(ts.timeseries):
         return self
 
     def to_2D(self, order='F') -> np.ndarray:
-        [T, d1, d2] = self.shape
-        d = d1 * d2
-        return np.reshape(self, (T, d), order=order)
+        T = self.shape[0]
+        return np.reshape(self, (T, -1), order=order)
 
     def zproject(self, method: str = 'mean', cmap=pl.cm.gray, aspect='auto', **kwargs) -> np.ndarray:
         """
@@ -2173,7 +2172,8 @@ def rolling_window(ndarr, window_size, stride):
            yield ndarr[:, i + stride:]
 
 
-def load_iter(file_name, subindices=None, var_name_hdf5: str = 'mov', outtype=np.float32):
+def load_iter(file_name, subindices=None, var_name_hdf5: str = 'mov', outtype=np.float32,
+              is3D: bool=False):
     """
     load iterator over movie from file. Supports a variety of formats. tif, hdf5, avi.
 
@@ -2202,13 +2202,24 @@ def load_iter(file_name, subindices=None, var_name_hdf5: str = 'mov', outtype=np
     if os.path.exists(file_name):
         extension = os.path.splitext(file_name)[1].lower()
         if extension in ('.tif', '.tiff', '.btf'):
-            Y = tifffile.TiffFile(file_name).pages
+            tffl = tifffile.TiffFile(file_name)
+            Y = tffl.pages
             if subindices is not None:
                 if isinstance(subindices, range):
                     subindices = slice(subindices.start, subindices.stop, subindices.step)
                 Y = Y[subindices]
-            for y in Y:
-                yield y.asarray().astype(outtype)
+            if tffl.series[0].ndim==4 or is3D: # volumetric 3D data
+                vol = np.empty(tffl.series[0].shape[1:], dtype=outtype)
+                i = 0
+                for y in Y:
+                    vol[i] = y.asarray()
+                    i += 1
+                    if i == tffl.series[0].shape[1]:
+                        i = 0
+                        yield vol
+            else:
+                for y in Y:
+                    yield y.asarray().astype(outtype)
         elif extension in ('.avi', '.mkv'):
             cap = cv2.VideoCapture(file_name)
             if subindices is None:
@@ -2262,7 +2273,7 @@ def load_iter(file_name, subindices=None, var_name_hdf5: str = 'mov', outtype=np
                         yield Y[ind].astype(outtype)
         else:  # fall back to memory inefficient version
             for y in load(file_name, var_name_hdf5=var_name_hdf5,
-                          subindices=subindices, outtype=outtype):
+                          subindices=subindices, outtype=outtype, is3D=is3D):
                 yield y
     else:
         logging.error(f"File request:[{file_name}] not found!")
