@@ -942,29 +942,15 @@ class OnACID(object):
         self.estimates.shifts = []  # store motion shifts here
         self.estimates.time_new_comp = []
         if self.params.get('online', 'motion_correct'):
-            max_shifts_online = self.params.get('online', 'max_shifts_online')
-            if self.params.get('motion', 'gSig_filt') is None:
-                if self.params.get('motion', 'is3D'):
-                    mc = caiman.motion_correction.MotionCorrect(Y, dview=self.dview, **self.params.get_group('motion'))
-                    mc.motion_correct(save_movie=True)
-                    fname_new = caiman.save_memmap(mc.mmap_file, base_name='memmap_', order='C', dview=self.dview)
-                    Y = caiman.load(fname_new, is3D=True)
-                    mc = [None, mc.shifts_rig]
-                else:
-                    mc = Y.motion_correct(max_shifts_online, max_shifts_online)
-                    Y = mc[0].astype(np.float32)
-            else:
-                Y_filt = np.stack([high_pass_filter_space(yf, self.params.motion['gSig_filt']) for yf in Y], axis=0)
-                Y_filt = caiman.movie(Y_filt)
-                mc = Y_filt.motion_correct(max_shifts_online, max_shifts_online)
-                Y = Y.apply_shifts(mc[1])
+            mc = caiman.motion_correction.MotionCorrect(Y, dview=self.dview, **self.params.get_group('motion'))
+            mc.motion_correct(save_movie=True)
+            fname_new = caiman.save_memmap(mc.mmap_file, base_name='memmap_', order='C', dview=self.dview)
+            Y = caiman.load(fname_new, is3D=self.params.get('motion', 'is3D'))
             if self.params.get('motion', 'pw_rigid'):
-                n_p = len([(it[0], it[1])
-                     for it in sliding_window(Y[0], self.params.get('motion', 'overlaps'), self.params.get('motion', 'strides'))])
-                for sh in mc[1]:
-                    self.estimates.shifts.append([tuple(sh) for i in range(n_p)])
+                self.estimates.shifts.extend(list(map(tuple, np.transpose([x, y])))
+                    for (x, y) in zip(mc.x_shifts_els, mc.y_shifts_els))
             else:
-                self.estimates.shifts.extend(mc[1])                
+                self.estimates.shifts.extend(mc.shifts_rig)
         img_min = Y.min()
 
         if self.params.get('online', 'normalize'):
@@ -976,7 +962,6 @@ class OnACID(object):
             Y = Y/img_norm[None, :, :]
         if opts['show_movie']:
             self.bnd_Y = np.percentile(Y,(0.001,100-0.001))
-        # _, d1, d2 = Y.shape
         Yr = Y.to_2D().T        # convert data into 2D array
         self.img_min = img_min
         self.img_norm = img_norm
