@@ -1484,8 +1484,12 @@ def load(file_name: Union[str, List[str]],
         if extension == '.mat':
             logging.warning('Loading a *.mat file. x- and y- dimensions ' +
                             'might have been swapped.')
-            byte_stream, file_opened = scipy.io.matlab.mio._open_file(file_name, appendmat=False)
-            mjv, mnv = scipy.io.matlab.mio.get_matfile_version(byte_stream)
+            try: # scipy >= 1.8
+                byte_stream, file_opened = scipy.io.matlab._mio._open_file(file_name, appendmat=False)
+                mjv, mnv = scipy.io.matlab.miobase.get_matfile_version(byte_stream)
+            except: # scipy <= 1.7
+                byte_stream, file_opened = scipy.io.matlab.mio._open_file(file_name, appendmat=False)
+                mjv, mnv = scipy.io.matlab.mio.get_matfile_version(byte_stream)
             if mjv == 2:
                 extension = '.h5'
 

@@ -3029,8 +3029,10 @@ def motion_correct_batch_pwrigid(fname, max_shifts, strides, overlaps, add_to_mo
                                                             shifts_opencv=shifts_opencv, nonneg_movie=nonneg_movie, gSig_filt=gSig_filt,
                                                             use_cuda=use_cuda, border_nan=border_nan, var_name_hdf5=var_name_hdf5, is3D=is3D,
                                                             indices=indices)
-
-        new_templ = np.nanmedian(np.dstack([r[-1] for r in res_el]), -1)
+        if is3D:
+            new_templ = np.nanmedian(np.stack([r[-1] for r in res_el]), 0)
+        else:
+            new_templ = np.nanmedian(np.dstack([r[-1] for r in res_el]), -1)
         if gSig_filt is not None:
             new_templ = high_pass_filter_space(new_templ, gSig_filt)
 

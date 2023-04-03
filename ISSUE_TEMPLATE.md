@@ -7,5 +7,4 @@ Your setup:
  4. Caiman version (e.g. 1.9.12):
  5. Which demo exhibits the problem (if applicable):
  6. How you installed Caiman (pure conda, conda + compile, colab, ..):
- 7. Caiman version: 
- 8. Details: 
+ 7. Details: 

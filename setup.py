@@ -92,7 +92,7 @@ setup(
         'Programming Language :: Python :: 3',
     ],
     keywords='fluorescence calcium ca imaging deconvolution ROI identification',
-    packages=find_packages(exclude=['use_cases', 'use_cases.*']),
+    packages=find_packages(),
     data_files=data_files,
     install_requires=[''],
     ext_modules=cythonize(ext_modules, language_level="3"),

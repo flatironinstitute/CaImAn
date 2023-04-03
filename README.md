@@ -76,7 +76,7 @@ A paper explaining most of the implementation details and benchmarking can be fo
 }
 ```
 
-All the results and figures of the paper can be regenerated using this package. For more information visit this [page](https://github.com/flatironinstitute/CaImAn/tree/master/use_cases/eLife_scripts).
+All the results and figures of the paper can be regenerated using this package. For more information visit this [page](https://github.com/flatironinstitute/caiman_use_cases/tree/master/use_cases/eLife_scripts).
 
 CaImAn implements a variety of algorithms for analyzing calcium (and voltage) imaging data. A list of references that provide the theoretical background and original code for the included methods can be found [here](https://caiman.readthedocs.io/en/latest/CaImAn_features_and_references.html). 
  
@@ -110,8 +110,8 @@ Other docs:
 
 # Main developers:
 
-* Eftychios A. Pnevmatikakis, **Flatiron Institute, Simons Foundation** 
-* Andrea Giovannucci, **University of North Carolina, Chapel Hill**
+* (emeritus) Eftychios A. Pnevmatikakis, **Flatiron Institute, Simons Foundation** 
+* (emeritus) Andrea Giovannucci, **University of North Carolina, Chapel Hill**
 * Johannes Friedrich, **Flatiron Institute, Simons Foundation**
 * Changlia Cai, **University of North Carolina, Chapel Hill**
 * Pat Gunn, **Flatiron Institute, Simons Foundation**
@@ -120,6 +120,8 @@ A complete list of contributors can be found [here](https://github.com/flatironi
 
 Currently Pat Gunn and Johannes Friedrich are the most active maintainers.
 
+# Supplementary repos
+* [use\_cases repo](https://github.com/flatironinstitute/caiman_use_cases) - Contains additional code (unmaintained) demonstrating how to use/extend CaImAn
 
 ## Questions, comments, issues
 
