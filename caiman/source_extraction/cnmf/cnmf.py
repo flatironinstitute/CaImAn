@@ -353,7 +353,10 @@ class CNMF(object):
                 if self.params.get('motion', 'pw_rigid'):
                     b0 = np.ceil(np.maximum(np.max(np.abs(mc.x_shifts_els)),
                                             np.max(np.abs(mc.y_shifts_els)))).astype(int)
-                    self.estimates.shifts = [mc.x_shifts_els, mc.y_shifts_els]
+                    if self.params.get('motion', 'is3D'):
+                        self.estimates.shifts = [mc.x_shifts_els, mc.y_shifts_els, mc.z_shifts_els]
+                    else:
+                        self.estimates.shifts = [mc.x_shifts_els, mc.y_shifts_els]
                 else:
                     b0 = np.ceil(np.max(np.abs(mc.shifts_rig))).astype(int)
                     self.estimates.shifts = mc.shifts_rig

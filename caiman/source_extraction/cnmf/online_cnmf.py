@@ -947,14 +947,18 @@ class OnACID(object):
             fname_new = caiman.save_memmap(mc.mmap_file, base_name='memmap_', order='C', dview=self.dview)
             Y = caiman.load(fname_new, is3D=self.params.get('motion', 'is3D'))
             if self.params.get('motion', 'pw_rigid'):
-                self.estimates.shifts.extend(list(map(tuple, np.transpose([x, y])))
-                    for (x, y) in zip(mc.x_shifts_els, mc.y_shifts_els))
+                if self.params.get('motion', 'is3D'):
+                    self.estimates.shifts.extend(list(map(tuple, np.transpose([x, y, z])))
+                        for (x, y, z) in zip(mc.x_shifts_els, mc.y_shifts_els, mc.z_shifts_els))
+                else:
+                    self.estimates.shifts.extend(list(map(tuple, np.transpose([x, y])))
+                        for (x, y) in zip(mc.x_shifts_els, mc.y_shifts_els))
             else:
                 self.estimates.shifts.extend(mc.shifts_rig)
         img_min = Y.min()
 
         if self.params.get('online', 'normalize'):
-            Y -= img_min
+            Y = Y - img_min
         img_norm = np.std(Y, axis=0)
         img_norm += np.median(img_norm)  # normalize data to equalize the FOV
         logging.info('Frame size:' + str(img_norm.shape))
@@ -1086,6 +1090,9 @@ class OnACID(object):
                 upsample_factor_grid=4, upsample_factor_fft=10, show_movie=False,
                 max_deviation_rigid=self.params.motion['max_deviation_rigid'], add_to_movie=0,
                 shifts_opencv=True, gSig_filt=None, use_cuda=False, border_nan='copy')
+            # TODO: track down why the sign needs to flip, where does the change happen?
+            if self.params.get('motion', 'is3D'):
+                shift = list(map(tuple, -np.array(shift)))
         else:
             if self.is1p:
                 frame_orig = frame.copy()

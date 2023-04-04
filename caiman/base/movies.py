@@ -2202,22 +2202,40 @@ def load_iter(file_name, subindices=None, var_name_hdf5: str = 'mov', outtype=np
     if os.path.exists(file_name):
         extension = os.path.splitext(file_name)[1].lower()
         if extension in ('.tif', '.tiff', '.btf'):
-            tffl = tifffile.TiffFile(file_name)
-            Y = tffl.pages
-            if subindices is not None:
-                if isinstance(subindices, range):
-                    subindices = slice(subindices.start, subindices.stop, subindices.step)
-                Y = Y[subindices]
-            if tffl.series[0].ndim==4 or is3D: # volumetric 3D data
-                vol = np.empty(tffl.series[0].shape[1:], dtype=outtype)
-                i = 0
-                for y in Y:
-                    vol[i] = y.asarray()
-                    i += 1
-                    if i == tffl.series[0].shape[1]:
-                        i = 0
-                        yield vol
-            else:
+            Y = tifffile.TiffFile(file_name).series[0]
+            dims = Y.shape[1:]
+            if len(dims)==3: # volumetric 3D data w/ multiple volumes per file
+                vol = np.empty(dims, dtype=outtype)
+                i = 0  # plane counter
+                if subindices is not None:
+                    if isinstance(subindices, slice):
+                        subindices = range(subindices.start,
+                        len(Y) if subindices.stop is None else subindices.stop,
+                        1 if subindices.step is None else subindices.step)
+                    t = 0  # volume counter
+                    for y in Y:
+                        if t in subindices:
+                            vol[i] = y.asarray()
+                        i += 1
+                        if i == dims[0]:
+                            i = 0
+                            if t in subindices:
+                                yield vol
+                            t +=1
+                else:
+                    for y in Y:
+                        vol[i] = y.asarray()
+                        i += 1
+                        if i == dims[0]:
+                            i = 0
+                            yield vol
+            elif len(dims)<3 and is3D: # volumetric 3D data w/ 1 volume per file
+                yield load(file_name, subindices=subindices, outtype=outtype, is3D=is3D)
+            else: # 2D data
+                if subindices is not None:
+                    if isinstance(subindices, range):
+                        subindices = slice(subindices.start, subindices.stop, subindices.step)
+                    Y = Y[subindices]
                 for y in Y:
                     yield y.asarray().astype(outtype)
         elif extension in ('.avi', '.mkv'):
