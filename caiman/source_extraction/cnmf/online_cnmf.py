@@ -1090,9 +1090,9 @@ class OnACID(object):
                 upsample_factor_grid=4, upsample_factor_fft=10, show_movie=False,
                 max_deviation_rigid=self.params.motion['max_deviation_rigid'], add_to_movie=0,
                 shifts_opencv=True, gSig_filt=None, use_cuda=False, border_nan='copy')
-            # TODO: track down why the sign needs to flip, where does the change happen?
-            if self.params.get('motion', 'is3D'):
-                shift = list(map(tuple, -np.array(shift)))
+            # # TODO: track down why the sign needs to flip, where does the change happen?
+            # if self.params.get('motion', 'is3D'):
+            #     shift = list(map(tuple, -np.array(shift)))
         else:
             if self.is1p:
                 frame_orig = frame.copy()

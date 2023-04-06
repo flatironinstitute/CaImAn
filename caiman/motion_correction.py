@@ -1887,22 +1887,19 @@ def apply_shifts_dft(src_freq, shifts, diffphase, is_freq=True, border_nan=True)
             src_freq = np.array(src_freq, dtype=np.complex128, copy=False)
 
     if not is3D:
-        shifts = shifts[::-1]
-        nc, nr = np.shape(src_freq)
+        nr, nc = np.shape(src_freq)
         Nr = ifftshift(np.arange(-np.fix(nr/2.), np.ceil(nr/2.)))
         Nc = ifftshift(np.arange(-np.fix(nc/2.), np.ceil(nc/2.)))
-        Nr, Nc = np.meshgrid(Nr, Nc)
+        Nc, Nr = np.meshgrid(Nc, Nr)
         Greg = src_freq * np.exp(1j * 2 * np.pi *
-                                 (-shifts[0] * 1. * Nr / nr - shifts[1] * 1. * Nc / nc))
+                                 (-shifts[0] * Nr / nr - shifts[1] * Nc / nc))
     else:
-        #shifts = np.array([*shifts[:-1][::-1],shifts[-1]])
-        shifts = np.array(list(shifts[:-1][::-1]) + [shifts[-1]])
-        nc, nr, nd = np.array(np.shape(src_freq), dtype=float)
+        nr, nc, nd = np.array(np.shape(src_freq), dtype=float)
         Nr = ifftshift(np.arange(-np.fix(nr / 2.), np.ceil(nr / 2.)))
         Nc = ifftshift(np.arange(-np.fix(nc / 2.), np.ceil(nc / 2.)))
         Nd = ifftshift(np.arange(-np.fix(nd / 2.), np.ceil(nd / 2.)))
-        Nr, Nc, Nd = np.meshgrid(Nr, Nc, Nd)
-        Greg = src_freq * np.exp(-1j * 2 * np.pi *
+        Nc, Nr, Nd = np.meshgrid(Nc, Nr, Nd)
+        Greg = src_freq * np.exp(1j * 2 * np.pi *
                                  (-shifts[0] * Nr / nr - shifts[1] * Nc / nc -
                                   shifts[2] * Nd / nd))
 
@@ -2445,7 +2442,7 @@ def tile_and_correct_3d(img:np.ndarray, template:np.ndarray, strides:Tuple, over
                 'The use of FFT and filtering options have not been tested. Set opencv=True')
 
         new_img = apply_shifts_dft( # TODO: check
-            sfr_freq, (rigid_shts[0], rigid_shts[1], rigid_shts[2]), diffphase, border_nan=border_nan)
+            sfr_freq, (-rigid_shts[0], -rigid_shts[1], -rigid_shts[2]), diffphase, border_nan=border_nan)
 
         return new_img - add_to_movie, (-rigid_shts[0], -rigid_shts[1], -rigid_shts[2]), None, None
     else:
