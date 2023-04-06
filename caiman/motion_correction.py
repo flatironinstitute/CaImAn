@@ -2909,11 +2909,6 @@ def motion_correct_batch_rigid(fname, max_shifts, dview=None, splits=56, num_spl
         shift_info, idxs, tmpl = rr
         templates.append(tmpl)
         shifts += [sh[0] for sh in shift_info[:len(idxs)]]
- #       shifts += [[sh[0][0], sh[0][1]] for sh in shift_info[:len(idxs)]]
- #       if is3D:
- #           shifts += [[sh[0][0], sh[0][1], sh[0][2]] for sh in shift_info[:len(idxs)]]            
- #       else:
- #           shifts += [[sh[0][0], sh[0][1]] for sh in shift_info[:len(idxs)]]
 
     return fname_tot_rig, total_template, templates, shifts
 
@@ -3109,7 +3104,7 @@ def tile_and_correct_wrapper(params):
                                                                        max_deviation_rigid=max_deviation_rigid,
                                                                        shifts_opencv=shifts_opencv, gSig_filt=gSig_filt,
                                                                        use_cuda=use_cuda, border_nan=border_nan)
-            shift_info.append([tuple(-np.array(total_shift)), start_step, xyz_grid])
+            shift_info.append([total_shift, start_step, xyz_grid])
             
         else:
             mc[count], total_shift, start_step, xy_grid = tile_and_correct(img, template, strides, overlaps, max_shifts,
@@ -3171,10 +3166,6 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
         raise Exception('motion_correction_piecewise(): Templateless not implemented')
     
     shape_mov = (np.prod(dims), T)
-#    if is3D:
-#        shape_mov = (d1 * d2 * d3, T)
-#    else:
-#        shape_mov = (d1 * d2, T)
     if num_splits is not None:
         idxs = np.array(idxs)[np.random.randint(0, len(idxs), num_splits)]
         save_movie = False

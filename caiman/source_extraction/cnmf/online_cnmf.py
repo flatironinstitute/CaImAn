@@ -1090,9 +1090,6 @@ class OnACID(object):
                 upsample_factor_grid=4, upsample_factor_fft=10, show_movie=False,
                 max_deviation_rigid=self.params.motion['max_deviation_rigid'], add_to_movie=0,
                 shifts_opencv=True, gSig_filt=None, use_cuda=False, border_nan='copy')
-            # # TODO: track down why the sign needs to flip, where does the change happen?
-            # if self.params.get('motion', 'is3D'):
-            #     shift = list(map(tuple, -np.array(shift)))
         else:
             if self.is1p:
                 frame_orig = frame.copy()
@@ -1103,7 +1100,12 @@ class OnACID(object):
                 shift, sfr_freq, diffphase = register_translation_3d(
                     frame, templ, upsample_factor=10, max_shifts=self.params.motion['max_shifts'])
                 frame_cor = apply_shifts_dft(
-                    sfr_freq, shift, diffphase, border_nan=self.params.motion['border_nan'])
+                    sfr_freq, -shift, diffphase, border_nan=self.params.motion['border_nan'])
+                # register_translation[_3d] returns by how much the frame is shifted w/ respect
+                #     to the template, i.e. need to apply -shifts to get the corrected frame
+                # tile_and_correct[_3d] and motion_correct_iteration[_fast] return the shifts needed to apply to get the corrected frame
+                # shift = list(map(tuple, -np.array(shift)))
+                shift = tuple(-np.array(shift))
             else:
                 frame_cor, shift = motion_correct_iteration_fast(
                         frame, templ, *(self.params.get('online', 'max_shifts_online'),)*2)
