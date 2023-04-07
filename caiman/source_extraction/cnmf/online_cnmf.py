@@ -14,17 +14,17 @@ imaging data in real time. In Advances in Neural Information Processing Systems
 @url http://papers.nips.cc/paper/6832-onacid-online-analysis-of-calcium-imaging-data-in-real-time
 """
 
-from builtins import map
-from builtins import range
-from builtins import str
-from builtins import zip
+# from builtins import map
+# from builtins import range
+# from builtins import str
+# from builtins import zip
 import cv2
 import logging
 from math import sqrt
 from multiprocessing import current_process, cpu_count
 import numpy as np
-import os
-from past.utils import old_div
+# import os
+# from past.utils import old_div
 from scipy.ndimage import percentile_filter
 from scipy.ndimage.filters import gaussian_filter
 from scipy.sparse import coo_matrix, csc_matrix, spdiags, hstack
@@ -955,6 +955,7 @@ class OnACID(object):
                         for (x, y) in zip(mc.x_shifts_els, mc.y_shifts_els))
             else:
                 self.estimates.shifts.extend(mc.shifts_rig)
+            self.min_mov = mc.min_mov
         img_min = Y.min()
 
         if self.params.get('online', 'normalize'):
@@ -1064,6 +1065,8 @@ class OnACID(object):
 
 
     def mc_next(self, t, frame):
+        if self.params.motion['nonneg_movie']:
+            frame = frame-self.min_mov
         frame_ = frame.flatten(order='F')
         if self.is1p and self.estimates.W is not None:
             templ = self.estimates.Ab.dot(
@@ -1087,7 +1090,8 @@ class OnACID(object):
             frame_cor, shift, _, xy_grid = tac(
                 frame, templ, self.params.motion['strides'], self.params.motion['overlaps'],
                 self.params.motion['max_shifts'], newoverlaps=None, newstrides=None,
-                upsample_factor_grid=4, upsample_factor_fft=10, show_movie=False,
+                upsample_factor_grid=self.params.motion['upsample_factor_grid'],
+                upsample_factor_fft=10, show_movie=False,
                 max_deviation_rigid=self.params.motion['max_deviation_rigid'], add_to_movie=0,
                 shifts_opencv=True, gSig_filt=None, use_cuda=False, border_nan='copy')
         else:
@@ -1462,9 +1466,9 @@ def bare_initialization(Y, init_batch=1000, k=1, method_init='greedy_roi', gnb=1
         nA = (Ain.power(2).sum(axis=0))
         nr = nA.size
 
-        YA = spdiags(old_div(1., nA), 0, nr, nr) * \
+        YA = spdiags(1./nA, 0, nr, nr) * \
             (Ain.T.dot(Yr) - (Ain.T.dot(b_in)).dot(f_in))
-        AA = spdiags(old_div(1., nA), 0, nr, nr) * (Ain.T.dot(Ain))
+        AA = spdiags(1./nA, 0, nr, nr) * (Ain.T.dot(Ain))
         YrA = YA - AA.T.dot(Cin)
     except ValueError:
         Ain, Cin, b_in, f_in, center, extra_1p = initialize_components(
@@ -1569,9 +1573,9 @@ def seeded_initialization(Y, Ain, dims=None, init_batch=1000, order_init=None, g
     nA = (Ain.power(2).sum(axis=0))
     nr = nA.size
 
-    YA = spdiags(old_div(1., nA), 0, nr, nr) * \
+    YA = spdiags(1./nA, 0, nr, nr) * \
         (Ain.T.dot(Yr) - (Ain.T.dot(b_in)).dot(f_in))
-    AA = spdiags(old_div(1., nA), 0, nr, nr) * (Ain.T.dot(Ain))
+    AA = spdiags(1./nA, 0, nr, nr) * (Ain.T.dot(Ain))
     YrA = YA - AA.T.dot(Cin)
     if return_object:
         cnm_init = caiman.source_extraction.cnmf.cnmf.CNMF(
