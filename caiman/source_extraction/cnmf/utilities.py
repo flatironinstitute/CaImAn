@@ -23,6 +23,7 @@ from builtins import str
 from builtins import range
 from past.utils import old_div
 
+from collections.abc import Iterable
 import cv2
 import h5py
 import logging
@@ -45,7 +46,84 @@ from ...cluster import extract_patch_coordinates
 from ...utils.stats import df_percentile
 
 
+def gaussian_filter(input, sigma, order=0, output=None, mode='reflect',
+                    cval=0.0, truncate=4.0, radius=None):
+    """Multidimensional Gaussian filter.
+    A faster version of scipy.ndimage.gaussian_filter
+    Uses OpenCV for 1 to 3 dimensional input, scipy for ndim>3
+    """
+    if order>0 or input.ndim>3:
+        return scipy.ndimage.gaussian_filter(input, sigma, order, output, mode,
+                                             cval, truncate, radius=radius)
+    if radius is None:
+        ksize = 2*(truncate*np.array(sigma)).astype(int)+1
+    else:
+        if isinstance(radius, Iterable):            
+            ksize = 2*np.array(radius)+1
+        else:
+            ksize = [2*radius+1]*input.ndim  
+    if mode=='nearest':
+        borderType=cv2.BORDER_REPLICATE
+    elif mode in ('reflect', 'grid-mirror'):
+        borderType=cv2.BORDER_REFLECT
+    elif mode in ('constant', 'grid-constant'):
+        borderType=cv2.BORDER_CONSTANT
+    elif mode=='mirror':    
+        borderType=cv2.BORDER_REFLECT_101
+
+    if input.ndim==1:
+        ksize = ksize[0] if isinstance(ksize, Iterable) else ksize
+        sigma = sigma[0] if isinstance(sigma, Iterable) else sigma
+        if mode=='constant' and cval!=0:
+            if output is None:
+                return cval+cv2.GaussianBlur(input[None,:]-cval, ksize=[ksize, 1],
+                                sigmaX=sigma, sigmaY=0, borderType=borderType)[0]
+            else:
+                cv2.GaussianBlur(input[None,:]-cval, ksize=[ksize, 1],
+                                sigmaX=sigma, sigmaY=0, dst=output[None,:], borderType=borderType)[0]
+                output += cval
+                return output
+        return cv2.GaussianBlur(input[None,:], ksize=[ksize, 1], sigmaX=sigma, sigmaY=0,
+                                dst=None if output is None else output[None,:], borderType=borderType)[0]
+
+    elif input.ndim==2:
+        if mode=='constant' and cval!=0:
+            if output is None:
+                return cval+cv2.GaussianBlur(input-cval, ksize=ksize[::-1], sigmaX=sigma[1], sigmaY=sigma[0],
+                                             borderType=borderType)
+            else:
+                cv2.GaussianBlur(input-cval, ksize=ksize[::-1], sigmaX=sigma[1], sigmaY=sigma[0],
+                                             dst=output, borderType=borderType)
+                output += cval
+                return output                
+        return cv2.GaussianBlur(input, ksize=ksize[::-1], sigmaX=sigma[1], sigmaY=sigma[0], dst=output,
+                                borderType=borderType)
+    
+    elif input.ndim==3:
+        if mode=='constant' and cval!=0:
+            input = input-cval 
+        if output is None:
+            output = np.zeros_like(input)
+        for i in range(input.shape[1]):
+            output[:,i] = cv2.GaussianBlur(input[:,i], ksize=ksize[2::-2],
+                                         sigmaX=sigma[2], sigmaY=sigma[0], borderType=borderType)
+        if np.isfortran(input):
+            for i in range(input.shape[2]):
+                output[...,i] = cv2.GaussianBlur(output[...,i], ksize=(ksize[1],1),
+                                             sigmaX=sigma[1], sigmaY=0, borderType=borderType)    
+        else:
+            for i in range(input.shape[0]):
+                output[i] = cv2.GaussianBlur(output[i], ksize=(1,ksize[1]),
+                                             sigmaY=sigma[1], sigmaX=0, borderType=borderType)
+        if mode=='constant' and cval!=0:
+            output+=cval
+        return output
+
+
 def decimation_matrix(dims, sub):
+    """Creates a sparse matrix for downscaling flattened n-dimensional arrays.
+    Allows e.g. downscaling sparse spatial footprints A w/o converting to dense and reshaping
+    """
     D = np.prod(dims)
     if sub == 2 and D <= 10000:  # faster for small matrices
         ind = np.arange(D) // 2 - \
