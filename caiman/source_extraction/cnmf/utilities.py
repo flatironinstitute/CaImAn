@@ -19,11 +19,6 @@ See Also:
 # \copyright GNU General Public License v2.0
 # \date Created on Sat Sep 12 15:52:53 2015
 
-from builtins import str
-from builtins import range
-from past.utils import old_div
-
-from collections.abc import Iterable
 import cv2
 import h5py
 import logging
@@ -46,6 +41,18 @@ from ...cluster import extract_patch_coordinates
 from ...utils.stats import df_percentile
 
 
+def get_border_type(mode):
+    """get OpenCV border type for given scipy.ndimage mode"""
+    if mode=='nearest':
+        return cv2.BORDER_REPLICATE
+    elif mode in ('reflect', 'grid-mirror'):
+        return cv2.BORDER_REFLECT
+    elif mode in ('constant', 'grid-constant'):
+        return cv2.BORDER_CONSTANT
+    elif mode=='mirror':
+        return cv2.BORDER_REFLECT_101
+
+
 def gaussian_filter(input, sigma, order=0, output=None, mode='reflect',
                     cval=0.0, truncate=4.0, radius=None):
     """Multidimensional Gaussian filter.
@@ -55,25 +62,18 @@ def gaussian_filter(input, sigma, order=0, output=None, mode='reflect',
     if order>0 or input.ndim>3:
         return scipy.ndimage.gaussian_filter(input, sigma, order, output, mode,
                                              cval, truncate, radius=radius)
+    sigma = np.atleast_1d(sigma)
     if radius is None:
-        ksize = 2*(truncate*np.array(sigma)).astype(int)+1
+        ksize = 2*(truncate*sigma).astype(int)+1
     else:
-        if isinstance(radius, Iterable):            
-            ksize = 2*np.array(radius)+1
-        else:
-            ksize = [2*radius+1]*input.ndim  
-    if mode=='nearest':
-        borderType=cv2.BORDER_REPLICATE
-    elif mode in ('reflect', 'grid-mirror'):
-        borderType=cv2.BORDER_REFLECT
-    elif mode in ('constant', 'grid-constant'):
-        borderType=cv2.BORDER_CONSTANT
-    elif mode=='mirror':    
-        borderType=cv2.BORDER_REFLECT_101
+        ksize = 2*np.atleast_1d(radius)+1
+    if len(ksize)==1:
+        ksize = [ksize[0]]*input.ndim if input.ndim>1 else ksize[0]
+    if len(sigma)==1:
+        sigma = [sigma[0]]*input.ndim if input.ndim>1 else sigma[0]
+    borderType = get_border_type(mode)
 
     if input.ndim==1:
-        ksize = ksize[0] if isinstance(ksize, Iterable) else ksize
-        sigma = sigma[0] if isinstance(sigma, Iterable) else sigma
         if mode=='constant' and cval!=0:
             if output is None:
                 return cval+cv2.GaussianBlur(input[None,:]-cval, ksize=[ksize, 1],
@@ -117,6 +117,80 @@ def gaussian_filter(input, sigma, order=0, output=None, mode='reflect',
                                              sigmaY=sigma[1], sigmaX=0, borderType=borderType)
         if mode=='constant' and cval!=0:
             output+=cval
+        return output
+
+
+def uniform_filter(input, size=3, output=None, mode='reflect', cval=0.0):
+    """Multidimensional uniform filter.
+    A faster version of scipy.ndimage.uniform_filter
+    Uses OpenCV for 2 and 3 dimensional input, otherwise scipy
+    """
+    if input.ndim not in (2,3):
+        return scipy.ndimage.uniform_filter(input, size, output, mode, cval)
+    size = np.atleast_1d(size).tolist()
+    if len(size)==1:
+        size = size*input.ndim
+    borderType = get_border_type(mode)
+
+    if input.ndim==2:
+        if mode=='constant' and cval!=0:
+            if output is None:
+                return cval+cv2.boxFilter(input-cval, -1, ksize=size[::-1], borderType=borderType)
+            else:
+                cv2.boxFilter(input-cval, -1, ksize=size[::-1], dst=output, borderType=borderType)
+                output += cval
+                return output
+        return cv2.boxFilter(input, -1, ksize=size[::-1], dst=output, borderType=borderType)
+
+    elif input.ndim==3:
+        if mode=='constant' and cval!=0:
+            input = input-cval
+        if output is None:
+            output = np.zeros_like(input)
+        for i in range(input.shape[1]):
+            output[:,i] = cv2.boxFilter(input[:,i], -1, ksize=size[2::-2], borderType=borderType)
+        if np.isfortran(input):
+            for i in range(input.shape[2]):
+                output[...,i] = cv2.boxFilter(output[...,i], -1, ksize=(size[1],1), borderType=borderType)
+        else:
+            for i in range(input.shape[0]):
+                output[i] = cv2.boxFilter(output[i], -1, ksize=(1,size[1]), borderType=borderType)
+        if mode=='constant' and cval!=0:
+            output+=cval
+        return output
+
+
+def maximum_filter(input, size=3, footprint=None, output=None, mode='reflect', cval=0.0):
+    if input.ndim>3 or (mode in ('constant', 'grid-constant') and cval!=0):
+        return ndi.maximum_filter(input, size, footprint, output, mode, cval)
+    size = np.atleast_1d(size).tolist()
+    if len(size)==1:
+        size = size*input.ndim if input.ndim>1 else [1]+size
+    borderType = get_border_type(mode)
+
+    if input.ndim==1:
+        return cv2.dilate(input[None,:], cv2.getStructuringElement(
+            cv2.MORPH_RECT, size[::-1]), borderType=borderType, 
+                             dst=None if output is None else output[None,:])[0]
+
+    elif input.ndim==2:
+        return cv2.dilate(input, cv2.getStructuringElement(
+            cv2.MORPH_RECT, size[::-1]), dst=output, borderType=borderType)
+
+    elif input.ndim==3:
+        if output is None:
+            output = np.zeros_like(input)
+        for i in range(input.shape[1]):
+            output[:,i] = cv2.dilate(input[:,i], cv2.getStructuringElement(
+            cv2.MORPH_RECT, size[2::-2]), borderType=borderType)
+        if np.isfortran(input):
+            for i in range(input.shape[2]):
+                output[...,i] = cv2.dilate(output[...,i], cv2.getStructuringElement(
+            cv2.MORPH_RECT, (size[1],1)), borderType=borderType)
+        else:
+            for i in range(input.shape[0]):
+                output[i] = cv2.dilate(output[i], cv2.getStructuringElement(
+            cv2.MORPH_RECT, (1,size[1])), borderType=borderType)
         return output
 
 
@@ -737,7 +811,7 @@ def manually_refine_components(Y, xxx_todo_changeme, A, C, Cn, thr=0.9, display_
             y2_res = y2_tiny - a2_tiny.dot(C)
             y3_res = np.reshape(y2_res, (dy_sz, dx_sz, T), order='F')
             a__, c__, center__, b_in__, f_in__ = greedyROI(
-                y3_res, nr=1, gSig=[np.floor(old_div(dx_sz, 2)), np.floor(old_div(dy_sz, 2))], gSiz=[dx_sz, dy_sz])
+                y3_res, nr=1, gSig=[dx_sz//2, dy_sz//2], gSiz=[dx_sz, dy_sz])
 
             a_f = np.zeros((d, 1))
             idxs = np.meshgrid(coords_y, coords_x)
@@ -865,13 +939,13 @@ def order_components(A, C):
     A = np.array(A.todense())
     nA2 = np.sqrt(np.sum(A**2, axis=0))
     K = len(nA2)
-    A = np.array(np.matrix(A) * spdiags(old_div(1, nA2), 0, K, K))
+    A = np.array(np.matrix(A) * spdiags(1./nA2, 0, K, K))
     nA4 = np.sum(A**4, axis=0)**0.25
     C = np.array(spdiags(nA2, 0, K, K) * np.matrix(C))
     mC = np.ndarray.max(np.array(C), axis=1)
     srt = np.argsort(nA4 * mC)[::-1]
     A_or = A[:, srt] * spdiags(nA2[srt], 0, K, K)
-    C_or = spdiags(old_div(1., nA2[srt]), 0, K, K) * (C[srt, :])
+    C_or = spdiags(1./nA2[srt], 0, K, K) * (C[srt, :])
 
     return A_or, C_or, srt
 
@@ -981,13 +1055,13 @@ def compute_residuals(Yr_mmap_file, A_, b_, C_, f_, dview=None, block_size=1000,
 
     if 'mmap' in str(type(Yr_mmap_file)):
         YA = parallel_dot_product(Yr_mmap_file, Ab, dview=dview, block_size=block_size,
-                                  transpose=True, num_blocks_per_run=num_blocks_per_run) * scipy.sparse.spdiags(old_div(1., nA), 0, Ab.shape[-1], Ab.shape[-1])
+                                  transpose=True, num_blocks_per_run=num_blocks_per_run) * \
+                                  scipy.sparse.spdiags(1./nA, 0, Ab.shape[-1], Ab.shape[-1])
     else:
         YA = (Ab.T.dot(Yr_mmap_file)).T * \
-            spdiags(old_div(1., nA), 0, Ab.shape[-1], Ab.shape[-1])
+            spdiags(1./nA, 0, Ab.shape[-1], Ab.shape[-1])
 
-    AA = ((Ab.T.dot(Ab)) * scipy.sparse.spdiags(old_div(1., nA),
-                                                0, Ab.shape[-1], Ab.shape[-1])).tocsr()
+    AA = ((Ab.T.dot(Ab)) * scipy.sparse.spdiags(1./nA, 0, Ab.shape[-1], Ab.shape[-1])).tocsr()
 
     return (YA - (AA.T.dot(Cf)).T)[:, :A_.shape[-1]].T
 

@@ -14,19 +14,12 @@ imaging data in real time. In Advances in Neural Information Processing Systems
 @url http://papers.nips.cc/paper/6832-onacid-online-analysis-of-calcium-imaging-data-in-real-time
 """
 
-# from builtins import map
-# from builtins import range
-# from builtins import str
-# from builtins import zip
 import cv2
 import logging
 from math import sqrt
-from multiprocessing import current_process, cpu_count
+from multiprocessing import cpu_count
 import numpy as np
-# import os
-# from past.utils import old_div
 from scipy.ndimage import percentile_filter
-from scipy.ndimage.filters import gaussian_filter
 from scipy.sparse import coo_matrix, csc_matrix, spdiags, hstack
 from scipy.stats import norm
 from sklearn.decomposition import NMF
@@ -43,7 +36,8 @@ from .initialization import imblur, initialize_components, hals, downscale
 from .oasis import OASIS
 from .params import CNMFParams
 from .pre_processing import get_noise_fft
-from .utilities import update_order, get_file_size, peak_local_max, decimation_matrix
+from .utilities import (update_order, get_file_size, peak_local_max, decimation_matrix,
+                        gaussian_filter, uniform_filter)
 from ... import mmapping
 from ...components_evaluation import compute_event_exceptionality
 from ...motion_correction import (motion_correct_iteration_fast,
@@ -2077,9 +2071,8 @@ def get_candidate_components(sv, dims, Yres_buf, min_num_trial=3, gSig=(5, 5),
 #        plt.cla()
 #        plt.imshow(img_select_peaks)
 
-        img_select_peaks = cv2.GaussianBlur(img_select_peaks , ksize=ksize, sigmaX=gSig[0],
-                                                        sigmaY=gSig[1], borderType=cv2.BORDER_REPLICATE) \
-                    - cv2.boxFilter(img_select_peaks, ddepth=-1, ksize=ksize, borderType=cv2.BORDER_REPLICATE)
+        img_select_peaks = gaussian_filter(img_select_peaks, gSig, truncate=3/2, mode='nearest') \
+                        - uniform_filter(img_select_peaks, ksize, mode='nearest')
         thresh_img_sel = 0 #np.median(img_select_peaks) + thresh_std_peak_resid  * np.std(img_select_peaks)
 
 #        plt.subplot(1,3,2)
