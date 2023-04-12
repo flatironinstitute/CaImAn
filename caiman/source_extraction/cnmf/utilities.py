@@ -223,7 +223,7 @@ def decimation_matrix(dims, sub):
 
 def peak_local_max(image, min_distance=1, threshold_abs=None,
                    threshold_rel=None, exclude_border=True, indices=True,
-                   num_peaks=np.inf, footprint=None):
+                   num_peaks=None, footprint=None):
     """Find peaks in an image as coordinate list or boolean mask.
 
     Adapted from skimage to use opencv for speed.
@@ -324,14 +324,14 @@ def peak_local_max(image, min_distance=1, threshold_abs=None,
 
     # Non maximum filter
     if footprint is not None:
-        # image_max = ndi.maximum_filter(image, footprint=footprint,
-        #                                mode='constant')
-        image_max = cv2.dilate(image, footprint=footprint, iterations=1)
+        image_max = ndi.maximum_filter(image, footprint=footprint,
+                                       mode='constant')
+        # image_max = cv2.dilate(image, footprint=footprint, iterations=1)
     else:
         size = 2 * min_distance + 1
-        # image_max = ndi.maximum_filter(image, size=size, mode='constant')
-        image_max = cv2.dilate(image, cv2.getStructuringElement(
-            cv2.MORPH_RECT, (size, size)), iterations=1)
+        image_max = maximum_filter(image, size=size, mode='constant')
+        # image_max = cv2.dilate(image, cv2.getStructuringElement(
+        #     cv2.MORPH_RECT, (size, size)), iterations=1)
     mask = image == image_max
 
     if exclude_border:

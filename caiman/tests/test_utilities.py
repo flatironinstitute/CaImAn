@@ -3,6 +3,7 @@
 import numpy.testing as npt
 import numpy as np
 from scipy import ndimage as ndi
+from skimage.feature import peak_local_max
 from caiman.source_extraction.cnmf import utilities
 
 
@@ -106,3 +107,11 @@ def test_maximum_filter_output():
         out = np.zeros_like(img)
         tmp = utilities.maximum_filter(img, (5, 3, 2, 4)[:D], output=out)
         npt.assert_array_equal(out, tmp)
+
+
+def test_peak_local_max():
+    for D in (1, 2, 3):
+        img = np.random.rand(*(10,)*D)
+        for m in (1, 2, 3, 4):
+            npt.assert_array_equal(peak_local_max(img, min_distance=m),
+                                   utilities.peak_local_max(img, min_distance=m))
