@@ -477,8 +477,8 @@ def register_ROIs(A1,
         if 'csc_matrix' not in str(type(A2)):
             A2 = scipy.sparse.csc_matrix(A2)
 
-        cm_1 = com(A1, dims[0], dims[1])
-        cm_2 = com(A2, dims[0], dims[1])
+        cm_1 = com(A1, *dims)
+        cm_2 = com(A2, *dims)
         A1_tr = (A1 > 0).astype(float)
         A2_tr = (A2 > 0).astype(float)
         D = distance_masks([A1_tr, A2_tr], [cm_1, cm_2], max_dist, enclosed_thr=enclosed_thr)
