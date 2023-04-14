@@ -28,7 +28,7 @@ import pathlib
 import pylab as pl
 import scipy
 from scipy.sparse import spdiags, issparse, csc_matrix, csr_matrix
-import scipy.ndimage.morphology as morph
+import scipy.ndimage as ndi
 import tifffile
 from typing import List
 # https://github.com/constantinpape/z5/issues/146
@@ -60,7 +60,7 @@ def gaussian_filter(input, sigma, order=0, output=None, mode='reflect',
     Uses OpenCV for 1 to 3 dimensional input, scipy for ndim>3
     """
     if order>0 or input.ndim>3:
-        return scipy.ndimage.gaussian_filter(input, sigma, order, output, mode,
+        return ndi.gaussian_filter(input, sigma, order, output, mode,
                                              cval, truncate, radius=radius)
     sigma = np.atleast_1d(sigma)
     if radius is None:
@@ -119,14 +119,16 @@ def gaussian_filter(input, sigma, order=0, output=None, mode='reflect',
             output+=cval
         return output
 
+    else:
+        return ndi.gaussian_filter(input, sigma, order, output, mode,
+                                             cval, truncate, radius=radius)
+
 
 def uniform_filter(input, size=3, output=None, mode='reflect', cval=0.0):
     """Multidimensional uniform filter.
     A faster version of scipy.ndimage.uniform_filter
     Uses OpenCV for 2 and 3 dimensional input, otherwise scipy
     """
-    if input.ndim not in (2,3):
-        return scipy.ndimage.uniform_filter(input, size, output, mode, cval)
     size = np.atleast_1d(size).tolist()
     if len(size)==1:
         size = size*input.ndim
@@ -158,6 +160,9 @@ def uniform_filter(input, size=3, output=None, mode='reflect', cval=0.0):
         if mode=='constant' and cval!=0:
             output+=cval
         return output
+
+    else:
+        return ndi.uniform_filter(input, size, output, mode, cval)
 
 
 def maximum_filter(input, size=3, footprint=None, output=None, mode='reflect', cval=0.0):
@@ -192,6 +197,9 @@ def maximum_filter(input, size=3, footprint=None, output=None, mode='reflect', c
                 output[i] = cv2.dilate(output[i], cv2.getStructuringElement(
             cv2.MORPH_RECT, (1,size[1])), borderType=borderType)
         return output
+
+    else:
+        return ndi.maximum_filter(input, size, footprint, output, mode, cval)
 
 
 def decimation_matrix(dims, sub):
@@ -326,12 +334,9 @@ def peak_local_max(image, min_distance=1, threshold_abs=None,
     if footprint is not None:
         image_max = ndi.maximum_filter(image, footprint=footprint,
                                        mode='constant')
-        # image_max = cv2.dilate(image, footprint=footprint, iterations=1)
     else:
         size = 2 * min_distance + 1
         image_max = maximum_filter(image, size=size, mode='constant')
-        # image_max = cv2.dilate(image, cv2.getStructuringElement(
-        #     cv2.MORPH_RECT, (size, size)), iterations=1)
     mask = image == image_max
 
     if exclude_border:
@@ -444,7 +449,7 @@ def extract_DF_F(Yr, A, C, bl, quantileMin=8, frames_window=200, block_size=400,
         C_df = Cf / Df[:, None]
 
     else:
-        Df = scipy.ndimage.percentile_filter(
+        Df = ndi.percentile_filter(
             C2, quantileMin, (frames_window, 1))
         C_df = Cf / Df
 
@@ -546,10 +551,10 @@ def detrend_df_f(A, b, C, f, YrA=None, quantileMin=8, frames_window=500,
                                               frames_window=frames_window) for
                                f, prctileMin in zip(B, data_prct)])
             else:
-                Fd = np.stack([scipy.ndimage.percentile_filter(
+                Fd = np.stack([ndi.percentile_filter(
                     f, prctileMin, (frames_window)) for f, prctileMin in
                     zip(F, data_prct)])
-                Df = np.stack([scipy.ndimage.percentile_filter(
+                Df = np.stack([ndi.percentile_filter(
                     f, prctileMin, (frames_window)) for f, prctileMin in
                     zip(B, data_prct)])
             if not detrend_only:
@@ -565,9 +570,9 @@ def detrend_df_f(A, b, C, f, YrA=None, quantileMin=8, frames_window=500,
             else:
                 F_df = F - Fd[:, None]
         else:
-            Fd = scipy.ndimage.percentile_filter(
+            Fd = ndi.percentile_filter(
                 F, quantileMin, (1, frames_window))
-            Df = scipy.ndimage.percentile_filter(
+            Df = ndi.percentile_filter(
                 B, quantileMin, (1, frames_window))
             if not detrend_only:
                 F_df = (F - Fd) / (Df + Fd)
@@ -597,7 +602,7 @@ def fast_prct_filt(input_data, level=8, frames_window=1000):
                                 num_traces), order='F')
 
     tr_BL = np.percentile(tr_BL, level, axis=0)
-    tr_BL = scipy.ndimage.zoom(np.array(tr_BL, dtype=np.float32),
+    tr_BL = ndi.zoom(np.array(tr_BL, dtype=np.float32),
                                [downsampfact, 1], order=3, mode='nearest',
                                cval=0.0, prefilter=True)
 
@@ -674,7 +679,7 @@ def detrend_df_f_auto(A, b, C, f, dims=None, YrA=None, use_annulus = True,
 
         for k in range(K):
             a = A[:, k].toarray().reshape(dims, order='F') > 0
-            a2 = np.bitwise_xor(morph.binary_dilation(a, R), a)
+            a2 = np.bitwise_xor(ndi.morphology.binary_dilation(a, R), a)
             a2 = a2.astype(float).flatten(order='F')
             a2 /= np.sqrt(a2.sum())
             a2 = scipy.sparse.csc_matrix(a2)
@@ -700,10 +705,10 @@ def detrend_df_f_auto(A, b, C, f, dims=None, YrA=None, use_annulus = True,
                                           frames_window=frames_window) for
                            f, prctileMin in zip(B, data_prct)])
         else:
-            Fd = np.stack([scipy.ndimage.percentile_filter(
+            Fd = np.stack([ndi.percentile_filter(
                 f, prctileMin, (frames_window)) for f, prctileMin in
                 zip(F, data_prct)])
-            Df = np.stack([scipy.ndimage.percentile_filter(
+            Df = np.stack([ndi.percentile_filter(
                 f, prctileMin, (frames_window)) for f, prctileMin in
                 zip(B, data_prct)])
         F_df = (F - Fd) / (Df + Fd)

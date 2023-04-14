@@ -2229,15 +2229,15 @@ def load_iter(file_name, subindices=None, var_name_hdf5: str = 'mov', outtype=np
                         if i == dims[0]:
                             i = 0
                             yield vol
-            elif len(dims)<3 and is3D: # volumetric 3D data w/ 1 volume per file
+            elif len(dims) < 3 and is3D: # volumetric 3D data w/ 1 volume per file
                 yield load(file_name, subindices=subindices, outtype=outtype, is3D=is3D)
             else: # 2D data
                 if subindices is not None:
                     if isinstance(subindices, range):
                         subindices = slice(subindices.start, subindices.stop, subindices.step)
                     Y = Y[subindices]
-                for y in Y:
-                    yield y.asarray().astype(outtype)
+                for frame in Y:
+                    yield frame.asarray().astype(outtype)
         elif extension in ('.avi', '.mkv'):
             cap = cv2.VideoCapture(file_name)
             if subindices is None:
