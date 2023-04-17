@@ -501,9 +501,9 @@ def cnmf(Cn, A_gt, A_test, C_gt, C_test, dims_gt, dims_test, dview=None, sensiti
             'performance': performance_off_on,
             'corelations': corrs.tolist(),
                                                        #performance = dict()
-                                                       #performance['recall'] = old_div(TP,(TP+FN))
-                                                       #performance['precision'] = old_div(TP,(TP+FP))
-                                                       #performance['accuracy'] = old_div((TP+TN),(TP+FP+FN+TN))
+                                                       #performance['recall'] = TP/(TP+FN)
+                                                       #performance['precision'] = TP/(TP+FP)
+                                                       #performance['accuracy'] = (TP+TN)/(TP+FP+FN+TN)
                                                        #performance['f1_score'] = 2*TP/(2*TP+FP+FN)
             'diffneur': diffneur
         },

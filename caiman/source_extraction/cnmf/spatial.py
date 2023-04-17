@@ -8,13 +8,6 @@ Created on Wed Aug 05 20:38:27 2015
 """
 
 # noinspection PyCompatibility
-from past.builtins import basestring
-from past.utils import old_div
-from builtins import zip
-from builtins import map
-from builtins import str
-from builtins import range
-
 import cv2
 import logging
 import numpy as np
@@ -374,12 +367,12 @@ def regression_ipyparallel(pars):
 
     Y_name, C_name, noise_sn, idxs_C, idxs_Y, method_least_square, cct = pars
     # we load from the memmap file
-    if isinstance(Y_name, basestring):
+    if isinstance(Y_name, str):
         Y, _, _ = load_memmap(Y_name)
         Y = np.array(Y[idxs_Y, :])
     else:
         Y = Y_name[idxs_Y, :]
-    if isinstance(C_name, basestring):
+    if isinstance(C_name, str):
         C = np.load(C_name, mmap_mode='r')
         C = np.array(C)
     else:
@@ -423,11 +416,11 @@ def regression_ipyparallel(pars):
 
             As.append((px, idxs_C[idx_px_from_0], a))
 
-    if isinstance(Y_name, basestring):
+    if isinstance(Y_name, str):
         del Y
-    if isinstance(C_name, basestring):
+    if isinstance(C_name, str):
         del C
-    if isinstance(Y_name, basestring):
+    if isinstance(Y_name, str):
         gc.collect()
 
     return As
@@ -452,7 +445,7 @@ def construct_ellipse_parallel(pars):
            for dd in D]
 
     # search indexes for each component
-    return np.sqrt(np.sum([old_div((dist_cm * V[:, k]) ** 2, dkk[k]) for k in range(len(dkk))], 0)) <= dist
+    return np.sqrt(np.sum([(dist_cm * V[:, k]) ** 2 / dkk[k] for k in range(len(dkk))], 0)) <= dist
 
 def threshold_components(A, dims, medw=None, thr_method='max', maxthr=0.1, nrgthr=0.9999, extract_cc=True,
                          se=None, ss=None, dview=None) -> np.ndarray:
@@ -695,7 +688,7 @@ def calcAvec(new, dQ, W, lambda_, active_set, M, positive):
     """
     r, c = np.nonzero(active_set)
     Mm = -M.take(r, axis=0).take(r, axis=1)
-    Mm = old_div((Mm + Mm.T), 2)
+    Mm = (Mm + Mm.T) / 2
     # % verify that there is no numerical instability
     if len(Mm) > 1:
         eigMm, _ = scipy.linalg.eig(Mm)
@@ -714,7 +707,7 @@ def calcAvec(new, dQ, W, lambda_, active_set, M, positive):
     if len(Mm) > 1:
         avec = np.linalg.solve(Mm, b)
     else:
-        avec = old_div(b, Mm)
+        avec = b / Mm
 
     if positive:
         if new >= 0:
@@ -729,8 +722,8 @@ def calcAvec(new, dQ, W, lambda_, active_set, M, positive):
     for j in range(len(r)):
         dQa = dQa + np.expand_dims(avec[j] * M[:, r[j]], axis=1)
 
-    gamma_plus = old_div((lambda_ - dQ), (one_vec + dQa))
-    gamma_minus = old_div((lambda_ + dQ), (one_vec - dQa))
+    gamma_plus = (lambda_ - dQ) / (one_vec + dQa)
+    gamma_minus = (lambda_ + dQ) / (one_vec - dQa)
 
     return avec, gamma_plus, gamma_minus
 
@@ -772,7 +765,7 @@ def test(Y, A_in, C, f, n_pixels_per_process, nb):
             Exception 'Not implemented consistently'
             Exception "Failed to delete: " + folder
         """
-    if Y.ndim < 2 and not isinstance(Y, basestring):
+    if Y.ndim < 2 and not isinstance(Y, str):
         Y = np.atleast_2d(Y)
         if Y.shape[1] == 1:
             raise Exception('Dimension of Matrix Y must be pixels x time')
@@ -888,8 +881,7 @@ def determine_search_location(A, dims, method='ellipse', min_size=3, max_size=8,
             # for each dim
             for i, c in enumerate(['x', 'y', 'z'][:len(dims)]):
                 # mass center in this dim = (coor*A)/sum(A)
-                cm[:, i] = old_div(
-                    np.dot(Coor[c], A[:, :nr].todense()), A[:, :nr].sum(axis=0))
+                cm[:, i] = np.dot(Coor[c], A[:, :nr].todense()) / A[:, :nr].sum(axis=0)
 
             # parallelizing process of the construct ellipse function
             for i in range(nr):
@@ -1053,8 +1045,8 @@ def computing_indicator(Y, A_in, b, C, f, nb, method, dims, min_size, max_size, 
         print("spatial support for each components given by the user")
         # we compute C,B,f,Y if we have boolean for A matrix
         if C is None:  # if C is none we approximate C, b and f from the binary mask
-            dist_indicator_av = old_div(dist_indicator.astype(
-                'float32'), np.sum(dist_indicator.astype('float32'), axis=0))
+            dist_indicator_av = dist_indicator.astype(
+                'float32') / np.sum(dist_indicator.astype('float32'), axis=0)
             px = (np.sum(dist_indicator, axis=1) > 0)
             not_px = ~px
 
@@ -1139,7 +1131,7 @@ def creatememmap(Y, Cf, dview):
         if isinstance(Y, np.core.memmap):  # if input file is already memory mapped then find the filename
             Y_name = Y.filename
         # if not create a memory mapped version (necessary for parallelization)
-        elif isinstance(Y, basestring) or dview is None:
+        elif isinstance(Y, str) or dview is None:
             Y_name = Y
         else:
             Y_name = os.path.join(folder, 'Y_temp.npy')

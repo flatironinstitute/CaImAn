@@ -5,7 +5,6 @@ dependencies:
 - bokeh
 - coverage
 - cython
-- future
 - h5py
 - holoviews =1.15.2
 - ipykernel

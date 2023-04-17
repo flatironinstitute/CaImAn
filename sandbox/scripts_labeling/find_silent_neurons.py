@@ -1,9 +1,6 @@
 #!/usr/bin/env python
 
-from __future__ import print_function
 #%%
-from builtins import str
-
 try:
     get_ipython().magic('load_ext autoreload')
     get_ipython().magic('autoreload 2')

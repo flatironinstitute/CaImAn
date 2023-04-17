@@ -7,7 +7,6 @@ Created on Thu Oct 20 15:18:21 2016
 @author: agiovann
 """
 
-from builtins import map
 import caiman as cm
 #%%
 

@@ -8,13 +8,6 @@ Created on Mon Apr 24 09:54:35 2017
 """
 
 #%%
-from __future__ import division
-from __future__ import print_function
-from builtins import zip
-from builtins import str
-from builtins import map
-from builtins import range
-from past.utils import old_div
 import cv2
 
 try:
@@ -32,18 +25,12 @@ except NameError:
     print('Not launched under iPython')
 
 from caiman.base.rois import nf_read_roi_zip
-import os
 import numpy as np
 import pylab as pl
 import caiman as cm
-import scipy
 import itertools
 import glob
 from caiman.source_extraction.cnmf import cnmf as cnmf
-from caiman.components_evaluation import evaluate_components
-from caiman.utils.visualization import plot_contours, view_patches_bar
-from caiman.base.rois import extract_binary_masks_blob
-import caiman
 #%%
 pl.close('all')
 pl.rcParams['pdf.fonttype'] = 42
@@ -114,7 +101,7 @@ for folder_out in folders_out:
                 consensus_counter[nm] = 0
 
         new_name = fl1[:-4] + '_' + lab2 + '_'
-        caiman.base.rois.nf_merge_roi_zip(
+        cm.base.rois.nf_merge_roi_zip(
             [fl1, fl2], [np.concatenate([tp_gt, fn_gt]), fp_comp], new_name)
         performance_all[fl1, fl2] = performance
         new_name = new_name + '.zip'
@@ -127,11 +114,11 @@ for folder_out in folders_out:
     for idx, name in enumerate(names):
         matches[idx] = consensus_counter[name]
 
-    caiman.base.rois.nf_merge_roi_zip(
+    cm.base.rois.nf_merge_roi_zip(
         [new_name], [np.nonzero(matches > 1)[0]], new_name[:-4] + 'matches')
-    caiman.base.rois.nf_merge_roi_zip([new_name], [np.nonzero(matches == 1)[
+    cm.base.rois.nf_merge_roi_zip([new_name], [np.nonzero(matches == 1)[
                                       0]], new_name[:-4] + '1_mismatches')
-    caiman.base.rois.nf_merge_roi_zip([new_name], [np.nonzero(matches == 0)[
+    cm.base.rois.nf_merge_roi_zip([new_name], [np.nonzero(matches == 0)[
                                       0]], new_name[:-4] + '0_mismatches')
 
     np.savez(folder_in + '/comparison_labelers.npz',
