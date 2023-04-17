@@ -7,8 +7,6 @@ Created on Tue Sep  1 16:11:25 2015
 @author: Eftychios A. Pnevmatikakis, based on an implementation by T. Machado,  Andrea Giovannucci & Ben Deverett
 """
 
-from builtins import range
-from past.utils import old_div
 import numpy as np
 import scipy.signal
 import scipy.linalg
@@ -290,7 +288,7 @@ def cvxopt_foopsi(fluor, b, c1, g, sn, p, bas_nonneg, verbosity):
             b = np.array(xx[T + 1]) + b_lb
         if flag_c1:
             c1 = np.array(xx[-1])
-        sn = old_div(np.linalg.norm(fluor - c - c1 * gd_vec - b), np.sqrt(T))
+        sn = np.linalg.norm(fluor - c - c1 * gd_vec - b) / np.sqrt(T)
     else:  # readout picos solution
         c = np.squeeze(calcium_fit.value)
         sp = np.squeeze(np.asarray(G * calcium_fit.value))
@@ -410,7 +408,7 @@ def cvxpy_foopsi(fluor, g, sn, b=None, c1=None, bas_nonneg=True, solvers=None):
         sys.stdout.flush()
     except (ValueError, cvx.SolverError):     # if solvers fail to solve the problem
 
-        lam = old_div(sn, 500)
+        lam = sn / 500
         constraints = constraints[:-1]
         objective = cvx.Minimize(cvx.norm(-c + fluor - b - gd_vec *
                                           c1, 2) + lam * cvx.norm(G * c, 1))
@@ -1015,7 +1013,7 @@ def estimate_time_constant(fluor, p=2, sn=None, lags=5, fudge_factor=1.):
                               xc[lags + np.arange(p)]) - sn**2 * np.eye(lags, p)
     g = np.linalg.lstsq(A, xc[lags + 1:], rcond=None)[0]
     gr = np.roots(np.concatenate([np.array([1]), -g.flatten()]))
-    gr = old_div((gr + gr.conjugate()), 2.)
+    gr = (gr + gr.conjugate()) / 2.
     np.random.seed(45) # We want some variability below, but it doesn't have to be random at
                        # runtime. A static seed captures our intent, while still not disrupting
                        # the desired identical results from runs.
@@ -1052,9 +1050,9 @@ def GetSn(fluor, range_ff=[0.25, 0.5], method='logmexp'):
     ind = np.logical_and(ind1, ind2)
     Pxx_ind = Pxx[ind]
     sn = {
-        'mean': lambda Pxx_ind: np.sqrt(np.mean(old_div(Pxx_ind, 2))),
-        'median': lambda Pxx_ind: np.sqrt(np.median(old_div(Pxx_ind, 2))),
-        'logmexp': lambda Pxx_ind: np.sqrt(np.exp(np.mean(np.log(old_div(Pxx_ind, 2)))))
+        'mean': lambda Pxx_ind: np.sqrt(np.mean(Pxx_ind / 2)),
+        'median': lambda Pxx_ind: np.sqrt(np.median(Pxx_ind / 2)),
+        'logmexp': lambda Pxx_ind: np.sqrt(np.exp(np.mean(np.log(Pxx_ind / 2))))
     }[method](Pxx_ind)
 
     return sn
@@ -1083,7 +1081,7 @@ def axcov(data, maxlag=5):
     xcov = np.fft.ifft(np.square(np.abs(xcov)))
     xcov = np.concatenate([xcov[np.arange(xcov.size - maxlag, xcov.size)],
                            xcov[np.arange(0, maxlag + 1)]])
-    return np.real(old_div(xcov, T))
+    return np.real(xcov / T)
 
 
 def nextpow2(value):

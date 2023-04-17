@@ -15,9 +15,6 @@ caiman/tests/comparison/comparison.py
 # \date Created on june 2017
 # \author: Jeremie KALFON
 
-from builtins import str
-from builtins import range
-
 import copy
 import cv2
 import glob

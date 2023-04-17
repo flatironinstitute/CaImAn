@@ -7,13 +7,6 @@ Created on Mon Apr 24 09:54:35 2017
 """
 
 #%%
-from __future__ import division
-from __future__ import print_function
-from builtins import zip
-from builtins import str
-from builtins import map
-from builtins import range
-from past.utils import old_div
 import cv2
 
 try:
@@ -35,14 +28,8 @@ import os
 import numpy as np
 import pylab as pl
 import caiman as cm
-import scipy
-import itertools
 import glob
 from caiman.source_extraction.cnmf import cnmf as cnmf
-from caiman.components_evaluation import evaluate_components
-from caiman.utils.visualization import plot_contours, view_patches_bar
-from caiman.base.rois import extract_binary_masks_blob
-import caiman
 #%%
 pl.close('all')
 pl.rcParams['pdf.fonttype'] = 42

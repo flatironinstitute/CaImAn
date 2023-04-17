@@ -21,9 +21,6 @@ See Also:
 #\copyright GNU General Public License v2.0
 #\date Created on Fri Aug 26 15:44:32 2016
 
-from builtins import object
-from builtins import str
-
 from copy import deepcopy
 import cv2
 import inspect

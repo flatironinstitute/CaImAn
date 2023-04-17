@@ -6,9 +6,6 @@ Created on Thu Oct 20 12:12:34 2016
 @author: agiovann
 """
 
-from builtins import range
-from past.utils import old_div
-
 import cv2
 import itertools
 import logging
@@ -110,10 +107,10 @@ def compute_event_exceptionality(traces: np.ndarray,
 
     else:
         Ns = np.sum(ff1 > 0, 1)
-        sd_r = np.sqrt(old_div(np.sum(ff1**2, 1), Ns))
+        sd_r = np.sqrt(np.sum(ff1**2, 1) / Ns)
 
     # compute z value
-    z = old_div((traces - md[:, None]), (sigma_factor * sd_r[:, None]))
+    z = (traces - md[:, None]) / (sigma_factor * sd_r[:, None])
 
     # probability of observing values larger or equal to z given normal
     # distribution with mean md and std sd_r
@@ -222,7 +219,7 @@ def classify_components_ep(Y, A, C, b, f, Athresh=0.1, Npeaks=5, tB=-3, tA=10, t
     A = csc_matrix(A)
     AA = (A.T * A).toarray()
     nA = np.sqrt(np.array(A.power(2).sum(0)))
-    AA = old_div(AA, np.outer(nA, nA.T))
+    AA /= np.outer(nA, nA.T)
     AA -= np.eye(K)
 
     LOC = find_activity_intervals(C, Npeaks=Npeaks, tB=tB, tA=tA, thres=thres)
@@ -444,7 +441,7 @@ def evaluate_components(Y: np.ndarray,
 
     logging.debug('Removing Baseline')
     if remove_baseline:
-        num_samps_bl = np.minimum(old_div(np.shape(traces)[-1], 5), 800)
+        num_samps_bl = np.minimum(np.shape(traces)[-1]// 5, 800)
         slow_baseline = False
         if slow_baseline:
 
@@ -455,8 +452,8 @@ def evaluate_components(Y: np.ndarray,
         else:                                                                                # fast baseline removal
             downsampfact = num_samps_bl
             elm_missing = int(np.ceil(T * 1.0 / downsampfact) * downsampfact - T)
-            padbefore = int(np.floor(old_div(elm_missing, 2.0)))
-            padafter = int(np.ceil(old_div(elm_missing, 2.0)))
+            padbefore = int(np.floor(elm_missing / 2.))
+            padafter = int(np.ceil(elm_missing / 2.))
             tr_tmp = np.pad(traces.T, ((padbefore, padafter), (0, 0)), mode='reflect')
             numFramesNew, num_traces = np.shape(tr_tmp)
                                                                                              #% compute baseline quickly

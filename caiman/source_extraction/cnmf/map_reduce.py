@@ -14,13 +14,6 @@ Function for implementing parallel scalable segmentation of two photon imaging d
 #\copyright GNU General Public License v2.0
 #\date Created on Wed Feb 17 14:58:26 2016
 
-from builtins import zip
-from builtins import str
-from builtins import map
-from builtins import range
-
-from past.utils import old_div
-
 from copy import copy, deepcopy
 import logging
 import numpy as np
