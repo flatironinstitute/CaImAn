@@ -14,7 +14,6 @@ different set of methods like ICA PCA, greedy roi
 #\date Created on Tue Jun 30 21:01:17 2015
 #\author: Eftychios A. Pnevmatikakis
 
-from builtins import range
 import cv2
 import logging
 from math import sqrt
@@ -22,7 +21,6 @@ import matplotlib.animation as animation
 import matplotlib.pyplot as plt
 from multiprocessing import current_process
 import numpy as np
-from past.utils import old_div
 import scipy
 import scipy.ndimage as nd
 from scipy.ndimage.measurements import center_of_mass
@@ -315,7 +313,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
             img += np.median(img)
             img += np.finfo(np.float32).eps
 
-        Y = old_div(Y, np.reshape(img, d + (-1,), order='F'))
+        Y = Y / np.reshape(img, d + (-1,), order='F')
         alpha_snmf /= np.mean(img)
     else:
         Y = np.array(Y)
@@ -1004,8 +1002,7 @@ def finetune(Y, cin, nIter=5):
     # we compute the multiplication of patches per traces ( non negatively )
     for _ in range(nIter):
         a = np.maximum(np.dot(Y, cin), 0)
-        a = old_div(a, np.sqrt(np.sum(a**2)) +
-                    np.finfo(np.float32).eps)  # compute the l2/a
+        a = a / np.sqrt(np.sum(a**2) + np.finfo(np.float32).eps)  # compute the l2/a
         # c as the variation of thoses patches
         cin = np.sum(Y * a[..., np.newaxis], tuple(np.arange(Y.ndim - 1)))
 
@@ -1073,9 +1070,8 @@ def imblur(Y, sig=5, siz=11, nDimBlur=None, kernel=None, opencv=True):
                         X, tuple(siz), sig[0], sig[1], cv2.BORDER_CONSTANT, 0)
         else:
             for i in range(nDimBlur):
-                h = np.exp(
-                    old_div(-np.arange(-np.floor(old_div(siz[i], 2)),
-                                       np.floor(old_div(siz[i], 2)) + 1)**2, (2 * sig[i]**2)))
+                h = np.exp(-np.arange(-np.floor(siz[i] / 2),
+                                       np.floor(siz[i] / 2) + 1)**2 / (2 * sig[i]**2))
                 h /= np.sqrt(h.dot(h))
                 shape = [1] * len(Y.shape)
                 shape[i] = -1

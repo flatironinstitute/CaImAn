@@ -6,12 +6,8 @@ Created on Tue Feb 16 17:56:14 2016
 
 @author: agiovann
 """
-from __future__ import print_function
 
 #%%
-from builtins import zip
-from builtins import str
-from builtins import range
 try:
     get_ipython().magic('load_ext autoreload')
     get_ipython().magic('autoreload 2')

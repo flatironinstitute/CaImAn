@@ -8,10 +8,6 @@ Created on Wed Mar 16 16:31:55 2016
 @author: agiovann
 """
 
-from builtins import zip
-from builtins import range
-from past.utils import old_div
-
 import cv2
 import numpy as np
 import pylab as pl
@@ -318,7 +314,7 @@ def extract_components(mov_tot,
     if mov_tot.ndim == 4:
         if normalize_std:
             norm_fact = np.nanstd(mov_tot, axis=(1, 2, 3))
-            mov_tot = old_div(mov_tot, norm_fact[:, np.newaxis, np.newaxis, np.newaxis])
+            mov_tot = mov_tot / norm_fact[:, np.newaxis, np.newaxis, np.newaxis]
         else:
             norm_fact = np.array([1., 1.])
         c, T, d1, d2 = np.shape(mov_tot)

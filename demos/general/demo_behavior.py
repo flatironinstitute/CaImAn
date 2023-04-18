@@ -7,8 +7,6 @@ Created on Sun Aug  6 11:43:39 2017
 @author: agiovann
 """
 
-from builtins import zip
-
 import cv2
 import logging
 import numpy as np

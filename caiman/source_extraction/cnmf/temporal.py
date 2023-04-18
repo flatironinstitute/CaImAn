@@ -5,11 +5,8 @@
 components and temporal components
 """
 
-from builtins import str
-from builtins import map
-from builtins import range
 import logging
-from scipy.sparse import spdiags, diags, coo_matrix, csc_matrix  # ,csgraph
+from scipy.sparse import spdiags, diags, coo_matrix, csc_matrix
 import scipy
 import numpy as np
 import platform

@@ -11,10 +11,6 @@ Contains the movie class.
 # \copyright GNU General Public License v2.0
 # \date Created on Tue Jun 30 20:56:07 2015 , Updated on Fri Aug 19 17:30:11 2016
 
-from builtins import str
-from builtins import range
-from past.utils import old_div
-
 import cv2
 from functools import partial
 import h5py
@@ -153,9 +149,9 @@ class movie(ts.timeseries):
 
         if template is None:   # if template is not provided it is created
             if num_frames_template is None:
-                num_frames_template = old_div(10e7, (self.shape[1] * self.shape[2]))
+                num_frames_template = 10e7 / (self.shape[1] * self.shape[2])
 
-            frames_to_skip = int(np.maximum(1, old_div(self.shape[0], num_frames_template)))
+            frames_to_skip = int(np.maximum(1, self.shape[0] / num_frames_template))
 
             # sometimes it is convenient to only consider a subset of the
             # movie when computing the median
@@ -232,9 +228,9 @@ class movie(ts.timeseries):
 
         if template is None:   # if template is not provided it is created
             if num_frames_template is None:
-                num_frames_template = old_div(10e7, (self.shape[1] * self.shape[2]))
+                num_frames_template = 10e7 / (self.shape[1] * self.shape[2])
 
-            frames_to_skip = int(np.maximum(1, old_div(self.shape[0], num_frames_template)))
+            frames_to_skip = int(np.maximum(1, self.shape[0] / num_frames_template))
 
             # sometimes it is convenient to only consider a subset of the
             # movie when computing the median
@@ -291,7 +287,7 @@ class movie(ts.timeseries):
 
         """
         T, d1, d2 = np.shape(self)
-        num_windows = int(old_div(T, window))
+        num_windows = int(T // window)
         num_frames = num_windows * window
         return np.nanmedian(np.nanmean(np.reshape(self[:num_frames], (window, num_windows, d1, d2)), axis=0), axis=0)
 
@@ -311,7 +307,7 @@ class movie(ts.timeseries):
 
         """
         T, d1, d2, d3 = np.shape(self)
-        num_windows = int(old_div(T, window))
+        num_windows = int(T // window)
         num_frames = num_windows * window
         return np.nanmedian(np.nanmean(np.reshape(self[:num_frames], (window, num_windows, d1, d2, d3)), axis=0),
                             axis=0)
@@ -391,10 +387,10 @@ class movie(ts.timeseries):
                 log_x_yp1 = np.log(res[sh_x, sh_y + 1])
                 four_log_xy = 4 * np.log(res[sh_x, sh_y])
 
-                sh_x_n = -(sh_x - ms_h + old_div((log_xm1_y - log_xp1_y),
-                                                 (2 * log_xm1_y - four_log_xy + 2 * log_xp1_y)))
-                sh_y_n = -(sh_y - ms_w + old_div((log_x_ym1 - log_x_yp1),
-                                                 (2 * log_x_ym1 - four_log_xy + 2 * log_x_yp1)))
+                sh_x_n = -(sh_x - ms_h + ((log_xm1_y - log_xp1_y) /
+                                          (2 * log_xm1_y - four_log_xy + 2 * log_xp1_y)))
+                sh_y_n = -(sh_y - ms_w + ((log_x_ym1 - log_x_yp1) /
+                                          (2 * log_x_ym1 - four_log_xy + 2 * log_x_yp1)))
             else:
                 sh_x_n = -(sh_x - ms_h)
                 sh_y_n = -(sh_y - ms_w)
@@ -515,7 +511,7 @@ class movie(ts.timeseries):
             popt, _ = scipy.optimize.curve_fit(expf, x, y, p0=p0)
             y_fit = expf(x, *popt)
         except:
-            p0 = (old_div(float(y[-1] - y[0]), float(x[-1] - x[0])), y[0])
+            p0 = (float(y[-1] - y[0]) / float(x[-1] - x[0]), y[0])
             popt, _ = scipy.optimize.curve_fit(linf, x, y, p0=p0)
             y_fit = linf(x, *popt)
 
@@ -615,8 +611,8 @@ class movie(ts.timeseries):
         downsampfact = int(secsWindow * self.fr)
         logging.debug(f"Downsample factor: {downsampfact}")
         elm_missing = int(np.ceil(numFrames * 1.0 / downsampfact) * downsampfact - numFrames)
-        padbefore = int(np.floor(old_div(elm_missing, 2.0)))
-        padafter = int(np.ceil(old_div(elm_missing, 2.0)))
+        padbefore = int(np.floor(elm_missing / 2.))
+        padafter = int(np.ceil(elm_missing / 2.))
 
         logging.debug('Initial Size Image:' + str(np.shape(self)))
         sys.stdout.flush()
@@ -630,11 +626,11 @@ class movie(ts.timeseries):
         
         if not in_place:
             movBL = np.reshape(mov_out.copy(),
-                               (downsampfact, int(old_div(numFramesNew, downsampfact)), linePerFrame, pixPerLine),
+                               (downsampfact, int(numFramesNew // downsampfact), linePerFrame, pixPerLine),
                                order=order)
         else:
             movBL = np.reshape(mov_out,
-                               (downsampfact, int(old_div(numFramesNew, downsampfact)), linePerFrame, pixPerLine),
+                               (downsampfact, int(numFramesNew // downsampfact), linePerFrame, pixPerLine),
                                order=order)
 
         movBL = np.percentile(movBL, quantilMin, axis=0)
@@ -650,9 +646,9 @@ class movie(ts.timeseries):
         #% compute DF/F
         if not in_place:
             if method == 'delta_f_over_sqrt_f':
-                mov_out = old_div((mov_out - movBL), np.sqrt(movBL))
+                mov_out = (mov_out - movBL) / np.sqrt(movBL)
             elif method == 'delta_f_over_f':
-                mov_out = old_div((mov_out - movBL), movBL)
+                mov_out = (mov_out - movBL) / movBL
             elif method == 'only_baseline':
                 mov_out = (mov_out - movBL)
             else:
@@ -827,11 +823,11 @@ class movie(ts.timeseries):
         eigenseries, eigenframes, _proj = self.IPCA(componentsPCA, batch)
         # normalize the series
 
-        frame_scale = old_div(mu, np.max(eigenframes))
+        frame_scale = mu / np.max(eigenframes)
         frame_mean = np.mean(eigenframes, axis=0)
         n_eigenframes = frame_scale * (eigenframes - frame_mean)
 
-        series_scale = old_div((1 - mu), np.max(eigenframes))
+        series_scale = (1 - mu) / np.max(eigenframes)
         series_mean = np.mean(eigenseries, axis=0)
         n_eigenseries = series_scale * (eigenseries - series_mean)
 
@@ -983,12 +979,12 @@ class movie(ts.timeseries):
         idxA, idxB = np.meshgrid(list(range(w)), list(range(h)))
         coordmat = np.vstack((idxA.flatten(), idxB.flatten()))
         distanceMatrix = euclidean_distances(coordmat.T)
-        distanceMatrix = old_div(distanceMatrix, np.max(distanceMatrix))
+        distanceMatrix = distanceMatrix / np.max(distanceMatrix)
         estim = KMeans(n_clusters=n_clusters, max_iter=max_iter)
         kk = estim.fit(tradeoff_weight * mcoef - (1 - tradeoff_weight) * distanceMatrix)
         labs = kk.labels_
         fovs = np.reshape(labs, (h, w))
-        fovs = cv2.resize(np.uint8(fovs), (w1, h1), old_div(1., fx), old_div(1., fy), interpolation=cv2.INTER_NEAREST)
+        fovs = cv2.resize(np.uint8(fovs), (w1, h1), 1. / fx, 1. / fy, interpolation=cv2.INTER_NEAREST)
         return np.uint8(fovs), mcoef, distanceMatrix
 
     def extract_traces_from_masks(self, masks: np.ndarray) -> trace:
@@ -1009,7 +1005,7 @@ class movie(ts.timeseries):
         A = np.reshape(masks, (nA, h * w))
 
         pixelsA = np.sum(A, axis=1)
-        A = old_div(A, pixelsA[:, None])       # obtain average over ROI
+        A = A / pixelsA[:, None]       # obtain average over ROI
         traces = trace(np.dot(A, np.transpose(Y)).T, **self.__dict__)
         return traces
 
@@ -1038,7 +1034,7 @@ class movie(ts.timeseries):
         elm = d * T
         max_els = 2**61 - 1    # the bug for sizes >= 2**31 is appears to be fixed now
         if elm > max_els:
-            chunk_size = old_div((max_els), d)
+            chunk_size = max_els // d
             new_m: List = []
             logging.debug('Resizing in chunks because of opencv bug')
             for chunk in range(0, T, chunk_size):
@@ -1156,9 +1152,8 @@ class movie(ts.timeseries):
         return self
 
     def to_2D(self, order='F') -> np.ndarray:
-        [T, d1, d2] = self.shape
-        d = d1 * d2
-        return np.reshape(self, (T, d), order=order)
+        T = self.shape[0]
+        return np.reshape(self, (T, -1), order=order)
 
     def zproject(self, method: str = 'mean', cmap=pl.cm.gray, aspect='auto', **kwargs) -> np.ndarray:
         """
@@ -2173,7 +2168,8 @@ def rolling_window(ndarr, window_size, stride):
            yield ndarr[:, i + stride:]
 
 
-def load_iter(file_name, subindices=None, var_name_hdf5: str = 'mov', outtype=np.float32):
+def load_iter(file_name, subindices=None, var_name_hdf5: str = 'mov', outtype=np.float32,
+              is3D: bool=False):
     """
     load iterator over movie from file. Supports a variety of formats. tif, hdf5, avi.
 
@@ -2202,13 +2198,42 @@ def load_iter(file_name, subindices=None, var_name_hdf5: str = 'mov', outtype=np
     if os.path.exists(file_name):
         extension = os.path.splitext(file_name)[1].lower()
         if extension in ('.tif', '.tiff', '.btf'):
-            Y = tifffile.TiffFile(file_name).pages
-            if subindices is not None:
-                if isinstance(subindices, range):
-                    subindices = slice(subindices.start, subindices.stop, subindices.step)
-                Y = Y[subindices]
-            for y in Y:
-                yield y.asarray().astype(outtype)
+            Y = tifffile.TiffFile(file_name).series[0]
+            dims = Y.shape[1:]
+            if len(dims)==3: # volumetric 3D data w/ multiple volumes per file
+                vol = np.empty(dims, dtype=outtype)
+                i = 0  # plane counter
+                if subindices is not None:
+                    if isinstance(subindices, slice):
+                        subindices = range(subindices.start,
+                        len(Y) if subindices.stop is None else subindices.stop,
+                        1 if subindices.step is None else subindices.step)
+                    t = 0  # volume counter
+                    for y in Y:
+                        if t in subindices:
+                            vol[i] = y.asarray()
+                        i += 1
+                        if i == dims[0]:
+                            i = 0
+                            if t in subindices:
+                                yield vol
+                            t +=1
+                else:
+                    for y in Y:
+                        vol[i] = y.asarray()
+                        i += 1
+                        if i == dims[0]:
+                            i = 0
+                            yield vol
+            elif len(dims) < 3 and is3D: # volumetric 3D data w/ 1 volume per file
+                yield load(file_name, subindices=subindices, outtype=outtype, is3D=is3D)
+            else: # 2D data
+                if subindices is not None:
+                    if isinstance(subindices, range):
+                        subindices = slice(subindices.start, subindices.stop, subindices.step)
+                    Y = Y[subindices]
+                for frame in Y:
+                    yield frame.asarray().astype(outtype)
         elif extension in ('.avi', '.mkv'):
             cap = cv2.VideoCapture(file_name)
             if subindices is None:
@@ -2262,7 +2287,7 @@ def load_iter(file_name, subindices=None, var_name_hdf5: str = 'mov', outtype=np
                         yield Y[ind].astype(outtype)
         else:  # fall back to memory inefficient version
             for y in load(file_name, var_name_hdf5=var_name_hdf5,
-                          subindices=subindices, outtype=outtype):
+                          subindices=subindices, outtype=outtype, is3D=is3D):
                 yield y
     else:
         logging.error(f"File request:[{file_name}] not found!")

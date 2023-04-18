@@ -19,10 +19,6 @@ See Also:
 # \copyright GNU General Public License v2.0
 # \date Created on Sat Sep 12 15:52:53 2015
 
-from builtins import str
-from builtins import range
-from past.utils import old_div
-
 import cv2
 import h5py
 import logging
@@ -32,7 +28,7 @@ import pathlib
 import pylab as pl
 import scipy
 from scipy.sparse import spdiags, issparse, csc_matrix, csr_matrix
-import scipy.ndimage.morphology as morph
+import scipy.ndimage as ndi
 import tifffile
 from typing import List
 # https://github.com/constantinpape/z5/issues/146
@@ -45,7 +41,171 @@ from ...cluster import extract_patch_coordinates
 from ...utils.stats import df_percentile
 
 
+def get_border_type(mode):
+    """get OpenCV border type for given scipy.ndimage mode"""
+    if mode=='nearest':
+        return cv2.BORDER_REPLICATE
+    elif mode in ('reflect', 'grid-mirror'):
+        return cv2.BORDER_REFLECT
+    elif mode in ('constant', 'grid-constant'):
+        return cv2.BORDER_CONSTANT
+    elif mode=='mirror':
+        return cv2.BORDER_REFLECT_101
+
+
+def gaussian_filter(input, sigma, order=0, output=None, mode='reflect',
+                    cval=0.0, truncate=4.0, radius=None):
+    """Multidimensional Gaussian filter.
+    A faster version of scipy.ndimage.gaussian_filter
+    Uses OpenCV for 1 to 3 dimensional input, scipy for ndim>3
+    """
+    if order>0 or input.ndim>3:
+        return ndi.gaussian_filter(input, sigma, order, output, mode,
+                                             cval, truncate, radius=radius)
+    sigma = np.atleast_1d(sigma)
+    if radius is None:
+        ksize = 2*(truncate*sigma).astype(int)+1
+    else:
+        ksize = 2*np.atleast_1d(radius)+1
+    if len(ksize)==1:
+        ksize = [ksize[0]]*input.ndim if input.ndim>1 else ksize[0]
+    if len(sigma)==1:
+        sigma = [sigma[0]]*input.ndim if input.ndim>1 else sigma[0]
+    borderType = get_border_type(mode)
+
+    if input.ndim==1:
+        if mode=='constant' and cval!=0:
+            if output is None:
+                return cval+cv2.GaussianBlur(input[None,:]-cval, ksize=[ksize, 1],
+                                sigmaX=sigma, sigmaY=0, borderType=borderType)[0]
+            else:
+                cv2.GaussianBlur(input[None,:]-cval, ksize=[ksize, 1],
+                                sigmaX=sigma, sigmaY=0, dst=output[None,:], borderType=borderType)[0]
+                output += cval
+                return output
+        return cv2.GaussianBlur(input[None,:], ksize=[ksize, 1], sigmaX=sigma, sigmaY=0,
+                                dst=None if output is None else output[None,:], borderType=borderType)[0]
+
+    elif input.ndim==2:
+        if mode=='constant' and cval!=0:
+            if output is None:
+                return cval+cv2.GaussianBlur(input-cval, ksize=ksize[::-1], sigmaX=sigma[1], sigmaY=sigma[0],
+                                             borderType=borderType)
+            else:
+                cv2.GaussianBlur(input-cval, ksize=ksize[::-1], sigmaX=sigma[1], sigmaY=sigma[0],
+                                             dst=output, borderType=borderType)
+                output += cval
+                return output                
+        return cv2.GaussianBlur(input, ksize=ksize[::-1], sigmaX=sigma[1], sigmaY=sigma[0], dst=output,
+                                borderType=borderType)
+    
+    elif input.ndim==3:
+        if mode=='constant' and cval!=0:
+            input = input-cval 
+        if output is None:
+            output = np.zeros_like(input)
+        for i in range(input.shape[1]):
+            output[:,i] = cv2.GaussianBlur(input[:,i], ksize=ksize[2::-2],
+                                         sigmaX=sigma[2], sigmaY=sigma[0], borderType=borderType)
+        if np.isfortran(input):
+            for i in range(input.shape[2]):
+                output[...,i] = cv2.GaussianBlur(output[...,i], ksize=(ksize[1],1),
+                                             sigmaX=sigma[1], sigmaY=0, borderType=borderType)    
+        else:
+            for i in range(input.shape[0]):
+                output[i] = cv2.GaussianBlur(output[i], ksize=(1,ksize[1]),
+                                             sigmaY=sigma[1], sigmaX=0, borderType=borderType)
+        if mode=='constant' and cval!=0:
+            output+=cval
+        return output
+
+    else:
+        return ndi.gaussian_filter(input, sigma, order, output, mode,
+                                             cval, truncate, radius=radius)
+
+
+def uniform_filter(input, size=3, output=None, mode='reflect', cval=0.0):
+    """Multidimensional uniform filter.
+    A faster version of scipy.ndimage.uniform_filter
+    Uses OpenCV for 2 and 3 dimensional input, otherwise scipy
+    """
+    size = np.atleast_1d(size).tolist()
+    if len(size)==1:
+        size = size*input.ndim
+    borderType = get_border_type(mode)
+
+    if input.ndim==2:
+        if mode=='constant' and cval!=0:
+            if output is None:
+                return cval+cv2.boxFilter(input-cval, -1, ksize=size[::-1], borderType=borderType)
+            else:
+                cv2.boxFilter(input-cval, -1, ksize=size[::-1], dst=output, borderType=borderType)
+                output += cval
+                return output
+        return cv2.boxFilter(input, -1, ksize=size[::-1], dst=output, borderType=borderType)
+
+    elif input.ndim==3:
+        if mode=='constant' and cval!=0:
+            input = input-cval
+        if output is None:
+            output = np.zeros_like(input)
+        for i in range(input.shape[1]):
+            output[:,i] = cv2.boxFilter(input[:,i], -1, ksize=size[2::-2], borderType=borderType)
+        if np.isfortran(input):
+            for i in range(input.shape[2]):
+                output[...,i] = cv2.boxFilter(output[...,i], -1, ksize=(size[1],1), borderType=borderType)
+        else:
+            for i in range(input.shape[0]):
+                output[i] = cv2.boxFilter(output[i], -1, ksize=(1,size[1]), borderType=borderType)
+        if mode=='constant' and cval!=0:
+            output+=cval
+        return output
+
+    else:
+        return ndi.uniform_filter(input, size, output, mode, cval)
+
+
+def maximum_filter(input, size=3, footprint=None, output=None, mode='reflect', cval=0.0):
+    if input.ndim>3 or (mode in ('constant', 'grid-constant') and cval!=0):
+        return ndi.maximum_filter(input, size, footprint, output, mode, cval)
+    size = np.atleast_1d(size).tolist()
+    if len(size)==1:
+        size = size*input.ndim if input.ndim>1 else [1]+size
+    borderType = get_border_type(mode)
+
+    if input.ndim==1:
+        return cv2.dilate(input[None,:], cv2.getStructuringElement(
+            cv2.MORPH_RECT, size[::-1]), borderType=borderType, 
+                             dst=None if output is None else output[None,:])[0]
+
+    elif input.ndim==2:
+        return cv2.dilate(input, cv2.getStructuringElement(
+            cv2.MORPH_RECT, size[::-1]), dst=output, borderType=borderType)
+
+    elif input.ndim==3:
+        if output is None:
+            output = np.zeros_like(input)
+        for i in range(input.shape[1]):
+            output[:,i] = cv2.dilate(input[:,i], cv2.getStructuringElement(
+            cv2.MORPH_RECT, size[2::-2]), borderType=borderType)
+        if np.isfortran(input):
+            for i in range(input.shape[2]):
+                output[...,i] = cv2.dilate(output[...,i], cv2.getStructuringElement(
+            cv2.MORPH_RECT, (size[1],1)), borderType=borderType)
+        else:
+            for i in range(input.shape[0]):
+                output[i] = cv2.dilate(output[i], cv2.getStructuringElement(
+            cv2.MORPH_RECT, (1,size[1])), borderType=borderType)
+        return output
+
+    else:
+        return ndi.maximum_filter(input, size, footprint, output, mode, cval)
+
+
 def decimation_matrix(dims, sub):
+    """Creates a sparse matrix for downscaling flattened n-dimensional arrays.
+    Allows e.g. downscaling sparse spatial footprints A w/o converting to dense and reshaping
+    """
     D = np.prod(dims)
     if sub == 2 and D <= 10000:  # faster for small matrices
         ind = np.arange(D) // 2 - \
@@ -71,7 +231,7 @@ def decimation_matrix(dims, sub):
 
 def peak_local_max(image, min_distance=1, threshold_abs=None,
                    threshold_rel=None, exclude_border=True, indices=True,
-                   num_peaks=np.inf, footprint=None):
+                   num_peaks=None, footprint=None):
     """Find peaks in an image as coordinate list or boolean mask.
 
     Adapted from skimage to use opencv for speed.
@@ -172,14 +332,11 @@ def peak_local_max(image, min_distance=1, threshold_abs=None,
 
     # Non maximum filter
     if footprint is not None:
-        # image_max = ndi.maximum_filter(image, footprint=footprint,
-        #                                mode='constant')
-        image_max = cv2.dilate(image, footprint=footprint, iterations=1)
+        image_max = ndi.maximum_filter(image, footprint=footprint,
+                                       mode='constant')
     else:
         size = 2 * min_distance + 1
-        # image_max = ndi.maximum_filter(image, size=size, mode='constant')
-        image_max = cv2.dilate(image, cv2.getStructuringElement(
-            cv2.MORPH_RECT, (size, size)), iterations=1)
+        image_max = maximum_filter(image, size=size, mode='constant')
     mask = image == image_max
 
     if exclude_border:
@@ -292,7 +449,7 @@ def extract_DF_F(Yr, A, C, bl, quantileMin=8, frames_window=200, block_size=400,
         C_df = Cf / Df[:, None]
 
     else:
-        Df = scipy.ndimage.percentile_filter(
+        Df = ndi.percentile_filter(
             C2, quantileMin, (frames_window, 1))
         C_df = Cf / Df
 
@@ -394,10 +551,10 @@ def detrend_df_f(A, b, C, f, YrA=None, quantileMin=8, frames_window=500,
                                               frames_window=frames_window) for
                                f, prctileMin in zip(B, data_prct)])
             else:
-                Fd = np.stack([scipy.ndimage.percentile_filter(
+                Fd = np.stack([ndi.percentile_filter(
                     f, prctileMin, (frames_window)) for f, prctileMin in
                     zip(F, data_prct)])
-                Df = np.stack([scipy.ndimage.percentile_filter(
+                Df = np.stack([ndi.percentile_filter(
                     f, prctileMin, (frames_window)) for f, prctileMin in
                     zip(B, data_prct)])
             if not detrend_only:
@@ -413,9 +570,9 @@ def detrend_df_f(A, b, C, f, YrA=None, quantileMin=8, frames_window=500,
             else:
                 F_df = F - Fd[:, None]
         else:
-            Fd = scipy.ndimage.percentile_filter(
+            Fd = ndi.percentile_filter(
                 F, quantileMin, (1, frames_window))
-            Df = scipy.ndimage.percentile_filter(
+            Df = ndi.percentile_filter(
                 B, quantileMin, (1, frames_window))
             if not detrend_only:
                 F_df = (F - Fd) / (Df + Fd)
@@ -445,7 +602,7 @@ def fast_prct_filt(input_data, level=8, frames_window=1000):
                                 num_traces), order='F')
 
     tr_BL = np.percentile(tr_BL, level, axis=0)
-    tr_BL = scipy.ndimage.zoom(np.array(tr_BL, dtype=np.float32),
+    tr_BL = ndi.zoom(np.array(tr_BL, dtype=np.float32),
                                [downsampfact, 1], order=3, mode='nearest',
                                cval=0.0, prefilter=True)
 
@@ -522,7 +679,7 @@ def detrend_df_f_auto(A, b, C, f, dims=None, YrA=None, use_annulus = True,
 
         for k in range(K):
             a = A[:, k].toarray().reshape(dims, order='F') > 0
-            a2 = np.bitwise_xor(morph.binary_dilation(a, R), a)
+            a2 = np.bitwise_xor(ndi.morphology.binary_dilation(a, R), a)
             a2 = a2.astype(float).flatten(order='F')
             a2 /= np.sqrt(a2.sum())
             a2 = scipy.sparse.csc_matrix(a2)
@@ -548,10 +705,10 @@ def detrend_df_f_auto(A, b, C, f, dims=None, YrA=None, use_annulus = True,
                                           frames_window=frames_window) for
                            f, prctileMin in zip(B, data_prct)])
         else:
-            Fd = np.stack([scipy.ndimage.percentile_filter(
+            Fd = np.stack([ndi.percentile_filter(
                 f, prctileMin, (frames_window)) for f, prctileMin in
                 zip(F, data_prct)])
-            Df = np.stack([scipy.ndimage.percentile_filter(
+            Df = np.stack([ndi.percentile_filter(
                 f, prctileMin, (frames_window)) for f, prctileMin in
                 zip(B, data_prct)])
         F_df = (F - Fd) / (Df + Fd)
@@ -659,7 +816,7 @@ def manually_refine_components(Y, xxx_todo_changeme, A, C, Cn, thr=0.9, display_
             y2_res = y2_tiny - a2_tiny.dot(C)
             y3_res = np.reshape(y2_res, (dy_sz, dx_sz, T), order='F')
             a__, c__, center__, b_in__, f_in__ = greedyROI(
-                y3_res, nr=1, gSig=[np.floor(old_div(dx_sz, 2)), np.floor(old_div(dy_sz, 2))], gSiz=[dx_sz, dy_sz])
+                y3_res, nr=1, gSig=[dx_sz//2, dy_sz//2], gSiz=[dx_sz, dy_sz])
 
             a_f = np.zeros((d, 1))
             idxs = np.meshgrid(coords_y, coords_x)
@@ -787,13 +944,13 @@ def order_components(A, C):
     A = np.array(A.todense())
     nA2 = np.sqrt(np.sum(A**2, axis=0))
     K = len(nA2)
-    A = np.array(np.matrix(A) * spdiags(old_div(1, nA2), 0, K, K))
+    A = np.array(np.matrix(A) * spdiags(1./nA2, 0, K, K))
     nA4 = np.sum(A**4, axis=0)**0.25
     C = np.array(spdiags(nA2, 0, K, K) * np.matrix(C))
     mC = np.ndarray.max(np.array(C), axis=1)
     srt = np.argsort(nA4 * mC)[::-1]
     A_or = A[:, srt] * spdiags(nA2[srt], 0, K, K)
-    C_or = spdiags(old_div(1., nA2[srt]), 0, K, K) * (C[srt, :])
+    C_or = spdiags(1./nA2[srt], 0, K, K) * (C[srt, :])
 
     return A_or, C_or, srt
 
@@ -903,13 +1060,13 @@ def compute_residuals(Yr_mmap_file, A_, b_, C_, f_, dview=None, block_size=1000,
 
     if 'mmap' in str(type(Yr_mmap_file)):
         YA = parallel_dot_product(Yr_mmap_file, Ab, dview=dview, block_size=block_size,
-                                  transpose=True, num_blocks_per_run=num_blocks_per_run) * scipy.sparse.spdiags(old_div(1., nA), 0, Ab.shape[-1], Ab.shape[-1])
+                                  transpose=True, num_blocks_per_run=num_blocks_per_run) * \
+                                  scipy.sparse.spdiags(1./nA, 0, Ab.shape[-1], Ab.shape[-1])
     else:
         YA = (Ab.T.dot(Yr_mmap_file)).T * \
-            spdiags(old_div(1., nA), 0, Ab.shape[-1], Ab.shape[-1])
+            spdiags(1./nA, 0, Ab.shape[-1], Ab.shape[-1])
 
-    AA = ((Ab.T.dot(Ab)) * scipy.sparse.spdiags(old_div(1., nA),
-                                                0, Ab.shape[-1], Ab.shape[-1])).tocsr()
+    AA = ((Ab.T.dot(Ab)) * scipy.sparse.spdiags(1./nA, 0, Ab.shape[-1], Ab.shape[-1])).tocsr()
 
     return (YA - (AA.T.dot(Cf)).T)[:, :A_.shape[-1]].T
 

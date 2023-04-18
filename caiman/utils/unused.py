@@ -62,7 +62,7 @@ def estimate_noise_mode(traces, robust_std=False, use_mode_fast=False, return_al
 
     else:
         Ns = np.sum(ff1 > 0, 1)
-        sd_r = np.sqrt(old_div(np.sum(ff1**2, 1), Ns))
+        sd_r = np.sqrt(np.sum(ff1**2, 1) / Ns)
 
     if return_all:
         return md, sd_r
