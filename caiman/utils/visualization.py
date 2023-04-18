@@ -9,10 +9,6 @@
 #\date Created on Tue Jun 30 21:01:17 2016
 #\author: andrea giovannucci
 
-from builtins import str
-from builtins import range
-from past.utils import old_div
-
 import base64
 import cv2
 from IPython.display import HTML
@@ -44,7 +40,7 @@ except:
 try:
     import bokeh
     import bokeh.plotting as bpl
-    from bokeh.models import CustomJS, ColumnDataSource, Range1d
+    from bokeh.models import CustomJS, ColumnDataSource, Range1d, LabelSet
 except:
     print("Bokeh could not be loaded. Either it is not installed or you are not running within a notebook")
 
@@ -106,7 +102,7 @@ def view_patches(Yr, A, C, b, f, d1, d2, YrA=None, secs=1):
     for i in range(nr + 1):
         if i < nr:
             ax1 = fig.add_subplot(2, 1, 1)
-            pl.imshow(np.reshape(old_div(np.array(A[:, i]), nA2[i]),
+            pl.imshow(np.reshape(np.array(A[:, i]) / nA2[i],
                                  (d1, d2), order='F'), interpolation='None')
             ax1.set_title('Spatial component ' + str(i + 1))
             ax2 = fig.add_subplot(2, 1, 2)
@@ -132,7 +128,8 @@ def view_patches(Yr, A, C, b, f, d1, d2, YrA=None, secs=1):
             ax2.set_title('Temporal background ' + str(i - nr + 1))
 
 
-def nb_view_patches(Yr, A, C, b, f, d1, d2, YrA=None, image_neurons=None, thr=0.99, denoised_color=None, cmap='jet'):
+def nb_view_patches(Yr, A, C, b, f, d1, d2, YrA=None, image_neurons=None, thr=0.99,
+                    denoised_color=None, cmap='jet', r_values=None, SNR=None, cnn_preds=None):
     """
     Interactive plotting utility for ipython notebook
 
@@ -170,7 +167,7 @@ def nb_view_patches(Yr, A, C, b, f, d1, d2, YrA=None, image_neurons=None, thr=0.
     b = np.squeeze(b)
     f = np.squeeze(f)
     if YrA is None:
-        Y_r = np.array(spdiags(old_div(1, nA2), 0, nr, nr) *
+        Y_r = np.array(spdiags(1 / nA2, 0, nr, nr) *
                        (A.T * np.matrix(Yr) -
                         (A.T * np.matrix(b[:, np.newaxis])) * np.matrix(f[np.newaxis]) -
                         A.T.dot(A) * np.matrix(C)) + C)
@@ -194,7 +191,7 @@ def nb_view_patches(Yr, A, C, b, f, d1, d2, YrA=None, image_neurons=None, thr=0.
     source2 = ColumnDataSource(data=dict(c1=c1, c2=c2))
     source2_ = ColumnDataSource(data=dict(cc1=cc1, cc2=cc2))
 
-    callback = CustomJS(args=dict(source=source, source_=source_, source2=source2, source2_=source2_), code="""
+    code="""
             var data = source.data
             var data_ = source_.data
             var f = cb_obj.value - 1
@@ -220,7 +217,40 @@ def nb_view_patches(Yr, A, C, b, f, d1, d2, YrA=None, image_neurons=None, thr=0.
             }
             source2.change.emit();
             source.change.emit();
-        """)
+        """
+
+    if r_values is not None:
+        code += """
+            var mets = metrics.data['mets']
+            mets[1] = metrics_.data['R'][f].toFixed(3)
+            mets[2] = metrics_.data['SNR'][f].toFixed(3)
+            metrics.change.emit();
+        """
+        metrics = ColumnDataSource(data=dict(y=(3, 2, 1, 0),
+            mets=('', "% 7.3f" % r_values[0], "% 7.3f" % SNR[0],
+                  "N/A" if np.sum(cnn_preds) in (0, None) else "% 7.3f" % cnn_preds[0]),
+            keys=("Evaluation Metrics", "Spatial corr:", "SNR:", "CNN:")))
+        if np.sum(cnn_preds) in (0, None):
+            metrics_ = ColumnDataSource(data=dict(R=r_values, SNR=SNR))
+        else:
+            metrics_ = ColumnDataSource(data=dict(R=r_values, SNR=SNR, CNN=cnn_preds))
+            code += """
+                mets[3] = metrics_.data['CNN'][f].toFixed(3)
+            """   
+        labels = LabelSet(x=0, y='y', text='keys', source=metrics, render_mode='canvas')
+        labels2 = LabelSet(x=10, y='y', text='mets', source=metrics, render_mode='canvas', text_align="right")
+        plot2 = bpl.figure(plot_width=200, plot_height=100, toolbar_location = None)
+        plot2.axis.visible = False
+        plot2.grid.visible = False
+        plot2.tools.visible = False
+        plot2.line([0,10], [0,4], line_alpha=0)
+        plot2.add_layout(labels)
+        plot2.add_layout(labels2)     
+    else:
+        metrics, metrics_ = None, None
+
+    callback = CustomJS(args=dict(source=source, source_=source_, source2=source2,
+                                  source2_=source2_, metrics=metrics, metrics_=metrics_), code=code)
 
     plot = bpl.figure(plot_width=600, plot_height=300)
     plot.line('x', 'y', source=source, line_width=1, line_alpha=0.6)
@@ -228,9 +258,6 @@ def nb_view_patches(Yr, A, C, b, f, d1, d2, YrA=None, image_neurons=None, thr=0.
         plot.line('x', 'y2', source=source, line_width=1,
                   line_alpha=0.6, color=denoised_color)
 
-    slider = bokeh.models.Slider(start=1, end=Y_r.shape[0], value=1, step=1,
-                                 title="Neuron Number")
-    slider.js_on_change('value', callback)
     xr = Range1d(start=0, end=image_neurons.shape[1])
     yr = Range1d(start=image_neurons.shape[0], end=0)
     plot1 = bpl.figure(x_range=xr, y_range=yr,
@@ -243,14 +270,20 @@ def nb_view_patches(Yr, A, C, b, f, d1, d2, YrA=None, image_neurons=None, thr=0.
                 line_width=2, source=source2)
 
     if Y_r.shape[0] > 1:
-        bpl.show(bokeh.layouts.layout([[slider], [bokeh.layouts.row(plot1, plot)]]))
+        slider = bokeh.models.Slider(start=1, end=Y_r.shape[0], value=1, step=1,
+                                    title="Neuron Number")
+        slider.js_on_change('value', callback)
+        bpl.show(bokeh.layouts.layout([[slider], [bokeh.layouts.row(
+            plot1 if r_values is None else bokeh.layouts.column(plot1, plot2), plot)]]))
     else:
-        bpl.show(bokeh.layouts.row(plot1, plot))
+        bpl.show(bokeh.layouts.row(plot1 if r_values is None else
+                                   bokeh.layouts.column(plot1, plot2), plot))
 
     return Y_r
 
 
-def hv_view_patches(Yr, A, C, b, f, d1, d2, YrA=None, image_neurons=None, denoised_color=None, cmap='viridis'):
+def hv_view_patches(Yr, A, C, b, f, d1, d2, YrA=None, image_neurons=None, denoised_color=None,
+                    cmap='viridis', r_values=None, SNR=None, cnn_preds=None):
     """
     Interactive plotting utility for ipython notebook
 
@@ -276,6 +309,15 @@ def hv_view_patches(Yr, A, C, b, f, d1, d2, YrA=None, image_neurons=None, denois
 
         cmap: string
             name of colormap (e.g. 'viridis') used to plot image_neurons
+
+        r_values: np.ndarray
+            space correlation values
+
+        SNR: np.ndarray
+            peak-SNR over the length of a transient for each component
+
+        cnn_preds: np.ndarray
+            prediction values from the CNN classifier
     """
 
     nr, T = C.shape
@@ -284,7 +326,7 @@ def hv_view_patches(Yr, A, C, b, f, d1, d2, YrA=None, image_neurons=None, denois
     f = np.squeeze(f)
     if YrA is None:
         Y_r = np.array(
-            spdiags(old_div(1, nA2), 0, nr, nr) *
+            spdiags(1 / nA2, 0, nr, nr) *
             (A.T * np.matrix(Yr) -
              (A.T * np.matrix(b[:, np.newaxis])) * np.matrix(f[np.newaxis]) -
              A.T.dot(A) * np.matrix(C)) + C)
@@ -303,11 +345,18 @@ def hv_view_patches(Yr, A, C, b, f, d1, d2, YrA=None, image_neurons=None, denois
     Ad = np.asarray(A.todense()).reshape((d1, d2, -1), order='F')
 
     def plot_unit(uid, scl):
+        if r_values is not None:
+            metrics = 'Evaluation Metrics\nSpatial corr:% 7.3f\nSNR:% 18.3f\nCNN:' % (
+                r_values[uid], SNR[uid])
+            metrics += ' '*15+'N/A' if np.sum(cnn_preds) in (0, None) else '% 18.3f' % cnn_preds[uid]
+        else:
+            metrics = ''
         trace = (
             hv.Curve(Y_r[uid, :], kdims='frame #').opts(framewise=True)
             * (hv.Curve(C[uid, :], kdims='frame #')
                .opts(color=denoised_color, framewise=True))
-        ).opts(aspect=3, frame_height=200)
+            * hv.Text(.03*Y_r.shape[1], Y_r[uid].max(), metrics, halign='left', valign='top', fontsize=10)
+            ).opts(aspect=3, frame_height=200)
         A_scl = norm(Ad[:, :, uid], (scl, 1))
         im_hsv_scl = im_hsv.copy()
         im_hsv_scl[:, :, 2] = im_hsv[:, :, 2] * A_scl
@@ -315,8 +364,12 @@ def hv_view_patches(Yr, A, C, b, f, d1, d2, YrA=None, image_neurons=None, denois
                 .opts(aspect='equal', frame_height=200))
         return hv.Layout([im_u] + [trace]).cols(1) #im_u + trace
 
-    return (hv.DynamicMap(plot_unit, kdims=['unit_id', 'scale'])
-            .redim.range(unit_id=(0, nr-1), scale=(0.0, 1.0)))
+    if nr==1:
+        return (hv.DynamicMap(lambda scl: plot_unit(0, scl), kdims=['scale'])
+                .redim.range(scale=(0.0, 1.0)))
+    else:
+        return (hv.DynamicMap(plot_unit, kdims=['unit_id', 'scale'])
+                .redim.range(unit_id=(0, nr-1), scale=(0.0, 1.0)))
 
 
 def get_contours(A, dims, thr=0.9, thr_method='nrg', swap_dim=False):
@@ -401,7 +454,7 @@ def get_contours(A, dims, thr=0.9, thr_method='nrg', swap_dim=False):
                 if num_close_coords < 2:
                     if num_close_coords == 0:
                         # case angle
-                        newpt = np.round(old_div(vtx[-1, :], [d2, d1])) * [d2, d1]
+                        newpt = np.round(vtx[-1, :] / [d2, d1]) * [d2, d1]
                         vtx = np.concatenate((vtx, newpt[np.newaxis, :]), axis=0)
                     else:
                         # case one is border
@@ -851,35 +904,44 @@ def display_animation(anim, fps=20):
 #%%
 
 
-def view_patches_bar(Yr, A, C, b, f, d1, d2, YrA=None, img=None):
+def view_patches_bar(Yr, A, C, b, f, d1, d2, YrA=None, img=None,
+                     r_values=None, SNR=None, cnn_preds=None):
     """view spatial and temporal components interactively
 
-     Args:
-         Yr:    np.ndarray
-                movie in format pixels (d) x frames (T)
-    
-         A:     sparse matrix
-                    matrix of spatial components (d x K)
-    
-         C:     np.ndarray
-                    matrix of temporal components (K x T)
-    
-         b:     np.ndarray
-                    spatial background (vector of length d)
-    
-         f:     np.ndarray
-                    temporal background (vector of length T)
-    
-         d1,d2: np.ndarray
-                    frame dimensions
-    
-         YrA:   np.ndarray
-                     ROI filtered residual as it is given from update_temporal_components
-                     If not given, then it is computed (K x T)
-    
-         img:   np.ndarray
-                    background image for contour plotting. Default is the image of all spatial components (d1 x d2)
+    Args:
+        Yr:    np.ndarray
+            movie in format pixels (d) x frames (T)
 
+        A:     sparse matrix
+                matrix of spatial components (d x K)
+
+        C:     np.ndarray
+                matrix of temporal components (K x T)
+
+        b:     np.ndarray
+                spatial background (vector of length d)
+
+        f:     np.ndarray
+                temporal background (vector of length T)
+
+        d1,d2: np.ndarray
+                frame dimensions
+
+        YrA:   np.ndarray
+                    ROI filtered residual as it is given from update_temporal_components
+                    If not given, then it is computed (K x T)
+
+        img:   np.ndarray
+                background image for contour plotting. Default is the image of all spatial components (d1 x d2)
+
+        r_values: np.ndarray
+            space correlation values
+
+        SNR: np.ndarray
+            peak-SNR over the length of a transient for each component
+
+        cnn_preds: np.ndarray
+            prediction values from the CNN classifier
     """
 
     pl.ion()
@@ -891,7 +953,7 @@ def view_patches_bar(Yr, A, C, b, f, d1, d2, YrA=None, img=None):
     nA2 = np.sqrt(np.array(A.power(2).sum(axis=0))).squeeze()
 
     if YrA is None:
-        Y_r = spdiags(old_div(1, nA2), 0, nr, nr) * (A.T.dot(Yr) -
+        Y_r = spdiags(1 / nA2, 0, nr, nr) * (A.T.dot(Yr) -
                                                      (A.T.dot(b)).dot(f) - (A.T.dot(A)).dot(C)) + C
     else:
         Y_r = YrA + C
@@ -911,7 +973,7 @@ def view_patches_bar(Yr, A, C, b, f, d1, d2, YrA=None, img=None):
     vmax = np.percentile(img, 95)
 
     def update(val):
-        i = np.int(np.round(s_comp.val))
+        i = int(np.round(s_comp.val))
         print(('Component:' + str(i)))
 
         if i < nr:
@@ -926,7 +988,13 @@ def view_patches_bar(Yr, A, C, b, f, d1, d2, YrA=None, img=None):
             ax2.plot(np.arange(T), Y_r[i], 'c', linewidth=3)
             ax2.plot(np.arange(T), C[i], 'r', linewidth=2)
             ax2.set_title('Temporal component ' + str(i + 1))
-            ax2.legend(labels=['Filtered raw data', 'Inferred trace'])
+            ax2.legend(labels=['Filtered raw data', 'Inferred trace'], loc=1)
+            if r_values is not None:
+                metrics = 'Evaluation Metrics\nSpatial corr:% 7.3f\nSNR:% 18.3f\nCNN:' % (
+                    r_values[i], SNR[i])
+                metrics += ' '*15+'N/A' if np.sum(cnn_preds) in (0, None) else '% 18.3f' % cnn_preds[i]
+                ax2.text(0.02, 0.97, metrics, ha='left', va='top', transform=ax2.transAxes,
+                        bbox=dict(edgecolor='k', facecolor='w', alpha=.5))
 
             ax3.cla()
             ax3.imshow(img, interpolation='None', cmap=pl.cm.gray, vmax=vmax)

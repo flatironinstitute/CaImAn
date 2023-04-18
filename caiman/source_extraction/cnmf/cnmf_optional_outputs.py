@@ -13,9 +13,6 @@ Created on Fri Aug 26 15:44:32 2016
 
 """
 
-from builtins import str
-from builtins import object
-from past.utils import old_div
 import numpy as np
 from .utilities import local_correlations, order_components, evaluate_components
 from caiman.source_extraction.cnmf.params import CNMFParams
@@ -201,7 +198,7 @@ class CNMF(object):
 
         else:  # use patches
             if self.stride is None:
-                self.stride = np.int(self.rf * 2 * .1)
+                self.stride = int(self.rf * 2 * .1)
                 print(
                     ('**** Setting the stride to 10% of 2*rf automatically:' + str(self.stride)))
 
@@ -219,8 +216,8 @@ class CNMF(object):
             self.optional_outputs = optional_outputs
 
             options = CNMFParams(dims, K=A.shape[-1], gSig=self.gSig, p=self.p, thr=self.merge_thresh)
-            pix_proc = np.minimum(np.int((d1 * d2) / self.n_processes / (
-                old_div(T, 2000.))), np.int(old_div((d1 * d2), self.n_processes)))  # regulates the amount of memory used
+            pix_proc = np.minimum(int((d1 * d2) / self.n_processes / (
+                (T / 2000.))), int((d1 * d2) // self.n_processes))  # regulates the amount of memory used
 
             options['spatial_params']['n_pixels_per_process'] = pix_proc
             options['temporal_params']['n_pixels_per_process'] = pix_proc

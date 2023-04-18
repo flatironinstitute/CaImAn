@@ -25,7 +25,7 @@ def get_patches_from_image(img, shapes, overlaps):
     d1, d2 = np.shape(img)
     rf = np.divide(shapes, 2)
     _, coords_2d = extract_patch_coordinates(d1, d2, rf=rf, stride=overlaps)
-    imgs = np.empty(coords_2d.shape[:2], dtype=np.object)
+    imgs = np.empty(coords_2d.shape[:2], dtype=img.dtype)
 
     for idx_0, count_0 in enumerate(coords_2d):
         for idx_1, count_1 in enumerate(count_0):
@@ -62,7 +62,7 @@ def estimate_noise_mode(traces, robust_std=False, use_mode_fast=False, return_al
 
     else:
         Ns = np.sum(ff1 > 0, 1)
-        sd_r = np.sqrt(old_div(np.sum(ff1**2, 1), Ns))
+        sd_r = np.sqrt(np.sum(ff1**2, 1) / Ns)
 
     if return_all:
         return md, sd_r

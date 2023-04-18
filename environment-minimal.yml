@@ -1,11 +1,11 @@
 channels:
 - conda-forge
 dependencies:
-- python=3.8
+- python >=3.10
 - cython
 - future
-- h5py=2.10.0
-- holoviews
+- h5py
+- holoviews =1.15.2
 - ipyparallel
 - matplotlib
 - numpy
@@ -14,9 +14,10 @@ dependencies:
 - peakutils
 - psutil
 - pynwb
-- scikit-image
-- scikit-learn
+- scikit-image >=0.19.0
+- scikit-learn >=1.2
 - scipy
-- tensorflow
+- tensorflow >=2.4.0
 - tifffile
 - tqdm
+- z5py >=2.0.15

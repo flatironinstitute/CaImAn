@@ -14,7 +14,6 @@ different set of methods like ICA PCA, greedy roi
 #\date Created on Tue Jun 30 21:01:17 2015
 #\author: Eftychios A. Pnevmatikakis
 
-from builtins import range
 import cv2
 import logging
 from math import sqrt
@@ -22,7 +21,6 @@ import matplotlib.animation as animation
 import matplotlib.pyplot as plt
 from multiprocessing import current_process
 import numpy as np
-from past.utils import old_div
 import scipy
 import scipy.ndimage as nd
 from scipy.ndimage.measurements import center_of_mass
@@ -30,9 +28,11 @@ from scipy.ndimage.filters import correlate
 import scipy.sparse as spr
 from skimage.morphology import disk
 from sklearn.decomposition import NMF, FastICA
+from sklearn.exceptions import ConvergenceWarning
 from sklearn.utils.extmath import randomized_svd, squared_norm, randomized_range_finder
 import sys
 from typing import List
+import warnings
 
 import caiman
 from .deconvolution import constrained_foopsi
@@ -46,6 +46,8 @@ try:
     cv2.setNumThreads(0)
 except:
     pass
+
+warnings.filterwarnings(action='ignore', category=ConvergenceWarning)
 
 def resize(Y, size, interpolation=cv2.INTER_LINEAR):
     """faster and 3D compatible version of skimage.transform.resize"""
@@ -302,7 +304,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
     d, T = np.shape(Y)[:-1], np.shape(Y)[-1]
     # rescale according to downsampling factor
     gSig = np.asarray(gSig, dtype=float) / ssub
-    gSiz = np.round(np.asarray(gSiz) / ssub).astype(np.int)
+    gSiz = np.round(np.asarray(gSiz) / ssub).astype(int)
 
     if normalize_init is True:
         logging.info('Variance Normalization')
@@ -311,7 +313,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
             img += np.median(img)
             img += np.finfo(np.float32).eps
 
-        Y = old_div(Y, np.reshape(img, d + (-1,), order='F'))
+        Y = Y / np.reshape(img, d + (-1,), order='F')
         alpha_snmf /= np.mean(img)
     else:
         Y = np.array(Y)
@@ -397,7 +399,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
 
         # Define CNMF parameters
         _, _, _ = cnmf_obj.fit(
-            np.array(Y_ds.transpose([2, 0, 1]), dtype=np.float), cent)
+            np.array(Y_ds.transpose([2, 0, 1]), dtype=float), cent)
 
         Ain = cnmf_obj.A
         Cin = cnmf_obj.C
@@ -587,7 +589,7 @@ def sparseNMF(Y_ds, nr, max_iter_snmf=500, alpha=10e2, sigma_smooth=(.5, .5, .5)
     d = np.prod(dims)
     yr = np.reshape(m1, [T, d], order='F')
     mdl = NMF(n_components=nr, verbose=False, init='nndsvd', tol=1e-10,
-              max_iter=max_iter_snmf, shuffle=False, alpha=alpha, l1_ratio=1)
+              max_iter=max_iter_snmf, shuffle=False, alpha_W=alpha, l1_ratio=1)
     C = mdl.fit_transform(yr).T
     A = mdl.components_.T
     A_in = A
@@ -833,7 +835,7 @@ def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1,
             xySig = np.meshgrid(*[np.arange(s[0], s[1])
                                   for s in ijSig], indexing='xy')
             arr = np.array([np.reshape(s, (1, np.size(s)), order='F').squeeze()
-                            for s in xySig], dtype=np.int)
+                            for s in xySig], dtype=int)
             indices = np.ravel_multi_index(arr, d[0:-1], order='F')
 
             A[indices, k] = np.reshape(
@@ -932,7 +934,7 @@ def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1,
                 xySig = np.meshgrid(*[np.arange(s[0], s[1])
                                       for s in ijSig], indexing='xy')
                 arr = np.array([np.reshape(s, (1, np.size(s)), order='F').squeeze()
-                                for s in xySig], dtype=np.int)
+                                for s in xySig], dtype=int)
                 indices = np.ravel_multi_index(arr, d[0:-1], order='F')
 
                 A_[indices, k] = np.reshape(
@@ -1000,8 +1002,7 @@ def finetune(Y, cin, nIter=5):
     # we compute the multiplication of patches per traces ( non negatively )
     for _ in range(nIter):
         a = np.maximum(np.dot(Y, cin), 0)
-        a = old_div(a, np.sqrt(np.sum(a**2)) +
-                    np.finfo(np.float32).eps)  # compute the l2/a
+        a = a / np.sqrt(np.sum(a**2) + np.finfo(np.float32).eps)  # compute the l2/a
         # c as the variation of thoses patches
         cin = np.sum(Y * a[..., np.newaxis], tuple(np.arange(Y.ndim - 1)))
 
@@ -1030,7 +1031,7 @@ def imblur(Y, sig=5, siz=11, nDimBlur=None, kernel=None, opencv=True):
             if you want to specify a kernel
 
         opencv: [optional]
-            if you want to process to the blur using open cv method
+            if you want to process to the blur using OpenCV method
 
     Returns:
         the blurred image
@@ -1069,9 +1070,8 @@ def imblur(Y, sig=5, siz=11, nDimBlur=None, kernel=None, opencv=True):
                         X, tuple(siz), sig[0], sig[1], cv2.BORDER_CONSTANT, 0)
         else:
             for i in range(nDimBlur):
-                h = np.exp(
-                    old_div(-np.arange(-np.floor(old_div(siz[i], 2)),
-                                       np.floor(old_div(siz[i], 2)) + 1)**2, (2 * sig[i]**2)))
+                h = np.exp(-np.arange(-np.floor(siz[i] / 2),
+                                       np.floor(siz[i] / 2) + 1)**2 / (2 * sig[i]**2))
                 h /= np.sqrt(h.dot(h))
                 shape = [1] * len(Y.shape)
                 shape[i] = -1
@@ -1274,7 +1274,7 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
         for i in range(init_iter - 1):
             if max_number is not None:
                 max_number -= A.shape[-1]
-            if max_number is not 0:
+            if max_number != 0:
                 if i == init_iter-2 and seed_method.lower()[:4] == 'semi':
                     seed_method, min_corr, min_pnr = 'manual', 0, 0
                 logging.info('Searching for more neurons in the residual')
@@ -1422,7 +1422,7 @@ def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
             minimum local correlation coefficients for selecting a seed pixel.
         min_pnr: float
             minimum peak-to-noise ratio for selecting a seed pixel.
-        seed_method: str {'auto', 'manual'}
+        seed_method: str {'auto', 'manual'} or list/array/tuple of seed pixels
             methods for choosing seed pixels
             if running as notebook 'manual' requires a backend that does not
             inline figures, e.g. %matplotlib tk
@@ -1517,7 +1517,7 @@ def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
 
     # pixels near the boundaries are ignored because of artifacts
     ind_bd = np.zeros(shape=(d1, d2)).astype(
-        np.bool)  # indicate boundary pixels
+        bool)  # indicate boundary pixels
     if bd > 0:
         ind_bd[:bd, :] = True
         ind_bd[-bd:, :] = True
@@ -1580,7 +1580,15 @@ def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
 
     all_centers = []
     while continue_searching:
-        if seed_method.lower() == 'manual':
+        tmp_kernel = np.ones(shape=tuple([int(round(gSiz / 4.))] * 2))
+        if not isinstance(seed_method, str):
+            rsub_max, csub_max = np.transpose(np.round(seed_method).astype(int))
+            v_max = cv2.dilate(v_search, tmp_kernel)
+            local_max = v_max[rsub_max, csub_max]
+            ind_local_max = local_max.argsort()[::-1]
+            continue_searching = False 
+
+        elif seed_method.lower() == 'manual':
             # manually pick seed pixels
             fig = plt.figure(figsize=(14,6))
             ax = plt.axes([.03, .05, .96, .22])
@@ -1633,7 +1641,6 @@ def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
                 break
             all_centers += centers
             csub_max, rsub_max = np.transpose(centers)
-            tmp_kernel = np.ones(shape=tuple([int(round(gSiz / 4.))] * 2))
             v_max = cv2.dilate(v_search, tmp_kernel)
             local_max = v_max[rsub_max, csub_max]
             ind_local_max = local_max.argsort()[::-1]
@@ -1644,7 +1651,6 @@ def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
             # add an extra value to avoid repeated seed pixels within one ROI.
             v_search = cv2.medianBlur(v_search, 3) + pixel_v
             v_search[ind_search] = 0
-            tmp_kernel = np.ones(shape=tuple([int(round(gSiz / 4.))] * 2))
             v_max = cv2.dilate(v_search, tmp_kernel)
 
             # automatically select seed pixels as the local maximums
@@ -1728,7 +1734,7 @@ def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
             [ai, ci_raw, ind_success] = extract_ac(data_filtered_box,
                                                    data_raw_box, ind_ctr, patch_dims)
 
-            if (np.sum(ai > 0) < min_pixel) or (not ind_success):
+            if (not ind_success) or (np.sum(ai > 0) < min_pixel):
                 # bad initialization. discard and continue
                 continue
             else:
@@ -1897,6 +1903,8 @@ def extract_ac(data_filtered, data_raw, ind_ctr, patch_dims):
     y_diff = np.concatenate([[-1], np.diff(ci)])
     b = np.median(ci[(y_diff >= 0) * (y_diff < sn)])
     ci -= b
+    if np.isnan(ci.sum()):
+        return None, None, False
 
     # return results
     return ai, ci, True
@@ -2004,7 +2012,7 @@ def compute_W(Y, A, C, dims, radius, data_fits_in_memory=True, ssub=1, tsub=1, p
             return index, data
 
     Q = list((parmap if parallel else map)(process_pixel, range(d1 * d2)))
-    indices, data = np.transpose(Q)
+    indices, data = np.array(Q, dtype=object).T
     indptr = np.concatenate([[0], np.cumsum(list(map(len, indices)))])
     indices = np.concatenate(indices)
     data = np.concatenate(data)

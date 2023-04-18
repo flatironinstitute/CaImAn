@@ -14,19 +14,12 @@ imaging data in real time. In Advances in Neural Information Processing Systems
 @url http://papers.nips.cc/paper/6832-onacid-online-analysis-of-calcium-imaging-data-in-real-time
 """
 
-from builtins import map
-from builtins import range
-from builtins import str
-from builtins import zip
 import cv2
 import logging
 from math import sqrt
-from multiprocessing import current_process, cpu_count
+from multiprocessing import cpu_count
 import numpy as np
-import os
-from past.utils import old_div
 from scipy.ndimage import percentile_filter
-from scipy.ndimage.filters import gaussian_filter
 from scipy.sparse import coo_matrix, csc_matrix, spdiags, hstack
 from scipy.stats import norm
 from sklearn.decomposition import NMF
@@ -43,12 +36,14 @@ from .initialization import imblur, initialize_components, hals, downscale
 from .oasis import OASIS
 from .params import CNMFParams
 from .pre_processing import get_noise_fft
-from .utilities import update_order, get_file_size, peak_local_max, decimation_matrix
+from .utilities import (update_order, get_file_size, peak_local_max, decimation_matrix,
+                        gaussian_filter, uniform_filter)
 from ... import mmapping
 from ...components_evaluation import compute_event_exceptionality
 from ...motion_correction import (motion_correct_iteration_fast,
-                                  tile_and_correct, high_pass_filter_space,
-                                  sliding_window)
+                                  tile_and_correct, tile_and_correct_3d,
+                                  high_pass_filter_space, sliding_window,
+                                  register_translation_3d, apply_shifts_dft)
 from ...utils.utils import save_dict_to_hdf5, load_dict_from_hdf5, parmap, load_graph
 from ...utils.stats import pd_solve
 from ... import summary_images
@@ -242,7 +237,7 @@ class OnACID(object):
 
         if not self.is1p:
             self.params.set('init', {'gSiz': np.add(np.multiply(np.ceil(
-                self.params.get('init', 'gSig')).astype(np.int), 2), 1)})
+                self.params.get('init', 'gSig')).astype(int), 2), 1)})
 
         self.estimates.Yr_buf = RingBuffer(Yr[:, self.params.get('online', 'init_batch') - self.params.get('online', 'minibatch_shape'):
                                     self.params.get('online', 'init_batch')].T.copy(), self.params.get('online', 'minibatch_shape'))
@@ -414,10 +409,8 @@ class OnACID(object):
         Ab_ = self.estimates.Ab
         mbs = self.params.get('online', 'minibatch_shape')
         ssub_B = self.params.get('init', 'ssub_B') * self.params.get('init', 'ssub')
-        d1, d2 = self.estimates.dims
         expected_comps = self.params.get('online', 'expected_comps')
         frame = frame_in.astype(np.float32)
-#        print(np.max(1/scipy.sparse.linalg.norm(self.estimates.Ab,axis = 0)))
         self.estimates.Yr_buf.append(frame)
         if len(self.estimates.ind_new) > 0:
             self.estimates.mean_buff = self.estimates.Yres_buf.mean(0)
@@ -943,26 +936,24 @@ class OnACID(object):
         self.estimates.shifts = []  # store motion shifts here
         self.estimates.time_new_comp = []
         if self.params.get('online', 'motion_correct'):
-            max_shifts_online = self.params.get('online', 'max_shifts_online')
-            if self.params.get('motion', 'gSig_filt') is None:
-                mc = Y.motion_correct(max_shifts_online, max_shifts_online)
-                Y = mc[0].astype(np.float32)
-            else:
-                Y_filt = np.stack([high_pass_filter_space(yf, self.params.motion['gSig_filt']) for yf in Y], axis=0)
-                Y_filt = caiman.movie(Y_filt)
-                mc = Y_filt.motion_correct(max_shifts_online, max_shifts_online)
-                Y = Y.apply_shifts(mc[1])
+            mc = caiman.motion_correction.MotionCorrect(Y, dview=self.dview, **self.params.get_group('motion'))
+            mc.motion_correct(save_movie=True)
+            fname_new = caiman.save_memmap(mc.mmap_file, base_name='memmap_', order='C', dview=self.dview)
+            Y = caiman.load(fname_new, is3D=self.params.get('motion', 'is3D'))
             if self.params.get('motion', 'pw_rigid'):
-                n_p = len([(it[0], it[1])
-                     for it in sliding_window(Y[0], self.params.get('motion', 'overlaps'), self.params.get('motion', 'strides'))])
-                for sh in mc[1]:
-                    self.estimates.shifts.append([tuple(sh) for i in range(n_p)])
+                if self.params.get('motion', 'is3D'):
+                    self.estimates.shifts.extend(list(map(tuple, np.transpose([x, y, z])))
+                        for (x, y, z) in zip(mc.x_shifts_els, mc.y_shifts_els, mc.z_shifts_els))
+                else:
+                    self.estimates.shifts.extend(list(map(tuple, np.transpose([x, y])))
+                        for (x, y) in zip(mc.x_shifts_els, mc.y_shifts_els))
             else:
-                self.estimates.shifts.extend(mc[1])                
+                self.estimates.shifts.extend(mc.shifts_rig)
+            self.min_mov = mc.min_mov
         img_min = Y.min()
 
         if self.params.get('online', 'normalize'):
-            Y -= img_min
+            Y = Y - img_min
         img_norm = np.std(Y, axis=0)
         img_norm += np.median(img_norm)  # normalize data to equalize the FOV
         logging.info('Frame size:' + str(img_norm.shape))
@@ -970,7 +961,6 @@ class OnACID(object):
             Y = Y/img_norm[None, :, :]
         if opts['show_movie']:
             self.bnd_Y = np.percentile(Y,(0.001,100-0.001))
-        _, d1, d2 = Y.shape
         Yr = Y.to_2D().T        # convert data into 2D array
         self.img_min = img_min
         self.img_norm = img_norm
@@ -1069,6 +1059,8 @@ class OnACID(object):
 
 
     def mc_next(self, t, frame):
+        if self.params.motion['nonneg_movie']:
+            frame = frame-self.min_mov
         frame_ = frame.flatten(order='F')
         if self.is1p and self.estimates.W is not None:
             templ = self.estimates.Ab.dot(
@@ -1088,18 +1080,33 @@ class OnACID(object):
         if self.is1p:
             templ = high_pass_filter_space(templ, self.params.motion['gSig_filt'])
         if self.params.get('motion', 'pw_rigid'):
-            frame_cor, shift, _, xy_grid = tile_and_correct(
+            tac = tile_and_correct_3d if self.params.get('motion', 'is3D') else tile_and_correct
+            frame_cor, shift, _, xy_grid = tac(
                 frame, templ, self.params.motion['strides'], self.params.motion['overlaps'],
                 self.params.motion['max_shifts'], newoverlaps=None, newstrides=None,
-                upsample_factor_grid=4, upsample_factor_fft=10, show_movie=False,
+                upsample_factor_grid=self.params.motion['upsample_factor_grid'],
+                upsample_factor_fft=10, show_movie=False,
                 max_deviation_rigid=self.params.motion['max_deviation_rigid'], add_to_movie=0,
                 shifts_opencv=True, gSig_filt=None, use_cuda=False, border_nan='copy')
         else:
             if self.is1p:
                 frame_orig = frame.copy()
                 frame = high_pass_filter_space(frame, self.params.motion['gSig_filt'])
-            frame_cor, shift = motion_correct_iteration_fast(
-                    frame, templ, *(self.params.get('online', 'max_shifts_online'),)*2)
+
+            if self.params.get('motion', 'is3D'):
+                # TODO: write function motion_correct_iteration_fast_3d?
+                shift, sfr_freq, diffphase = register_translation_3d(
+                    frame, templ, upsample_factor=10, max_shifts=self.params.motion['max_shifts'])
+                frame_cor = apply_shifts_dft(
+                    sfr_freq, -shift, diffphase, border_nan=self.params.motion['border_nan'])
+                # register_translation[_3d] returns by how much the frame is shifted w/ respect
+                #     to the template, i.e. need to apply -shifts to get the corrected frame
+                # tile_and_correct[_3d] and motion_correct_iteration[_fast] return the shifts needed to apply to get the corrected frame
+                # shift = list(map(tuple, -np.array(shift)))
+                shift = tuple(-np.array(shift))
+            else:
+                frame_cor, shift = motion_correct_iteration_fast(
+                        frame, templ, *(self.params.get('online', 'max_shifts_online'),)*2)
             if self.is1p:
                 M = np.float32([[1, 0, shift[1]], [0, 1, shift[0]]])
                 frame_cor = cv2.warpAffine(frame_orig, M, frame.shape[::-1],
@@ -1183,9 +1190,6 @@ class OnACID(object):
         t = init_batch
         self.Ab_epoch:List = []
         t_online = []
-        ssub_B = self.params.get('init', 'ssub_B') * self.params.get('init', 'ssub')
-        d1, d2 = self.params.get('data', 'dims')
-        max_shifts_online = self.params.get('online', 'max_shifts_online')
         if extra_files == 0:     # check whether there are any additional files
             process_files = fls[:init_files]     # end processing at this file
             init_batc_iter = [init_batch]         # place where to start
@@ -1374,9 +1378,9 @@ class OnACID(object):
         all_comps = np.minimum(np.maximum(all_comps, 0)*fac, 1)
                                                   # spatial shapes
         frame_comp_1 = cv2.resize(np.concatenate([frame_plot, all_comps * 1.], axis=-1),
-                                  (2 * np.int(self.dims[1] * resize_fact), np.int(self.dims[0] * resize_fact)))
+                                  (2 * int(self.dims[1] * resize_fact), int(self.dims[0] * resize_fact)))
         frame_comp_2 = cv2.resize(np.concatenate([comps_frame, denoised_frame], axis=-1), 
-                                  (2 * np.int(self.dims[1] * resize_fact), np.int(self.dims[0] * resize_fact)))
+                                  (2 * int(self.dims[1] * resize_fact), int(self.dims[0] * resize_fact)))
         frame_pn = np.concatenate([frame_comp_1, frame_comp_2], axis=0).T
         if transpose:
             self.dims = self.dims[::-1]
@@ -1387,7 +1391,7 @@ class OnACID(object):
 
         #if show_residuals and est.ind_new:
         if est.ind_new:
-            add_v = np.int(self.dims[1-transpose]*resize_fact)
+            add_v = int(self.dims[1-transpose]*resize_fact)
             for ind_new in est.ind_new:
                 cv2.rectangle(vid_frame,(int(ind_new[transpose][1]*resize_fact) + transpose*add_v,
                                          int(ind_new[1-transpose][1]*resize_fact) + (1-transpose)*add_v),
@@ -1396,11 +1400,11 @@ class OnACID(object):
 
         cv2.putText(vid_frame, captions[0], (5, 20), fontFace=5, fontScale=0.8, color=(
             0, 255, 0), thickness=1)
-        cv2.putText(vid_frame, captions[1+transpose], (np.int(
+        cv2.putText(vid_frame, captions[1+transpose], (int(
             self.dims[0] * resize_fact) + 5, 20), fontFace=5, fontScale=0.8, color=(0, 255, 0), thickness=1)
-        cv2.putText(vid_frame, captions[2-transpose], (5, np.int(
+        cv2.putText(vid_frame, captions[2-transpose], (5, int(
             self.dims[1] * resize_fact) + 20), fontFace=5, fontScale=0.8, color=(0, 255, 0), thickness=1)
-        cv2.putText(vid_frame, captions[3], (np.int(self.dims[0] * resize_fact) + 5, np.int(
+        cv2.putText(vid_frame, captions[3], (int(self.dims[0] * resize_fact) + 5, int(
             self.dims[1] * resize_fact) + 20), fontFace=5, fontScale=0.8, color=(0, 255, 0), thickness=1)
         cv2.putText(vid_frame, 'Frame = ' + str(self.t), (vid_frame.shape[1] // 2 - vid_frame.shape[1] //
                                                      10, vid_frame.shape[0] - 20), fontFace=5, fontScale=0.8, color=(0, 255, 255), thickness=1)
@@ -1456,9 +1460,9 @@ def bare_initialization(Y, init_batch=1000, k=1, method_init='greedy_roi', gnb=1
         nA = (Ain.power(2).sum(axis=0))
         nr = nA.size
 
-        YA = spdiags(old_div(1., nA), 0, nr, nr) * \
+        YA = spdiags(1./nA, 0, nr, nr) * \
             (Ain.T.dot(Yr) - (Ain.T.dot(b_in)).dot(f_in))
-        AA = spdiags(old_div(1., nA), 0, nr, nr) * (Ain.T.dot(Ain))
+        AA = spdiags(1./nA, 0, nr, nr) * (Ain.T.dot(Ain))
         YrA = YA - AA.T.dot(Cin)
     except ValueError:
         Ain, Cin, b_in, f_in, center, extra_1p = initialize_components(
@@ -1563,9 +1567,9 @@ def seeded_initialization(Y, Ain, dims=None, init_batch=1000, order_init=None, g
     nA = (Ain.power(2).sum(axis=0))
     nr = nA.size
 
-    YA = spdiags(old_div(1., nA), 0, nr, nr) * \
+    YA = spdiags(1./nA, 0, nr, nr) * \
         (Ain.T.dot(Yr) - (Ain.T.dot(b_in)).dot(f_in))
-    AA = spdiags(old_div(1., nA), 0, nr, nr) * (Ain.T.dot(Ain))
+    AA = spdiags(1./nA, 0, nr, nr) * (Ain.T.dot(Ain))
     YrA = YA - AA.T.dot(Cin)
     if return_object:
         cnm_init = caiman.source_extraction.cnmf.cnmf.CNMF(
@@ -2067,9 +2071,8 @@ def get_candidate_components(sv, dims, Yres_buf, min_num_trial=3, gSig=(5, 5),
 #        plt.cla()
 #        plt.imshow(img_select_peaks)
 
-        img_select_peaks = cv2.GaussianBlur(img_select_peaks , ksize=ksize, sigmaX=gSig[0],
-                                                        sigmaY=gSig[1], borderType=cv2.BORDER_REPLICATE) \
-                    - cv2.boxFilter(img_select_peaks, ddepth=-1, ksize=ksize, borderType=cv2.BORDER_REPLICATE)
+        img_select_peaks = gaussian_filter(img_select_peaks, gSig, truncate=3/2, mode='nearest') \
+                        - uniform_filter(img_select_peaks, ksize, mode='nearest')
         thresh_img_sel = 0 #np.median(img_select_peaks) + thresh_std_peak_resid  * np.std(img_select_peaks)
 
 #        plt.subplot(1,3,2)
@@ -2086,7 +2089,7 @@ def get_candidate_components(sv, dims, Yres_buf, min_num_trial=3, gSig=(5, 5),
 #        img_select_peaks = clahe.apply(img_select_peaks)
 
         local_maxima = peak_local_max(img_select_peaks,
-                                      min_distance=np.max(np.array(gSig)).astype(np.int),
+                                      min_distance=np.max(np.array(gSig)).astype(int),
                                       num_peaks=min_num_trial,threshold_abs=thresh_img_sel, exclude_border = False)
         min_num_trial = np.minimum(len(local_maxima),min_num_trial)
 

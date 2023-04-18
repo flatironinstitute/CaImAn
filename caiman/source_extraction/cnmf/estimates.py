@@ -107,6 +107,10 @@ class Estimates(object):
             ecc: np.ndarray
                 eccentricity values
         """
+        # Sanity checks (right now these just warn, but eventually we would like to fail)
+        if R is not None and not isinstance(R, np.ndarray):
+            logging.warning(f"Estimates.R should be an np.ndarray but was assigned a {type(R)}")
+
         # variables related to the estimates of traces, footprints, deconvolution and background
         self.A = A
         self.C = C
@@ -341,11 +345,15 @@ class Estimates(object):
 
         if idx is None:
             caiman.utils.visualization.view_patches_bar(Yr, self.A, self.C,
-                    self.b, self.f, self.dims[0], self.dims[1], YrA=self.R, img=img)
+                    self.b, self.f, self.dims[0], self.dims[1], YrA=self.R, img=img,
+                    r_values=self.r_values, SNR=self.SNR_comp, cnn_preds=self.cnn_preds)
         else:
-            caiman.utils.visualization.view_patches_bar(Yr, self.A.tocsc()[:,idx],
-                                                        self.C[idx], self.b, self.f,
-                                                        self.dims[0], self.dims[1], YrA=self.R[idx], img=img)
+            caiman.utils.visualization.view_patches_bar(
+                Yr, self.A.tocsc()[:,idx], self.C[idx], self.b, self.f,
+                self.dims[0], self.dims[1], YrA=self.R[idx], img=img,
+                r_values=None if self.r_values is None else self.r_values[idx],
+                SNR=None if self.SNR_comp is None else self.SNR_comp[idx],
+                cnn_preds=None if np.sum(self.cnn_preds) in (0, None) else self.cnn_preds[idx])
         return self
 
     def nb_view_components(self, Yr=None, img=None, idx=None,
@@ -377,7 +385,7 @@ class Estimates(object):
 
         plt.ion()
         nr, T = self.C.shape
-        if self.R is None:
+        if self.R is None or self.R == b'NoneType':
             self.R = self.YrA
         if self.R.shape != [nr, T]:
             if self.YrA is None:
@@ -389,14 +397,18 @@ class Estimates(object):
             img = np.reshape(np.array(self.A.mean(axis=1)), self.dims, order='F')
 
         if idx is None:
-            caiman.utils.visualization.nb_view_patches(Yr, self.A, self.C,
-                    self.b, self.f, self.dims[0], self.dims[1], YrA=self.R, image_neurons=img,
-                    thr=thr, denoised_color=denoised_color, cmap=cmap)
+            caiman.utils.visualization.nb_view_patches(
+                Yr, self.A, self.C, self.b, self.f, self.dims[0], self.dims[1],
+                YrA=self.R, image_neurons=img, thr=thr, denoised_color=denoised_color, cmap=cmap,
+                r_values=self.r_values, SNR=self.SNR_comp, cnn_preds=self.cnn_preds)
         else:
-            caiman.utils.visualization.nb_view_patches(Yr, self.A.tocsc()[:,idx],
-                                                        self.C[idx], self.b, self.f,
-                                                        self.dims[0], self.dims[1], YrA=self.R[idx], image_neurons=img,
-                                                        thr=thr, denoised_color=denoised_color, cmap=cmap)
+            caiman.utils.visualization.nb_view_patches(
+                Yr, self.A.tocsc()[:,idx], self.C[idx], self.b, self.f,
+                self.dims[0], self.dims[1], YrA=self.R[idx], image_neurons=img,
+                thr=thr, denoised_color=denoised_color, cmap=cmap,
+                r_values=None if self.r_values is None else self.r_values[idx],
+                SNR=None if self.SNR_comp is None else self.SNR_comp[idx],
+                cnn_preds=None if np.sum(self.cnn_preds) in (0, None) else self.cnn_preds[idx])
         return self
 
     def hv_view_components(self, Yr=None, img=None, idx=None,
@@ -425,9 +437,9 @@ class Estimates(object):
 
         plt.ion()
         nr, T = self.C.shape
-        if self.R is None:
+        if self.R is None or self.R == b'NoneType':
             self.R = self.YrA
-        if self.R.shape != [nr, T]:
+        if self.R.shape != (nr, T):
             if self.YrA is None:
                 self.compute_residuals(Yr)
             else:
@@ -439,13 +451,16 @@ class Estimates(object):
         if idx is None:
             hv_plot = caiman.utils.visualization.hv_view_patches(
                 Yr, self.A, self.C, self.b, self.f, self.dims[0], self.dims[1],
-                YrA=self.R, image_neurons=img, denoised_color=denoised_color,
-                cmap=cmap)
+                YrA=self.R, image_neurons=img, denoised_color=denoised_color, cmap=cmap,
+                r_values=self.r_values, SNR=self.SNR_comp, cnn_preds=self.cnn_preds)
         else:
             hv_plot = caiman.utils.visualization.hv_view_patches(
                 Yr, self.A.tocsc()[:, idx], self.C[idx], self.b, self.f,
                 self.dims[0], self.dims[1], YrA=self.R[idx], image_neurons=img,
-                denoised_color=denoised_color, cmap=cmap)
+                denoised_color=denoised_color, cmap=cmap,
+                r_values=None if self.r_values is None else self.r_values[idx],
+                SNR=None if self.SNR_comp is None else self.SNR_comp[idx],
+                cnn_preds=None if np.sum(self.cnn_preds) in (0, None) else self.cnn_preds[idx])
         return hv_plot
 
     def nb_view_components_3d(self, Yr=None, image_type='mean', dims=None,
@@ -489,7 +504,7 @@ class Estimates(object):
             dims = self.dims
         plt.ion()
         nr, T = self.C.shape
-        if self.R is None:
+        if self.R is None or self.R == b'NoneType':
             self.R = self.YrA
         if self.R.shape != [nr, T]:
             if self.YrA is None:
@@ -997,6 +1012,8 @@ class Estimates(object):
         nA_inv_mat = scipy.sparse.spdiags(1. / (nA + np.finfo(np.float32).eps), 0, nA.shape[0], nA.shape[0])
         self.A = self.A * nA_inv_mat
         self.C = nA_mat * self.C
+        if self.S is not None:
+            self.S = nA_mat * self.S
         if self.YrA is not None:
             self.YrA = nA_mat * self.YrA
         if self.R is not None:
@@ -1575,7 +1592,7 @@ class Estimates(object):
                 indeces of components with size within the acceptable range
         '''
         if self.A_thr is None:
-            raise Exception('You need to compute thresolded components before calling remove_duplicates: use the threshold_components method')
+            raise Exception('You need to compute thresholded components before calling remove_duplicates: use the threshold_components method')
 
         A_gt_thr_bin = self.A_thr.toarray() > 0
         size_neurons_gt = A_gt_thr_bin.sum(0)
@@ -1605,7 +1622,7 @@ class Estimates(object):
             plot_duplicates
         '''
         if self.A_thr is None:
-            raise Exception('You need to compute thresolded components before calling remove_duplicates: use the threshold_components method')
+            raise Exception('You need to compute thresholded components before calling remove_duplicates: use the threshold_components method')
 
         A_gt_thr_bin = (self.A_thr.toarray() > 0).reshape([self.dims[0], self.dims[1], -1], order='F').transpose([2, 0, 1]) * 1.
 
@@ -1646,7 +1663,7 @@ class Estimates(object):
         """
         if self.A_thr is None:
             raise Exception(
-                'You need to compute thresolded components before calling this method: use the threshold_components method')
+                'You need to compute thresholded components before calling this method: use the threshold_components method')
         bin_masks = self.A_thr.reshape([self.dims[0], self.dims[1], -1], order='F').transpose([2, 0, 1])
         return nf_masks_to_neurof_dict(bin_masks, dataset_name)
 
@@ -1803,9 +1820,9 @@ class Estimates(object):
             ps.add_column('snr', 'signal to noise ratio')
             ps.add_column('accepted', 'in accepted list')
             ps.add_column('rejected', 'in rejected list')
-            if self.cnn_preds:
+            if self.cnn_preds is not None:
                 ps.add_column('cnn', 'description of CNN')
-            if self.idx_components:
+            if self.idx_components is not None:
                 ps.add_column('keep', 'in idx_components')
 
             # Add ROIs
@@ -1816,9 +1833,9 @@ class Estimates(object):
                     add_roi_kwargs.update(accepted=i in self.accepted_list)
                 if hasattr(self, 'rejected_list'):
                     add_roi_kwargs.update(rejected=i in self.rejected_list)
-                if self.cnn_preds:
+                if self.cnn_preds is not None:
                     add_roi_kwargs.update(cnn=self.cnn_preds[i])
-                if self.idx_components:
+                if self.idx_components is not None:
                     add_roi_kwargs.update(keep=i in self.idx_components)
 
                 ps.add_roi(**add_roi_kwargs)
@@ -1865,10 +1882,10 @@ def compare_components(estimate_gt, estimate_cmp,  Cn=None, thresh_cost=.8, min_
                        labels=['GT', 'CMP'], plot_results=False):
     if estimate_gt.A_thr is None:
         raise Exception(
-            'You need to compute thresolded components for first argument before calling remove_duplicates: use the threshold_components method')
+            'You need to compute thresholded components for first argument before calling remove_duplicates: use the threshold_components method')
     if estimate_cmp.A_thr is None:
         raise Exception(
-            'You need to compute thresolded components for second argument before calling remove_duplicates: use the threshold_components method')
+            'You need to compute thresholded components for second argument before calling remove_duplicates: use the threshold_components method')
 
     if plot_results:
         plt.figure(figsize=(20, 10))

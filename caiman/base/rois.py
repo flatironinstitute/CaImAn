@@ -6,11 +6,6 @@ Created on Thu Oct 22 13:22:26 2015
 @author: agiovann
 """
 
-from builtins import map
-from builtins import zip
-from builtins import str
-from builtins import range
-
 import cv2
 import json
 import logging
@@ -18,17 +13,19 @@ import matplotlib.pyplot as pl
 import matplotlib.patches as mpatches
 import numpy as np
 import os
-from past.utils import old_div
+
+import scipy
 from scipy.ndimage.filters import gaussian_filter
 from scipy.ndimage import label, center_of_mass
-from skimage.morphology import remove_small_objects, remove_small_holes, dilation, closing
-import scipy
-from scipy import ndimage as ndi
 from scipy.optimize import linear_sum_assignment
+
 import shutil
-from skimage.filters import sobel
-from skimage.morphology import watershed
+
 from skimage.draw import polygon
+from skimage.filters import sobel
+from skimage.morphology import remove_small_objects, remove_small_holes, dilation, closing
+from skimage.segmentation import watershed
+
 import tempfile
 import time
 from typing import Any, Dict, List, Optional, Tuple
@@ -251,16 +248,15 @@ def nf_match_neurons_in_binary_masks(masks_gt,
     ), order='F'))
 
     # have the center of mass of each element of the two masks
-    cm_ben = [scipy.ndimage.center_of_mass(mm) for mm in masks_gt]
+    cm_ben  = [scipy.ndimage.center_of_mass(mm) for mm in masks_gt]
     cm_cnmf = [scipy.ndimage.center_of_mass(mm) for mm in masks_comp]
 
     if D is None:
         #% find distances and matches
         # find the distance between each masks
         D = distance_masks([A_ben, A_cnmf], [cm_ben, cm_cnmf], min_dist, enclosed_thr=enclosed_thr)
-        level = 0.98
-    else:
-        level = .98
+
+    level = 0.98
 
     matches, costs = find_matches(D, print_assignment=print_assignment)
     matches = matches[0]
@@ -273,9 +269,9 @@ def nf_match_neurons_in_binary_masks(masks_gt,
     TN = 0
 
     performance = dict()
-    performance['recall'] = old_div(TP, (TP + FN))
-    performance['precision'] = old_div(TP, (TP + FP))
-    performance['accuracy'] = old_div((TP + TN), (TP + FP + FN + TN))
+    performance['recall'] = TP / (TP + FN)
+    performance['precision'] = TP / (TP + FP)
+    performance['accuracy'] = (TP + TN) / (TP + FP + FN + TN)
     performance['f1_score'] = 2 * TP / (2 * TP + FP + FN)
     logging.debug(performance)
     #%%
@@ -475,8 +471,8 @@ def register_ROIs(A1,
         if 'csc_matrix' not in str(type(A2)):
             A2 = scipy.sparse.csc_matrix(A2)
 
-        cm_1 = com(A1, dims[0], dims[1])
-        cm_2 = com(A2, dims[0], dims[1])
+        cm_1 = com(A1, *dims)
+        cm_2 = com(A2, *dims)
         A1_tr = (A1 > 0).astype(float)
         A2_tr = (A2 > 0).astype(float)
         D = distance_masks([A1_tr, A2_tr], [cm_1, cm_2], max_dist, enclosed_thr=enclosed_thr)
@@ -509,9 +505,9 @@ def register_ROIs(A1,
     TN = 0
 
     performance = dict()
-    performance['recall'] = old_div(TP, (TP + FN))
-    performance['precision'] = old_div(TP, (TP + FP))
-    performance['accuracy'] = old_div((TP + TN), (TP + FP + FN + TN))
+    performance['recall'] = TP / (TP + FN)
+    performance['precision'] = TP / (TP + FP)
+    performance['accuracy'] = (TP + TN) / (TP + FP + FN + TN)
     performance['f1_score'] = 2 * TP / (2 * TP + FP + FN)
     logging.info(performance)
 
@@ -632,7 +628,7 @@ def register_multisession(A,
                                     dims,
                                     template1=templates[sess],
                                     template2=templates[sess - 1],
-                                    align_flag=True,
+                                    align_flag=align_flag,
                                     max_thr=max_thr,
                                     use_opt_flow=use_opt_flow,
                                     thresh_cost=thresh_cost,
@@ -796,8 +792,8 @@ def find_matches(D_s, print_assignment: bool = False) -> Tuple[List, List]:
         # we make a copy not to set changes in the original
         DD = D.copy()
         if np.sum(np.where(np.isnan(DD))) > 0:
-            logging.error('Exception: Distance Matrix contains NaN, not allowed!')
-            raise Exception('Distance Matrix contains NaN, not allowed!')
+            logging.error('Exception: Distance Matrix contains invalid value NaN')
+            raise Exception('Distance Matrix contains invalid value NaN')
 
         # we do the hungarian
         indexes = linear_sum_assignment(DD)
@@ -867,7 +863,7 @@ def link_neurons(matches: List[List[Tuple]],
             neurons.append(neuron)
 
     neurons = np.array(neurons).T
-    logging.info(('num_neurons:' + str(num_neurons)))
+    logging.info(f'num_neurons: {num_neurons}')
     return neurons
 
 
@@ -1178,13 +1174,13 @@ def extract_binary_masks_blob(A,
         markers[gray_image > thr_2] = 2
         edges = watershed(elevation_map, markers) - 1
         # only keep largest object
-        label_objects, _ = ndi.label(edges)
+        label_objects, _ = scipy.ndimage.label(edges)
         sizes = np.bincount(label_objects.ravel())
 
         if len(sizes) > 1:
             idx_largest = np.argmax(sizes[1:])
             edges = (label_objects == (1 + idx_largest))
-            edges = ndi.binary_fill_holes(edges)
+            edges = scipy.ndimage.binary_fill_holes(edges)
         else:
             logging.warning('empty component')
             edges = np.zeros_like(edges)

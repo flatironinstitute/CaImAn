@@ -1,16 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 """
-Spyder Editor
-
 author: agiovann
 """
 #%%
-from builtins import zip
-from builtins import str
-from builtins import range
-from past.utils import old_div
-
 import cv2
 import logging
 import numpy as np
@@ -77,12 +70,12 @@ class trace(ts.timeseries):
 
         tracesDFF = []
         for tr in self.T:
-            logging.debug("TR Shape is " + str(tr.shape))
+            logging.debug(f"TR Shape is {tr.shape}")
             traceBL = [np.percentile(tr[i:i + window], minQuantile) for i in range(1, len(tr) - window)]
             missing = np.percentile(tr[-window:], minQuantile)
             missing = np.repeat(missing, window + 1)
             traceBL = np.concatenate((traceBL, missing))
-            tracesDFF.append(old_div((tr - traceBL), traceBL))
+            tracesDFF.append((tr - traceBL) / traceBL)
 
         return self.__class__(np.asarray(tracesDFF).T, **self.__dict__)
 

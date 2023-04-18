@@ -1,7 +1,5 @@
 #!/usr/bin/env python
 
-from __future__ import division
-from __future__ import print_function
 # example python script for loading neurofinder data
 #
 # for more info see:
@@ -16,10 +14,6 @@ from __future__ import print_function
 # - matplotlib
 #
 #%%
-from builtins import zip
-from builtins import str
-from builtins import range
-from past.utils import old_div
 get_ipython().magic('load_ext autoreload')
 get_ipython().magic('autoreload 2')
 import matplotlib.pyplot as plt
@@ -122,10 +116,10 @@ Ks = np.array([el[6] for el in params])
 #%%
 backend = 'local'
 if backend == 'SLURM':
-    n_processes = np.int(os.environ.get('SLURM_NPROCS'))
+    n_processes = int(os.environ.get('SLURM_NPROCS'))
 else:
     # roughly number of cores on your machine minus 1
-    n_processes = np.maximum(np.int(psutil.cpu_count()), 1)
+    n_processes = np.maximum(int(psutil.cpu_count()), 1)
 print(('using ' + str(n_processes) + ' processes'))
 single_thread = False
 
@@ -166,7 +160,7 @@ for folder_in, f_r, gsig, K in zip(base_folders[-1:], f_rates[-1:], gsigs[-1:], 
     movie_name = os.path.join(folder_in, 'images', 'images_all.tif')
     if save_mmap:
             #%%
-        downsample_factor = old_div(final_frate, f_r)
+        downsample_factor = final_frate / f_r
         base_name = 'Yr'
         name_new = cse.utilities.save_memmap_each([movie_name], dview=None, base_name=base_name, resize_fact=(
             1, 1, downsample_factor), remove_init=0, idx_xy=None)
@@ -221,8 +215,8 @@ for folder_in, f_r, gsig, K in zip(base_folders[-1:], f_rates[-1:], gsigs[-1:], 
     #%% set parameters for full field of view analysis
     options = cse.utilities.CNMFSetParms(
         Y, n_processes, p=0, gSig=gSig, K=A_tot.shape[-1], thr=merge_thresh)
-    pix_proc = np.minimum(np.int((d1 * d2) / n_processes / (old_div(T, 2000.))), np.int(
-        old_div((d1 * d2), n_processes)))  # regulates the amount of memory used
+    pix_proc = np.minimum(int((d1 * d2) / n_processes / (T / 2000.)),
+                          int((d1 * d2) // n_processes))  # regulates the amount of memory used
     options['spatial_params']['n_pixels_per_process'] = pix_proc
     options['temporal_params']['n_pixels_per_process'] = pix_proc
     #%% merge spatially overlaping and temporally correlated components

@@ -10,8 +10,6 @@ See Also:
 @author andrea giovannucci
 """
 
-from builtins import range
-
 import cv2
 import logging
 import numpy as np
@@ -90,7 +88,7 @@ def local_correlations_fft(Y,
             and moves it in the front
     
         opencv: Boolean
-            If True process using open cv method
+            If True process using OpenCV method
 
         rolling_window: (undocumented)
 

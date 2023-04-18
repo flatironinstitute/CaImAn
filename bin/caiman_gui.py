@@ -7,8 +7,8 @@ import numpy as np
 import pyqtgraph as pg
 import scipy
 import os
-from pyqtgraph import FileDialog
-from pyqtgraph.Qt import QtGui
+from pyqtgraph import FileDialog, QtWidgets
+# from pyqtgraph.Qt import QtGui
 from pyqtgraph.parametertree import Parameter, ParameterTree
 from scipy.sparse import csc_matrix
 
@@ -17,12 +17,12 @@ from caiman.source_extraction.cnmf.cnmf import load_CNMF
 from caiman.source_extraction.cnmf.params import CNMFParams
 
 # Always start by initializing Qt (only once per application)
-app = QtGui.QApplication([])
+app = QtWidgets.QApplication([])
 
 try:
     cv2.setNumThreads(1)
 except:
-    print('Open CV is naturally single threaded')
+    print('OpenCV is naturally single threaded')
 
 try:
     if __IPYTHON__:
@@ -42,7 +42,7 @@ def make_color_img(img, gain=255, min_max=None, out_type=np.uint8):
     else:
         min_, max_ = min_max
 
-    img = (img-min_)/(max_-min_)*gain
+    img = (img-min_)/(max_-min_+np.finfo(float).eps)*gain
     img = img.astype(out_type)
     img = np.dstack([img]*3)
     return img
@@ -79,6 +79,31 @@ estimates.rotation = False                       # flag for rotation
 min_mov = np.min(mov)
 max_mov = np.max(mov)
 
+if estimates.b is None:
+    estimates.b = estimates.b0[:, None]
+    estimates.f = np.ones((1, estimates.C.shape[1]))
+
+    class combodemo(QtWidgets.QWidget):
+        def __init__(self, parent = None):
+            super(combodemo, self).__init__(parent)
+            layout = QtWidgets.QHBoxLayout()
+            self.cb = QtWidgets.QComboBox()
+            self.cb.addItems(["Constant background", "Full background (slow, memory intensive)"])
+            self.cb.currentIndexChanged.connect(self.selectionchange)
+            layout.addWidget(self.cb)
+            self.setLayout(layout)
+            self.setWindowTitle("Handle background for 1p data")
+
+        def selectionchange(self,i):
+            if i==0:
+                estimates.b = estimates.b0[:, None]
+                estimates.f = np.ones((1, estimates.C.shape[1]))
+            elif i==1:
+                estimates.b = estimates.compute_background(mov.reshape(len(mov), -1).T)
+                estimates.f = np.eye(len(mov), dtype='int8')
+
+    cb = combodemo()
+    cb.show()
 
 if not hasattr(estimates, 'Cn'):
     estimates.Cn = cm.local_correlations(mov, swap_dim=False)
@@ -133,11 +158,11 @@ if hasattr(estimates, 'accepted_list'):
 if (not hasattr(estimates, 'accepted_list')) or accepted_empty:
     # if estimates.discarded_components.A.shape[-1] > 0:
     #     estimates.restore_discarded_components()
-    estimates.accepted_list = np.array([], dtype=np.int)
-    estimates.rejected_list = np.array([], dtype=np.int)
+    estimates.accepted_list = np.array([], dtype=int)
+    estimates.rejected_list = np.array([], dtype=int)
 
 estimates.img_components = estimates.A.toarray().reshape((estimates.dims[0], estimates.dims[1], -1), order='F').transpose([2,0,1])
-estimates.cms = np.array([scipy.ndimage.measurements.center_of_mass(comp) for comp in estimates.img_components])
+estimates.cms = np.array([scipy.ndimage.center_of_mass(comp) for comp in estimates.img_components])
 estimates.idx_components = np.arange(estimates.nr)
 estimates.idx_components_bad = np.array([])
 estimates.background_image = make_color_img(estimates.Cn)
@@ -174,8 +199,8 @@ def draw_contours():
     bkgr_contours = estimates.background_image.copy()
 
     if len(estimates.idx_components) > 0:
-        contours = [cv2.findContours(cv2.threshold(img, np.int(thrshcomp_line.value()), 255, 0)[1], cv2.RETR_TREE,
-                                     cv2.CHAIN_APPROX_SIMPLE)[0] for img in estimates.img_components[estimates.idx_components]]
+        contours = [list(cv2.findContours(cv2.threshold(img, int(thrshcomp_line.value()), 255, 0)[1], cv2.RETR_TREE,
+                                     cv2.CHAIN_APPROX_SIMPLE)[0]) for img in estimates.img_components[estimates.idx_components]]
         SNRs = np.array(estimates.r_values)
         iidd = np.array(estimates.idx_components)
 
@@ -206,7 +231,7 @@ def draw_contours_update(cf, im):
     curFrame = cf.copy()
 
     if len(estimates.idx_components) > 0:
-        contours = [cv2.findContours(cv2.threshold(img, np.int(thrshcomp_line.value()), 255, 0)[1], cv2.RETR_TREE,
+        contours = [cv2.findContours(cv2.threshold(img, int(thrshcomp_line.value()), 255, 0)[1], cv2.RETR_TREE,
                                      cv2.CHAIN_APPROX_SIMPLE)[0] for img in estimates.img_components[estimates.idx_components]]
         SNRs = np.array(estimates.r_values)
         iidd = np.array(estimates.idx_components)
@@ -241,11 +266,11 @@ def draw_contours_update(cf, im):
 # %%
 
 #  Define a top-level widget to hold everything
-w = QtGui.QWidget()
+w = QtWidgets.QWidget()
 
 #  Create some widgets to be placed inside
-btn = QtGui.QPushButton('press me')
-text = QtGui.QLineEdit('enter text')
+btn = QtWidgets.QPushButton('press me')
+text = QtWidgets.QLineEdit('enter text')
 win = pg.GraphicsLayoutWidget()
 win.setMaximumWidth(300)
 win.setMinimumWidth(200)
@@ -256,10 +281,10 @@ p2 = pg.PlotWidget()
 p3 = pg.PlotWidget()
 t = ParameterTree()
 t_action = ParameterTree()
-action_layout = QtGui.QGridLayout()
+action_layout = QtWidgets.QGridLayout()
 
 #  Create a grid layout to manage the widgets size and position
-layout = QtGui.QGridLayout()
+layout = QtWidgets.QGridLayout()
 w.setLayout(layout)
 
 # A plot area (ViewBox + axes) for displaying the image
@@ -309,7 +334,7 @@ p2.setMaximumHeight(250)
 
 
 # set position and scale of image
-img.scale(1, 1)
+# img.scale(1, 1)
 # img.translate(-50, 0)
 
 # zoom to fit imageo
@@ -480,7 +505,7 @@ def show_neurons_clicked():
     neuron_selected = True
     distances = np.sum(((x,y)-estimates.cms[estimates.idx_components])**2, axis=1)**0.5
     min_dist_comp = np.argmin(distances)
-    contour_all =[cv2.threshold(img, np.int(thrshcomp_line.value()), 255, 0)[1] for img in estimates.img_components[estimates.idx_components]]
+    contour_all =[cv2.threshold(img, int(thrshcomp_line.value()), 255, 0)[1] for img in estimates.img_components[estimates.idx_components]]
     contour_single = contour_all[min_dist_comp] 
 
     # draw the traces (lower left component)

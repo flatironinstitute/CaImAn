@@ -6,9 +6,6 @@ Created on Thu Oct 20 13:49:57 2016
 @author: agiovann
 """
 
-from builtins import range
-from past.utils import old_div
-
 import logging
 import numpy as np
 import scipy
@@ -128,7 +125,7 @@ def _hsm(data):
     else:
 
         wMin = np.inf
-        N = old_div(data.size, 2) + data.size % 2
+        N = data.size // 2 + data.size % 2
 
         for i in range(0, N):
             w = data[i + N - 1] - data[i]

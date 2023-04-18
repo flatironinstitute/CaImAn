@@ -65,7 +65,7 @@ for it in range(1):
 #    norm = lambda(x): np.exp(-x**2/2)/np.sqrt(2*np.pi)
     fitness, res, sd_r, md = compute_event_exceptionality(Yr.T)
     Yr_c = -np.log(norm.sf(np.array((Yr - md) /
-                                            sd_r, dtype=np.float)))
+                                            sd_r, dtype=float)))
     mns = cm.movie(scipy.ndimage.convolve(np.reshape(
         Yr_c, [-1, a.shape[1], a.shape[2]], order='F'), np.ones([5, 3, 3])))
     mns[mns < (38 * np.log10((mns.shape[0])))] = 0

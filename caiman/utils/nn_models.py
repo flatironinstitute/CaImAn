@@ -407,7 +407,7 @@ def create_LN_model(Y=None, shape=(None, None, 1), n_channels=2, gSig=5, r_facto
     if use_add:
         x_out = Additive(data=Y)(x_out)
     model_LIN = Model(x_in, x_out)
-    adam = Adam(lr=lr)
+    adam = Adam(learning_rate=lr)
     model_LIN.compile(optimizer=adam, loss=loss) # compile model
     return model_LIN
 
@@ -483,7 +483,7 @@ def create_NL_model(Y=None, shape=(None, None, 1), n_channels=8, gSig=5, r_facto
     if use_add:
         x_out = Additive(data=Y, pct=pct)(x_out)
     model_NL = Model(x_in, x_out)
-    adam = Adam(lr=lr)
+    adam = Adam(learning_rate=lr)
     model_NL.compile(optimizer=adam, loss=loss)
     return model_NL
 

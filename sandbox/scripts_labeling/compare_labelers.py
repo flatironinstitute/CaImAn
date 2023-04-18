@@ -8,19 +8,12 @@ Compare the performance of different labelers
 @author: agiovann
 """
 #%%
-from __future__ import division
-from __future__ import print_function
-from builtins import zip
-from builtins import str
-from builtins import map
-from builtins import range
-from past.utils import old_div
 import cv2
 
 try:
     cv2.setNumThreads(1)
 except:
-    print('Open CV is naturally single threaded')
+    print('OpenCV is naturally single threaded')
 
 try:
     if __IPYTHON__:
@@ -36,7 +29,6 @@ import os
 import numpy as np
 import pylab as pl
 import caiman as cm
-from caiman.motion_correction import MotionCorrect
 #%%
 # files = {'/mnt/ceph/neuro/FromLabelers/To_be_labelled/Packer/',
 #'/mnt/ceph/neuro/FromLabelers/To_be_labelled/Yuste/',

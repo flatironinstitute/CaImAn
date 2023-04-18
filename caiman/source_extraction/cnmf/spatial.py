@@ -8,13 +8,6 @@ Created on Wed Aug 05 20:38:27 2015
 """
 
 # noinspection PyCompatibility
-from past.builtins import basestring
-from past.utils import old_div
-from builtins import zip
-from builtins import map
-from builtins import str
-from builtins import range
-
 import cv2
 import logging
 import numpy as np
@@ -29,6 +22,8 @@ from scipy.ndimage.morphology import binary_closing
 from scipy.ndimage.morphology import generate_binary_structure, iterate_structure
 import shutil
 from sklearn.decomposition import NMF
+from sklearn.preprocessing import StandardScaler
+from sklearn.pipeline import make_pipeline
 import tempfile
 import time
 import psutil
@@ -51,8 +46,8 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
                               expandCore=None, dview=None, n_pixels_per_process=128,
                               medw=(3, 3), thr_method='max', maxthr=0.1,
                               nrgthr=0.9999, extract_cc=True, b_in=None,
-                              se=np.ones((3, 3), dtype=np.int),
-                              ss=np.ones((3, 3), dtype=np.int), nb=1,
+                              se=np.ones((3, 3), dtype=int),
+                              ss=np.ones((3, 3), dtype=int), nb=1,
                               method_ls='lasso_lars', update_background_components=True,
                               low_rank_background=True, block_size_spat=1000,
                               num_blocks_per_run_spat=20):
@@ -184,27 +179,24 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
     # we compute the indicator from distance indicator
     ind2_, nr, C, f, b_, A_in = computing_indicator(
         Y, A_in, b_in, C, f, nb, method_exp, dims, min_size, max_size, dist, expandCore, dview)
-    
-    # remove components that have a nan
-    ff = np.where(np.isnan(np.sum(C, axis=1)))
-    if np.size(ff) > 0:
-        logging.info("Eliminating nan components: {}".format(ff))
-        ff = ff[0]
-        A_in = csc_column_remove(A_in, list(ff))
-        C = np.delete(C, list(ff), 0)
-        
-    # remove empty components    
-    ff = np.where(np.sum(C, axis=1)==0)
-    if np.size(ff) > 0:
-        logging.info("Eliminating empty components: {}".format(ff))
-        ff = ff[0]
-        A_in = csc_column_remove(A_in, list(ff))
-        C = np.delete(C, list(ff), 0)
 
+    # remove components that are empty or have a nan
+    ff = np.where((np.sum(C, axis=1)==0) + np.isnan(np.sum(C, axis=1)))[0]
+    if np.size(ff) > 0:
+        logging.info("Eliminating empty and nan components: {}".format(ff))
+        A_in = csc_column_remove(A_in, list(ff))
+        C = np.delete(C, list(ff), 0)
+        # update indices
+        ind_list = list(range(nr-np.size(ff)))
+        for i in ff:
+            ind_list.insert(i, 0)
+        ind_list = np.array(ind_list, dtype=int)
+        ind2_ = [ind_list[np.setdiff1d(a,ff)] if len(a) else a for a in ind2_]
+
+    nr = np.shape(C)[0]
     if normalize_yyt_one and C is not None:
         C = np.array(C)
-        nr_C = np.shape(C)[0]
-        d_ = scipy.sparse.lil_matrix((nr_C, nr_C))
+        d_ = scipy.sparse.lil_matrix((nr, nr))
         d_.setdiag(np.sqrt(np.sum(C ** 2, 1)))
         A_in = A_in * d_
         C = C/(np.sqrt((C**2).sum(1))[:, np.newaxis] + np.finfo(np.float32).eps)
@@ -375,12 +367,12 @@ def regression_ipyparallel(pars):
 
     Y_name, C_name, noise_sn, idxs_C, idxs_Y, method_least_square, cct = pars
     # we load from the memmap file
-    if isinstance(Y_name, basestring):
+    if isinstance(Y_name, str):
         Y, _, _ = load_memmap(Y_name)
         Y = np.array(Y[idxs_Y, :])
     else:
         Y = Y_name[idxs_Y, :]
-    if isinstance(C_name, basestring):
+    if isinstance(C_name, str):
         C = np.load(C_name, mmap_mode='r')
         C = np.array(C)
     else:
@@ -408,13 +400,12 @@ def regression_ipyparallel(pars):
             elif method_least_square == 'lasso_lars':  # lasso lars function from scikit learn
                 lambda_lasso = 0 if np.size(cct_) == 0 else \
                     .5 * noise_sn[px] * np.sqrt(np.max(cct_)) / T
-                clf = linear_model.LassoLars(alpha=lambda_lasso, positive=True,
-                                             fit_intercept=True)
-#                clf = linear_model.Lasso(alpha=lambda_lasso, positive=True,
-#                                         fit_intercept=True, normalize=True,
-#                                         selection='random')
-                a_lrs = clf.fit(np.array(c.T), np.ravel(y))
-                a = a_lrs.coef_
+                model = make_pipeline(
+                    StandardScaler(with_mean=False),
+                    linear_model.LassoLars(alpha=lambda_lasso, positive=True,
+                                                 fit_intercept=True)
+                    )
+                a = model.fit(np.array(c.T), np.ravel(y))['lassolars'].coef_
 
             else:
                 raise Exception(
@@ -425,11 +416,11 @@ def regression_ipyparallel(pars):
 
             As.append((px, idxs_C[idx_px_from_0], a))
 
-    if isinstance(Y_name, basestring):
+    if isinstance(Y_name, str):
         del Y
-    if isinstance(C_name, basestring):
+    if isinstance(C_name, str):
         del C
-    if isinstance(Y_name, basestring):
+    if isinstance(Y_name, str):
         gc.collect()
 
     return As
@@ -454,10 +445,10 @@ def construct_ellipse_parallel(pars):
            for dd in D]
 
     # search indexes for each component
-    return np.sqrt(np.sum([old_div((dist_cm * V[:, k]) ** 2, dkk[k]) for k in range(len(dkk))], 0)) <= dist
+    return np.sqrt(np.sum([(dist_cm * V[:, k]) ** 2 / dkk[k] for k in range(len(dkk))], 0)) <= dist
 
 def threshold_components(A, dims, medw=None, thr_method='max', maxthr=0.1, nrgthr=0.9999, extract_cc=True,
-                         se=None, ss=None, dview=None):
+                         se=None, ss=None, dview=None) -> np.ndarray:
     """
     Post-processing of spatial components which includes the following steps
 
@@ -608,7 +599,7 @@ def threshold_components_parallel(pars):
     Ath = np.squeeze(np.reshape(A_temp, (d, 1)))
     Ath2 = np.zeros((d))
     # we do that to have a full closed structure even if the values have been trehsolded
-    BW = binary_closing(BW.astype(np.int), structure=se)
+    BW = binary_closing(BW.astype(int), structure=se.T) # transpose cause A_temp is C-order
 
     # if we have deleted the element
     if BW.max() == 0:
@@ -617,7 +608,7 @@ def threshold_components_parallel(pars):
     # we want to extract the largest connected component ( to remove small unconnected pixel )
     if extract_cc:
         # we extract each future as independent with the cross structuring element
-        labeled_array, num_features = label(BW, structure=ss)
+        labeled_array, num_features = label(BW, structure=ss.T)
         labeled_array = np.squeeze(np.reshape(labeled_array, (d, 1)))
         nrg = np.zeros((num_features, 1))
         # we extract the energy for each component
@@ -697,7 +688,7 @@ def calcAvec(new, dQ, W, lambda_, active_set, M, positive):
     """
     r, c = np.nonzero(active_set)
     Mm = -M.take(r, axis=0).take(r, axis=1)
-    Mm = old_div((Mm + Mm.T), 2)
+    Mm = (Mm + Mm.T) / 2
     # % verify that there is no numerical instability
     if len(Mm) > 1:
         eigMm, _ = scipy.linalg.eig(Mm)
@@ -716,7 +707,7 @@ def calcAvec(new, dQ, W, lambda_, active_set, M, positive):
     if len(Mm) > 1:
         avec = np.linalg.solve(Mm, b)
     else:
-        avec = old_div(b, Mm)
+        avec = b / Mm
 
     if positive:
         if new >= 0:
@@ -731,8 +722,8 @@ def calcAvec(new, dQ, W, lambda_, active_set, M, positive):
     for j in range(len(r)):
         dQa = dQa + np.expand_dims(avec[j] * M[:, r[j]], axis=1)
 
-    gamma_plus = old_div((lambda_ - dQ), (one_vec + dQa))
-    gamma_minus = old_div((lambda_ + dQ), (one_vec - dQa))
+    gamma_plus = (lambda_ - dQ) / (one_vec + dQa)
+    gamma_minus = (lambda_ + dQ) / (one_vec - dQa)
 
     return avec, gamma_plus, gamma_minus
 
@@ -774,7 +765,7 @@ def test(Y, A_in, C, f, n_pixels_per_process, nb):
             Exception 'Not implemented consistently'
             Exception "Failed to delete: " + folder
         """
-    if Y.ndim < 2 and not isinstance(Y, basestring):
+    if Y.ndim < 2 and not isinstance(Y, str):
         Y = np.atleast_2d(Y)
         if Y.shape[1] == 1:
             raise Exception('Dimension of Matrix Y must be pixels x time')
@@ -890,8 +881,7 @@ def determine_search_location(A, dims, method='ellipse', min_size=3, max_size=8,
             # for each dim
             for i, c in enumerate(['x', 'y', 'z'][:len(dims)]):
                 # mass center in this dim = (coor*A)/sum(A)
-                cm[:, i] = old_div(
-                    np.dot(Coor[c], A[:, :nr].todense()), A[:, :nr].sum(axis=0))
+                cm[:, i] = np.dot(Coor[c], A[:, :nr].todense()) / A[:, :nr].sum(axis=0)
 
             # parallelizing process of the construct ellipse function
             for i in range(nr):
@@ -1055,17 +1045,22 @@ def computing_indicator(Y, A_in, b, C, f, nb, method, dims, min_size, max_size, 
         print("spatial support for each components given by the user")
         # we compute C,B,f,Y if we have boolean for A matrix
         if C is None:  # if C is none we approximate C, b and f from the binary mask
-            dist_indicator_av = old_div(dist_indicator.astype(
-                'float32'), np.sum(dist_indicator.astype('float32'), axis=0))
+            dist_indicator_av = dist_indicator.astype(
+                'float32') / np.sum(dist_indicator.astype('float32'), axis=0)
             px = (np.sum(dist_indicator, axis=1) > 0)
-            not_px = 1 - px
-            if Y.shape[-1] < 30000:
-                f = Y[not_px, :].mean(0)
-            else:  # memory mapping fails here for some reasons
-                print('estimating f')
-                f = 0
-                for xxx in not_px:
-                    f = (f + Y[xxx]) / 2
+            not_px = ~px
+
+            if nb>1:
+                    f = NMF(nb, init='nndsvda').fit(np.maximum(Y[not_px, :], 0)).components_
+            else:
+                if Y.shape[-1] < 30000:
+                    f = Y[not_px, :].mean(0)
+                else:
+                    print('estimating f')
+                    f = 0
+                    for xxx in np.where(not_px)[0]:
+                        f += Y[xxx]
+                    f /= not_px.sum()
 
             f = np.atleast_2d(f)
 
@@ -1092,7 +1087,7 @@ def computing_indicator(Y, A_in, b, C, f, nb, method, dims, min_size, max_size, 
                 scipy.sparse.hstack([A_in, scipy.sparse.coo_matrix(b)]), dims, method=method, min_size=min_size, max_size=max_size, dist=dist, expandCore=expandCore,
                 dview=dview)
 
-        ind2_ = [np.where(iid_.squeeze())[0]  for iid_ in dist_indicator.astype(np.bool).toarray()]
+        ind2_ = [np.where(iid_.squeeze())[0]  for iid_ in dist_indicator.astype(bool).toarray()]
         ind2_ = [iid_ if (np.size(iid_) > 0) and (np.min(iid_) < nr) else [] for iid_ in ind2_]
 
     return ind2_, nr, C, f, b, A_in
@@ -1136,7 +1131,7 @@ def creatememmap(Y, Cf, dview):
         if isinstance(Y, np.core.memmap):  # if input file is already memory mapped then find the filename
             Y_name = Y.filename
         # if not create a memory mapped version (necessary for parallelization)
-        elif isinstance(Y, basestring) or dview is None:
+        elif isinstance(Y, str) or dview is None:
             Y_name = Y
         else:
             Y_name = os.path.join(folder, 'Y_temp.npy')

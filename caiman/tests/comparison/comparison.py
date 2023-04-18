@@ -433,7 +433,7 @@ def deletesparse(cnm):
             val = deletesparse(val)
         if not isinstance(val, scipy.sparse.coo.coo_matrix) and not isinstance(val, np.ndarray) \
                 and not isinstance(val, scipy.sparse.csc.csc_matrix) and not keys == 'dview':
-            logging.debug("type of val is " + str(type(val)))
+            logging.debug(f"type of val is {type(val)}")
             cnm[keys] = val
         else:
 
@@ -501,9 +501,9 @@ def cnmf(Cn, A_gt, A_test, C_gt, C_test, dims_gt, dims_test, dview=None, sensiti
             'performance': performance_off_on,
             'corelations': corrs.tolist(),
                                                        #performance = dict()
-                                                       #performance['recall'] = old_div(TP,(TP+FN))
-                                                       #performance['precision'] = old_div(TP,(TP+FP))
-                                                       #performance['accuracy'] = old_div((TP+TN),(TP+FP+FN+TN))
+                                                       #performance['recall'] = TP/(TP+FN)
+                                                       #performance['precision'] = TP/(TP+FP)
+                                                       #performance['accuracy'] = (TP+TN)/(TP+FP+FN+TN)
                                                        #performance['f1_score'] = 2*TP/(2*TP+FP+FN)
             'diffneur': diffneur
         },

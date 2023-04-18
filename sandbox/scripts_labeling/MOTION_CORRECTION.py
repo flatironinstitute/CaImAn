@@ -6,13 +6,9 @@ Created on Wed Aug 31 09:46:09 2016
 
 @author: agiovann
 """
-from __future__ import division
-from __future__ import print_function
 #%%
 # TAKE BEGINNING OF ParallelProcessing.py
 #%%
-from builtins import zip
-from past.utils import old_div
 tmpls = []
 fls = []
 frates = []
@@ -29,7 +25,7 @@ for reg, img, proj, masks, template, f_rate, do_mot in zip(regions, images, proj
             tmpls = tmpls + [template]
             frates = frates + [f_rate]
             resize_facts = resize_facts + \
-                [(1, 1, old_div(final_f_rate, f_rate))]
+                [(1, 1, final_f_rate / f_rate)]
 #%%
 file_res = cb.motion_correct_parallel(fls, fr=6, template=tmpls, margins_out=0, max_shift_w=45,
                                       max_shift_h=45, dview=c[::2], apply_smooth=True, save_hdf5=False, remove_blanks=False)
@@ -47,7 +43,7 @@ for reg, img, proj, f_rate in zip(regions, images, projections, f_rates):
             with np.load(f[:-3] + 'npz') as fl:
                 print(f)
                 img_templ = fl['template'][np.newaxis, :, :]
-                erode = old_div(np.shape(img_templ)[-1], 10)
+                erode = np.shape(img_templ)[-1] // 10
                 img_templ = img_templ[:, erode:-erode, erode:-erode]
                 all_movs.append(img_templ)
                 all_shifts.append(fl['shifts'])
@@ -122,7 +118,7 @@ for reg, img, proj, f_rate in zip(regions, images, projections, f_rates):
         with np.load(f[:-3] + 'npz') as fl:
             print(f)
             img_templ = fl['template'][np.newaxis, :, :]
-            erode = old_div(np.shape(img_templ)[-1], 10)
+            erode = np.shape(img_templ)[-1] // 10
             img_templ = img_templ[:, erode:-erode, erode:-erode]
             all_movs.append(img_templ)
             all_shifts.append(fl['shifts'])
@@ -213,7 +209,7 @@ for reg, img, proj, masks, template, f_rate in zip(regions, images, projections,
     tmpls = tmpls + [template] * len(fl)
     frates = frates + [f_rate] * len(fl)
     resize_facts = resize_facts + \
-        [(1, 1, old_div(final_f_rate, f_rate))] * len(fl)
+        [(1, 1, final_f_rate / f_rate)] * len(fl)
 #%%
 if 0:
     new_fls = []
@@ -268,7 +264,7 @@ import re
 for bf in base_folders:
     fls = glob.glob(os.path.join(bf, 'images/*.mmap'))
     try:
-        fls.sort(key=lambda fn: np.int(
+        fls.sort(key=lambda fn: int(
             re.findall('_[0-9]{1,5}_d1_', fn)[0][1:-4]))
     except:
         fls.sort()

@@ -6,12 +6,8 @@ Created on Mon Nov  7 10:50:33 2016
 
 @author: agiovann
 """
-from __future__ import division
-from __future__ import print_function
 
 #%%
-from past.utils import old_div
-
 try:
     if __IPYTHON__:
         # this is used for debugging purposes only. allows to reload classes when changed
@@ -129,9 +125,9 @@ traces_ben = cm.base.rois.mask_to_2d(masks_ben).T.dot(Yr)
 traces_princeton = cm.base.rois.mask_to_2d(masks_princeton).T.dot(Yr)
 
 traces_ben = traces_ben - scipy.ndimage.percentile_filter(
-    traces_ben, 8, size=[1, old_div(np.shape(traces_ben)[-1], 5)])
+    traces_ben, 8, size=[1, np.shape(traces_ben)[-1] // 5])
 traces_princeton = traces_princeton - scipy.ndimage.percentile_filter(
-    traces_princeton, 8, size=[1, old_div(np.shape(traces_princeton)[-1], 5)])
+    traces_princeton, 8, size=[1, np.shape(traces_princeton)[-1] // 5])
 
 
 fitness_ben, _, _ = cm.components_evaluation.compute_event_exceptionality(

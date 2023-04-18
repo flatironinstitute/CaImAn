@@ -6,14 +6,12 @@ Created on Thu Oct 20 12:12:34 2016
 @author: agiovann
 """
 
-from builtins import range
-from past.utils import old_div
-
 import cv2
 import itertools
 import logging
 import numpy as np
 import os
+import peakutils
 import tensorflow as tf
 import scipy
 from scipy.sparse import csc_matrix
@@ -64,7 +62,7 @@ def compute_event_exceptionality(traces: np.ndarray,
             Fluorescence traces
 
         N: int
-            N number of consecutive events
+            N number of consecutive events (N must be greater than 0)
 
         sigma_factor: float
             multiplicative factor for noise estimate (added for backwards compatibility)
@@ -79,6 +77,9 @@ def compute_event_exceptionality(traces: np.ndarray,
         noise_est: ndarray
             the components ordered according to the fitness
     """
+    if N == 0:
+        # Without this, numpy ranged syntax does not work correctly, and also N=0 is conceptually incoherent
+        raise Exception("FATAL: N=0 is not a valid value for compute_event_exceptionality()")
 
     T = np.shape(traces)[-1]
     if use_mode_fast:
@@ -106,10 +107,10 @@ def compute_event_exceptionality(traces: np.ndarray,
 
     else:
         Ns = np.sum(ff1 > 0, 1)
-        sd_r = np.sqrt(old_div(np.sum(ff1**2, 1), Ns))
+        sd_r = np.sqrt(np.sum(ff1**2, 1) / Ns)
 
     # compute z value
-    z = old_div((traces - md[:, None]), (sigma_factor * sd_r[:, None]))
+    z = (traces - md[:, None]) / (sigma_factor * sd_r[:, None])
 
     # probability of observing values larger or equal to z given normal
     # distribution with mean md and std sd_r
@@ -143,7 +144,6 @@ def compute_eccentricity(A, dims, order='F'):
 #%%
 def find_activity_intervals(C, Npeaks: int = 5, tB=-3, tA=10, thres: float = 0.3) -> List:
     # todo todocument
-    import peakutils
     K, T = np.shape(C)
     L: List = []
     for i in range(K):
@@ -219,7 +219,7 @@ def classify_components_ep(Y, A, C, b, f, Athresh=0.1, Npeaks=5, tB=-3, tA=10, t
     A = csc_matrix(A)
     AA = (A.T * A).toarray()
     nA = np.sqrt(np.array(A.power(2).sum(0)))
-    AA = old_div(AA, np.outer(nA, nA.T))
+    AA /= np.outer(nA, nA.T)
     AA -= np.eye(K)
 
     LOC = find_activity_intervals(C, Npeaks=Npeaks, tB=tB, tA=tA, thres=thres)
@@ -244,7 +244,7 @@ def classify_components_ep(Y, A, C, b, f, Athresh=0.1, Npeaks=5, tB=-3, tA=10, t
                                 'jointly with neighboring components. Space ' +
                                 'correlation calculation might be unreliable.')
 
-            indexes = np.array(list(indexes)).astype(np.int)
+            indexes = np.array(list(indexes)).astype(int)
             px = np.where(atemp > 0)[0]
             if px.size < 3:
                 logging.warning('Component {0} is almost empty. '.format(i) + 'Space correlation is set to 0.')
@@ -276,10 +276,13 @@ def evaluate_components_CNN(A,
                             isGPU: bool = False) -> Tuple[Any, np.array]:
     """ evaluate component quality using a CNN network
 
+        if isGPU is false, and the environment variable 'CAIMAN_ALLOW_GPU' is not set,
+        then this code will try not to use a GPU. Otherwise it will use one if it finds it.
     """
 
-    import os
-    if not isGPU:
+    # TODO: Find a less ugly way to do this
+    if not isGPU and 'CAIMAN_ALLOW_GPU' not in os.environ:
+        print("GPU run not requested, disabling use of GPUs")
         os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
     try:
         os.environ["KERAS_BACKEND"] = "tensorflow"
@@ -299,21 +302,21 @@ def evaluate_components_CNN(A,
                 model_file = model_name + ".json"
                 model_weights = model_name + ".h5"
             else:
-                raise FileNotFoundError("File for requested model {} not found".format(model_name))
+                raise FileNotFoundError(f"File for requested model {model_name} not found")
             with open(model_file, 'r') as json_file:
-                print('USING MODEL:' + model_file)
+                print(f"USING MODEL (keras API): {model_file}")
                 loaded_model_json = json_file.read()
 
             loaded_model = model_from_json(loaded_model_json)
             loaded_model.load_weights(model_name + '.h5')
-            #loaded_model.compile('sgd', 'mse')
         else:
             if os.path.isfile(os.path.join(caiman_datadir(), model_name + ".h5.pb")):
                 model_file = os.path.join(caiman_datadir(), model_name + ".h5.pb")
             elif os.path.isfile(model_name + ".h5.pb"):
                 model_file = model_name + ".h5.pb"
             else:
-                raise FileNotFoundError("File for requested model {} not found".format(model_name))
+                raise FileNotFoundError(f"File for requested model {model_name} not found")
+            print(f"USING MODEL (tensorflow API): {model_file}")
             loaded_model = load_graph(model_file)
 
         logging.debug("Loaded model from disk")
@@ -322,7 +325,7 @@ def evaluate_components_CNN(A,
     dims = np.array(dims)
     coms = [scipy.ndimage.center_of_mass(mm.toarray().reshape(dims, order='F')) for mm in A.tocsc().T]
     coms = np.maximum(coms, half_crop)
-    coms = np.array([np.minimum(cms, dims - half_crop) for cms in coms]).astype(np.int)
+    coms = np.array([np.minimum(cms, dims - half_crop) for cms in coms]).astype(int)
     crop_imgs = [
         mm.toarray().reshape(dims, order='F')[com[0] - half_crop[0]:com[0] + half_crop[0], com[1] -
                                               half_crop[1]:com[1] + half_crop[1]] for mm, com in zip(A.tocsc().T, coms)
@@ -438,7 +441,7 @@ def evaluate_components(Y: np.ndarray,
 
     logging.debug('Removing Baseline')
     if remove_baseline:
-        num_samps_bl = np.minimum(old_div(np.shape(traces)[-1], 5), 800)
+        num_samps_bl = np.minimum(np.shape(traces)[-1]// 5, 800)
         slow_baseline = False
         if slow_baseline:
 
@@ -449,8 +452,8 @@ def evaluate_components(Y: np.ndarray,
         else:                                                                                # fast baseline removal
             downsampfact = num_samps_bl
             elm_missing = int(np.ceil(T * 1.0 / downsampfact) * downsampfact - T)
-            padbefore = int(np.floor(old_div(elm_missing, 2.0)))
-            padafter = int(np.ceil(old_div(elm_missing, 2.0)))
+            padbefore = int(np.floor(elm_missing / 2.))
+            padafter = int(np.ceil(elm_missing / 2.))
             tr_tmp = np.pad(traces.T, ((padbefore, padafter), (0, 0)), mode='reflect')
             numFramesNew, num_traces = np.shape(tr_tmp)
                                                                                              #% compute baseline quickly
@@ -593,7 +596,7 @@ def estimate_components_quality_auto(Y,
     '''
 
     # number of timesteps to consider when testing new neuron candidates
-    N_samples = np.ceil(frate * decay_time).astype(np.int)
+    N_samples = np.ceil(frate * decay_time).astype(int)
     # inclusion probability of noise transient
     thresh_fitness_raw = scipy.special.log_ndtr(-min_SNR) * N_samples
 
@@ -656,6 +659,8 @@ def select_components_from_metrics(A,
     the script.
     '''
 
+    # TODO Refactoring note: kwargs is unused and should be refactored carefully out
+
     idx_components_r = np.where(r_values >= r_values_min)[0]
     idx_components_raw = np.where(comp_SNR > min_SNR)[0]
 
@@ -686,7 +691,7 @@ def select_components_from_metrics(A,
     idx_components = np.setdiff1d(idx_components, bad_comps)
     idx_components_bad = np.setdiff1d(list(range(len(r_values))), idx_components)
 
-    return idx_components.astype(np.int), idx_components_bad.astype(np.int), cnn_values
+    return idx_components.astype(int), idx_components_bad.astype(int), cnn_values
 
 
 def estimate_components_quality(traces,

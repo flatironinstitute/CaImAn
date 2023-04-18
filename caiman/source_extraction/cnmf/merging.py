@@ -10,10 +10,8 @@ Created on Tue Sep  8 16:23:57 2015
 #\version   1.0
 #\copyright GNU General Public License v2.0
 
-from builtins import range
 import numpy as np
 import logging
-from past.utils import old_div
 import scipy
 from scipy.sparse import csgraph, csc_matrix, lil_matrix, csr_matrix
 
