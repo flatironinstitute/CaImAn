@@ -248,8 +248,8 @@ def view_components(estimates, img, idx, frame_times=None, gt_times=None):
             ax2.plot(frame_times, estimates['t'][idx][i], alpha=0.8)
             ax2.plot(frame_times, estimates['t_sub'][idx][i])            
             ax2.plot(frame_times, estimates['t_rec'][idx][i], alpha = 0.4, color='red')
-            ax2.plot(frame_times[estimates['spikes'][idx][i]],
-                     1.05 * np.max(estimates['t'][idx][i]) * np.ones(estimates['spikes'][idx][i].shape),
+            ax2.plot(frame_times[estimates['spikes'][idx[i]]],
+                     1.05 * np.max(estimates['t'][idx][i]) * np.ones(estimates['spikes'][idx[i]].shape),
                      color='r', marker='.', fillstyle='none', linestyle='none')
             if gt_times is not None:
                 ax2.plot(gt_times,
@@ -260,7 +260,7 @@ def view_components(estimates, img, idx, frame_times=None, gt_times=None):
                 ax2.legend(labels=['t', 't_sub', 't_rec', 'spikes'])
             ax2.set_title(f'Signal and spike times {i+1}')
             ax2.text(0.1, 0.1, f'snr:{round(estimates["snr"][idx][i],2)}', horizontalalignment='center', verticalalignment='center', transform = ax2.transAxes)
-            ax2.text(0.1, 0.07, f'num_spikes: {len(estimates["spikes"][idx][i])}', horizontalalignment='center', verticalalignment='center', transform = ax2.transAxes)            
+            ax2.text(0.1, 0.07, f'num_spikes: {len(estimates["spikes"][idx[i]])}', horizontalalignment='center', verticalalignment='center', transform = ax2.transAxes)            
             ax2.text(0.1, 0.04, f'locality_test: {estimates["locality"][idx][i]}', horizontalalignment='center', verticalalignment='center', transform = ax2.transAxes)            
             
             ax3.cla()
