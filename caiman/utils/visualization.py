@@ -9,10 +9,6 @@
 #\date Created on Tue Jun 30 21:01:17 2016
 #\author: andrea giovannucci
 
-from builtins import str
-from builtins import range
-from past.utils import old_div
-
 import base64
 import cv2
 from IPython.display import HTML
@@ -106,7 +102,7 @@ def view_patches(Yr, A, C, b, f, d1, d2, YrA=None, secs=1):
     for i in range(nr + 1):
         if i < nr:
             ax1 = fig.add_subplot(2, 1, 1)
-            pl.imshow(np.reshape(old_div(np.array(A[:, i]), nA2[i]),
+            pl.imshow(np.reshape(np.array(A[:, i]) / nA2[i],
                                  (d1, d2), order='F'), interpolation='None')
             ax1.set_title('Spatial component ' + str(i + 1))
             ax2 = fig.add_subplot(2, 1, 2)
@@ -171,7 +167,7 @@ def nb_view_patches(Yr, A, C, b, f, d1, d2, YrA=None, image_neurons=None, thr=0.
     b = np.squeeze(b)
     f = np.squeeze(f)
     if YrA is None:
-        Y_r = np.array(spdiags(old_div(1, nA2), 0, nr, nr) *
+        Y_r = np.array(spdiags(1 / nA2, 0, nr, nr) *
                        (A.T * np.matrix(Yr) -
                         (A.T * np.matrix(b[:, np.newaxis])) * np.matrix(f[np.newaxis]) -
                         A.T.dot(A) * np.matrix(C)) + C)
@@ -330,7 +326,7 @@ def hv_view_patches(Yr, A, C, b, f, d1, d2, YrA=None, image_neurons=None, denois
     f = np.squeeze(f)
     if YrA is None:
         Y_r = np.array(
-            spdiags(old_div(1, nA2), 0, nr, nr) *
+            spdiags(1 / nA2, 0, nr, nr) *
             (A.T * np.matrix(Yr) -
              (A.T * np.matrix(b[:, np.newaxis])) * np.matrix(f[np.newaxis]) -
              A.T.dot(A) * np.matrix(C)) + C)
@@ -458,7 +454,7 @@ def get_contours(A, dims, thr=0.9, thr_method='nrg', swap_dim=False):
                 if num_close_coords < 2:
                     if num_close_coords == 0:
                         # case angle
-                        newpt = np.round(old_div(vtx[-1, :], [d2, d1])) * [d2, d1]
+                        newpt = np.round(vtx[-1, :] / [d2, d1]) * [d2, d1]
                         vtx = np.concatenate((vtx, newpt[np.newaxis, :]), axis=0)
                     else:
                         # case one is border
@@ -957,7 +953,7 @@ def view_patches_bar(Yr, A, C, b, f, d1, d2, YrA=None, img=None,
     nA2 = np.sqrt(np.array(A.power(2).sum(axis=0))).squeeze()
 
     if YrA is None:
-        Y_r = spdiags(old_div(1, nA2), 0, nr, nr) * (A.T.dot(Yr) -
+        Y_r = spdiags(1 / nA2, 0, nr, nr) * (A.T.dot(Yr) -
                                                      (A.T.dot(b)).dot(f) - (A.T.dot(A)).dot(C)) + C
     else:
         Y_r = YrA + C

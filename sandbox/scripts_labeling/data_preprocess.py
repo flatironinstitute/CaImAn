@@ -1,7 +1,5 @@
 #!/usr/bin/env python
 
-from __future__ import division
-from __future__ import print_function
 # example python script for loading neurofinder data
 #
 # for more info see:
@@ -16,35 +14,19 @@ from __future__ import print_function
 # - matplotlib
 #
 #%%
-from builtins import zip
-from builtins import map
-from builtins import str
-from past.utils import old_div
 get_ipython().magic('load_ext autoreload')
 get_ipython().magic('autoreload 2')
-import matplotlib.pyplot as plt
 import ca_source_extraction as cse
 import calblitz as cb
-from scipy.misc import imread
 from glob import glob
 import numpy as np
 import matplotlib as mpl
 mpl.use('TKAgg')
-from matplotlib import pyplot as plt
 import sys
 import numpy as np
 import ca_source_extraction as cse
-from time import time
-from scipy.sparse import coo_matrix
-import tifffile
-import subprocess
-import time as tm
-from time import time
-import pylab as pl
 import psutil
-from glob import glob
 import os
-import scipy
 from ipyparallel import Client
 
 #%%
@@ -173,7 +155,7 @@ def create_images_for_labeling(pars):
         im = cb.movie(np.array(img), fr=1)
         im.save(os.path.join(cdir, 'std_projection.tif'))
 
-        m1 = m.resize(1, 1, old_div(1., m.fr))
+        m1 = m.resize(1, 1, 1. / m.fr)
 
         print('median image')
         img = np.median(m1, 0)

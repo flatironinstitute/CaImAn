@@ -1,7 +1,6 @@
 bokeh
 coverage
 cython
-future
 h5py
 holoviews
 ipykernel

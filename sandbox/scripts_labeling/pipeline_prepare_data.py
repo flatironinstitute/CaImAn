@@ -11,13 +11,6 @@
 #\author agiovann
 # toclean
 
-from __future__ import division
-from __future__ import print_function
-from builtins import zip
-from builtins import str
-from builtins import map
-from builtins import range
-from past.utils import old_div
 import cv2
 import glob
 

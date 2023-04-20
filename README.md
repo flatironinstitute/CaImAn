@@ -82,6 +82,25 @@ CaImAn implements a variety of algorithms for analyzing calcium (and voltage) im
  
 If you use this code please cite the corresponding papers where original methods appeared as well the companion paper.
 
+### Videos
+
+These talks by Andrea Giovannucci from past CaImAn workshops/events are an excellent start for newcomers. They go through NoRMCorre, CNMF(E) and VolPy.
+
+Open Neuroscience talks, this is a good high-level introduction to CaImAn:
+
+https://www.youtube.com/watch?v=5APzPRbzUIA
+
+Nemonic workshops, more in depth:
+
+https://www.youtube.com/watch?v=KjHrjhvhRy0
+
+https://www.youtube.com/watch?v=rUwIqU6gVvw
+
+https://www.youtube.com/watch?v=NZZ6_zo0YIM
+
+https://www.youtube.com/watch?v=z6TlH28MLRo
+
+
 ### Real-time analysis of microendoscopic 1p data
 
 Our online algorithms can be used for real-time analysis of live-streaming data. An example for real-time analysis of microendoscopic 1p data is shown in the notebook `demos/notebooks/demo_realtime_cnmfE.ipynb`.
@@ -122,6 +141,14 @@ Currently Pat Gunn and Johannes Friedrich are the most active maintainers.
 
 # Supplementary repos
 * [use\_cases repo](https://github.com/flatironinstitute/caiman_use_cases) - Contains additional code (unmaintained) demonstrating how to use/extend CaImAn
+
+### Related packages
+* [jnormcorre](https://github.com/apasarkar/jnormcorre) - [JAX](https://github.com/google/jax) implementation of NoRMCorre for motion correction using JAX acceleration
+* [funimag](https://github.com/paninski-lab/funimag) - matrix decomposition for denoising and compression
+* [mesmerize-core](https://github.com/nel-lab/mesmerize-core) - parameter optimization, data organization and visualizations with caiman
+* [improv](https://github.com/project-improv/improv) - a platform for creating online analysis workflows
+
+If you have questions about these related packages please reach out to them directly.
 
 ## Questions, comments, issues
 

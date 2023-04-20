@@ -10,8 +10,6 @@ See Also:
 @author andrea giovannucci
 """
 
-from builtins import range
-
 import cv2
 import logging
 import numpy as np

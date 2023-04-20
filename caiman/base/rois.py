@@ -6,11 +6,6 @@ Created on Thu Oct 22 13:22:26 2015
 @author: agiovann
 """
 
-from builtins import map
-from builtins import zip
-from builtins import str
-from builtins import range
-
 import cv2
 import json
 import logging
@@ -18,7 +13,6 @@ import matplotlib.pyplot as pl
 import matplotlib.patches as mpatches
 import numpy as np
 import os
-from past.utils import old_div
 
 import scipy
 from scipy.ndimage.filters import gaussian_filter
@@ -275,9 +269,9 @@ def nf_match_neurons_in_binary_masks(masks_gt,
     TN = 0
 
     performance = dict()
-    performance['recall'] = old_div(TP, (TP + FN))
-    performance['precision'] = old_div(TP, (TP + FP))
-    performance['accuracy'] = old_div((TP + TN), (TP + FP + FN + TN))
+    performance['recall'] = TP / (TP + FN)
+    performance['precision'] = TP / (TP + FP)
+    performance['accuracy'] = (TP + TN) / (TP + FP + FN + TN)
     performance['f1_score'] = 2 * TP / (2 * TP + FP + FN)
     logging.debug(performance)
     #%%
@@ -477,8 +471,8 @@ def register_ROIs(A1,
         if 'csc_matrix' not in str(type(A2)):
             A2 = scipy.sparse.csc_matrix(A2)
 
-        cm_1 = com(A1, dims[0], dims[1])
-        cm_2 = com(A2, dims[0], dims[1])
+        cm_1 = com(A1, *dims)
+        cm_2 = com(A2, *dims)
         A1_tr = (A1 > 0).astype(float)
         A2_tr = (A2 > 0).astype(float)
         D = distance_masks([A1_tr, A2_tr], [cm_1, cm_2], max_dist, enclosed_thr=enclosed_thr)
@@ -511,9 +505,9 @@ def register_ROIs(A1,
     TN = 0
 
     performance = dict()
-    performance['recall'] = old_div(TP, (TP + FN))
-    performance['precision'] = old_div(TP, (TP + FP))
-    performance['accuracy'] = old_div((TP + TN), (TP + FP + FN + TN))
+    performance['recall'] = TP / (TP + FN)
+    performance['precision'] = TP / (TP + FP)
+    performance['accuracy'] = (TP + TN) / (TP + FP + FN + TN)
     performance['f1_score'] = 2 * TP / (2 * TP + FP + FN)
     logging.info(performance)
 

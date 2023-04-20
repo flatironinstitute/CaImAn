@@ -1,9 +1,6 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-from past.builtins import basestring
-from past.utils import old_div
-
 import ipyparallel as parallel
 from itertools import chain
 import logging
@@ -201,7 +198,7 @@ def save_memmap_join(mmap_fnames: List[str], base_name: str = None, n_chunks: in
 
     big_mov = np.memmap(fname_tot, mode='w+', dtype=np.float32, shape=prepare_shape((d, tot_frames)), order='C')
 
-    step = int(old_div(d, n_chunks))
+    step = int(d // n_chunks)
     pars = []
     for ref in range(0, d - step + 1, step):
         pars.append([fname_tot, d, tot_frames, mmap_fnames, ref, ref + step, add_to_mov])
@@ -446,7 +443,7 @@ def save_memmap(filenames: List[str],
                 logging.debug(f)
 
             if is_3D:
-                Yr = f if not (isinstance(f, basestring)) else tifffile.imread(f)
+                Yr = f if not (isinstance(f, str)) else tifffile.imread(f)
                 if Yr.ndim == 3:
                     Yr = Yr[None, ...]
                 if slices is not None:
@@ -460,7 +457,7 @@ def save_memmap(filenames: List[str],
                         Yr = Yr[remove_init:, idx_xy[0], idx_xy[1], idx_xy[2]]
 
             else:
-                if isinstance(f, (basestring, list)):
+                if isinstance(f, (str, list)):
                     Yr = cm.load(caiman.paths.fn_relocated(f), fr=1, in_memory=True, var_name_hdf5=var_name_hdf5)
                 else:
                     Yr = cm.movie(f)
@@ -644,7 +641,7 @@ def dot_place_holder(par: List) -> Tuple:
 def save_tif_to_mmap_online(movie_iterable, save_base_name='YrOL_', order='C', add_to_movie=0, border_to_0=0) -> str:
     # todo: todocument
 
-    if isinstance(movie_iterable, basestring):         # Allow specifying a filename rather than its data rep
+    if isinstance(movie_iterable, str):         # Allow specifying a filename rather than its data rep
         with tifffile.TiffFile(movie_iterable) as tf:  # And load it if that happens
             movie_iterable = cm.movie(tf)
 
