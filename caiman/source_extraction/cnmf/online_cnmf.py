@@ -97,7 +97,8 @@ class OnACID(object):
                 dview instance
 
             Ain: csc_matrix, optional
-                binary masked for seeded initialization, used only if ``"init_method"`` is set to ``"seeded"``
+                binary masked for seeded initialization as a Compressed Sparse Column matrix.
+                To use set ``"init_method"`` to ``"seeded"``
 
         """
         if path is None:
