@@ -80,6 +80,17 @@ class OnACID(object):
     """
 
     def __init__(self, params=None, estimates=None, path=None, dview=None, Ain=None):
+        """
+
+        Parameters
+        ----------
+        params
+        estimates
+        path
+        dview
+        Ain:
+            binary masked for seeded initialization, used only if "init_method" is set to "seeded"
+        """
         if path is None:
             self.params = CNMFParams() if params is None else params
             self.estimates = Estimates() if estimates is None else estimates
@@ -965,6 +976,8 @@ class OnACID(object):
         self.img_min = img_min
         self.img_norm = img_norm
         if self.params.get('online', 'init_method') == 'bare':
+            # bare is almost like no initialization
+            # cnmf: optional then it runs offline CNMF with offline CNMF init params
             init = self.params.get_group('init').copy()
             is1p = (init['method_init'] == 'corr_pnr' and  init['ring_size_factor'] is not None)
             if is1p:
