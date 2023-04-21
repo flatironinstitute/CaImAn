@@ -58,6 +58,7 @@ try:
 except:
     def profile(a): return a
 
+
 class OnACID(object):
     """  Source extraction of streaming data using online matrix factorization.
     The class can be initialized by passing a "params" object for setting up
@@ -82,14 +83,22 @@ class OnACID(object):
     def __init__(self, params=None, estimates=None, path=None, dview=None, Ain=None):
         """
 
-        Parameters
-        ----------
-        params
-        estimates
-        path
-        dview
-        Ain:
-            binary masked for seeded initialization, used only if "init_method" is set to "seeded"
+        Args:
+            params: CNMFParams
+                CNMFParams object with parameters for the entire run of initialization and OnACID
+
+            estimates: Estimates, optional
+                Estimates object to load an existing model
+
+            path: str, optional
+                path to a saved OnACID model on disk
+
+            dview:
+                dview instance
+
+            Ain: csc_matrix, optional
+                binary masked for seeded initialization, used only if ``"init_method"`` is set to ``"seeded"``
+
         """
         if path is None:
             self.params = CNMFParams() if params is None else params
@@ -400,11 +409,11 @@ class OnACID(object):
     def fit_next(self, t, frame_in, num_iters_hals=3):
         """
         This method fits the next frame using the CaImAn online algorithm and
-        updates the object.
+        updates the object. Does NOT perform motion correction, see ``mc_next()``
 
         Args
             t : int
-                time measured in number of frames
+                temporal index of the next frame to fit
 
             frame_in : array
                 flattened array of shape (x * y [ * z],) containing the t-th image.
@@ -1070,8 +1079,21 @@ class OnACID(object):
         else:
             raise Exception("Unsupported file extension")
 
-
     def mc_next(self, t, frame):
+        """
+        Perform online motion correction on the next frame
+
+        Args:
+            t: int
+                temporal index of the next frame to motion correct
+
+            frame: np.ndarray
+                frame to fit
+
+        Returns:
+            np.ndarray
+                motion corrected frame
+        """
         if self.params.motion['nonneg_movie']:
             frame = frame-self.min_mov
         frame_ = frame.flatten(order='F')
