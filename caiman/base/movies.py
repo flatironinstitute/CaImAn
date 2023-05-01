@@ -2168,13 +2168,13 @@ def rolling_window(ndarr, window_size, stride):
            yield ndarr[:, i + stride:]
 
 
-def load_iter(file_name, subindices=None, var_name_hdf5: str = 'mov', outtype=np.float32,
+def load_iter(file_name: Union[str, List[str]], subindices=None, var_name_hdf5: str='mov', outtype=np.float32,
               is3D: bool=False):
     """
     load iterator over movie from file. Supports a variety of formats. tif, hdf5, avi.
 
     Args:
-        file_name: string
+        file_name:  string or List[str]
             name of file. Possible extensions are tif, avi and hdf5
 
         subindices: iterable indexes
@@ -2195,100 +2195,109 @@ def load_iter(file_name, subindices=None, var_name_hdf5: str = 'mov', outtype=np
 
         Exception 'File not found!'
     """
-    if os.path.exists(file_name):
-        extension = os.path.splitext(file_name)[1].lower()
-        if extension in ('.tif', '.tiff', '.btf'):
-            Y = tifffile.TiffFile(file_name).series[0]
-            dims = Y.shape[1:]
-            if len(dims)==3: # volumetric 3D data w/ multiple volumes per file
-                vol = np.empty(dims, dtype=outtype)
-                i = 0  # plane counter
-                if subindices is not None:
-                    if isinstance(subindices, slice):
-                        subindices = range(subindices.start,
-                        len(Y) if subindices.stop is None else subindices.stop,
-                        1 if subindices.step is None else subindices.step)
-                    t = 0  # volume counter
-                    for y in Y:
-                        if t in subindices:
-                            vol[i] = y.asarray()
-                        i += 1
-                        if i == dims[0]:
-                            i = 0
-                            if t in subindices:
-                                yield vol
-                            t +=1
-                else:
-                    for y in Y:
-                        vol[i] = y.asarray()
-                        i += 1
-                        if i == dims[0]:
-                            i = 0
-                            yield vol
-            elif len(dims) < 3 and is3D: # volumetric 3D data w/ 1 volume per file
-                yield load(file_name, subindices=subindices, outtype=outtype, is3D=is3D)
-            else: # 2D data
-                if subindices is not None:
-                    if isinstance(subindices, range):
-                        subindices = slice(subindices.start, subindices.stop, subindices.step)
-                    Y = Y[subindices]
-                for frame in Y:
-                    yield frame.asarray().astype(outtype)
-        elif extension in ('.avi', '.mkv'):
-            cap = cv2.VideoCapture(file_name)
-            if subindices is None:
-                while True:
-                    ret, frame = cap.read()
-                    if ret:
-                        yield frame[..., 0].astype(outtype)
-                    else:
-                        cap.release()
-                        return
-                        #raise StopIteration
-            else:
-                if isinstance(subindices, slice):
-                    subindices = range(
-                        subindices.start,
-                        int(cap.get(cv2.CAP_PROP_FRAME_COUNT)) if subindices.stop is None else subindices.stop,
-                        1 if subindices.step is None else subindices.step)
-                t = 0
-                for ind in subindices:
-#                    cap.set(1, ind)
-#                    ret, frame = cap.read()
-#                    if ret:
-#                        yield frame[..., 0]
-#                    else:
-#                        raise StopIteration
-                    while t <= ind:
-                        ret, frame = cap.read()
-                        t += 1
-                    if ret:
-                        yield frame[..., 0].astype(outtype)
-                    else:
-                        return
-                        #raise StopIteration
-                cap.release()
-
-                return
-                #raise StopIteration
-        elif extension in ('.hdf5', '.h5', '.nwb', '.mat'):
-            with h5py.File(file_name, "r") as f:
-                Y = f.get('acquisition/' + var_name_hdf5 + '/data'
-                           if extension == '.nwb' else var_name_hdf5)
-                if subindices is None:
-                    for y in Y:
-                        yield y.astype(outtype)
-                else:
-                    if isinstance(subindices, slice):
-                        subindices = range(subindices.start,
-                                           len(Y) if subindices.stop is None else subindices.stop,
-                                           1 if subindices.step is None else subindices.step)
-                    for ind in subindices:
-                        yield Y[ind].astype(outtype)
-        else:  # fall back to memory inefficient version
-            for y in load(file_name, var_name_hdf5=var_name_hdf5,
-                          subindices=subindices, outtype=outtype, is3D=is3D):
-                yield y
+    if isinstance(file_name, list) or isinstance(file_name, tuple):
+        for fname in file_name:
+            iterator = load_iter(fname)
+            while True:
+                try:
+                    yield next(iterator)
+                except:
+                    break
     else:
-        logging.error(f"File request:[{file_name}] not found!")
-        raise Exception('File not found!')
+        if os.path.exists(file_name):
+            extension = os.path.splitext(file_name)[1].lower()
+            if extension in ('.tif', '.tiff', '.btf'):
+                Y = tifffile.TiffFile(file_name).series[0]
+                dims = Y.shape[1:]
+                if len(dims)==3: # volumetric 3D data w/ multiple volumes per file
+                    vol = np.empty(dims, dtype=outtype)
+                    i = 0  # plane counter
+                    if subindices is not None:
+                        if isinstance(subindices, slice):
+                            subindices = range(subindices.start,
+                            len(Y) if subindices.stop is None else subindices.stop,
+                            1 if subindices.step is None else subindices.step)
+                        t = 0  # volume counter
+                        for y in Y:
+                            if t in subindices:
+                                vol[i] = y.asarray()
+                            i += 1
+                            if i == dims[0]:
+                                i = 0
+                                if t in subindices:
+                                    yield vol
+                                t +=1
+                    else:
+                        for y in Y:
+                            vol[i] = y.asarray()
+                            i += 1
+                            if i == dims[0]:
+                                i = 0
+                                yield vol
+                elif len(dims) < 3 and is3D: # volumetric 3D data w/ 1 volume per file
+                    yield load(file_name, subindices=subindices, outtype=outtype, is3D=is3D)
+                else: # 2D data
+                    if subindices is not None:
+                        if isinstance(subindices, range):
+                            subindices = slice(subindices.start, subindices.stop, subindices.step)
+                        Y = Y[subindices]
+                    for frame in Y:
+                        yield frame.asarray().astype(outtype)
+            elif extension in ('.avi', '.mkv'):
+                cap = cv2.VideoCapture(file_name)
+                if subindices is None:
+                    while True:
+                        ret, frame = cap.read()
+                        if ret:
+                            yield frame[..., 0].astype(outtype)
+                        else:
+                            cap.release()
+                            return
+                            #raise StopIteration
+                else:
+                    if isinstance(subindices, slice):
+                        subindices = range(
+                            subindices.start,
+                            int(cap.get(cv2.CAP_PROP_FRAME_COUNT)) if subindices.stop is None else subindices.stop,
+                            1 if subindices.step is None else subindices.step)
+                    t = 0
+                    for ind in subindices:
+    #                    cap.set(1, ind)
+    #                    ret, frame = cap.read()
+    #                    if ret:
+    #                        yield frame[..., 0]
+    #                    else:
+    #                        raise StopIteration
+                        while t <= ind:
+                            ret, frame = cap.read()
+                            t += 1
+                        if ret:
+                            yield frame[..., 0].astype(outtype)
+                        else:
+                            return
+                            #raise StopIteration
+                    cap.release()
+
+                    return
+                    #raise StopIteration
+            elif extension in ('.hdf5', '.h5', '.nwb', '.mat'):
+                with h5py.File(file_name, "r") as f:
+                    Y = f.get('acquisition/' + var_name_hdf5 + '/data'
+                            if extension == '.nwb' else var_name_hdf5)
+                    if subindices is None:
+                        for y in Y:
+                            yield y.astype(outtype)
+                    else:
+                        if isinstance(subindices, slice):
+                            subindices = range(subindices.start,
+                                            len(Y) if subindices.stop is None else subindices.stop,
+                                            1 if subindices.step is None else subindices.step)
+                        for ind in subindices:
+                            yield Y[ind].astype(outtype)
+            else:  # fall back to memory inefficient version
+                for y in load(file_name, var_name_hdf5=var_name_hdf5,
+                            subindices=subindices, outtype=outtype, is3D=is3D):
+                    yield y
+        else:
+            logging.error(f"File request:[{file_name}] not found!")
+            raise Exception('File not found!')
