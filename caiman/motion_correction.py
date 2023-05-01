@@ -48,6 +48,7 @@ from numpy.fft import ifftshift
 import os
 import sys
 import pylab as pl
+from scipy.ndimage import convolve
 import tifffile
 from typing import List, Optional, Tuple
 from skimage.transform import resize as resize_sk
@@ -55,7 +56,6 @@ from skimage.transform import warp as warp_sk
 
 import caiman as cm
 import caiman.base.movies
-import caiman.motion_correction
 import caiman.paths
 from .mmapping import prepare_shape
 
@@ -673,7 +673,7 @@ def motion_correct_oneP_rigid(
     Returns:
         Motion correction object
     '''
-    min_mov = np.array([caiman.motion_correction.high_pass_filter_space(
+    min_mov = np.array([high_pass_filter_space(
         m_, gSig_filt) for m_ in cm.load(filename[0], subindices=range(400))]).min()
     new_templ = None
 
@@ -733,7 +733,7 @@ def motion_correct_oneP_nonrigid(
     '''
 
     if new_templ is None:
-        min_mov = np.array([cm.motion_correction.high_pass_filter_space(
+        min_mov = np.array([high_pass_filter_space(
             m_, gSig_filt) for m_ in cm.load(filename, subindices=range(400))]).min()
     else:
         min_mov = np.min(new_templ)
@@ -2051,16 +2051,23 @@ def create_weight_matrix_for_blending(img, overlaps, strides):
 
         yield weight_mat
 
-def high_pass_filter_space(img_orig, gSig_filt=None, freq=None, order=None):
+def _par_conv(pars):
+    return cv2.filter2D(np.array(pars[0], dtype=np.float32),
+                        -1, pars[1], borderType=cv2.BORDER_REFLECT)
+
+def _par_conv_3d(pars):
+    return convolve(pars[0], pars[1])
+
+def high_pass_filter_space(img_orig, gSig_filt=None, freq=None, order=None, dview=None):
     """
     Function for high passing the image(s) with centered Gaussian if gSig_filt
     is specified or Butterworth filter if freq and order are specified
 
     Args:
-        img_orig: 2-d or 3-d array
+        img_orig: 2-d or 3-d array. For volumetric data: 3-d or 4-d array
             input image/movie
 
-        gSig_filt:
+        gSig_filt: tuple of size 2 for planar 3 for volumetric data
             size of the Gaussian filter 
 
         freq: float
@@ -2069,16 +2076,19 @@ def high_pass_filter_space(img_orig, gSig_filt=None, freq=None, order=None):
         order: int
             order of the Butterworth filter
 
+        dview: ipyparallel view
+            used to perform parallel computing
+
     Returns:
-        img: 2-d array or 3-d movie
+        img: 2-d array or 3-d movie. For volumetric data: 3-d array or 4-d movie
             image/movie after filtering            
     """
     if freq is None or order is None:  # Gaussian
         ksize = tuple([(3 * i) // 2 * 2 + 1 for i in gSig_filt])
-        ker = cv2.getGaussianKernel(ksize[0], gSig_filt[0])
+        ker = [cv2.getGaussianKernel(k, g) for k, g in zip(ksize, gSig_filt)]
                 
         if len(ksize) <= 2:
-            ker2D = ker.dot(ker.T)
+            ker2D = ker[0].dot(ker[1].T)
             nz = np.nonzero(ker2D >= ker2D[:, 0].max())
             zz = np.nonzero(ker2D < ker2D[:, 0].max())
             ker2D[nz] -= ker2D[nz].mean()
@@ -2087,17 +2097,26 @@ def high_pass_filter_space(img_orig, gSig_filt=None, freq=None, order=None):
                 return cv2.filter2D(np.array(img_orig, dtype=np.float32),
                                     -1, ker2D, borderType=cv2.BORDER_REFLECT)
             else:  # movie
-                return cm.movie(np.array([cv2.filter2D(np.array(img, dtype=np.float32),
-                                    -1, ker2D, borderType=cv2.BORDER_REFLECT) for img in img_orig]))     
+                if dview is None:
+                    return cm.movie(np.array([cv2.filter2D(np.array(img, dtype=np.float32),
+                                    -1, ker2D, borderType=cv2.BORDER_REFLECT) for img in img_orig]))
+                else:
+                    return cm.movie(np.array(dview.map(
+                        _par_conv, zip(img_orig, [ker2D]*len(img_orig)))))
         else:
-            ker3D = (ker[:,None,None] * ker[None,:,None] * ker[None,None,:])[:,:,:,0]
+            ker3D = (ker[0][:,None,None] * ker[1][None,:,None] * ker[2][None,None,:])[:,:,:,0]
             nz = np.nonzero(ker3D >= ker3D[:, :, 0].max())
             zz = np.nonzero(ker3D < ker3D[:, :, 0].max())
             ker3D[nz] -= ker3D[nz].mean()
             ker3D[zz] = 0
-            from scipy.ndimage import convolve
-            return convolve(img_orig, ker3D)
-            
+            if img_orig.ndim == 3:  # volumetric image
+                return convolve(img_orig, ker3D)
+            else:  # volumetric movie
+                if dview is None:
+                    return cm.movie(np.array([convolve(img, ker3D) for img in img_orig]))
+                else:
+                    return cm.movie(np.array(dview.map(
+                        _par_conv_3d, zip(img_orig, [ker3D]*len(img_orig)))))
     else:  # Butterworth
         rows, cols = img_orig.shape[-2:]
         xx, yy = np.meshgrid(np.arange(cols, dtype=np.float32) - cols / 2,
@@ -2700,9 +2719,9 @@ def compute_metrics_motion_correction(fname, final_size_x, final_size_y, final_s
 
     if template is None:
         if m.ndim == 3:
-            tmpl = cm.motion_correction.bin_median(m)
+            tmpl = bin_median(m)
         else:
-            tmpl = cm.motion_correction.bin_median_3d(m)
+            tmpl = bin_median_3d(m)
     else:
         tmpl = template
 
@@ -2884,13 +2903,13 @@ def motion_correct_batch_rigid(fname, max_shifts, dview=None, splits=56, num_spl
                 np.array([high_pass_filter_space(m_, gSig_filt) for m_ in m]))
         if is3D:     
             # TODO - motion_correct_3d needs to be implemented in movies.py
-            template = caiman.motion_correction.bin_median_3d(m) # motion_correct_3d has not been implemented yet - instead initialize to just median image
-#            template = caiman.motion_correction.bin_median_3d(
+            template = bin_median_3d(m) # motion_correct_3d has not been implemented yet - instead initialize to just median image
+#            template = bin_median_3d(
 #                    m.motion_correct_3d(max_shifts[2], max_shifts[1], max_shifts[0], template=None)[0])
         else:
             if not m.flags['WRITEABLE']:
                 m = m.copy()
-            template = caiman.motion_correction.bin_median(
+            template = bin_median(
                     m.motion_correct(max_shifts[1], max_shifts[0], template=None)[0])
 
     new_templ = template
