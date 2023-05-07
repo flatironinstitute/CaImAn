@@ -355,9 +355,9 @@ def setup_cluster(backend: str = 'multiprocessing',
             ipyparallel and SLURM backends try to restart if cluster running.
             backend='multiprocessing' raises an exception if a cluster is running.
         n_processes: int
-            Sets number of processes to use. If None, is set automatically. 
+            Set number of processes to use. If None, is automatically calculated 
         single_thread: bool
-            If True, dview is set to None, so a single CPU/core is used
+            If True, do not use cluster
         ignore_preexisting: bool
             If True, ignores the existence of an already running multiprocessing
             pool (which usually indicates a previously-started CaImAn cluster)
