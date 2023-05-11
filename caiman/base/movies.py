@@ -14,12 +14,13 @@ Contains the movie class.
 import cv2
 from functools import partial
 import h5py
+from IPython.display import display, Image
+import ipywidgets as widgets
 import logging
 from matplotlib import animation
 import numpy as np
 import os
 import pims
-from PIL import Image  # $ pip install pillow
 import pylab as pl
 import scipy.ndimage
 import scipy
@@ -31,6 +32,7 @@ from sklearn.cluster import KMeans
 from sklearn.decomposition import NMF, IncrementalPCA, FastICA
 from sklearn.metrics.pairwise import euclidean_distances
 import sys
+import threading
 import tifffile
 from tqdm import tqdm
 from typing import Any, Dict, List, Tuple, Union
@@ -1282,6 +1284,49 @@ class movie(ts.timeseries):
             # call our new function to display the animation
             return visualization.display_animation(anim, fps=fr)
 
+        elif backend == 'embed_opencv':
+            stopButton = widgets.ToggleButton(
+                value=False,
+                description='Stop',
+                disabled=False,
+                button_style='danger', # 'success', 'info', 'warning', 'danger' or ''
+                tooltip='Description',
+                icon='square' # (FontAwesome names without the `fa-` prefix)
+            )
+            def view(button):
+                from time import time
+                tic = -time()
+                display_handle=display(None, display_id=True)
+                for iddxx, frame in enumerate(self):
+                    if bord_px is not None and np.sum(bord_px) > 0:
+                        frame = frame[bord_px:-bord_px, bord_px:-bord_px]
+                    if magnification != 1:
+                        frame = cv2.resize(frame, None, fx=magnification, fy=magnification, interpolation=interpolation)
+                    frame = (offset + frame - minmov) * gain / (maxmov - minmov)
+
+                    if plot_text == True:
+                        text_width, text_height = cv2.getTextSize('Frame = ' + str(iddxx),
+                                                                  fontFace=5,
+                                                                  fontScale=0.8,
+                                                                  thickness=1)[0]
+                        cv2.putText(frame,
+                                    'Frame = ' + str(iddxx),
+                                    ((frame.shape[1] - text_width) // 2, frame.shape[0] - (text_height + 5)),
+                                    fontFace=5,
+                                    fontScale=0.8,
+                                    color=(255, 255, 255),
+                                    thickness=1)
+                    display_handle.update(Image(data=cv2.imencode(
+                            '.jpg', np.minimum((frame * 255.), 255).astype('u1'))[1].tobytes()))
+                    pl.pause(1. / fr)
+                    if stopButton.value==True:
+                        break
+                tic+=time()
+                print(tic)
+            display(stopButton)
+            thread = threading.Thread(target=view, args=(stopButton,))
+            thread.start()
+
         if fr is None:
             fr = self.fr
 
@@ -1300,7 +1345,7 @@ class movie(ts.timeseries):
                 if bord_px is not None and np.sum(bord_px) > 0:
                     frame = frame[bord_px:-bord_px, bord_px:-bord_px]
 
-                if backend == 'opencv':
+                if backend in ('opencv', 'embed_opencv'):
                     if magnification != 1:
                         frame = cv2.resize(frame, None, fx=magnification, fy=magnification, interpolation=interpolation)
                     frame = (offset + frame - minmov) * gain / (maxmov - minmov)
@@ -1317,14 +1362,14 @@ class movie(ts.timeseries):
                                     fontScale=0.8,
                                     color=(255, 255, 255),
                                     thickness=1)
-
-                    cv2.imshow('frame', frame)
+                    if backend == 'opencv':
+                        cv2.imshow('frame', frame)
                     if save_movie:
                         if frame.ndim < 3:
                             frame = np.repeat(frame[:, :, None], 3, axis=-1)
                         frame = np.minimum((frame * 255.), 255).astype('u1')
                         out.write(frame)
-                    if cv2.waitKey(int(1. / fr * 1000)) & 0xFF == ord('q'):
+                    if backend == 'opencv' and (cv2.waitKey(int(1. / fr * 1000)) & 0xFF == ord('q')):
                         looping = False
                         terminated = True
                         break
