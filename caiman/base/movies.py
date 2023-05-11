@@ -1254,6 +1254,27 @@ class movie(ts.timeseries):
         else:
             minmov = np.nanmin(self)
 
+        def process_frame(iddxx, frame, bord_px, magnification, interpolation, minmov, maxmov, gain, offset, plot_text):
+            if bord_px is not None and np.sum(bord_px) > 0:
+                frame = frame[bord_px:-bord_px, bord_px:-bord_px]
+            if magnification != 1:
+                frame = cv2.resize(frame, None, fx=magnification, fy=magnification, interpolation=interpolation)
+            frame = (offset + frame - minmov) * gain / (maxmov - minmov)
+
+            if plot_text == True:
+                text_width, text_height = cv2.getTextSize('Frame = ' + str(iddxx),
+                                                            fontFace=5,
+                                                            fontScale=0.8,
+                                                            thickness=1)[0]
+                cv2.putText(frame,
+                            'Frame = ' + str(iddxx),
+                            ((frame.shape[1] - text_width) // 2, frame.shape[0] - (text_height + 5)),
+                            fontFace=5,
+                            fontScale=0.8,
+                            color=(255, 255, 255),
+                            thickness=1)
+            return frame
+
         if backend == 'pylab':
             pl.ion()
             fig = pl.figure(1)
@@ -1294,35 +1315,14 @@ class movie(ts.timeseries):
                 icon='square' # (FontAwesome names without the `fa-` prefix)
             )
             def view(button):
-                from time import time
-                tic = -time()
                 display_handle=display(None, display_id=True)
                 for iddxx, frame in enumerate(self):
-                    if bord_px is not None and np.sum(bord_px) > 0:
-                        frame = frame[bord_px:-bord_px, bord_px:-bord_px]
-                    if magnification != 1:
-                        frame = cv2.resize(frame, None, fx=magnification, fy=magnification, interpolation=interpolation)
-                    frame = (offset + frame - minmov) * gain / (maxmov - minmov)
-
-                    if plot_text == True:
-                        text_width, text_height = cv2.getTextSize('Frame = ' + str(iddxx),
-                                                                  fontFace=5,
-                                                                  fontScale=0.8,
-                                                                  thickness=1)[0]
-                        cv2.putText(frame,
-                                    'Frame = ' + str(iddxx),
-                                    ((frame.shape[1] - text_width) // 2, frame.shape[0] - (text_height + 5)),
-                                    fontFace=5,
-                                    fontScale=0.8,
-                                    color=(255, 255, 255),
-                                    thickness=1)
+                    frame = process_frame(iddxx, frame, bord_px, magnification, interpolation, minmov, maxmov, gain, offset, plot_text)
                     display_handle.update(Image(data=cv2.imencode(
                             '.jpg', np.minimum((frame * 255.), 255).astype('u1'))[1].tobytes()))
                     pl.pause(1. / fr)
                     if stopButton.value==True:
                         break
-                tic+=time()
-                print(tic)
             display(stopButton)
             thread = threading.Thread(target=view, args=(stopButton,))
             thread.start()
@@ -1345,23 +1345,8 @@ class movie(ts.timeseries):
                 if bord_px is not None and np.sum(bord_px) > 0:
                     frame = frame[bord_px:-bord_px, bord_px:-bord_px]
 
-                if backend in ('opencv', 'embed_opencv'):
-                    if magnification != 1:
-                        frame = cv2.resize(frame, None, fx=magnification, fy=magnification, interpolation=interpolation)
-                    frame = (offset + frame - minmov) * gain / (maxmov - minmov)
-
-                    if plot_text == True:
-                        text_width, text_height = cv2.getTextSize('Frame = ' + str(iddxx),
-                                                                  fontFace=5,
-                                                                  fontScale=0.8,
-                                                                  thickness=1)[0]
-                        cv2.putText(frame,
-                                    'Frame = ' + str(iddxx),
-                                    ((frame.shape[1] - text_width) // 2, frame.shape[0] - (text_height + 5)),
-                                    fontFace=5,
-                                    fontScale=0.8,
-                                    color=(255, 255, 255),
-                                    thickness=1)
+                if backend == 'opencv' or (backend == 'embed_opencv' and save_movie):
+                    frame = process_frame(iddxx, frame, bord_px, magnification, interpolation, minmov, maxmov, gain, offset, plot_text)
                     if backend == 'opencv':
                         cv2.imshow('frame', frame)
                     if save_movie:
@@ -1374,8 +1359,10 @@ class movie(ts.timeseries):
                         terminated = True
                         break
 
-                elif backend == 'pylab':
+                elif backend == 'embed_opencv' and not save_movie:
+                    break
 
+                elif backend == 'pylab':
                     im.set_data((offset + frame) * gain / maxmov)
                     ax.set_title(str(iddxx))
                     pl.axis('off')
