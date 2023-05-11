@@ -1187,14 +1187,14 @@ class movie(ts.timeseries):
     def play(self,
              gain: float = 1,
              fr=None,
-             magnification=1,
-             offset=0,
+             magnification: float = 1,
+             offset: float = 0,
              interpolation=cv2.INTER_LINEAR,
              backend: str = 'opencv',
              do_loop: bool = False,
              bord_px=None,
-             q_max=99.75,
-             q_min=1,
+             q_max: float = 99.75,
+             q_min: float = 1,
              plot_text: bool = False,
              save_movie: bool = False,
              opencv_codec: str = 'H264',
@@ -1207,14 +1207,15 @@ class movie(ts.timeseries):
 
             fr: framerate, playing speed if different from original (inter frame interval in seconds)
 
-            magnification: int
+            magnification: float
                 magnification factor
 
             offset: (undocumented)
 
-            interpolation: (undocumented)
+            interpolation:
+                interpolation method for 'opencv' and 'embed_opencv' backends
 
-            backend: 'pylab' or 'opencv', the latter much faster
+            backend: 'pylab', 'notebook', 'opencv' or 'embed_opencv'; the latter 2 are much faster
 
             do_loop: Whether to loop the video
 
