@@ -156,7 +156,7 @@ except:
 
 def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter=5, maxIter=5, nb=1,
                           kernel=None, use_hals=True, normalize_init=True, img=None, method_init='greedy_roi',
-                          max_iter_snmf=500, alpha_snmf=0.8, sigma_smooth_snmf=(.5, .5, .5),
+                          max_iter_snmf=500, alpha_snmf=0.5, sigma_smooth_snmf=(.5, .5, .5),
                           perc_baseline_snmf=20, options_local_NMF=None, rolling_sum=False,
                           rolling_length=100, sn=None, options_total=None,
                           min_corr=0.8, min_pnr=10, seed_method='auto', ring_size_factor=1.5,
@@ -314,7 +314,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
             img += np.finfo(np.float32).eps
 
         Y = Y / np.reshape(img, d + (-1,), order='F')
-        alpha_snmf /= np.mean(img) # normalize alpha to mean image
+        alpha_snmf /= np.mean(img) # normalize alpha for sparse nmf
     else:
         Y = np.array(Y)
 
@@ -534,7 +534,7 @@ def ICA_PCA(Y_ds, nr, sigma_smooth=(.5, .5, .5), truncate=2, fun='logcosh',
 
     return A_in, C_in, center, b_in, f_in
 
-def sparseNMF(Y_ds, nr, max_iter_snmf=500, alpha=0.8, sigma_smooth=(.5, .5, .5),
+def sparseNMF(Y_ds, nr, max_iter_snmf=500, alpha=0.5, sigma_smooth=(.5, .5, .5),
               remove_baseline=True, perc_baseline=20, nb=1, truncate=2):
     """
     Initialization using sparse NMF
@@ -597,7 +597,7 @@ def sparseNMF(Y_ds, nr, max_iter_snmf=500, alpha=0.8, sigma_smooth=(.5, .5, .5),
               max_iter=max_iter_snmf, 
               shuffle=False, 
               alpha_W=alpha, 
-              l1_ratio=0)
+              l1_ratio=0.0)
     C = mdl.fit_transform(yr).T
     A = mdl.components_.T
     A_in = A
