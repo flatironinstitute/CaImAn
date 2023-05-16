@@ -407,6 +407,8 @@ def setup_cluster(backend: str = 'multiprocessing',
             dview = c[:len(c)]
 
         elif (backend == 'multiprocessing') or (backend == 'local'):
+            if backend == 'local':
+                logger.info('The local backend is an alias for the multiprocessing backend, and the alias may be removed in some future version of Caiman')
             if len(multiprocessing.active_children()) > 0:
                 if ignore_preexisting:
                     logger.warn('Found an existing multiprocessing pool. '
