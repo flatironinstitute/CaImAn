@@ -156,7 +156,7 @@ except:
 
 def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter=5, maxIter=5, nb=1,
                           kernel=None, use_hals=True, normalize_init=True, img=None, method_init='greedy_roi',
-                          max_iter_snmf=500, alpha_snmf=10e2, sigma_smooth_snmf=(.5, .5, .5),
+                          max_iter_snmf=500, alpha_snmf=0.5, sigma_smooth_snmf=(.5, .5, .5),
                           perc_baseline_snmf=20, options_local_NMF=None, rolling_sum=False,
                           rolling_length=100, sn=None, options_total=None,
                           min_corr=0.8, min_pnr=10, seed_method='auto', ring_size_factor=1.5,
@@ -314,7 +314,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
             img += np.finfo(np.float32).eps
 
         Y = Y / np.reshape(img, d + (-1,), order='F')
-        alpha_snmf /= np.mean(img)
+        alpha_snmf /= np.mean(img) # normalize alpha for sparse nmf
     else:
         Y = np.array(Y)
 
@@ -534,13 +534,13 @@ def ICA_PCA(Y_ds, nr, sigma_smooth=(.5, .5, .5), truncate=2, fun='logcosh',
 
     return A_in, C_in, center, b_in, f_in
 
-def sparseNMF(Y_ds, nr, max_iter_snmf=500, alpha=10e2, sigma_smooth=(.5, .5, .5),
+def sparseNMF(Y_ds, nr, max_iter_snmf=200, alpha=0.5, sigma_smooth=(.5, .5, .5),
               remove_baseline=True, perc_baseline=20, nb=1, truncate=2):
     """
     Initialization using sparse NMF
 
     Args:
-        Y_ds: nd.array or movie (T, x, y [,z])
+        Y_ds: nd.array or movie (x, y, T [,z])
             data
 
         nr: int
@@ -550,7 +550,7 @@ def sparseNMF(Y_ds, nr, max_iter_snmf=500, alpha=10e2, sigma_smooth=(.5, .5, .5)
             number of iterations
 
         alpha_snmf:
-            sparsity regularizer
+            sparsity regularizer (alpha_W)
 
         sigma_smooth_snmf:
             smoothing along z,x, and y (.5,.5,.5)
@@ -572,24 +572,31 @@ def sparseNMF(Y_ds, nr, max_iter_snmf=500, alpha=10e2, sigma_smooth=(.5, .5, .5)
         center: np.array
             2d array of size nr x 2 [ or 3] with the components centroids
     """
-
     m = scipy.ndimage.gaussian_filter(np.transpose(
         Y_ds, np.roll(np.arange(Y_ds.ndim), 1)), sigma=sigma_smooth,
         mode='nearest', truncate=truncate)
     if remove_baseline:
-        logging.info('REMOVING BASELINE')
+        logging.info('Removing baseline')
         bl = np.percentile(m, perc_baseline, axis=0)
         m1 = np.maximum(0, m - bl)
     else:
-        logging.info('NOT REMOVING BASELINE')
+        logging.info('Not removing baseline')
         bl = np.zeros(m.shape[1:])
         m1 = m
 
     T, dims = m1.shape[0], m1.shape[1:]
     d = np.prod(dims)
     yr = np.reshape(m1, [T, d], order='F')
-    mdl = NMF(n_components=nr, verbose=False, init='nndsvd', tol=1e-10,
-              max_iter=max_iter_snmf, shuffle=False, alpha_W=alpha, l1_ratio=1)
+
+    logging.debug(f"Running SparseNMF with alpha_W={alpha}")
+    mdl = NMF(n_components=nr, 
+              verbose=False, 
+              init='nndsvd', 
+              tol=1e-10,
+              max_iter=max_iter_snmf, 
+              shuffle=False, 
+              alpha_W=alpha, 
+              l1_ratio=0.0)
     C = mdl.fit_transform(yr).T
     A = mdl.components_.T
     A_in = A
