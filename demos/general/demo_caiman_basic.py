@@ -58,7 +58,7 @@ def main():
 # %% start a cluster
 
     c, dview, n_processes =\
-        cm.cluster.setup_cluster(backend='local', n_processes=None,
+        cm.cluster.setup_cluster(backend='multiprocessing', n_processes=None,
                                  single_thread=False)
 
 # %% set up some parameters

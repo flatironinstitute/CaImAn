@@ -99,7 +99,7 @@ def main():
 
 # %% start a cluster for parallel processing
     c, dview, n_processes = cm.cluster.setup_cluster(
-        backend='local', n_processes=None, single_thread=False)
+        backend='multiprocessing', n_processes=None, single_thread=False)
 
 # %%% MOTION CORRECTION
     # first we create a motion correction object with the specified parameters
@@ -188,7 +188,7 @@ def main():
 # %% restart cluster to clean up memory
     cm.stop_server(dview=dview)
     c, dview, n_processes = cm.cluster.setup_cluster(
-        backend='local', n_processes=None, single_thread=False, maxtasksperchild=1)
+        backend='multiprocessing', n_processes=None, single_thread=False, maxtasksperchild=1)
 
 # %% parameters for trace denoising and spike extraction
     ROIs = ROIs                                   # region of interests

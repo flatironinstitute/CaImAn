@@ -129,7 +129,7 @@ def main():
     plt.ylabel('Processing time [ms]')
 #%% RUN IF YOU WANT TO VISUALIZE THE RESULTS (might take time)
     c, dview, n_processes = \
-        cm.cluster.setup_cluster(backend='local', n_processes=None,
+        cm.cluster.setup_cluster(backend='multiprocessing', n_processes=None,
                                  single_thread=False)
     if opts.online['motion_correct']:
         shifts = cnm.estimates.shifts[-cnm.estimates.C.shape[-1]:]
