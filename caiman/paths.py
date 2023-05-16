@@ -97,7 +97,7 @@ def decode_mmap_filename_dict(basename:str) -> Dict:
     # For a mmap file we (presumably) made, return a dict with the information encoded in its
     # filename. This will usually be params like d1, d2, T, and order.
     # This function is not general; it knows the fields it wants to extract.
-    print(f"Decode mmap filename {basename}")
+
     ret = {}
     _, fn = os.path.split(basename)
     fn_base, _ = os.path.splitext(fn)

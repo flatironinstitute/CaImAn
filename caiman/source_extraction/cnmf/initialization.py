@@ -534,13 +534,13 @@ def ICA_PCA(Y_ds, nr, sigma_smooth=(.5, .5, .5), truncate=2, fun='logcosh',
 
     return A_in, C_in, center, b_in, f_in
 
-def sparseNMF(Y_ds, nr, max_iter_snmf=500, alpha=0.5, sigma_smooth=(.5, .5, .5),
+def sparseNMF(Y_ds, nr, max_iter_snmf=200, alpha=0.5, sigma_smooth=(.5, .5, .5),
               remove_baseline=True, perc_baseline=20, nb=1, truncate=2):
     """
     Initialization using sparse NMF
 
     Args:
-        Y_ds: nd.array or movie (T, x, y [,z])
+        Y_ds: nd.array or movie (x, y, T [,z])
             data
 
         nr: int
@@ -572,7 +572,6 @@ def sparseNMF(Y_ds, nr, max_iter_snmf=500, alpha=0.5, sigma_smooth=(.5, .5, .5),
         center: np.array
             2d array of size nr x 2 [ or 3] with the components centroids
     """
-
     m = scipy.ndimage.gaussian_filter(np.transpose(
         Y_ds, np.roll(np.arange(Y_ds.ndim), 1)), sigma=sigma_smooth,
         mode='nearest', truncate=truncate)
