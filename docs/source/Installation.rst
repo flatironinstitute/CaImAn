@@ -7,7 +7,7 @@ http://docs.continuum.io/anaconda/install
 CaImAn installation consists of two steps:
 
 1. Install the CaImAn package
-2. Setting up the caimanmanager which will setup a directory with all the demos, test datasets etc.
+2. Setting up the caimanmanager which will setup a directory with all the demos and test datasets. 
 
 Installing CaImAn
 -----------------
@@ -33,9 +33,9 @@ Package-based Process
 -  Download and install Anaconda (Python 3.x)
    http://docs.continuum.io/anaconda/install. Allow the installer to
    modify your PATH variable
--  Install mamba into your base environment, with 'conda install -n base -c conda-forge mamba'
+-  Install mamba into your base environment, with `conda install -n base -c conda-forge mamba`
 -  Create a new environment with the caiman package from conda-forge:
--  If you are installing on Windows, use the conda enabled shell (under "Anaconda" in your programs menu) rather than powershell or a generic prompt
+-  If you are installing on Windows, use the conda enabled shell (under "Anaconda" in your programs menu) rather than powershell or a generic prompt:
 
 .. code:: bash
 
