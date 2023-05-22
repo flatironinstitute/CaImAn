@@ -1,4 +1,5 @@
-This is a guide to contributing to CaImAn. We have external contributors all over the world.
+# CaImAn contributors guide
+CaImAn is an open source project, and everyone is welcome and encouraged to contribute. We have external contributors all over the world, and we are always looking for more. The guide below explains how to contribute to Caiman: if you have questions please feel free to reach out for help at [Gitter](https://app.gitter.im/#/room/#agiovann_Constrained_NMF:gitter.im). 
 
 Switch to the dev branch
 ========================

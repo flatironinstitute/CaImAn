@@ -9,56 +9,59 @@ A Python toolbox for large scale **Ca**lcium **Im**aging data **An**alysis.
 CaImAn implements a set of essential methods required to analyze calcium and voltage imaging data. It provides fast and scalable algorithms for motion correction, source extraction, spike deconvolution, and component registration across multiple days. It is suitable for both two-photon and one-photon fluorescence microscopy data, and can be run in both offline and online modes. A full list of features as well as relevant references can be found [here](https://caiman.readthedocs.io/en/latest/Caiman_features_and_references.html).
 
 # Quick start :rocket:
-Getting started is easy using conda. 
+To get started quickly working on a demo notebook, just take the following three steps:
 
-1. At the anaconda prompt, install mamba in your `base` environment: 
+### Step 1: Install caiman
+The following is all done in your anaconda prompt, starting in your base environment:
+  
+    conda install mamba -n base -c conda-forge   # install mamba in base environment
+    mamba create -n caiman -c conda-forge caiman # install caiman
+    conda activate caiman  # activate virtual environment
 
-`conda install mamba -n base -c conda-forge`  
+### Step 2: Download code samples and data sets
+Here we will create a working directory with code samples and related data in a folder called `caiman_data`. Once this step is done, you will easily be able to run any of the demos provided with Caiman! While still in the caiman environment in conda from the previous step:  
 
-2.  Install caiman (this can take a while):
+    caimanmanager.py install
 
-`mamba create -n caiman -c conda-forge caiman`
+### Step 3: Try out a demo notebook
+In Step 2, you created a `caiman_data` folder in your home directory. Here, we `cd` to the demo notebooks folder in `caiman_data`, and fire up a jupyter notebook:
 
-3. Activate your new caiman environment
+    cd home/caiman_data/demos/notebooks  # go to demo notebooks
+    jupyter notebook  # fire up a jupyter notebook
 
-`conda activate caiman`
-
-4. Download demo notebooks and movies 
-
-`caimanmanager.py install`
-
-5. Try out a demo notebook!
-
-In step 4, you created a 'caiman_data' folder in your home directory:
-
-```
-  cd caiman_data/demos/notebooks
-  jupyter notebook
-```
-Jupyter will open: click on `demo_pipeline.ipynb` to get started with a demo of CNMF.
-
-## For installation help :question:
-Our goal is for Caiman to be easy to install on Linux, Mac, and Windows. If you run into problems, please send us a [message on Gitter](https://app.gitter.im/#/room/#agiovann_Constrained_NMF:gitter.im).  
+Jupyter will open: click on `demo_pipeline.ipynb` to get started with a demo! Note that what counts as `home` in the first command depends on your OS, so be sure to fill in your actual home directory.
 
 ## For more details
- There are more detailed installation and setup instructions [here](./docs/source/Installation.rst). For instance go there to learn how to build a development environment or to control where the demo notebooks go (they will default to `home/caiman_data`).
+ There are more detailed installation and setup instructions [here](./docs/source/Installation.rst). For instance go there to learn how to build a development environment, or if you want to change where `caiman_data` is placed.
+
+## Installation problem?
+We want Caiman to install easily on Linux, Mac, and Windows. If you run into problems, please send us a [message on Gitter](https://app.gitter.im/#/room/#agiovann_Constrained_NMF:gitter.im).  
 
 
-# Where to go next? :airplane:
+# Where to go next? :red_car:
 Caiman provides demo notebooks to explain and demonstrate each of our main pipelines, and you can adapt these for your personal needs. The main use cases and notebooks are:
 
-- motion correction motion correction.ipynb   
-- CNMF for 2p and very low noise 1p data   demo_pipeline.ipynb
-- CNMFE for 1p data and 2p data with high background noise demo_pipeline_cnmfe.ipynb
-- 
+| Use case | Demo notebook | 
+|:-------- |:------------- |
+| Motion correction | demo_motion_correction.ipynb | 
+| CNMF for 2p or low-noise 1p data | demo_pipeline.ipynb |  
+| CNMFE for 1p data  | demo_pipeline.ipynb |  
+| Volpy for voltage data | demo_pipeline_voltag_imaging.ipynb |  
+| Volumetric (3D) CNMF | demo_caiman_cnmf_3D.ipynb |  
+| CNMF for dendrites | data_dendritic.ipynb |  
+| Online CNMF (OnACID) | demo_OnACID_mesoscope.ipynb |
+| Online volumetric CNMF | demo_online_3D.ipynb |
+| Online CNMFE (OnACID-E) | demo_realtime_cnmfE.ipynb |
+| Register cells across sessions | demo_multisession_registration.ipynb |  
 
-More info, and relevant papers, can be found in ()(link to docs).
+A comprehensive list of references where these methods were developed can be found [here](https://caiman.readthedocs.io/en/master/CaImAn_features_and_references.html#references). 
 
 
-## How to contribute :family:
-We welcome contributions from the community of Caiman users, from typos to bug fixes. See the [contributions page]() for more details. 
+# Need help?
+If you need help using Caiman, or hit an installation snag, we recommend asking about it in the [Gitter forum](https://app.gitter.im/#/room/#agiovann_Constrained_NMF:gitter.im). If you have found a bug, we recommend searching the [issues at github](https://github.com/flatironinstitute/CaImAn/issues) and opening a new one if you can't find it there. If there is a feature you would like to see, discuss at Gitter or open an issue at Github. 
 
-
+# How to contribute :hammer:
+ Caiman is an open-source project and improves because of people like you. If you found something about Caiman that you want to improve, then you are qualified to contribute! See the [contributing page](./CONTRIBUTING.md) for more details on how to participate in the project: as an open source project driven by community engagement, we are always looking for more contributors!
 
 ## Papers and data
 
