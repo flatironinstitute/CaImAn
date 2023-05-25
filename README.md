@@ -1,6 +1,4 @@
-<a href="https://colab.research.google.com/drive/1vkp-uPV8tKavmX12bcN2L-jYH8_MgmHL?usp=sharing"><img src="https://img.shields.io/badge/-Colab%20Demo-blue" /></a>
-
-# CaImAn
+# CaImAn 
 <img src="docs/LOGOS/Caiman_logo_FI.png" width="400" align="right">
 
 A Python toolbox for large-scale **Ca**lcium **Im**aging **An**alysis.    
@@ -18,7 +16,7 @@ The following is all done in your anaconda prompt, starting in your base environ
     conda activate caiman  # activate virtual environment
 
 ### Step 2: Download code samples and data sets
-Here we will create a working directory with code samples and related data in a folder called `caiman_data`. Once this step is done, you will easily be able to run any of the demos provided with Caiman! While still in the caiman environment in conda from the previous step:  
+Here we will create a working directory with code samples and related data in a folder called `caiman_data`. Once this step is done, you will easily be able to run any of the demos provided with Caiman. While still in the caiman virtual environment created in the previous step:  
 
     caimanmanager.py install
 
@@ -37,7 +35,7 @@ Jupyter will open: click on `demo_pipeline.ipynb` to get started with a demo! No
 We want Caiman to install easily on Linux, Mac, and Windows. If you run into problems, please send us a [message on Gitter](https://app.gitter.im/#/room/#agiovann_Constrained_NMF:gitter.im).  
 
 
-# Demo notebooks :newspaper:
+# Demo notebooks :page_with_curl:
 Caiman provides demo notebooks to explain and demonstrate each of our main pipelines, and you can adapt these for your personal needs. You can find the main use cases and notebooks listed in the following table.
 
 | Use case | Demo notebook | Paper |
@@ -60,7 +58,7 @@ A comprehensive list of references, where you can find detailed discussion of th
 If you need help using Caiman, or hit an installation snag, we recommend asking about it in the [Gitter forum](https://app.gitter.im/#/room/#agiovann_Constrained_NMF:gitter.im). If you have found a bug, we recommend searching the [issues at github](https://github.com/flatironinstitute/CaImAn/issues) and opening a new one if you can't find it there. If you have a general question about how things work or there is a feature you would like to see, feel free to come chat at Gitter or open an issue at Github. 
 
 # How to contribute :hammer:
- Caiman is an open-source project and improves because of people like you. If you found something about Caiman that you want to improve, then you are qualified to contribute! We are always looking for more contributors, so please come read the [contributors page](./CONTRIBUTING.md) for more details about how to contribute. 
+ Caiman is an open-source project and improves because of contributions from users all over the world. If there is something about Caiman that you would like to improve, then you are qualified to contribute! We are always looking for more contributors, so please come read the [contributors page](./CONTRIBUTING.md) for more details about how. 
 
 # Videos :tv:
 These talks by Andrea Giovannucci from past Caiman workshops/events are an excellent start for newcomers. They go through NoRMCorre, CNMF(E) and VolPy.
@@ -76,17 +74,19 @@ The following Nemonic workshops are more in depth:
 * https://www.youtube.com/watch?v=z6TlH28MLRo
 
 
-# Related repositories :loudspeaker:
-* [use\_cases repo](https://github.com/flatironinstitute/caiman_use_cases) - Contains additional code (unmaintained) demonstrating how to reproduce results in some Caiman-related papers, and how to use/extend Caiman.
-* [jnormcorre](https://github.com/apasarkar/jnormcorre) - [JAX](https://github.com/google/jax) implementation of NoRMCorre for motion correction using JAX acceleration
-* [funimag](https://github.com/paninski-lab/funimag) - matrix decomposition for denoising and compression
-* [mesmerize-core](https://github.com/nel-lab/mesmerize-core) - parameter optimization, data organization and visualizations with Caiman
-* [improv](https://github.com/project-improv/improv) - a platform for creating online analysis workflows that lets you use Caiman in real time (e.g., for all-optical experiments)
+# Related repositories :pushpin:
+There are many repositories that make heavy use of Caiman, or will help make using Caiman easier. If you would like your software to be in this list, please ask at Gitter or open an issue. 
 
-If you have questions about these related packages please reach out to their maintainers directly. If you would like your software to be in this list, please ask at Gitter or open an issue. 
+* [use\_cases repo](https://github.com/flatironinstitute/caiman_use_cases):  additional code (unmaintained) demonstrating how to reproduce results in some Caiman-related papers, and how to use/extend Caiman.
+* [jnormcorre](https://github.com/apasarkar/jnormcorre): [JAX](https://github.com/google/jax) implementation of NoRMCorre for motion correction using JAX acceleration
+* [funimag](https://github.com/paninski-lab/funimag): matrix decomposition for denoising and compression
+* [mesmerize-core](https://github.com/nel-lab/mesmerize-core): parameter optimization, data organization and visualizations with Caiman
+* [improv](https://github.com/project-improv/improv):  a platform for creating online analysis workflows that lets you use Caiman in real time (e.g., for all-optical experiments)
+
+If you have questions about these related packages please reach out to their maintainers directly. 
 
 # Caiman paper
-If you use Caiman, we kindly ask that you [cite Giovannucci et al., 2019](https://elifesciences.org/articles/38173):
+If you use Caiman and end up publishing, we kindly ask that you [cite Giovannucci et al., 2019](https://elifesciences.org/articles/38173):
 ```
 @article{giovannucci2019caiman,
   title={Caiman: An open source tool for scalable Calcium Imaging data Analysis},
@@ -107,10 +107,10 @@ If you use Caiman, we kindly ask that you [cite Giovannucci et al., 2019](https:
 * Pat Gunn, **Flatiron Institute, Simons Foundation**
 * Eric Thomson, **Flatiron Institute, Simons Foundation**
 
-A complete list of contributors can be found [here](https://github.com/flatironinstitute/Caiman/graphs/contributors).Currently Pat Gunn, Johannes Friedrich, and Eric Thomson are the most active contributors.
+A complete list of contributors can be found [here](https://github.com/flatironinstitute/Caiman/graphs/contributors). Currently Pat Gunn, Johannes Friedrich, and Eric Thomson are the most active contributors.
 
 
-# Acknowledgements
+# Acknowledgements :clap:
 Special thanks to the following people for letting us use their datasets in demo files:
 
 * Weijian Yang, Darcy Peterka, Rafael Yuste, Columbia University
