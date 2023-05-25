@@ -11,7 +11,7 @@ To get started quickly working on a demo notebook, just take the following three
 ### Step 1: Install caiman
 The following is all done in your anaconda prompt, starting in your base environment:
   
-    conda install mamba -n base -c conda-forge   # install mamba in base environment
+    conda install -n base -c conda-forge mamba   # install mamba in base environment
     mamba create -n caiman -c conda-forge caiman # install caiman
     conda activate caiman  # activate virtual environment
 
@@ -33,9 +33,9 @@ Caiman should install easily on Linux, Mac, and Windows. If you run into problem
 
 
 # Demo notebooks :page_with_curl:
-Once you've gotten Caiman installed, what should you do? We recommend you pick a demo notebook that most closely matches your use case, and adapt it for your particular needs. 
+Once you've gotten Caiman installed, we recommend you pick a demo notebook that most closely matches your use case and adapt it for your particular needs. 
 
-Caiman provides demo notebooks to explain and demonstrate each of our main pipelines, from motion correction to online CNMF for real-time analysis of two-photon data. The notebooks demonstrating the core algorithms, CNMF and CNMFE, are probably the best place to start: they have the most details that are used in the rest of the notebooks. 
+Caiman provides demo notebooks to explain and demonstrate each of our main pipelines, from motion correction to online CNMF for real-time analysis of two-photon data. The notebooks demonstrating the core algorithms, CNMF and CNMFE, are the best place to start: they have the most details that are used in the rest of the notebooks. 
 
 The main use cases and notebooks are in the following table:
 
@@ -90,7 +90,7 @@ If you have questions about these related packages please reach out to their mai
 If you use Caiman and end up publishing, we kindly ask that you [cite Giovannucci et al., 2019](https://elifesciences.org/articles/38173):
 ```
 @article{giovannucci2019caiman,
-  title={Caiman: An open source tool for scalable Calcium Imaging data Analysis},
+  title={CaImAn: An open source tool for scalable Calcium Imaging data Analysis},
   author={Giovannucci, Andrea and Friedrich, Johannes and Gunn, Pat and Kalfon, Jeremie and Brown, Brandon L and Koay, Sue Ann and Taxidis, Jiannis and Najafi, Farzaneh and Gauthier, Jeffrey L and Zhou, Pengcheng and Khakh, Baljit S and Tank, David W and Chklovskii, Dmitri B and Pnevmatikakis, Eftychios A},
   journal={eLife},
   volume={8},
