@@ -28,19 +28,19 @@ In Step 2, you created a `caiman_data` folder in your home directory. Here, we `
 
 Jupyter will open: click on `demo_pipeline.ipynb` to get started with a demo! Note that what counts as `home` in the first command depends on your OS, so be sure to fill in your actual home directory.
 
-## For more details
- There are much more detailed installation and setup instructions [here](./docs/source/Installation.rst). For instance go there if you want to change where `caiman_data` is placed.
-
-## Problem setting up Caiman?
-We want Caiman to install easily on Linux, Mac, and Windows. If you run into problems, please send us a [message on Gitter](https://app.gitter.im/#/room/#agiovann_Constrained_NMF:gitter.im).  
+## For installation details/help
+Caiman should install easily on Linux, Mac, and Windows. If you run into problems, there are more details on the dedicated [installation page](./docs/source/Installation.rst), which should help you troubleshoot. If you don't find what you need there, *please* send us a [message on Gitter](https://app.gitter.im/#/room/#agiovann_Constrained_NMF:gitter.im), and we will help you get it sorted out. 
 
 
 # Demo notebooks :page_with_curl:
-Caiman provides demo notebooks to explain and demonstrate each of our main pipelines, and you can adapt these for your personal needs. You can find the main use cases and notebooks listed in the following table.
+Once you've gotten Caiman installed, what should you do? We recommend you pick a demo notebook that most closely matches your use case, and adapt it for your particular needs. 
+
+Caiman provides demo notebooks to explain and demonstrate each of our main pipelines, from motion correction to online CNMF for real-time analysis of two-photon data. The notebooks demonstrating the core algorithms, CNMF and CNMFE, are probably the best place to start: they have the most details that are used in the rest of the notebooks. 
+
+The main use cases and notebooks are in the following table:
 
 | Use case | Demo notebook | Paper |
 |:-------- |:------------- | --------------------- |
-| Motion correction | demo_motion_correction.ipynb | [Pnevmatikakis et al., 2017](https://pubmed.ncbi.nlm.nih.gov/28782629/) | 
 | CNMF for 2p or low-noise 1p data | demo_pipeline.ipynb |  [Pnevmatikakis et al., 2016](https://pubmed.ncbi.nlm.nih.gov/26774160/) | 
 | CNMFE for 1p data  | demo_pipeline.ipynb |  [Zhou et al., 2018](https://pubmed.ncbi.nlm.nih.gov/29469809/) | 
 | Volpy for voltage data | demo_pipeline_voltag_imaging.ipynb |  [Cai et al., 2021](https://pubmed.ncbi.nlm.nih.gov/33852574/) | 
@@ -49,6 +49,7 @@ Caiman provides demo notebooks to explain and demonstrate each of our main pipel
 | Online CNMF (OnACID) | demo_OnACID_mesoscope.ipynb |[Giovannucci et al., 2017](https://proceedings.neurips.cc/paper_files/paper/2017/hash/4edaa105d5f53590338791951e38c3ad-Abstract.html) | 
 | Online volumetric CNMF | demo_online_3D.ipynb | Developed by Johannes Friedrich | 
 | Online CNMFE (OnACID-E) | demo_realtime_cnmfE.ipynb |[Friedrich et al. 2020](https://pubmed.ncbi.nlm.nih.gov/33507937/) | 
+| Motion correction | demo_motion_correction.ipynb | [Pnevmatikakis et al., 2017](https://pubmed.ncbi.nlm.nih.gov/28782629/) | 
 | Register cells across sessions | demo_multisession_registration.ipynb | [Pnevmatikakis et al., 2016](https://pubmed.ncbi.nlm.nih.gov/26774160/) | 
 
 A comprehensive list of references, where you can find detailed discussion of the methods and their development, can be found [here](https://caiman.readthedocs.io/en/master/CaImAn_features_and_references.html#references). 
@@ -110,7 +111,7 @@ If you use Caiman and end up publishing, we kindly ask that you [cite Giovannucc
 A complete list of contributors can be found [here](https://github.com/flatironinstitute/Caiman/graphs/contributors). Currently Pat Gunn, Johannes Friedrich, and Eric Thomson are the most active contributors.
 
 
-# Acknowledgements :clap:
+# Acknowledgements :two_hearts:
 Special thanks to the following people for letting us use their datasets in demo files:
 
 * Weijian Yang, Darcy Peterka, Rafael Yuste, Columbia University
