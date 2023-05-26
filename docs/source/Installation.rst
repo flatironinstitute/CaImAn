@@ -12,12 +12,15 @@ CaImAn installation consists of two steps:
 Installing CaImAn
 -----------------
 
-There are two ways to install CaImAn. A package based installation and a development
-mode installation.
+There are two ways to install CaImAn. A **package based** installation and a **development
+mode** installation. The first will be appropriate for most use cases: it is for users 
+that mainly want to use Caiman to analyze data or test it out. The second, development mode
+installation, is for those who want to install an editable version of Caiman in order
+to make tweaks to the code base. 
 
-Package-based Process
----------------------
-
+1. Package-based installation: conda installer
+---------------------------------------------
+These are basically the instructions on the home page, 
 .. raw:: html
 
    <details>
@@ -33,7 +36,7 @@ Package-based Process
 -  Download and install Anaconda (Python 3.x)
    http://docs.continuum.io/anaconda/install. Allow the installer to
    modify your PATH variable
--  Install mamba into your base environment, with `conda install -n base -c conda-forge mamba`
+-  Install mamba into your base environment, with ``conda install -n base -c conda-forge mamba``
 -  Create a new environment with the caiman package from conda-forge:
 -  If you are installing on Windows, use the conda enabled shell (under "Anaconda" in your programs menu) rather than powershell or a generic prompt:
 
@@ -42,7 +45,8 @@ Package-based Process
     mamba create -n caiman -c conda-forge caiman
     conda activate caiman
 
--  Skip ahead to the section on setting up a data directory with caimanmanager
+- The previous two steps installed caiman and activated the virtual environment. 
+-  Skip ahead to the section on setting up a data directory with `caimanmanager`
 
 Known issues
 ~~~~~~~~~~~~
@@ -57,7 +61,7 @@ with setting up the caiman_data folder as explained below.
    </details>
 
 
-Development mode Installation Process
+2. Development mode Installation Process
 -------------------------------------
 
 This will allow you to modify the source files of CaImAn and will make it easier
@@ -70,36 +74,22 @@ Installation on Windows
 .. raw:: html
 
    <details>
-   <summary>Installation on Windows</summary>
+   <summary>Dev Mode Installation on Windows</summary>
 
 The Windows installation process differs more widely from installation
-on Linux or MacOSX and has different issues you may run into. We strongly recommend
-using the package-based install rather than building CaImAn yourself. In either case,
-everything you do should be from a Conda enabled shell (which you can find in your programs menu)
-rather than from Powershell or any other shell.
+on Linux or MacOSX and has different issues you may run into. Everything 
+you do should be from a Conda enabled shell rather than from Powershell 
+or any other shell.
 
 -  Remove any associations you may have made between .py files and an existing python
    interpreter or editor
--  Increase the maximum size of your pagefile to 64G or more
+-  If you have less than 64GB of RAM, increase the maximum size of your pagefile to 64G or more
    (http://www.tomshardware.com/faq/id-2864547/manage-virtual-memory-pagefile-windows.html).
    The Windows memmap interface is sensitive to the maximum setting
    and leaving it at the default can cause errors when processing larger
    datasets
 Installing CaImAn from a package on Windows should be otherwise the same as any other OS for the
 package-based process described above.
-
-If you will be building CaImAn on Windows (not recommended):
--  Use Conda to install git (With “conda install -c conda-forge git”) - use of
-   another commandline git is acceptable, but may lead to issues
-   depending on default settings
--  Install Microsoft Build Tools for Visual Studio 2017
-   https://www.visualstudio.com/downloads/#build-tools-for-visual-studio-2017.
-   You can find older versions of visual studio in a link to older tools at the
-   bottom of the page.
-   Check the “Build Tools” box, and in the detailed view on the right
-   check the “C/C++ CLI Tools” component too. The specifics of this
-   occasionally change as Microsoft changes its products and website;
-   you may need to go off-script.
 
 Use the following menu item to launch a anaconda-enabled command prompt:
 start>programs>anaconda3>anaconda prompt From that prompt. issue the
@@ -133,7 +123,7 @@ You may then continue the installation.
 
    </details>
 
-Installation on MacOS and Linux
+Dev Mode Installation on MacOS and Linux
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. raw:: html
@@ -206,7 +196,7 @@ following the instructions
     </details>
 
 
-Setting up caimanmanager
+3. Setting up caimanmanager
 ------------------------
 
 Once CaImAn is installed, you may want to get a working directory with
