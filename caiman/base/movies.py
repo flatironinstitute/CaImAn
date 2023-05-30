@@ -1564,17 +1564,23 @@ def load(file_name: Union[str, List[str]],
                 input_arr = np.squeeze(input_arr)
 
         elif extension in ('.avi', '.mkv'):      # load video file
-            cap = cv2.VideoCapture(file_name)
+            # In practice, the GSTREAMER backend is usually used by OpenCV,
+            # and builds after OpenCV 4.0.1 no longer statically link that backend,
+            # instead using a separate package that invariably doesn't support as many
+            # codecs (adding gst-plugins-good doesn't help,
+            # tested up to OpenCV 4.6.0 and gst-plugins-good 1.18.5)
+            # Instead we'll explicitly go with the DirectShow backend on Windows, which
+            # seems to have good broad codec support (if this turns out to break other users,
+            # we may need a more complex solution)
+            if os.name == 'nt':
+                cv_backend = cv2.CAP_DSHOW
+            else:
+                cv_backend = cv2.CAP_ANY
+            cap = cv2.VideoCapture(file_name, cv_backend)
 
-            try:
-                length = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-                width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-                height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-            except:
-                logging.info('Roll back to opencv 2')
-                length = int(cap.get(cv2.cv.CV_CAP_PROP_FRAME_COUNT))
-                width = int(cap.get(cv2.cv.CV_CAP_PROP_FRAME_WIDTH))
-                height = int(cap.get(cv2.cv.CV_CAP_PROP_FRAME_HEIGHT))
+            length = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+            width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+            height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
             cv_failed = False
             dims = [length, height, width]                     # type: ignore # a list in one block and a tuple in another
