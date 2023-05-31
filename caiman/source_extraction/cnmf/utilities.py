@@ -1134,6 +1134,7 @@ def get_file_size(file_name, var_name_hdf5='mov'):
             T: int or tuple of int
                 number of timesteps in each file
     """
+    # TODO There is a lot of redundant code between this and caiman.base.movies.load() that should be unified somehow
     if isinstance(file_name, pathlib.Path):
         # We want to support these as input, but str has a broader set of operations that we'd like to use, so let's just convert.
 	# (specifically, filePath types don't support subscripting)
@@ -1157,17 +1158,16 @@ def get_file_size(file_name, var_name_hdf5='mov'):
                 else:
                     T, dims = siz[0], siz[1:]
             elif extension in ('.avi', '.mkv'):
-                cap = cv2.VideoCapture(file_name)
+                # See discussion in caiman.base.movies.load() for why we do this
+                if os.name == 'nt':
+                    cv_backend = cv2.CAP_DSHOW
+                else:
+                    cv_backend = cv2.CAP_ANY
+                cap = cv2.VideoCapture(file_name, cv_backend)
                 dims = [0, 0]
-                try:
-                    T = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-                    dims[1] = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-                    dims[0] = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-                except():
-                    print('Roll back to opencv 2')
-                    T = int(cap.get(cv2.cv.CV_CAP_PROP_FRAME_COUNT))
-                    dims[1] = int(cap.get(cv2.cv.CV_CAP_PROP_FRAME_WIDTH))
-                    dims[0] = int(cap.get(cv2.cv.CV_CAP_PROP_FRAME_HEIGHT))
+                T = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+                dims[1] = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+                dims[0] = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
             elif extension == '.mmap':
                 filename = os.path.split(file_name)[-1]
                 Yr, dims, T = load_memmap(os.path.join(
