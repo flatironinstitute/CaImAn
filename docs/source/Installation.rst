@@ -1,42 +1,31 @@
 Installation and Updating
 =========================
 
-This document will give more detailed setup instructions for Caiman than the main page. This is the place 
-you should come first if you run into problems and need to troubleshoot.
-It includes info on initial setup, as well as updating with new releases. We assume 
-you already have Anaconda or Miniconda installed (Python 3.x version):
-http://docs.continuum.io/anaconda/install
+This page will give more detailed setup instructions for Caiman than the `main readme <../../README.md>`_. This is the place 
+you should come first if you run into problems and need to troubleshoot. It includes info on initial setup, as well as 
+updating with new releases. Note there is a Table of Contents on the left-hand side of this page: there are a lot of 
+sections here, so if you get lost or need help with a particular task, that should help you get oriented. 
 
-
-Caiman setup consists of two steps:
+Caiman setup consists of two main steps:
 
 1. Install Caiman
 2. Use caimanmanager to download sample code and data to a ``caiman_data`` directory.
 
-We will discuss each of these steps, for different operating systems, in separate sections, below.
-Then in a third section, we will discuss how to upgrade once you've already installed. To make it 
-easier to navigate we have a table of contents with links.
+We will discuss each of these steps for different operating systems below. In a separate section, we will discuss how to 
+upgrade once you've already installed. 
 
-TABLE OF CONTENTS
-=================
-| Section 1: Installing Caiman    
-| Section 1A: Pre-built conda installer
-| Section 1B: Development-mode install
-| Section 2: Setting up demos with caimanmanager
-| Section 3: Upgrading
-| Section 3A: Upgrading conda installation
-| Section 3B: Upgrading developer install
-| Section 3C: Upgrading caiman_data
-| Section 4: Miscellaneous important topics
+If you do not already have conda installed, first install a 3.x version for your platform `here <https://docs.conda.io/en/latest/miniconda.html>`_. 
+We recommend you familiarise yourself with Conda before going further. If you are using an M1-based Mac, please ignore the 
+ARM builds of conda; install an x86 version instead (ignore any warnings you get while doing so; it will work fine).
 
-Section 1: Installing CaImAn
+
+Section 1: Install Caiman
 =============================
 
-There are two ways to install CaImAn. A **package based** installation and a **development
-mode** installation. The first will be appropriate for most use cases: it is for users 
-that mainly want to use Caiman to analyze data or test it out. The second, development mode
-installation, is for those who want to install an editable version of Caiman in order
-to make tweaks to the code base. 
+There are two main ways to install Caiman: you can use conda (package-based install), and a **development-mode** 
+installation. The first will be appropriate for first-time users that want to get started quickly using 
+Caiman to analyze data. The second, development-mode installation, is for those who want to install an 
+editable version of Caiman in order to tweak to the code base, and make contributions to Caiman.
 
 
 Section 1A. Pre-built conda install
@@ -85,12 +74,13 @@ with setting up the ``caiman_data`` folder as explained below in Section 2.
 Section 1B. Development-mode install
 -------------------------------------
 
-This will allow you to modify the source files of CaImAn and will make it easier
-to contribute to the CaImAn project, fix bugs etc., as described in our CONTRIBUTORS.md doc.
+Dev mode install allows you to modify the source files of Caiman and makes it easier
+to contribute to the project, fix bugs etc.. The general motivation for setting up
+an editable development environment is described in detail in our `contributors page <../../CONTRIBUTING.md>`_.
 
 
-Section 1Bi: Development-mode install on Windows
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Dev-mode install on Windows
+~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. raw:: html
 
@@ -116,7 +106,7 @@ At the conda prompt:
 
 .. code:: bash
 
-     git clone https://github.com/<your-user-name>/CaImAn
+     git clone https://github.com/your-username/CaImAn
      cd CaImAn
      mamba env create -f environment.yml -n caiman
      mamba install -n caiman vs2017_win-64
@@ -144,8 +134,8 @@ You may then continue the installation.
 
    </details>
 
-Section 1Bii: Dev Mode Install on MacOS and Linux
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Dev Mode Install on MacOS and Linux
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. raw:: html
 
@@ -154,7 +144,7 @@ Section 1Bii: Dev Mode Install on MacOS and Linux
 
 .. code:: bash
 
-     git clone https://github.com/<your-user-name>/CaImAn
+     git clone https://github.com/your-username/CaImAn
      cd CaImAn/
      mamba env create -f environment.yml -n caiman
      source activate caiman
@@ -182,16 +172,16 @@ and install the package file you will find in the folder that pops up
 
 
 
+Section 2: Set up demos 
+========================
 
-1. Setting up caimanmanager
-----------------------------
-
-Once CaImAn is installed, you may want to get a working directory with
-code samples and datasets; pip installed a caimanmanager.py command that
+Once Caiman is installed, you will likely want to set up a working directory with
+code samples and datasets. The first installation step produced a command ``caimanmanager.py`` that
 manages this. If you have not installed Caiman before, you can do
 
 ``caimanmanager.py install``
-if you used the conda-forge package or the `pip install .` option
+
+if you used the conda-forge package or the ``pip install .`` option
 
 OR
 
@@ -212,14 +202,18 @@ If you prefer to manage this information somewhere else, the
 caimanmanager tool and other libraries will respect that.
 
 
-Upgrading
----------
+Section 3: Upgrading
+====================
 
-To upgrade CaImAn you will need to upgrade both the package and the ``caiman_data`` directory through the ``caimanmanager``.
+Upgrading can mean a couple of things. First, it typically means there has been a new release of Caiman, so you need 
+to install the new version of Caiman. Second, it could mean you need
+to upgrade changes to the demos in ``caiman_data`` using ``caimanmanager``. Here, we'll discuss how to upgrade 
+Caiman depending on how you've installed, and also how to upgrade your demo code/data in ``caiman_data`` using 
+``caimanmanager``. 
 
 
-Upgrading the conda-forge package
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Section 3A: Upgrade conda install
+-----------------------------------
 
 .. raw:: html
 
@@ -227,30 +221,31 @@ Upgrading the conda-forge package
    <summary>Updating the conda-forge package</summary>
 
 From within your caiman environment type ```conda update caiman -c conda-forge```. In most cases this should be enough.
-If not, you may want to create a new environmrent from scratch and (optionally) remove your existing environment. To do that:
+
+If not, you may want to create a new environmrent from scratch. 
 
 1. Remove your conda environment: ``conda env remove -n caiman`` (or whatever you called the conda environment you used)
 
-2. remove or rename your ~/caiman_data directory
+2. Remove or rename your ~/caiman_data directory
 
-3. Repeat the install instructions
+3. Repeat the install instructions from above.
 
 .. raw:: html
 
    </details>
 
 
-Upgrading and source-based installations
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Section 3B: Upgrade the dev-mode install
+-----------------------------------------
 
 .. raw:: html
 
    <details>
    <summary>Updating in development mode</summary>
 
-If you already have CaImAn installed with the pip installer (development mode),
+If you already have Caiman installed with the pip installer (development mode),
 but want to upgrade, please follow the procedure below. If you
-reinstall CaImAn frequently, you can try skip deleting and recreating
+reinstall Caiman frequently, you can try skip deleting and recreating
 your Conda environment. In this case you can do only steps 1, 5, and 7
 below to update the code. However, if the environment file has changed
 since your last update this may lead to you not the latest version. None of this applies
@@ -279,10 +274,10 @@ From the conda environment you used to install CaImAn:
 
 -  The same applies if you want to modify some internal function of
    CaImAn. If you used the ``pip install -e .`` option then you can
-   directly modify it (that’s why it’s called developer mode). If you
+   directly modify it (that's why it's called developer mode). If you
    used the ``pip install .`` option then you will need to
    ``pip uninstall caiman`` followed by ``pip install .`` for your
-   changes to take effect. Depending on the functions you’re changing so
+   changes to take effect. Depending on the functions you're changing so
    you might be able to skip this step.
 
 .. raw:: html
@@ -290,34 +285,49 @@ From the conda environment you used to install CaImAn:
    </details>
 
 
-Upgrading and caiman_data
-~~~~~~~~~~~~~~~~~~~~~~~~~
+Section 3C: Upgrade the demos with caimanmanager
+------------------------------------------------
 
-When you upgrade CaImAn, sometimes the underlying APIs change. When this happens and it impacts a demo (or otherwise requires changes to caiman_data), we update the demo and data. This means that upgrading CaImAn works best if you also replace the caiman_data directory with a new version.
+.. raw:: html
 
-However, you may have made your own changes to the demos (e.g. to work with your data). If you have done this, you may need to massage your changes into the new versions of the demos. For this reason, we recommend that if you modify the demos to operate
-on your own data to save them as a different file to avoid losing your work when updating the caiman_data directory.
+   <details>
+   <summary>Upgrade the demos</summary>
 
-To update the caiman_data directory you can follow the following procedure:
+When you upgrade Caiman, sometimes the underlying APIs change. When this happens and it impacts a demo (or otherwise 
+requires changes to files in ``caiman_data``), we update the demo and data. This means that upgrading CaImAn works 
+best if you also replace the ``caiman_data`` directory with a new version.
+
+However, you may have made your own changes to the demos (e.g. to work with your data). If you have done this, 
+you may need to massage your changes into the new versions of the demos. For this reason, we recommend that if 
+you modify the demos to operate on your own data to save them as a different file to avoid losing your work 
+when updating the caiman_data directory.
+
+To update ``caiman_data`` you can follow the following procedure:
 
 - If there are no new demos or files in the new CaImAn distribution, then you can leave it as is.
 
-- If you have not modified anything in caiman_data but there are upstream changes in the new CaImAn distribution, then remove caiman_data directory before upgrading and have caimanmanager make a new one after the upgrade.
+- If you have not modified anything in caiman_data but there have been changes in the new Caiman release, 
+  then remove ``caiman_data`` directory before upgrading and have ``caimanmanager`` make a new one after the upgrade, by 
+  running caimanmanager as discussed in Section 2.
 
-- If you have extensively modified things in caiman_data, rename the caiman_manager directory, have caimanmanager make a new one after the upgrade, and then massage your changes back in.
+- If you have extensively modified things in ``caiman_data``, rename your ``caiman_data`` directory, and have caimanmanager 
+  make a new one after the upgrade, and then massage your changes back in. E.g., if you have extensively 
+  modified ``demo_pipeline.ipynb`` for your personal use-case, then change the name of this notebook before putting it back into ``caiman_data``.
 
+.. raw:: html
 
+   </details>
 
 Section 4: Miscellaneous
 ========================
 
 Section 4A: Setting up environment variables
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+---------------------------------------------
 
-To make the package work *efficiently* and eliminate “crosstalk” between
+To make the package work *efficiently* and eliminate "crosstalk" between
 different processes, some multithreading operations need to be turned off
 This is for Linux and Windows and is not necessary is OSX. This process is
-not needed if you used the conda-forge installation process.
+not needed if you installed using conda/mamba.
 
 For **Linux (and OSX)** run these commands before launching Python:
 
@@ -337,23 +347,42 @@ following the instructions
 
 **If you installed using the conda-forge package, this is done automatically for you.**
 
+Section 4B: Requirements
+------------------------
+32G RAM is required for a good experience, and depending on datasets, more may be necessary. Caiman is optimized for use by 
+multiple CPUs, so workstations or clusters with multiple CPU cores are ideal (8+ logical cores). GPU computation is not used 
+heavily by Caiman (though see Section 4D). 
 
-Section 4B: Installing additional packages
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Right now, Caiman works and is supported on the following platforms:
 
-CaImAn uses the conda-forge conda channel for installing its required
-packages. If you want to install new packages into your conda
-environment for CaImAn, it is important that you not mix conda-forge and
-the defaults channel; we recommend only using conda-forge. To ensure
-you're not mixing channels, perform the install (inside your
-environment) as follows:
+- Linux on 64-bit x86 CPUs
+- MacOS on 64-bit x86 CPUs
+- Windows on 64-bit x86 CPUs
+
+ARM-based versions of Apple hardware work (if on a 16G model), but currently happen under x86 emulation and we cannot 
+support them as well.  Support for Linux on ARM (e.g. AWS Graviton) is not available (but it may work with the port of conda, 
+if you compile Caiman yourself - we do not have binary packages and this is untested). If you care about this, please let us know.
+
+
+Section 4C: Installing additional packages
+------------------------------------------
+
+Caiman installs through the conda-forge conda channel. Some packages are available on multiple conda channels, and in this 
+case it is important that you use the conda-forge channel if possible. To do this, when installing new packages 
+inside your environment, use the following command:
 
 ::
 
    mamba install -c conda-forge --override-channels NEW_PACKAGE_NAME
 
-You will notice that any packages installed this way will mention, in
-their listing, that they're from conda-forge, with none of them having a
-blank origin. If you fail to do this, differences between how packages
-are built in conda-forge versus the default conda channels may mean that
-some packages (e.g., OpenCV) stop working despite showing as installed.
+You will notice that any packages installed this way will mention, in their listing, 
+that they are from conda-forge, with none of them having a blank origin. If you don't do this, 
+differences between how packages are built in different channels could lead to some packages failing to work
+(e.g., OpenCV). 
+
+Section 4D: Other topics
+------------------------
+
+- `Running Caiman on a cluster <./Cluster.md>`_ 
+- `Setting up Caiman to use your GPUs <./README-GPU.md>`_
+- `Install quirks on some older Linux distributions <./README-Distros.md>`_ 
