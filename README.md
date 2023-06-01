@@ -35,7 +35,7 @@ Caiman should install easily on Linux, Mac, and Windows. If you run into problem
 
 
 # Demo notebooks :page_with_curl:
-Once you've gotten things set up, the best way to get started learning Caiman is to select the demo notebook that most closely matches your use case, and adapt it for your particular needs. 
+Once you've gotten things set up, the best way to get started learning Caiman is to select the demo notebook that most closely matches your use case, and adapt it for your particular needs.
 
 In the demo notebooks folder within `caiman_data`, Caiman provides demo notebooks that demonstrate each of our main pipelines, from motion correction to online CNMF. The notebooks demonstrating the core algorithms, CNMF and CNMFE, are the best place to start: they have the most details that are used in the rest of the notebooks. 
 

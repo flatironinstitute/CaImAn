@@ -38,7 +38,7 @@ If you have downloaded Caiman for standard use, you probably installed it using 
 1. Fork and clone the caiman repository    
 Go to the [https://github.com/flatironinstitute/CaImAn](Caiman repo) and hit the `Fork` button at the top right of the page. You now have Caiman on your own GitHub repo. On your computer, in your conda prompt, go to a directory where you want Caiman to download, and clone your personal Caiman repo: `git clone https://github.com/<your-username>/CaImAn.git` where <your-username> is replaced by your github username.
 2. Install in editable mode   
-In the previous step, you cloned your personal fork of Caiman. Detailed instructions for installing in development mode can be found on our [installation page](./docs/source/Installation.rst) for both [Windows](https://github.com/flatironinstitute/CaImAn/blob/master/docs/source/Installation.rst#installation-on-windows) and [Mac/Linux](https://github.com/flatironinstitute/CaImAn/blob/master/docs/source/Installation.rst#installation-on-macos-and-linux). While there are some differences, they both involve creating a conda environment from the `environment.yml` file you downloaded when you cloned the repo, activating that environment, and end with an "in place" install:
+In the previous step, you cloned your personal fork of Caiman. Detailed instructions for installing in development mode can be found on our [installation page](./docs/source/Installation.rst) for both Windows and Mac/Linux. While there are some differences, they both involve creating a conda environment from the `environment.yml` file you downloaded when you cloned the repo, activating that environment, and end with an "in place" install:
 
         pip install -e . 
 
