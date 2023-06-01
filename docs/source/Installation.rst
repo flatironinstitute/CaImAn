@@ -20,7 +20,7 @@ ARM builds of conda; install an x86 version instead (ignore any warnings you get
 
 
 Section 1: Install Caiman
-=============================
+-------------------------
 
 There are two main ways to install Caiman: you can use conda (package-based install), and a **development-mode** 
 installation. The first will be appropriate for first-time users that want to get started quickly using 
@@ -29,7 +29,7 @@ editable version of Caiman in order to tweak to the code base, and make contribu
 
 
 Section 1A. Pre-built conda install
------------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 These are basically the Quickstart instructions on the `main readme page <../../README.md>`_, so if you follow those, you 
 should be good to go. 
 
@@ -60,8 +60,7 @@ should be good to go.
 - The previous two steps installed caiman and activated the virtual environment. 
 -  Skip ahead to the section on setting up a data directory with `caimanmanager`
 
-Known issues
-~~~~~~~~~~~~
+**Known issues**
 
 If you are on Windows, have used Caiman before using our github repo and now want to use the conda-forge package,
 you might encounter some errors with Python reading the files from the wrong directory. In this case, rename
@@ -74,7 +73,7 @@ with setting up the ``caiman_data`` folder as explained below in Section 2.
 
 
 Section 1B. Development-mode install
--------------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Dev mode install allows you to modify the source files of Caiman and makes it easier
 to contribute to the project, fix bugs etc.. The general motivation for setting up
@@ -82,7 +81,7 @@ an editable development environment is described in detail in our `contributors 
 
 
 Dev-mode install on Windows
-~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. raw:: html
 
@@ -137,7 +136,7 @@ You may then continue the installation.
    </details>
 
 Dev Mode Install on MacOS and Linux
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 .. raw:: html
 
@@ -175,7 +174,7 @@ and install the package file you will find in the folder that pops up
 
 
 Section 2: Set up demos 
-========================
+-----------------------
 
 Once Caiman is installed, you will likely want to set up a working directory with
 code samples and datasets. The first installation step produced a command ``caimanmanager.py`` that
@@ -205,7 +204,7 @@ caimanmanager tool and other libraries will respect that.
 
 
 Section 3: Upgrading
-====================
+--------------------
 
 Upgrading can mean a couple of things. First, it typically means there has been a new release of Caiman, so you need 
 to install the new version of Caiman. Second, it could mean you need
@@ -215,7 +214,7 @@ Caiman depending on how you've installed, and also how to upgrade your demo code
 
 
 Section 3A: Upgrade conda install
------------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. raw:: html
 
@@ -238,7 +237,7 @@ If not, you may want to create a new environmrent from scratch.
 
 
 Section 3B: Upgrade the dev-mode install
------------------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. raw:: html
 
@@ -288,7 +287,7 @@ From the conda environment you used to install CaImAn:
 
 
 Section 3C: Upgrade the demos with caimanmanager
-------------------------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. raw:: html
 
@@ -321,10 +320,10 @@ To update ``caiman_data`` you can follow the following procedure:
    </details>
 
 Section 4: Miscellaneous
-========================
+-------------------------
 
 Section 4A: Setting up environment variables
----------------------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 To make the package work *efficiently* and eliminate "crosstalk" between
 different processes, some multithreading operations need to be turned off
@@ -349,8 +348,10 @@ following the instructions
 
 **If you installed using the conda-forge package, this is done automatically for you.**
 
+
 Section 4B: Requirements
-------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~
+
 32G RAM is required for a good experience, and depending on datasets, more may be necessary. Caiman is optimized for use by 
 multiple CPUs, so workstations or clusters with multiple CPU cores are ideal (8+ logical cores). GPU computation is not used 
 heavily by Caiman (though see Section 4D). 
@@ -367,7 +368,7 @@ if you compile Caiman yourself - we do not have binary packages and this is unte
 
 
 Section 4C: Installing additional packages
-------------------------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Caiman installs through the conda-forge conda channel. Some packages are available on multiple conda channels, and in this 
 case it is important that you use the conda-forge channel if possible. To do this, when installing new packages 
@@ -383,7 +384,7 @@ differences between how packages are built in different channels could lead to s
 (e.g., OpenCV). 
 
 Section 4D: Other topics
-------------------------
+~~~~~~~~~~~~~~~~~~~~~~~~~
 
 - `Running Caiman on a cluster <./Cluster.md>`_ 
 - `Setting up Caiman to use your GPUs <./README-GPU.md>`_
