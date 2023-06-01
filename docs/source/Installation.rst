@@ -30,7 +30,9 @@ editable version of Caiman in order to tweak to the code base, and make contribu
 
 Section 1A. Pre-built conda install
 -----------------------------------
-These are basically the instructions on the home page, 
+These are basically the Quickstart instructions on the `main readme page <../../README.md>`_, so if you follow those, you 
+should be good to go. 
+
 .. raw:: html
 
    <details>
