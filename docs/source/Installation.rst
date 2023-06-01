@@ -1,16 +1,36 @@
 Installation and Updating
 =========================
 
-Download and install Anaconda or Miniconda (Python 3.x version)
+This document will give more detailed setup instructions for Caiman than the main page. This is the place 
+you should come first if you run into problems and need to troubleshoot.
+It includes info on initial setup, as well as updating with new releases. We assume 
+you already have Anaconda or Miniconda installed (Python 3.x version):
 http://docs.continuum.io/anaconda/install
 
-CaImAn installation consists of two steps:
 
-1. Install the CaImAn package
-2. Setting up the caimanmanager which will setup a directory with all the demos and test datasets. 
+Caiman setup consists of two steps:
 
-Installing CaImAn
------------------
+1. Install Caiman
+2. Use caimanmanager to download sample code and data to a ``caiman_data`` directory.
+
+We will discuss each of these steps, for different operating systems, in separate sections, below.
+Then in a third section, we will discuss how to upgrade once you've already installed. To make it 
+easier to navigate we have a table of contents with links.
+
+TABLE OF CONTENTS
+=================
+| Section 1: Installing Caiman    
+| Section 1A: Pre-built conda installer
+| Section 1B: Development-mode install
+| Section 2: Setting up demos with caimanmanager
+| Section 3: Upgrading
+| Section 3A: Upgrading conda installation
+| Section 3B: Upgrading developer install
+| Section 3C: Upgrading caiman_data
+| Section 4: Miscellaneous important topics
+
+Section 1: Installing CaImAn
+=============================
 
 There are two ways to install CaImAn. A **package based** installation and a **development
 mode** installation. The first will be appropriate for most use cases: it is for users 
@@ -18,8 +38,9 @@ that mainly want to use Caiman to analyze data or test it out. The second, devel
 installation, is for those who want to install an editable version of Caiman in order
 to make tweaks to the code base. 
 
-1. Package-based installation: conda installer
----------------------------------------------
+
+Section 1A. Pre-built conda install
+-----------------------------------
 These are basically the instructions on the home page, 
 .. raw:: html
 
@@ -51,25 +72,25 @@ These are basically the instructions on the home page,
 Known issues
 ~~~~~~~~~~~~
 
-If you are on Windows, have used CaImAn before using our github repo and now want to use the conda-forge package,
-you might encounter some errors with Python reading the files from the wrong directory. In this case rename
-(or remove) the caiman directory that contains the source of the repo and the caiman_data folder and then proceed
-with setting up the caiman_data folder as explained below.
+If you are on Windows, have used Caiman before using our github repo and now want to use the conda-forge package,
+you might encounter some errors with Python reading the files from the wrong directory. In this case, rename
+(or remove) the caiman directory that contains the source of the repo and the ``caiman_data`` folder and then proceed
+with setting up the ``caiman_data`` folder as explained below in Section 2.
 
 .. raw:: html
 
    </details>
 
 
-2. Development mode Installation Process
+Section 1B. Development-mode install
 -------------------------------------
 
 This will allow you to modify the source files of CaImAn and will make it easier
-to contribute to the CaImAn project, fix bugs etc.
+to contribute to the CaImAn project, fix bugs etc., as described in our CONTRIBUTORS.md doc.
 
 
-Installation on Windows
-~~~~~~~~~~~~~~~~~~~~~~~
+Section 1Bi: Development-mode install on Windows
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. raw:: html
 
@@ -78,7 +99,7 @@ Installation on Windows
 
 The Windows installation process differs more widely from installation
 on Linux or MacOSX and has different issues you may run into. Everything 
-you do should be from a Conda enabled shell rather than from Powershell 
+you do should be from the anaconda prompt rather than from Powershell 
 or any other shell.
 
 -  Remove any associations you may have made between .py files and an existing python
@@ -91,31 +112,31 @@ or any other shell.
 Installing CaImAn from a package on Windows should be otherwise the same as any other OS for the
 package-based process described above.
 
-Use the following menu item to launch a anaconda-enabled command prompt:
-start>programs>anaconda3>anaconda prompt From that prompt. issue the
-following commands (if you wish to use the dev branch, you may switch
-branches after the clone):
+At the conda prompt:
 
 .. code:: bash
 
-     git clone https://github.com/flatironinstitute/CaImAn
+     git clone https://github.com/<your-user-name>/CaImAn
      cd CaImAn
      mamba env create -f environment.yml -n caiman
      mamba install -n caiman vs2017_win-64
 
-At this point you will want to remove a startup script that visual
+
+Note, as discussed at CONTRIBUTORS.md, you should clone from a fork of caiman at your own 
+github repo. 
+
+At this point you may need to remove a startup script that visual
 studio made for your conda environment that can cause conda to crash
 while entering the caiman environment. Use the Windows find-file utility
 (under the Start Menu) to look for vs2015_compiler_vars.bat and/or
-vs2015_compiler_vars.bat under your home directory. At least one copy
-should show up. Delete the version that has
+vs2017_compiler_vars.bat under your home directory. If a copy shows up, delete the version that has
 conda:raw-latex:`\envs`:raw-latex:`\caiman` as part of its location.
 You may then continue the installation.
 
 .. code:: bash
 
      conda activate caiman
-     pip install -e .  # OR `pip install .` if you don't want to develop code
+     pip install -e .  
      copy caimanmanager.py ..
      cd ..
 
@@ -123,8 +144,8 @@ You may then continue the installation.
 
    </details>
 
-Dev Mode Installation on MacOS and Linux
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+Section 1Bii: Dev Mode Install on MacOS and Linux
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 .. raw:: html
 
@@ -133,7 +154,7 @@ Dev Mode Installation on MacOS and Linux
 
 .. code:: bash
 
-     git clone https://github.com/flatironinstitute/CaImAn
+     git clone https://github.com/<your-user-name>/CaImAn
      cd CaImAn/
      mamba env create -f environment.yml -n caiman
      source activate caiman
@@ -160,44 +181,10 @@ and install the package file you will find in the folder that pops up
    </details>
 
 
-Setting up environment variables
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-.. raw:: html
-
-   <details>
-   <summary>Setting up environmental variables (all platforms)</summary>
-
-To make the package work *efficiently* and eliminate “crosstalk” between
-different processes, some multithreading operations need to be turned off
-This is for Linux and Windows and is not necessary is OSX. This process is
-not needed if you used the conda-forge installation process.
-
-For **Linux (and OSX)** run these commands before launching Python:
-
-.. code:: bash
-
-     export MKL_NUM_THREADS=1
-     export OPENBLAS_NUM_THREADS=1
-     export VECLIB_MAXIMUM_THREADS=1
-
-For **Windows** run the same commands, replacing the word ```export``` with the word ```set```.
-
-The commands should be run *every time* before launching python. It is
-recommended that you save these values inside your environment so you
-don’t have to repeat this process every time. You can do this by
-following the instructions
-`here <https://conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#saving-environment-variables>`__.
-
-**If you installed using the conda-forge package, this is done automatically for you.**
-
-.. raw:: html
-
-    </details>
 
 
-3. Setting up caimanmanager
-------------------------
+1. Setting up caimanmanager
+----------------------------
 
 Once CaImAn is installed, you may want to get a working directory with
 code samples and datasets; pip installed a caimanmanager.py command that
@@ -320,14 +307,45 @@ To update the caiman_data directory you can follow the following procedure:
 - If you have extensively modified things in caiman_data, rename the caiman_manager directory, have caimanmanager make a new one after the upgrade, and then massage your changes back in.
 
 
-Installing additional packages
-------------------------------
+
+Section 4: Miscellaneous
+========================
+
+Section 4A: Setting up environment variables
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+To make the package work *efficiently* and eliminate “crosstalk” between
+different processes, some multithreading operations need to be turned off
+This is for Linux and Windows and is not necessary is OSX. This process is
+not needed if you used the conda-forge installation process.
+
+For **Linux (and OSX)** run these commands before launching Python:
+
+.. code:: bash
+
+     export MKL_NUM_THREADS=1
+     export OPENBLAS_NUM_THREADS=1
+     export VECLIB_MAXIMUM_THREADS=1
+
+For **Windows** run the same commands, replacing the word ```export``` with the word ```set```.
+
+The commands should be run *every time* before launching python. It is
+recommended that you save these values inside your environment so you
+don’t have to repeat this process every time. You can do this by
+following the instructions
+`here <https://conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#saving-environment-variables>`__.
+
+**If you installed using the conda-forge package, this is done automatically for you.**
+
+
+Section 4B: Installing additional packages
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 CaImAn uses the conda-forge conda channel for installing its required
 packages. If you want to install new packages into your conda
 environment for CaImAn, it is important that you not mix conda-forge and
 the defaults channel; we recommend only using conda-forge. To ensure
-you’re not mixing channels, perform the install (inside your
+you're not mixing channels, perform the install (inside your
 environment) as follows:
 
 ::
@@ -335,7 +353,7 @@ environment) as follows:
    mamba install -c conda-forge --override-channels NEW_PACKAGE_NAME
 
 You will notice that any packages installed this way will mention, in
-their listing, that they’re from conda-forge, with none of them having a
+their listing, that they're from conda-forge, with none of them having a
 blank origin. If you fail to do this, differences between how packages
 are built in conda-forge versus the default conda channels may mean that
-some packages (e.g. OpenCV) stop working despite showing as installed.
+some packages (e.g., OpenCV) stop working despite showing as installed.
