@@ -33,7 +33,6 @@ Jupyter will open. Click on `demo_pipeline.ipynb` to get started with a demo!
 ## For installation help
 Caiman should install easily on Linux, Mac, and Windows. If you run into problems, we have a dedicated [installation page](./docs/source/Installation.rst): the details there should help you troubleshoot. If you don't find what you need there, *please* send us a [message on Gitter](https://app.gitter.im/#/room/#agiovann_Constrained_NMF:gitter.im), and we will help you get it sorted out. 
 
-
 # Demo notebooks :page_with_curl:
 Once you've gotten things set up, the best way to get started learning Caiman is to select the demo notebook that most closely matches your use case, and adapt it for your particular needs.
 
@@ -67,7 +66,7 @@ In addition to the demos, there are many ways to learn more about Caiman and rec
 In generaly, you don't have to need help to get involved. We love when users talk about use cases answer other people's questions, etc at Gitter and Github. 
 
 # How to contribute :hammer:
- Caiman is an open-source project and improves because of contributions from users all over the world. If there is something about Caiman that you would like to improve, then you are qualified to contribute! We are always looking for more contributors, so please come read the [contributors page](./CONTRIBUTING.md) for more details about how. 
+ Caiman is an open-source project and improves because of contributions from users all over the world. If there is something about Caiman that you would like to improve, then you are qualified to contribute. We are always looking for more contributors, so please come read the [contributors page](./CONTRIBUTING.md) for more details about how. 
 
 # Videos 
 There are multiple online videos by Andrea Giovannucci from past Caiman workshops/events that are an excellent start for newcomers.

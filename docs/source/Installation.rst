@@ -1,10 +1,14 @@
 Installation and Updating
 =========================
 
-This page will give more detailed setup instructions for Caiman than the `main readme <../../README.md>`_. This is the place 
-you should come first if you run into problems and need to troubleshoot. It includes info on initial setup, as well as 
-updating with new releases. Note there is a Table of Contents on the left-hand side of this page: there are a lot of 
-sections here, so if you get lost or need help with a particular task, that should help you get oriented. 
+This page will give more detailed setup instructions for Caiman than the `main readme <../../README.md>`_. 
+This is the place you should visit first if you run into problems and need to troubleshoot. It includes 
+info on initial setup, as well as updating with new releases. There is a Table of Contents on the 
+left-hand side of this page, so if you need help with a particular task, that should help you get oriented. 
+
+If the information on this page doesn't help, please ask us for 
+help at `Gitter <https://app.gitter.im/#/room/#agiovann_Constrained_NMF:gitter.im/>`_, 
+or open an `issue <https://github.com/flatironinstitute/CaImAn/issues/>`_.
 
 Caiman setup consists of two main steps:
 
@@ -76,9 +80,11 @@ Section 1B. Development-mode install
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Dev mode install allows you to modify the source files of Caiman and makes it easier
-to contribute to the project, fix bugs etc.. The general motivation for setting up
-an editable development environment is described in detail in our `contributors page <../../CONTRIBUTING.md>`_.
+to contribute to the project, fix bugs etc. The general motivation for setting up
+an editable development environment is described in more detail in our `contributors page <../../CONTRIBUTING.md>`_.
 
+If you install in dev mode you will likely need to set some environment variables manually (it is 
+done automatically when you do the conda install): this is discussed in Section 4C.
 
 Dev-mode install on Windows
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^
@@ -90,8 +96,8 @@ Dev-mode install on Windows
 
 The Windows installation process differs more widely from installation
 on Linux or MacOSX and has different issues you may run into. Everything 
-you do should be from the anaconda prompt rather than from Powershell 
-or any other shell.
+you do should be from a Conda-enabled shell (which you can find in your 
+Programs menu) rather than from Powershell or any other shell.
 
 -  Remove any associations you may have made between .py files and an existing python
    interpreter or editor
@@ -322,35 +328,8 @@ To update ``caiman_data`` you can follow the following procedure:
 Section 4: Miscellaneous
 -------------------------
 
-Section 4A: Setting up environment variables
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-To make the package work *efficiently* and eliminate "crosstalk" between
-different processes, some multithreading operations need to be turned off
-This is for Linux and Windows and is not necessary is OSX. This process is
-not needed if you installed using conda/mamba.
-
-For **Linux (and OSX)** run these commands before launching Python:
-
-.. code:: bash
-
-     export MKL_NUM_THREADS=1
-     export OPENBLAS_NUM_THREADS=1
-     export VECLIB_MAXIMUM_THREADS=1
-
-For **Windows** run the same commands, replacing the word ```export``` with the word ```set```.
-
-The commands should be run *every time* before launching python. It is
-recommended that you save these values inside your environment so you
-don’t have to repeat this process every time. You can do this by
-following the instructions
-`here <https://conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#saving-environment-variables>`__.
-
-**If you installed using the conda-forge package, this is done automatically for you.**
-
-
-Section 4B: Requirements
-~~~~~~~~~~~~~~~~~~~~~~~~
+Section 4A: System Requirements
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 32G RAM is required for a good experience, and depending on datasets, more may be necessary. Caiman is optimized for use by 
 multiple CPUs, so workstations or clusters with multiple CPU cores are ideal (8+ logical cores). GPU computation is not used 
@@ -359,15 +338,15 @@ heavily by Caiman (though see Section 4D).
 Right now, Caiman works and is supported on the following platforms:
 
 - Linux on 64-bit x86 CPUs
-- MacOS on 64-bit x86 CPUs
+- MacOS on 64-bit x86 CPUs or ARM CPUs
 - Windows on 64-bit x86 CPUs
 
-ARM-based versions of Apple hardware work (if on a 16G model), but currently happen under x86 emulation and we cannot 
-support them as well.  Support for Linux on ARM (e.g. AWS Graviton) is not available (but it may work with the port of conda, 
-if you compile Caiman yourself - we do not have binary packages and this is untested). If you care about this, please let us know.
+Support for Linux on ARM (e.g. AWS Graviton) is not available (but it may work with the port of conda, 
+if you compile Caiman yourself - we do not have binary packages and this is untested). If you care about this,
+please let us know.
 
 
-Section 4C: Installing additional packages
+Section 4B: Installing additional packages
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Caiman installs through the conda-forge conda channel. Some packages are available on multiple conda channels, and in this 
@@ -383,9 +362,35 @@ that they are from conda-forge, with none of them having a blank origin. If you 
 differences between how packages are built in different channels could lead to some packages failing to work
 (e.g., OpenCV). 
 
+Section 4C: Setting up environment variables
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+This is only important for people who are doing the dev-mode install. If you 
+installed using the conda packaged-based install, this is done automatically.
+
+To make the package work *efficiently* and eliminate "crosstalk" between
+different processes, some multithreading operations need to be turned off
+This is for Linux and Windows and is not necessary in OSX. 
+
+For **Linux** run these commands before launching Python:
+
+.. code:: bash
+
+     export MKL_NUM_THREADS=1
+     export OPENBLAS_NUM_THREADS=1
+     export VECLIB_MAXIMUM_THREADS=1
+
+For **Windows** run the same commands, replacing the word ```export``` with the word ```set```.
+
+The commands should be run *every time* before launching python. It is
+recommended that you save these values inside your environment so you
+don’t have to repeat this process every time. You can do this by
+following the instructions
+`here <https://conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#saving-environment-variables>`__.
+
+
 Section 4D: Other topics
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 
-- `Running Caiman on a cluster <./Cluster.md>`_ 
+- `Running Caiman on a cluster <./CLUSTER.md>`_ 
 - `Setting up Caiman to use your GPUs <./README-GPU.md>`_
-- `Install quirks on some older Linux distributions <./README-Distros.md>`_ 
