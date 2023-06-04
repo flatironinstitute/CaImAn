@@ -63,8 +63,6 @@ In addition to the demos, there are many ways to learn more about Caiman and rec
 - If you have found a bug, we recommend searching the [issues at github](https://github.com/flatironinstitute/CaImAn/issues) and opening a new issue if you can't find the solution there. 
 - If there is a feature you would like to see implemented, feel free to come chat at Gitter or open an issue at Github.
 
-In generaly, you don't have to need help to get involved. We love when users talk about use cases answer other people's questions, etc at Gitter and Github. 
-
 # How to contribute :hammer:
  Caiman is an open-source project and improves because of contributions from users all over the world. If there is something about Caiman that you would like to improve, then you are qualified to contribute. We are always looking for more contributors, so please come read the [contributors page](./CONTRIBUTING.md) for more details about how. 
 
