@@ -2051,8 +2051,8 @@ def rolling_window(ndarr, window_size, stride):
            yield ndarr[:, i + stride:]
 
 
-def load_iter(file_name: Union[str, List[str]], subindices=None, var_name_hdf5: str='mov', outtype=np.float32,
-              is3D: bool=False):
+def load_iter(file_name: Union[str, List[str]], subindices=None, var_name_hdf5: str='mov',
+              outtype=np.float32, is3D: bool=False):
     """
     load iterator over movie from file. Supports a variety of formats. tif, hdf5, avi.
 
@@ -2080,7 +2080,7 @@ def load_iter(file_name: Union[str, List[str]], subindices=None, var_name_hdf5: 
     """
     if isinstance(file_name, list) or isinstance(file_name, tuple):
         for fname in file_name:
-            iterator = load_iter(fname)
+            iterator = load_iter(fname, subindices, var_name_hdf5, outtype)
             while True:
                 try:
                     yield next(iterator)
@@ -2206,7 +2206,8 @@ def play_movie(movie,
                save_movie: bool = False,
                opencv_codec: str = 'H264',
                movie_name: str = 'movie.avi',
-               var_name_hdf5: str = 'mov') -> None:
+               var_name_hdf5: str = 'mov',
+               subindices = slice(None)) -> None:
     """
     Play the movie using opencv
 
@@ -2249,6 +2250,9 @@ def play_movie(movie,
 
         var_name_hdf5: str
             if loading from hdf5/n5 name of the dataset inside the file to load (ignored if the file only has one dataset)
+
+        subindices: iterable indexes
+            for playing only a portion of the movie
 
     Raises:
         Exception 'Unknown backend!'
@@ -2352,7 +2356,7 @@ def play_movie(movie,
         )
         def view(button):
             display_handle=display(None, display_id=True)
-            for iddxx, frame in enumerate(load_iter(movie, var_name_hdf5=var_name_hdf5) if it else movie):
+            for iddxx, frame in enumerate(load_iter(movie, subindices, var_name_hdf5) if it else movie[subindices]):
                 frame = process_frame(iddxx, frame, bord_px, magnification, interpolation, minmov, maxmov, gain, offset, plot_text)
                 display_handle.update(Image(data=cv2.imencode(
                         '.jpg', np.clip((frame * 255.), 0, 255).astype('u1'))[1].tobytes()))
@@ -2381,7 +2385,7 @@ def play_movie(movie,
                               tuple([int(magnification * s) for s in frame_in.shape[1::-1]]))
     while looping:
 
-        for iddxx, frame in enumerate(load_iter(movie, var_name_hdf5=var_name_hdf5) if it else movie):
+        for iddxx, frame in enumerate(load_iter(movie, subindices, var_name_hdf5) if it else movie[subindices]):
             if bord_px is not None and np.sum(bord_px) > 0:
                 frame = frame[bord_px:-bord_px, bord_px:-bord_px]
 
