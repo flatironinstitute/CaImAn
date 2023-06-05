@@ -1240,7 +1240,7 @@ class movie(ts.timeseries):
         Raises:
             Exception 'Unknown backend!'
         """
-        play(self, gain, fr, magnification, offset, interpolation, backend, do_loop, bord_px,
+        play_movie(self, gain, fr, magnification, offset, interpolation, backend, do_loop, bord_px,
              q_max, q_min, plot_text, save_movie, opencv_codec, movie_name)
 
 
@@ -2191,22 +2191,22 @@ def load_iter(file_name: Union[str, List[str]], subindices=None, var_name_hdf5: 
             raise Exception('File not found!')
 
 
-def play(movie,
-         gain: float = 1,
-         fr=None,
-         magnification: float = 1,
-         offset: float = 0,
-         interpolation=cv2.INTER_LINEAR,
-         backend: str = 'opencv',
-         do_loop: bool = False,
-         bord_px=None,
-         q_max: float = 99.75,
-         q_min: float = 1,
-         plot_text: bool = False,
-         save_movie: bool = False,
-         opencv_codec: str = 'H264',
-         movie_name: str = 'movie.avi',
-         var_name_hdf5: str = 'mov') -> None:
+def play_movie(movie,
+               gain: float = 1,
+               fr=None,
+               magnification: float = 1,
+               offset: float = 0,
+               interpolation=cv2.INTER_LINEAR,
+               backend: str = 'opencv',
+               do_loop: bool = False,
+               bord_px=None,
+               q_max: float = 99.75,
+               q_min: float = 1,
+               plot_text: bool = False,
+               save_movie: bool = False,
+               opencv_codec: str = 'H264',
+               movie_name: str = 'movie.avi',
+               var_name_hdf5: str = 'mov') -> None:
     """
     Play the movie using opencv
 
