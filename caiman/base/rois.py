@@ -15,8 +15,7 @@ import numpy as np
 import os
 
 import scipy
-from scipy.ndimage.filters import gaussian_filter
-from scipy.ndimage import label, center_of_mass
+from scipy.ndimage import label, gaussian_filter
 from scipy.optimize import linear_sum_assignment
 
 import shutil
