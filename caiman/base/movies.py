@@ -2207,7 +2207,8 @@ def play_movie(movie,
                opencv_codec: str = 'H264',
                movie_name: str = 'movie.avi',
                var_name_hdf5: str = 'mov',
-               subindices = slice(None)) -> None:
+               subindices = slice(None),
+               tsub: int = 1) -> None:
     """
     Play the movie using opencv
 
@@ -2253,6 +2254,9 @@ def play_movie(movie,
 
         subindices: iterable indexes
             for playing only a portion of the movie
+
+        tsub: int
+            temporal downsampling factor
 
     Raises:
         Exception 'Unknown backend!'
@@ -2326,20 +2330,24 @@ def play_movie(movie,
         pl.axis('off')
 
         if it:
-            m_iter = load_iter(movie, var_name_hdf5=var_name_hdf5)
+            m_iter = load_iter(movie, subindices, var_name_hdf5)
             def animate(i):
                 try:
-                    im.set_data(next(m_iter))
+                    frame_sum = 0
+                    for _ in range(tsub):
+                        frame_sum += next(m_iter)
+                    im.set_data(frame_sum / tsub)
                 except StopIteration:
                     pass
                 return im,
         else:
             def animate(i):
-                im.set_data(movie[i])
+                im.set_data(movie[i*tsub:(i+1)*tsub].mean(0))
                 return im,
 
         # call the animator.  blit=True means only re-draw the parts that have changed.
         frames = cm.source_extraction.cnmf.utilities.get_file_size(movie)[-1] if it else movie.shape[0]
+        frames = int(np.ceil(frames / tsub))
         anim = animation.FuncAnimation(fig, animate, frames=frames, interval=1, blit=True)
 
         # call our new function to display the animation
@@ -2356,11 +2364,15 @@ def play_movie(movie,
         )
         def view(button):
             display_handle=display(None, display_id=True)
+            frame_sum = 0
             for iddxx, frame in enumerate(load_iter(movie, subindices, var_name_hdf5) if it else movie[subindices]):
-                frame = process_frame(iddxx, frame, bord_px, magnification, interpolation, minmov, maxmov, gain, offset, plot_text)
-                display_handle.update(Image(data=cv2.imencode(
-                        '.jpg', np.clip((frame * 255.), 0, 255).astype('u1'))[1].tobytes()))
-                pl.pause(1. / fr)
+                frame_sum += frame
+                if (iddxx+1) % tsub == 0:
+                    frame = process_frame(iddxx, frame_sum/tsub, bord_px, magnification, interpolation, minmov, maxmov, gain, offset, plot_text)
+                    frame_sum = 0
+                    display_handle.update(Image(data=cv2.imencode(
+                            '.jpg', np.clip((frame * 255.), 0, 255).astype('u1'))[1].tobytes()))
+                    pl.pause(1. / fr)
                 if stopButton.value==True:
                     break
         display(stopButton)
@@ -2385,44 +2397,49 @@ def play_movie(movie,
                               tuple([int(magnification * s) for s in frame_in.shape[1::-1]]))
     while looping:
 
+        frame_sum = 0
         for iddxx, frame in enumerate(load_iter(movie, subindices, var_name_hdf5) if it else movie[subindices]):
-            if bord_px is not None and np.sum(bord_px) > 0:
-                frame = frame[bord_px:-bord_px, bord_px:-bord_px]
+            frame_sum += frame
+            if (iddxx+1) % tsub == 0:
+                frame = frame_sum / tsub
+                frame_sum *= 0
 
-            if backend == 'opencv' or (backend == 'embed_opencv' and save_movie):
-                frame = process_frame(iddxx, frame, bord_px, magnification, interpolation, minmov, maxmov, gain, offset, plot_text)
-                if backend == 'opencv':
-                    cv2.imshow('frame', frame)
-                if save_movie:
-                    if frame.ndim < 3:
-                        frame = np.repeat(frame[:, :, None], 3, axis=-1)
-                    frame = np.minimum((frame * 255.), 255).astype('u1')
-                    out.write(frame)
-                if backend == 'opencv' and (cv2.waitKey(int(1. / fr * 1000)) & 0xFF == ord('q')):
-                    looping = False
-                    terminated = True
+                if backend == 'opencv' or (backend == 'embed_opencv' and save_movie):
+                    frame = process_frame(iddxx, frame, bord_px, magnification, interpolation, minmov, maxmov, gain, offset, plot_text)
+                    if backend == 'opencv':
+                        cv2.imshow('frame', frame)
+                    if save_movie:
+                        if frame.ndim < 3:
+                            frame = np.repeat(frame[:, :, None], 3, axis=-1)
+                        frame = np.minimum((frame * 255.), 255).astype('u1')
+                        out.write(frame)
+                    if backend == 'opencv' and (cv2.waitKey(int(1. / fr * 1000)) & 0xFF == ord('q')):
+                        looping = False
+                        terminated = True
+                        break
+
+                elif backend == 'embed_opencv' and not save_movie:
                     break
 
-            elif backend == 'embed_opencv' and not save_movie:
-                break
+                elif backend == 'pylab':
+                    if bord_px is not None and np.sum(bord_px) > 0:
+                        frame = frame[bord_px:-bord_px, bord_px:-bord_px]
+                    im.set_data((offset + frame) * gain / maxmov)
+                    ax.set_title(str(iddxx))
+                    pl.axis('off')
+                    fig.canvas.draw()
+                    pl.pause(1. / fr * .5)
+                    ev = pl.waitforbuttonpress(1. / fr * .5)
+                    if ev is not None:
+                        pl.close()
+                        break
 
-            elif backend == 'pylab':
-                im.set_data((offset + frame) * gain / maxmov)
-                ax.set_title(str(iddxx))
-                pl.axis('off')
-                fig.canvas.draw()
-                pl.pause(1. / fr * .5)
-                ev = pl.waitforbuttonpress(1. / fr * .5)
-                if ev is not None:
-                    pl.close()
+                elif backend == 'notebook':
+                    logging.debug('Animated via MP4')
                     break
 
-            elif backend == 'notebook':
-                logging.debug('Animated via MP4')
-                break
-
-            else:
-                raise Exception('Unknown backend!')
+                else:
+                    raise Exception('Unknown backend!')
 
         if terminated:
             break
