@@ -32,7 +32,6 @@ with open('VERSION', 'r') as verfile:
 # Note that if python's packaging standards ever change the install base of data_files to be under the
 # package that made them, we can switch to using the pkg_resources API.
 
-binaries = ['caimanmanager.py']
 extra_dirs = ['bin', 'demos', 'docs', 'model']
 data_files = [('share/caiman', ['LICENSE.txt', 'README.md', 'test_demos.sh', 'VERSION']),
               ('share/caiman/example_movies', ['example_movies/data_endoscope.tif', 'example_movies/demoMovie.tif']),
@@ -42,8 +41,6 @@ for part in extra_dirs:
 	newpart = [("share/caiman/" + d, [os.path.join(d,f) for f in files]) for d, folders, files in os.walk(part)]
 	for newcomponent in newpart:
 		data_files.append(newcomponent)
-
-data_files.append(['bin', binaries])
 
 ############
 
@@ -93,6 +90,7 @@ setup(
     ],
     keywords='fluorescence calcium ca imaging deconvolution ROI identification',
     packages=find_packages(),
+    scripts=['caimanmanager.py'],
     data_files=data_files,
     install_requires=[''],
     ext_modules=cythonize(ext_modules, language_level="3"),
