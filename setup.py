@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
 from setuptools import setup, find_packages
+import numpy as np
 import os
 from os import path
 import sys
@@ -89,7 +90,7 @@ setup(
     ],
     keywords='fluorescence calcium ca imaging deconvolution ROI identification',
     packages=find_packages(),
-    scripts=['caimanmanager.py'],
+    entry_points = { 'console_scripts': ['caimanmanager = caiman.caimanmanager:main' ] },
     data_files=data_files,
     install_requires=[''],
     ext_modules=cythonize(ext_modules, language_level="3"),
