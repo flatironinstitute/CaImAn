@@ -115,7 +115,7 @@ def download_demo(name:str='Sue_2x_3000_40_-46.tif', save_folder:str='') -> str:
         else:
             logging.info(f"File {name} already downloaded")
     else:
-        raise Exception('Cannot find the example_movies folder in your caiman_datadir - did you make one with caimanmanager.py?')
+        raise Exception('Cannot find the example_movies folder in your caiman_datadir - did you make one with caimanmanager?')
     return path_movie
 
 
@@ -168,7 +168,7 @@ def download_model(name:str='mask_rcnn', save_folder:str='') -> str:
         else:
             logging.info("File " + str(name) + " already downloaded")
     else:
-        raise Exception('Cannot find the model folder in your caiman_datadir - did you make one with caimanmanager.py?')
+        raise Exception('Cannot find the model folder in your caiman_datadir - did you make one with caimanmanager?')
     return path_movie
 
 
