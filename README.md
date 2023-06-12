@@ -18,7 +18,7 @@ The following is all done in your anaconda prompt, starting in your base environ
 ### Step 2: Download code samples and data sets
 Create a working directory with code samples and related data in a folder called `caiman_data`. While still in the caiman virtual environment created in the previous step:  
 
-    caimanmanager.py install
+    caimanmanager install
 
 ### Step 3: Try out a demo notebook
 Step 2 created a `caiman_data` folder in your home directory. Here, we `cd` to the demo notebooks folder, and open a Jupyter notebook:
