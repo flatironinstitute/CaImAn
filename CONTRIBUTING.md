@@ -20,9 +20,7 @@ There are many possible workflows for contributing to open source projects (see 
 
 <img src="docs/img/gitflow.jpg">
 
-When you are working on a git repository, you are always working on a *branch*, and each branch has a name. Some branches are special, `main`, which contains the stable version of the software for general release. Different feature branches, which will have names like `fix_plotting_bug` are usually short-lived and what individual contributors like you will work on. 
-
-To keep a buffer between the main branch and individiaul feature branches, there is a second persistent branch, a development branch called `dev`. This the branch that contributors actively push their changes to, and is the one with all the newest developments.
+When you are working on a git repository, you are always working on a *branch*, and each branch has a name. Some branches are special and persist for a long time,  like `main`, which contains the stable version of the software for general release. The different feature branches, which will have names like `fix_plotting_bug`, are usually short-lived and what individual contributors like you will work on. To keep a buffer between the main branch and individual feature branches, there is a second special persistent branch, a development branch called `dev`. This the branch that contributors actively push their changes to, and is the one with all the newest developments.
 
 The workflow for contributing to Caiman is roughly illustrated by the numbers in the above diagram:
 1) Create a feature branch from `dev`.
@@ -54,7 +52,7 @@ Once you have a development environment, you can start working on the changes yo
 
 Then from within this branch you can do your usual work on the feature: work on stuff, add, commits, etc. This corresponds to the workflow in the blue boxes in the above diagram (label 2 in the figure).
 
-If you changed anything in the `.py` modules, we request that you run tests on your code before making a PR. You can test the code by typing `caimanmanager.py test`. 
+If you changed anything in the `.py` modules, we request that you run tests on your code before making a PR. You can test the code by typing `caimanmanager test`. 
 
 ## Third, make a PR
 Once your feature branch is ready, it's time to make a PR (label 3 in the figure). This is fairly simple:
