@@ -125,8 +125,8 @@ github repo.
 At this point you may need to remove a startup script that visual
 studio made for your conda environment that can cause conda to crash
 while entering the caiman environment. Use the Windows find-file utility
-(under the Start Menu) to look for vs2015_compiler_vars.bat and/or
-vs2017_compiler_vars.bat under your home directory. If a copy shows up, delete the version that has
+(under the Start Menu) to look for ``vs2015_compiler_vars.bat`` and/or
+``vs2017_compiler_vars.bat`` under your home directory. If a copy shows up, delete the version that has
 conda:raw-latex:`\envs`:raw-latex:`\caiman` as part of its location.
 You may then continue the installation.
 
@@ -182,41 +182,29 @@ and install the package file you will find in the folder that pops up
 Section 2: Set up demos 
 -----------------------
 
-Once Caiman is installed, you will likely want to set up a working directory with
-code samples and datasets. The first installation step produced a command ``caimanmanager.py`` that
-manages this. If you have not installed Caiman before, you can do
+Once Caiman is installed, you will likely want to set up a working directory with code samples and datasets. 
+The installation step in Section 1 produced a command ``caimanmanager`` that handles this. caimanmanager will
+place demos and data in a ``caiman_data`` folder in your home directory. Install using:
 
-``caimanmanager.py install``
+``caimanmanager install``
 
-if you used the conda-forge package or the ``pip install .`` option
+if you used the conda-forge package or the ``pip install .`` option.
 
-OR
+If you installed using the developer-mode option (``installing with ``pip install -e .``) then run caimanmanager with:
 
-``python caimanmanager.py install --inplace`` if you used the developer
-mode with ``pip install -e .``
+``python caimanmanager install --inplace`` 
 
-This will place that directory under your home directory in a directory
-called caiman_data. If you have, some of the demos or datafiles may have
-changed since your last install, to follow API changes. You can check to
-see if they have by doing ``caimanmanager.py check``
-(or ``python caimanmanager.py check``). If they have not,
-you may keep using them. If they have, we recommend moving your old
-caiman data directory out of the way (or just remove them if you have no
-precious data) and doing a new data install as per above.
-
-If you prefer to manage this information somewhere else, the
-``CAIMAN_DATA`` environment variable can be set to customise it. The
-caimanmanager tool and other libraries will respect that.
+If you prefer to manage this information somewhere other than your home directory, the
+``CAIMAN_DATA`` environment variable can be set to customise it. The caimanmanager tool 
+and other libraries will respect that.
 
 
 Section 3: Upgrading
 --------------------
 
 Upgrading can mean a couple of things. First, it typically means there has been a new release of Caiman, so you need 
-to install the new version of Caiman. Second, it could mean you need
-to upgrade changes to the demos in ``caiman_data`` using ``caimanmanager``. Here, we'll discuss how to upgrade 
-Caiman depending on how you've installed, and also how to upgrade your demo code/data in ``caiman_data`` using 
-``caimanmanager``. 
+to install the new version of Caiman. Second, it could mean you need to upgrade changes to the demos in ``caiman_data`` 
+using ``caimanmanager``. We'll discuss both options.
 
 
 Section 3A: Upgrade conda install
@@ -272,7 +260,7 @@ From the conda environment you used to install CaImAn:
 
 6. Do a ``pip install .`` inside that code checkout
 
-7. Run ``caimanmanager.py install`` to reinstall the data directory (use ``--inplace`` if you used the ``pip install -e .`` during your initial installation).
+7. Run ``caimanmanager install`` to reinstall the data directory (use ``--inplace`` if you used the ``pip install -e .`` during your initial installation).
 
 -  If you used the ``pip install -e .`` option when installing, then you
    can try updating by simply doing a ``git pull``. Again, this might
@@ -281,7 +269,7 @@ From the conda environment you used to install CaImAn:
 
 -  The same applies if you want to modify some internal function of
    CaImAn. If you used the ``pip install -e .`` option then you can
-   directly modify it (that's why it's called developer mode). If you
+   directly modify it (that's why it's the editable developer mode). If you
    used the ``pip install .`` option then you will need to
    ``pip uninstall caiman`` followed by ``pip install .`` for your
    changes to take effect. Depending on the functions you're changing so
@@ -304,22 +292,26 @@ When you upgrade Caiman, sometimes the underlying APIs change. When this happens
 requires changes to files in ``caiman_data``), we update the demo and data. This means that upgrading CaImAn works 
 best if you also replace the ``caiman_data`` directory with a new version.
 
-However, you may have made your own changes to the demos (e.g. to work with your data). If you have done this, 
+To check if the demos or datafiles have changed since your last install, you can run ``caimanmanager check``. If they have not,
+you may keep using them. If they have, we recommend moving your old caiman data directory out of the way (or just remove them if you have no
+precious data in ``caiman_data``) and updating ``caiman_data`` as described below.
+
+However, you may also have made your own changes to the demos (e.g. to work with your data). If you have done this, 
 you may need to massage your changes into the new versions of the demos. For this reason, we recommend that if 
 you modify the demos to operate on your own data to save them as a different file to avoid losing your work 
 when updating the caiman_data directory.
 
 To update ``caiman_data`` you can follow the following procedure:
 
-- If there are no new demos or files in the new CaImAn distribution, then you can leave it as is.
+- If there are no new demos or files in the new Caiman distribution, then you can leave it as is.
 
-- If you have not modified anything in caiman_data but there have been changes in the new Caiman release, 
+- If you have not modified anything in ``caiman_data`` but there have been changes in the new Caiman release, 
   then remove ``caiman_data`` directory before upgrading and have ``caimanmanager`` make a new one after the upgrade, by 
   running caimanmanager as discussed in Section 2.
 
-- If you have extensively modified things in ``caiman_data``, rename your ``caiman_data`` directory, and have caimanmanager 
+- If you have extensively modified things in ``caiman_data``, rename your ``caiman_data`` directory, and have ``caimanmanager`` 
   make a new one after the upgrade, and then massage your changes back in. E.g., if you have extensively 
-  modified ``demo_pipeline.ipynb`` for your personal use-case, then change the name of this notebook before putting it back into ``caiman_data``.
+  modified ``demo_pipeline.ipynb`` for personal use, then change the name of this notebook before folding it back into ``caiman_data``.
 
 .. raw:: html
 
