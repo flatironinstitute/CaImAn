@@ -16,12 +16,12 @@ The following is all done in your anaconda prompt, starting in your base environ
     conda activate caiman  # activate virtual environment
 
 ### Step 2: Download code samples and data sets
-Create a working directory with code samples and related data in a folder called `caiman_data`. While still in the caiman virtual environment created in the previous step:  
+Create a working directory with code samples and related data in a folder called `caiman_data`. Run the following command from the caiman virtual environment created in the previous step:  
 
     caimanmanager install
 
 ### Step 3: Try out a demo notebook
-Step 2 created a `caiman_data` folder in your home directory. Here, we `cd` to the demo notebooks folder, and open a Jupyter notebook:
+Step 2 created a `caiman_data` folder in your home directory. Here, we `cd` to its demo notebooks folder, and open a Jupyter notebook:
 
     cd <your home>/caiman_data/demos/notebooks  
     jupyter notebook 
@@ -34,11 +34,9 @@ Jupyter will open. Click on `demo_pipeline.ipynb` to get started with a demo!
 Caiman should install easily on Linux, Mac, and Windows. If you run into problems, we have a dedicated [installation page](./docs/source/Installation.rst): the details there should help you troubleshoot. If you don't find what you need there, *please* send us a [message on Gitter](https://app.gitter.im/#/room/#agiovann_Constrained_NMF:gitter.im), and we will help you get it sorted out. 
 
 # Demo notebooks :page_with_curl:
-Once you've gotten things set up, the best way to get started learning Caiman is to select the demo notebook that most closely matches your use case, and adapt it for your particular needs.
+Caiman provides demo notebooks to present each of our main pipelines, from motion correction to online CNMF. Once you've gotten things set up, the best way to get started is to select the demo notebook that most closely matches your use case, and adapt it for your particular needs. The notebooks demonstrating the core algorithms, CNMF and CNMFE, are the best place to start: they have the most details that are used in the rest of the notebooks.
 
-In the demo notebooks folder within `caiman_data`, Caiman provides demo notebooks that demonstrate each of our main pipelines, from motion correction to online CNMF. The notebooks demonstrating the core algorithms, CNMF and CNMFE, are the best place to start: they have the most details that are used in the rest of the notebooks. 
-
-The main use cases and notebooks are in the following table:
+The main use cases and notebooks are listed in the following table:
 
 | Use case | Demo notebook | Paper |
 |:-------- |:------------- | --------------------- |
@@ -81,7 +79,7 @@ The following talks are more in depth:
 
 
 # Related repositories :pushpin:
-There are many repositories that make heavy use of Caiman, or will help make using Caiman easier. If you would like your software to be in this list, please contact one of the developers or open an issue:
+There are many repositories that use Caiman, or help make using Caiman easier.
 
 * [use\_cases repo](https://github.com/flatironinstitute/caiman_use_cases):  additional code (unmaintained) demonstrating how to reproduce results in some Caiman-related papers, and how to use/extend Caiman.
 * [jnormcorre](https://github.com/apasarkar/jnormcorre): [JAX](https://github.com/google/jax) implementation of NoRMCorre for motion correction using JAX acceleration
@@ -89,7 +87,7 @@ There are many repositories that make heavy use of Caiman, or will help make usi
 * [mesmerize-core](https://github.com/nel-lab/mesmerize-core): parameter optimization, data organization and visualizations with Caiman
 * [improv](https://github.com/project-improv/improv):  a platform for creating online analysis workflows that lets you use Caiman in real time (e.g., for all-optical experiments)
 
-If you have questions about these related packages please reach out to their maintainers directly. 
+If you have questions about these related packages please reach out to their maintainers directly. If you would like your software to be in this list, please contact one of the developers or open an issue.
 
 # Citing Caimian and related papers
 If you publish a paper that relied on Caiman, we kindly ask that you [cite Giovannucci et al., 2019](https://elifesciences.org/articles/38173):
