@@ -34,7 +34,7 @@ Jupyter will open. Click on `demo_pipeline.ipynb` to get started with a demo!
 Caiman should install easily on Linux, Mac, and Windows. If you run into problems, we have a dedicated [installation page](./docs/source/Installation.rst): the details there should help you troubleshoot. If you don't find what you need there, *please* send us a [message on Gitter](https://app.gitter.im/#/room/#agiovann_Constrained_NMF:gitter.im), and we will help you get it sorted out. 
 
 # Demo notebooks :page_with_curl:
-Caiman provides demo notebooks to present each of our main pipelines, from motion correction to online CNMF. Once you've gotten things set up, the best way to get started is with the demo notebook that most closely matches your use case; you can adapt it for your particular needs. The core algorithm notebooks for CNMF and CNMFE have the most details, covering concepts used in the other notebooks.
+Caiman provides demo notebooks to present each of our main pipelines, from motion correction to online CNMF. Once you've gotten things set up, the best way to get started is with the demo notebook that most closely matches your use case; you can adapt it for your particular needs. The notebooks covering the CNMF and CNMFE algorithms have the most details, covering many concepts used in the other notebooks.
 
 The main use cases and notebooks are listed in the following table:
 
