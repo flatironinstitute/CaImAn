@@ -2853,8 +2853,6 @@ def motion_correct_batch_rigid(fname, max_shifts, dview=None, splits=56, num_spl
                 m = m.copy()
             template = caiman.motion_correction.bin_median(
                     m.motion_correct(max_shifts[1], max_shifts[0], template=None)[0])
-    else:
-        template = high_pass_filter_space(template, gSig_filt)
 
     new_templ = template
     if add_to_movie is None:
