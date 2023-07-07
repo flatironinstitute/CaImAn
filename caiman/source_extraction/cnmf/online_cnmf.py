@@ -1037,7 +1037,7 @@ class OnACID(object):
         T1 = np.array(Ts).sum()*self.params.get('online', 'epochs') if T is None else T
         self._prepare_object(Yr, T1)
         if opts['show_movie']:
-            self.bnd_AC = np.percentile(self.estimates.A.dot(self.estimates.C),
+            self.bnd_AC = np.percentile(np.ravel(self.estimates.A.dot(self.estimates.C)),
                                         (0.001, 100-0.005))
             #self.bnd_BG = np.percentile(self.estimates.b.dot(self.estimates.f),
             #                            (0.001, 100-0.001))

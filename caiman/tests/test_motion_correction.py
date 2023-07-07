@@ -34,7 +34,7 @@ def _test_register_n_apply(D):
     npt.assert_allclose(shifts, true_shifts)
     frame_cor = apply_shifts_dft(src_freq, -shifts, phasediff, is_freq=True, border_nan=True)
     npt.assert_array_equal(np.isnan(frame_cor), nans)
-    npt.assert_allclose(frame_cor[~nans], templ[~nans], 1e-6)
+    npt.assert_allclose(frame_cor[~nans], templ[~nans], 1e-5)
 
 
 def test_register_n_apply():

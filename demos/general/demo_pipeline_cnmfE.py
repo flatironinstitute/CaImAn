@@ -55,7 +55,7 @@ def main():
     except():
         pass
 
-    c, dview, n_processes = cm.cluster.setup_cluster(backend='local',
+    c, dview, n_processes = cm.cluster.setup_cluster(backend='multiprocessing',
                                                      n_processes=24,  # number of process to use, if you go out of memory try to reduce this one
                                                      single_thread=False)
 

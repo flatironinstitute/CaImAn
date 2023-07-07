@@ -125,7 +125,7 @@ def main():
 
 # %% start a cluster for parallel processing
     c, dview, n_processes = cm.cluster.setup_cluster(
-        backend='local', n_processes=None, single_thread=False)
+        backend='multiprocessing', n_processes=None, single_thread=False)
 
 # %%% MOTION CORRECTION
     # first we create a motion correction object with the specified parameters
@@ -162,7 +162,7 @@ def main():
 # %% restart cluster to clean up memory
     cm.stop_server(dview=dview)
     c, dview, n_processes = cm.cluster.setup_cluster(
-        backend='local', n_processes=None, single_thread=False)
+        backend='multiprocessing', n_processes=None, single_thread=False)
 
 # %%  parameters for source extraction and deconvolution
     p = 1                    # order of the autoregressive system
