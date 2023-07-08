@@ -237,8 +237,8 @@ def nb_view_patches(Yr, A, C, b, f, d1, d2, YrA=None, image_neurons=None, thr=0.
             code += """
                 mets[3] = metrics_.data['CNN'][f].toFixed(3)
             """   
-        labels = LabelSet(x=0, y='y', text='keys', source=metrics) #, render_mode='canvas')
-        labels2 = LabelSet(x=10, y='y', text='mets', source=metrics, text_align="right") #render_mode='canvas'
+        labels = LabelSet(x=0, y='y', text='keys', source=metrics) 
+        labels2 = LabelSet(x=10, y='y', text='mets', source=metrics, text_align="right") 
         plot2 = bpl.figure(width=200, height=100, toolbar_location = None)
         plot2.axis.visible = False
         plot2.grid.visible = False
@@ -551,7 +551,7 @@ def nb_view_patches3d(Y_r, A, C, dims, image_type='mean', Yr=None,
 
         image_neurons = np.nan * \
             np.ones((int(1.05 * (d1 + d2)), int(1.05 * (d1 + d3))))
-        print(f"image_neurons shape: {image_neurons.shape}")  # ET remove
+
         image_neurons[:d2, -d3:] = tmp[0][::-1]
         image_neurons[:d2, :d1] = tmp[2].T[::-1]
         image_neurons[-d1:, -d3:] = tmp[1]
@@ -740,7 +740,7 @@ def nb_view_patches3d(Y_r, A, C, dims, image_type='mean', Yr=None,
                 source2.change.emit();
             """)
 
-    plot = bpl.figure(plot_width=600, plot_height=300)
+    plot = bpl.figure(width=600, height=300)
     plot.line('x', 'y', source=source, line_width=1, line_alpha=0.6)
     if denoised_color is not None:
         plot.line('x', 'y2', source=source, line_width=1,
@@ -750,7 +750,8 @@ def nb_view_patches3d(Y_r, A, C, dims, image_type='mean', Yr=None,
     slider.js_on_change('value', callback)
     xr = Range1d(start=0, end=image_neurons.shape[1] if max_projection else d3)
     yr = Range1d(start=image_neurons.shape[0] if max_projection else d2, end=0)
-    plot1 = bpl.figure(x_range=xr, y_range=yr, plot_width=300, plot_height=300)
+
+    plot1 = bpl.figure(x_range=xr, y_range=yr, width=300, height=300)
 
     if max_projection:
         plot1.image(image=[image_neurons[::-1, :]], x=0, y=image_neurons.shape[0],
@@ -771,7 +772,7 @@ def nb_view_patches3d(Y_r, A, C, dims, image_type='mean', Yr=None,
         callback.args['slider_layer'] = slider_layer
         callback_layer.args['slider_neuron'] = slider
         callback_layer.args['slider_layer'] = slider_layer
-        plot1.image(image='image', x='x', y='y', dw='dw', dh='dh',
+        plot1.image(image='image', x='x', y='y', dw='dw', dh='dh', 
                     color_mapper=cmap, source=source3)
         plot1.patch('c1', 'c2', alpha=0.6, color='purple',
                     line_width=2, source=source2)
