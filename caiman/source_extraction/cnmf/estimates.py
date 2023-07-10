@@ -504,7 +504,7 @@ class Estimates(object):
             dims = self.dims
         plt.ion()
         nr, T = self.C.shape
-        if self.R is None or self.R == b'NoneType':
+        if self.R is None:
             self.R = self.YrA
         if self.R.shape != [nr, T]:
             if self.YrA is None:
