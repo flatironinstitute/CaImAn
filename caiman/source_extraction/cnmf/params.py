@@ -972,9 +972,13 @@ class CNMFParams(object):
                     logging.warning(
                         "NOT setting value of key {0} in group {1}, because no prior key existed...".format(k, group))
             else:
-                if np.any(d[k] != v):
+                try:
+                    if np.any(d[k] != v):
+                        logging.info(
+                            "Changing key {0} in group {1} from {2} to {3}".format(k, group, d[k], v))
+                except ValueError: # d[k] and v also differ if above comparison fails, e.g. lists of different length
                     logging.info(
-                        "Changing key {0} in group {1} from {2} to {3}".format(k, group, d[k], v))
+                            "Changing key {0} in group {1} from {2} to {3}".format(k, group, d[k], v))
                 d[k] = v
 
     def get(self, group, key):

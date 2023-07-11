@@ -535,7 +535,7 @@ def nb_view_patches3d(Y_r, A, C, dims, image_type='mean', Yr=None,
     if max_projection:
         if image_type == 'corr':
             tmp = [(local_correlations(
-                Yr.reshape(dims + (-1,), order='F'))[:, ::-1]).max(i)
+                Yr[index_permut].reshape(dims + (-1,), order='F'))[:, ::-1]).max(i)
                 for i in range(3)]
 
         elif image_type == 'mean':
@@ -634,15 +634,15 @@ def nb_view_patches3d(Y_r, A, C, dims, image_type='mean', Yr=None,
 
         if image_type == 'corr':
             image_neurons = local_correlations(
-                Yr.reshape(dims + (-1,), order='F'))[:-1, ::-1]
+                Yr[index_permut].reshape(dims + (-1,), order='F'))
 
         elif image_type == 'mean':
             image_neurons = np.array(A.mean(axis=1)).reshape(
-                dims, order='F')[:, ::-1]
+                dims, order='F')
 
         elif image_type == 'max':
             image_neurons = A.max(axis=1).toarray().reshape(
-                dims, order='F')[:, ::-1]
+                dims, order='F')
 
         else:
             raise ValueError('image_type must be mean, max or corr')
@@ -750,11 +750,10 @@ def nb_view_patches3d(Y_r, A, C, dims, image_type='mean', Yr=None,
     slider.js_on_change('value', callback)
     xr = Range1d(start=0, end=image_neurons.shape[1] if max_projection else d3)
     yr = Range1d(start=image_neurons.shape[0] if max_projection else d2, end=0)
-
     plot1 = bpl.figure(x_range=xr, y_range=yr, width=300, height=300)
 
     if max_projection:
-        plot1.image(image=[image_neurons[::-1, :]], x=0, y=image_neurons.shape[0],
+        plot1.image(image=[image_neurons], x=0, y=0,
                     dw=image_neurons.shape[1], dh=image_neurons.shape[0], palette=grayp)
         plot1.patch('c1x', 'c2x', alpha=0.6, color='purple',
                     line_width=2, source=source2)
@@ -772,7 +771,7 @@ def nb_view_patches3d(Y_r, A, C, dims, image_type='mean', Yr=None,
         callback.args['slider_layer'] = slider_layer
         callback_layer.args['slider_neuron'] = slider
         callback_layer.args['slider_layer'] = slider_layer
-        plot1.image(image='image', x='x', y='y', dw='dw', dh='dh', 
+        plot1.image(image='image', x='x', y=0, dw='dw', dh='dh',
                     color_mapper=cmap, source=source3)
         plot1.patch('c1', 'c2', alpha=0.6, color='purple',
                     line_width=2, source=source2)
