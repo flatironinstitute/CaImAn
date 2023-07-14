@@ -265,7 +265,7 @@ def nb_view_patches(Yr, A, C, b, f, d1, d2, YrA=None, image_neurons=None, thr=0.
                        height=int(min(1, d1/d2)*300))
 
     plot1.image(image=[image_neurons[::-1, :]], x=0,
-                y=0, dw=d2, dh=d1, palette=grayp)
+                y=image_neurons.shape[0], dw=d2, dh=d1, palette=grayp)
     plot1.patch('c1', 'c2', alpha=0.6, color='purple',
                 line_width=2, source=source2)
 
@@ -753,7 +753,7 @@ def nb_view_patches3d(Y_r, A, C, dims, image_type='mean', Yr=None,
     plot1 = bpl.figure(x_range=xr, y_range=yr, width=300, height=300)
 
     if max_projection:
-        plot1.image(image=[image_neurons], x=0, y=0,
+        plot1.image(image=[image_neurons], x=0, y=image_neurons.shape[0],
                     dw=image_neurons.shape[1], dh=image_neurons.shape[0], palette=grayp)
         plot1.patch('c1x', 'c2x', alpha=0.6, color='purple',
                     line_width=2, source=source2)
@@ -771,7 +771,7 @@ def nb_view_patches3d(Y_r, A, C, dims, image_type='mean', Yr=None,
         callback.args['slider_layer'] = slider_layer
         callback_layer.args['slider_neuron'] = slider
         callback_layer.args['slider_layer'] = slider_layer
-        plot1.image(image='image', x='x', y=0, dw='dw', dh='dh',
+        plot1.image(image='image', x='x', y='y', dw='dw', dh='dh',
                     color_mapper=cmap, source=source3)
         plot1.patch('c1', 'c2', alpha=0.6, color='purple',
                     line_width=2, source=source2)
@@ -794,7 +794,7 @@ def nb_imshow(image, cmap='jet'):
     yr = Range1d(start=image.shape[0], end=0)
     p = bpl.figure(x_range=xr, y_range=yr)
 
-    p.image(image=[image[::-1, :]], x=0, y=0, 
+    p.image(image=[image[::-1, :]], x=0, y=image.shape[0], 
             dw=image.shape[1], dh=image.shape[0], palette=grayp)
 
     return p
