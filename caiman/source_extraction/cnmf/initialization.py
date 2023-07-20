@@ -188,11 +188,11 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
         K: [optional] int
             number of neurons to extract (default value: 30). Maximal number for method 'corr_pnr'.
 
-        tau: [optional] list,tuple
+        gSig: [optional] list,tuple
             standard deviation of neuron size along x and y [and z] (default value: (5,5).
 
         gSiz: [optional] list,tuple
-            size of kernel (default 2*tau + 1).
+            half width of bounding box used for components during initialization (default 2*gSig + 1).
 
         nIter: [optional] int
             number of iterations for shape tuning (default 5).
@@ -1029,7 +1029,7 @@ def imblur(Y, sig=5, siz=11, nDimBlur=None, kernel=None, opencv=True):
             half size of neurons
 
         siz: [optional] list,tuple
-            size of kernel (default 2*tau + 1).
+            size of filter kernel (default 2*sig + 1).
 
         nDimBlur: [optional]
             if you want to specify the number of dimension
