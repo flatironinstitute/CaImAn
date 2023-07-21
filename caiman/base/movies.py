@@ -1416,11 +1416,7 @@ def load(file_name: Union[str, List[str]],
             # Instead we'll explicitly go with the DirectShow backend on Windows, which
             # seems to have good broad codec support (if this turns out to break other users,
             # we may need a more complex solution)
-            if os.name == 'nt':
-                cv_backend = cv2.CAP_DSHOW
-            else:
-                cv_backend = cv2.CAP_ANY
-            cap = cv2.VideoCapture(file_name, cv_backend)
+            cap = cv2.VideoCapture(file_name)
 
             length = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
             width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
