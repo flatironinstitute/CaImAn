@@ -1080,7 +1080,7 @@ class OnACID(object):
         else:
             raise Exception("Unsupported file extension")
 
-    def mc_next(self, t: int, frame: np.ndarray):
+    def mc_next(self, t: int, frame: np.ndarray) -> np.ndarray:
         """
         Perform online motion correction on the next frame
 
