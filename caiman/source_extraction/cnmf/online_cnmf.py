@@ -58,6 +58,7 @@ try:
 except:
     def profile(a): return a
 
+
 class OnACID(object):
     """  Source extraction of streaming data using online matrix factorization.
     The class can be initialized by passing a "params" object for setting up
@@ -80,6 +81,26 @@ class OnACID(object):
     """
 
     def __init__(self, params=None, estimates=None, path=None, dview=None, Ain=None):
+        """
+
+        Args:
+            params: CNMFParams
+                CNMFParams object with parameters that are used to perform online motion correction, followed by online CNMF 
+
+            estimates: Estimates, optional
+                Estimates object to load an existing model
+
+            path: str, optional
+                path to a saved OnACID model hdf5 file on disk
+
+            dview:
+                dview instance, multiprocessing object
+
+            Ain: csc_matrix, optional
+                binary masked for seeded initialization as a Compressed Sparse Column matrix.
+                To use set ``"init_method"`` to ``"seeded"``
+
+        """
         if path is None:
             self.params = CNMFParams() if params is None else params
             self.estimates = Estimates() if estimates is None else estimates
@@ -389,11 +410,11 @@ class OnACID(object):
     def fit_next(self, t, frame_in, num_iters_hals=3):
         """
         This method fits the next frame using the CaImAn online algorithm and
-        updates the object.
+        updates the object. Does NOT perform motion correction, see ``mc_next()``
 
         Args
             t : int
-                time measured in number of frames
+                temporal index of the next frame to fit
 
             frame_in : array
                 flattened array of shape (x * y [ * z],) containing the t-th image.
@@ -965,6 +986,8 @@ class OnACID(object):
         self.img_min = img_min
         self.img_norm = img_norm
         if self.params.get('online', 'init_method') == 'bare':
+            # bare: no initialization is done
+            # cnmf: runs offline CNMF using offline CNMF init params on a small portion of the movie to obtain spatial footprints of neurons which are then used to seed online CNMF
             init = self.params.get_group('init').copy()
             is1p = (init['method_init'] == 'corr_pnr' and  init['ring_size_factor'] is not None)
             if is1p:
@@ -1057,8 +1080,21 @@ class OnACID(object):
         else:
             raise Exception("Unsupported file extension")
 
+    def mc_next(self, t: int, frame: np.ndarray) -> np.ndarray:
+        """
+        Perform online motion correction on the next frame
 
-    def mc_next(self, t, frame):
+        Args:
+            t: int
+                temporal index of the next frame to motion correct
+
+            frame: np.ndarray
+                frame to fit
+
+        Returns:
+            np.ndarray
+                motion corrected frame
+        """
         if self.params.motion['nonneg_movie']:
             frame = frame-self.min_mov
         frame_ = frame.flatten(order='F')
