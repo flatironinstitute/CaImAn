@@ -85,7 +85,7 @@ class OnACID(object):
 
         Args:
             params: CNMFParams
-                CNMFParams object with parameters for the entire run of initialization and OnACID
+                CNMFParams object with parameters to run online motion correction followed by online CNMF 
 
             estimates: Estimates, optional
                 Estimates object to load an existing model
@@ -94,7 +94,7 @@ class OnACID(object):
                 path to a saved OnACID model hdf5 file on disk
 
             dview:
-                dview instance
+                dview instance, multiprocessing object
 
             Ain: csc_matrix, optional
                 binary masked for seeded initialization as a Compressed Sparse Column matrix.
