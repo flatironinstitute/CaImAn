@@ -85,7 +85,7 @@ class OnACID(object):
 
         Args:
             params: CNMFParams
-                CNMFParams object with parameters to run online motion correction followed by online CNMF 
+                CNMFParams object with parameters that are used to perform online motion correction, followed by online CNMF 
 
             estimates: Estimates, optional
                 Estimates object to load an existing model
@@ -986,8 +986,8 @@ class OnACID(object):
         self.img_min = img_min
         self.img_norm = img_norm
         if self.params.get('online', 'init_method') == 'bare':
-            # bare is almost like no initialization
-            # cnmf: optional then it runs offline CNMF with offline CNMF init params
+            # bare: no initialization is done
+            # cnmf: runs offline CNMF using offline CNMF init params on a small portion of the movie to obtain spatial footprints of neurons which are then used to seed online CNMF
             init = self.params.get_group('init').copy()
             is1p = (init['method_init'] == 'corr_pnr' and  init['ring_size_factor'] is not None)
             if is1p:
@@ -1080,7 +1080,7 @@ class OnACID(object):
         else:
             raise Exception("Unsupported file extension")
 
-    def mc_next(self, t, frame):
+    def mc_next(self, t: int, frame: np.ndarray):
         """
         Perform online motion correction on the next frame
 
