@@ -91,7 +91,7 @@ class OnACID(object):
                 Estimates object to load an existing model
 
             path: str, optional
-                path to a saved OnACID model on disk
+                path to a saved OnACID model hdf5 file on disk
 
             dview:
                 dview instance
