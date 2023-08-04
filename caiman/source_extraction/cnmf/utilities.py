@@ -1158,12 +1158,7 @@ def get_file_size(file_name, var_name_hdf5='mov'):
                 else:
                     T, dims = siz[0], siz[1:]
             elif extension in ('.avi', '.mkv'):
-                # See discussion in caiman.base.movies.load() for why we do this
-                if os.name == 'nt':
-                    cv_backend = cv2.CAP_DSHOW
-                else:
-                    cv_backend = cv2.CAP_ANY
-                cap = cv2.VideoCapture(file_name, cv_backend)
+                cap = cv2.VideoCapture(file_name)
                 dims = [0, 0]
                 T = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
                 dims[1] = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
