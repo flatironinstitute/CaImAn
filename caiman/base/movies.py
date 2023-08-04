@@ -1473,9 +1473,6 @@ def load(file_name: Union[str, List[str]],
                 if len(subindices) > 2:
                     input_arr = input_arr[:, :, subindices[2]]
             else:      #use pims to load movie
-                def rgb2gray(rgb):
-                    return np.dot(rgb[..., :3], [0.299, 0.587, 0.114])
-
                 pims_movie = pims.Video(file_name)
                 length = len(pims_movie)
                 height, width = pims_movie.frame_shape[0:2]    # shape is (h, w, channels)
@@ -2167,13 +2164,9 @@ def load_iter(file_name: Union[str, List[str]], subindices=None, var_name_hdf5: 
                         cap.release()
                         return
                 else: # Try pims fallback
-                    # TODO: Rewrite the below to use pims but return an iterator.
                     pims_movie = pims.Video(file_name) # This is a lazy operation
                     length = len(pims_movie) # Hopefully this won't de-lazify it
                     height, width = pims_movie.frame_shape[0:2] # shape is (h, w, channels)
-                    # TODO Probably should just pull this out into a utility function ; I don't like inline functions -- pgunn
-                    def rgb2gray(rgb):
-                        return np.dot(rgb[..., :3], [0.299, 0.587, 0.114])
 
                     if subindices is None:
                         for i in range(len(pims_movie)): # iterate over the frames
@@ -2190,9 +2183,8 @@ def load_iter(file_name: Union[str, List[str]], subindices=None, var_name_hdf5: 
                             while t <= ind and t < len(pims_movie):
                                 frame = rgb2gray(pims_movie[t])
                                 t += 1
-                                yield frame[..., 0].astype(outtype)
-                            else:
-                                return
+                                if t < len(pims_movie):
+                                    yield frame[..., 0].astype(outtype)
                         return
             elif extension in ('.hdf5', '.h5', '.nwb', '.mat'):
                 with h5py.File(file_name, "r") as f:
@@ -2223,10 +2215,10 @@ def load_iter(file_name: Union[str, List[str]], subindices=None, var_name_hdf5: 
 
 
 def play_movie(movie,
-               gain: float = 1,
+               gain: float = 1.0,
                fr=None,
-               magnification: float = 1,
-               offset: float = 0,
+               magnification: float = 1.0,
+               offset: float = 0.0,
                interpolation=cv2.INTER_LINEAR,
                backend: str = 'opencv',
                do_loop: bool = False,
@@ -2489,3 +2481,7 @@ def play_movie(movie,
         cv2.destroyAllWindows()
         for i in range(10):
             cv2.waitKey(100)
+
+def rgb2gray(rgb):
+    # Standard mathematical conversion
+    return np.dot(rgb[..., :3], [0.299, 0.587, 0.114])
