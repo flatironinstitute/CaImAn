@@ -1408,24 +1408,28 @@ def load(file_name: Union[str, List[str]],
                 input_arr = np.squeeze(input_arr)
 
         elif extension in ('.avi', '.mkv'):      # load video file
-            # In practice, the GSTREAMER backend is usually used by OpenCV,
-            # and builds after OpenCV 4.0.1 no longer statically link that backend,
-            # instead using a separate package that invariably doesn't support as many
-            # codecs (adding gst-plugins-good doesn't help,
-            # tested up to OpenCV 4.6.0 and gst-plugins-good 1.18.5)
-            # Instead we'll explicitly go with the DirectShow backend on Windows, which
-            # seems to have good broad codec support (if this turns out to break other users,
-            # we may need a more complex solution)
+            # We first try with OpenCV, which is very dependent on having a working backend.
+            # This is backend-and-build dependent (the second argument to cv2.VideoCapture defaults to CAP_ANY, which
+            # is "the first backend that thinks it can do the job". It often works, and on Linux and OSX builds of OpenCV
+            # it usually uses GStreamer.
+            # On Windows it has used a variety of things over different releases, and if the default doesn't work, it can
+            # sometimes help to change backends (e.g. to cv2.CAP_DSHOW), but this is a guessing game. Future versions may provide
+            # a flexible route to expose this option to the caller so users don't need to tweak code to get their movies loaded.
+            #
+            # We have a fallback of trying to use the pims package if OpenCV fails
+
             cap = cv2.VideoCapture(file_name)
 
             length = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-            width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+            width  = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
             height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
-            cv_failed = False
             dims = [length, height, width]                     # type: ignore # a list in one block and a tuple in another
             if length == 0 or width == 0 or height == 0:       #CV failed to load
                 cv_failed = True
+            else:
+                cv_failed = False
+
             if subindices is not None:
                 if not isinstance(subindices, list):
                     subindices = [subindices]
@@ -1474,7 +1478,7 @@ def load(file_name: Union[str, List[str]],
 
                 pims_movie = pims.Video(file_name)
                 length = len(pims_movie)
-                height, width = pims_movie.frame_shape[0:2]    #shape is (h,w,channels)
+                height, width = pims_movie.frame_shape[0:2]    # shape is (h, w, channels)
                 input_arr = np.zeros((length, height, width), dtype=np.uint8)
                 for i in range(len(pims_movie)):               #iterate over frames
                     input_arr[i] = rgb2gray(pims_movie[i])
@@ -1483,7 +1487,7 @@ def load(file_name: Union[str, List[str]],
             cap.release()
             cv2.destroyAllWindows()
 
-        elif extension == '.npy':      # load npy file
+        elif extension == '.npy': # load npy file
             if fr is None:
                 fr = 30
             if in_memory:
@@ -2123,42 +2127,73 @@ def load_iter(file_name: Union[str, List[str]], subindices=None, var_name_hdf5: 
                     for frame in Y:
                         yield frame.asarray().astype(outtype)
             elif extension in ('.avi', '.mkv'):
+                # First, let's see if OpenCV can handle this AVI file
                 cap = cv2.VideoCapture(file_name)
-                if subindices is None:
-                    while True:
-                        ret, frame = cap.read()
-                        if ret:
-                            yield frame[..., 0].astype(outtype)
-                        else:
-                            cap.release()
-                            return
-                            #raise StopIteration
-                else:
-                    if isinstance(subindices, slice):
-                        subindices = range(
-                            subindices.start,
-                            int(cap.get(cv2.CAP_PROP_FRAME_COUNT)) if subindices.stop is None else subindices.stop,
-                            1 if subindices.step is None else subindices.step)
-                    t = 0
-                    for ind in subindices:
-    #                    cap.set(1, ind)
-    #                    ret, frame = cap.read()
-    #                    if ret:
-    #                        yield frame[..., 0]
-    #                    else:
-    #                        raise StopIteration
-                        while t <= ind:
-                            ret, frame = cap.read()
-                            t += 1
-                        if ret:
-                            yield frame[..., 0].astype(outtype)
-                        else:
-                            return
-                            #raise StopIteration
+                length = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+                width  = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+                height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+                if length == 0 or width == 0 or height == 0: # Not a perfect way to do this, but it's a start. Could also do a try/except block?
+                    do_opencv = False
+                    # Close up shop, and get ready for the alternative
                     cap.release()
+                    cv2.destroyAllWindows()
+                else:
+                    do_opencv = True
 
-                    return
-                    #raise StopIteration
+		if do_opencv:
+                    if subindices is None:
+                        while True:
+                            ret, frame = cap.read()
+                            if ret:
+                                yield frame[..., 0].astype(outtype)
+                            else:
+                                cap.release()
+                                return
+                    else:
+                        if isinstance(subindices, slice):
+                            subindices = range(
+                                subindices.start,
+                                length if subindices.stop is None else subindices.stop,
+                                1 if subindices.step is None else subindices.step)
+                        t = 0
+                        for ind in subindices:
+                            while t <= ind:
+                                ret, frame = cap.read() # I think this skips frames before beginning of window of interest
+                                t += 1
+                            if ret:
+                                yield frame[..., 0].astype(outtype)
+                            else:
+                                return
+                        cap.release()
+                        return
+                else: # Try pims fallback
+                    # TODO: Rewrite the below to use pims but return an iterator.
+                    pims_movie = pims.Video(file_name) # This is a lazy operation
+                    length = len(pims_movie) # Hopefully this won't de-lazify it
+                    height, width = pims_movie.frame_shape[0:2] # shape is (h, w, channels)
+                    # TODO Probably should just pull this out into a utility function ; I don't like inline functions -- pgunn
+                    def rgb2gray(rgb):
+                        return np.dot(rgb[..., :3], [0.299, 0.587, 0.114])
+
+                    if subindices is None:
+                        for i in range(len(pims_movie)): # iterate over the frames
+                            yield rgb2gray(pims_movie[i])
+                        return
+                    else:
+                        if isinstance(subindices, slice):
+                            subindices = range(
+                                subindices.start,
+                                length if subindices.stop is None else subindices.stop,
+                                1 if subindices.step is None else subindices.step)
+                        t = 0
+                        for ind in subindices:
+                            while t <= ind and t < len(pims_movie):
+                                frame = rgb2gray(pims_movie[t])
+                                t += 1
+                                yield frame[..., 0].astype(outtype)
+                            else:
+                                return
+                        return
             elif extension in ('.hdf5', '.h5', '.nwb', '.mat'):
                 with h5py.File(file_name, "r") as f:
                     ignore_keys = ['__DATA_TYPES__'] # Known metadata that tools provide, add to this as needed.
