@@ -13,7 +13,7 @@ We welcome all such contributions. To do this you need to make changes on your l
 
 Before you go through the work required to improve something, we recommend that you let us know your plans. E.g., open an issue, or reach out on Gitter. This way, we can avoid duplicated effort (if someone is already working on it), or wasted time (it could turn out the changes might not be feasible right now). We can usually set up a video chat on Google or Skype to talk about a feature proposal if that works for you.
 
-## Background: how does this work?
+## Background: how do pull requests work?
 In this section we'll give general background on how making a contribution/PR works. If you just want to get started quickly, feel free to skip to the next section.
 
 There are many possible workflows for contributing to open source projects (see a summary [here](https://docs.gitlab.com/ee/topics/gitlab_flow.html)). The basic structure of the workflow we use at Caiman is illustrated here:
