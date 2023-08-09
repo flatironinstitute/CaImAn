@@ -1425,14 +1425,12 @@ def load(file_name: Union[str, List[str]],
             height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
             dims = [length, height, width]                     # type: ignore # a list in one block and a tuple in another
-            if length <= 0 or width <= 0 or height <= 0:       #CV failed to load
+            if length <= 0 or width <= 0 or height <= 0:       # OpenCV failure
                 do_opencv = False
                 cap.release()
                 cv2.destroyAllWindows()
-                cv_failed = True
                 logging.warning(f"OpenCV failed to parse {file_name}, falling back to pims")
             else:
-                cv_failed = False
                 do_opencv = True
 
             if do_opencv:
@@ -1512,13 +1510,13 @@ def load(file_name: Union[str, List[str]],
                             dims[ind] = subindices[ind].shape[0]
                         elif isinstance(sb, np.ndarray):
                             dims[ind] = sb.shape[0]
-    
                     start_frame = subindices[0][0]
                 else:
                     subindices = [np.r_[range(dims[0])]]
                     start_frame = 0
+                # Now we start working on the data
                 input_arr = np.zeros((length, height, width), dtype=np.uint8)
-                for i in range(len(pims_movie)):               #iterate over frames
+                for i in range(len(pims_movie)): # iterate over frames
                     input_arr[i] = rgb2gray(pims_movie[i])
 
         elif extension == '.npy': # load npy file
