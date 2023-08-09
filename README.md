@@ -6,7 +6,7 @@ A Python toolbox for large-scale **Ca**lcium **Im**aging **An**alysis.
 CaImAn implements a set of essential methods required to analyze calcium and voltage imaging data. It provides fast and scalable algorithms for motion correction, source extraction, spike deconvolution, and registering neurons across multiple sessions. It is suitable for both two-photon and one-photon fluorescence microscopy data, and can be run in both offline and online modes. Documentation is [here](https://caiman.readthedocs.io/en/latest/). 
 
 # Quick start :rocket:
-To get started quickly, from installation to working through a demo notebook, take the following steps. If you do not already have the conda package manager installed, [you can find it here](https://docs.conda.io/en/latest/miniconda.html).
+To get started quickly, from installation to working through a demo notebook, take the following steps. If you do not already have conda installed, [you can find it here](https://docs.conda.io/en/latest/miniconda.html).
 
 ### Step 1: Install caiman
 The following is all done in your anaconda prompt, starting in your base environment:
@@ -109,7 +109,7 @@ If possible, we'd also ask that you cite the papers where the original algorithm
 * (emeritus) Eftychios A. Pnevmatikakis, **Flatiron Institute, Simons Foundation** 
 * (emeritus) Andrea Giovannucci, **University of North Carolina, Chapel Hill**
 * Johannes Friedrich, **Allen Institute,Seattle Washington**
-* Changlia Cai, **University of North Carolina, Chapel Hill**
+* Changjia Cai, **University of North Carolina, Chapel Hill**
 * Pat Gunn, **Flatiron Institute, Simons Foundation**
 * Eric Thomson, **Flatiron Institute, Simons Foundation**
 
