@@ -1425,7 +1425,7 @@ def load(file_name: Union[str, List[str]],
             height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
             dims = [length, height, width]                     # type: ignore # a list in one block and a tuple in another
-            if length == 0 or width == 0 or height == 0:       #CV failed to load
+            if length <= 0 or width <= 0 or height <= 0:       #CV failed to load
                 cv_failed = True
             else:
                 cv_failed = False
@@ -2129,7 +2129,7 @@ def load_iter(file_name: Union[str, List[str]], subindices=None, var_name_hdf5: 
                 length = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
                 width  = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
                 height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-                if length == 0 or width == 0 or height == 0: # Not a perfect way to do this, but it's a start. Could also do a try/except block?
+                if length <= 0 or width <= 0 or height <= 0: # Not a perfect way to do this, but it's a start. Could also do a try/except block?
                     do_opencv = False
                     # Close up shop, and get ready for the alternative
                     cap.release()

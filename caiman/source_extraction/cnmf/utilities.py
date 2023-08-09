@@ -1162,7 +1162,7 @@ def get_file_size(file_name, var_name_hdf5='mov'):
                 cap = cv2.VideoCapture(file_name)
                 dims = [int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)), int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))]
                 T = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-                if dims[0] == 0 or dims[1] == 0 or T == 0:
+                if dims[0] <= 0 or dims[1] <= 0 or T <= 0:
                     # fallback to pims, like load() and load_iter() do
                     pims_movie = pims.Video(file_name)
                     T = len(pims_movie)
