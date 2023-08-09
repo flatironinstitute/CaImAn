@@ -1427,10 +1427,12 @@ def load(file_name: Union[str, List[str]],
             dims = [length, height, width]                     # type: ignore # a list in one block and a tuple in another
             if length <= 0 or width <= 0 or height <= 0:       #CV failed to load
                 cv_failed = True
+                logging.debug("OpenCV load failure, falling back to pims")
             else:
                 cv_failed = False
 
             if subindices is not None:
+                logging.debug("Eric note: this will likely lead to problems -- dims is used here but it is broken if cv_failed")
                 if not isinstance(subindices, list):
                     subindices = [subindices]
                 for ind, sb in enumerate(subindices):
