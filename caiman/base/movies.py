@@ -1425,12 +1425,14 @@ def load(file_name: Union[str, List[str]],
             height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
 
             dims = [length, height, width]                     # type: ignore # a list in one block and a tuple in another
-            if length == 0 or width == 0 or height == 0:       #CV failed to load
+            if length <= 0 or width <= 0 or height <= 0:       #CV failed to load
                 cv_failed = True
+                logging.debug("OpenCV load failure, falling back to pims")
             else:
                 cv_failed = False
 
             if subindices is not None:
+                logging.debug("Eric note: this will likely lead to problems -- dims is used here but it is broken if cv_failed")
                 if not isinstance(subindices, list):
                     subindices = [subindices]
                 for ind, sb in enumerate(subindices):
@@ -2129,7 +2131,7 @@ def load_iter(file_name: Union[str, List[str]], subindices=None, var_name_hdf5: 
                 length = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
                 width  = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
                 height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-                if length == 0 or width == 0 or height == 0: # Not a perfect way to do this, but it's a start. Could also do a try/except block?
+                if length <= 0 or width <= 0 or height <= 0: # Not a perfect way to do this, but it's a start. Could also do a try/except block?
                     do_opencv = False
                     # Close up shop, and get ready for the alternative
                     cap.release()
@@ -2137,32 +2139,32 @@ def load_iter(file_name: Union[str, List[str]], subindices=None, var_name_hdf5: 
                 else:
                     do_opencv = True
 
-		if do_opencv:
-                    if subindices is None:
-                        while True:
-                            ret, frame = cap.read()
-                            if ret:
-                                yield frame[..., 0].astype(outtype)
+                if do_opencv:
+                            if subindices is None:
+                                while True:
+                                    ret, frame = cap.read()
+                                    if ret:
+                                        yield frame[..., 0].astype(outtype)
+                                    else:
+                                        cap.release()
+                                        return
                             else:
+                                if isinstance(subindices, slice):
+                                    subindices = range(
+                                        subindices.start,
+                                        length if subindices.stop is None else subindices.stop,
+                                        1 if subindices.step is None else subindices.step)
+                                t = 0
+                                for ind in subindices:
+                                    while t <= ind:
+                                        ret, frame = cap.read() # I think this skips frames before beginning of window of interest
+                                        t += 1
+                                    if ret:
+                                        yield frame[..., 0].astype(outtype)
+                                    else:
+                                        return
                                 cap.release()
                                 return
-                    else:
-                        if isinstance(subindices, slice):
-                            subindices = range(
-                                subindices.start,
-                                length if subindices.stop is None else subindices.stop,
-                                1 if subindices.step is None else subindices.step)
-                        t = 0
-                        for ind in subindices:
-                            while t <= ind:
-                                ret, frame = cap.read() # I think this skips frames before beginning of window of interest
-                                t += 1
-                            if ret:
-                                yield frame[..., 0].astype(outtype)
-                            else:
-                                return
-                        cap.release()
-                        return
                 else: # Try pims fallback
                     pims_movie = pims.Video(file_name) # This is a lazy operation
                     length = len(pims_movie) # Hopefully this won't de-lazify it
@@ -2186,6 +2188,7 @@ def load_iter(file_name: Union[str, List[str]], subindices=None, var_name_hdf5: 
                                 if t < len(pims_movie):
                                     yield frame[..., 0].astype(outtype)
                         return
+                
             elif extension in ('.hdf5', '.h5', '.nwb', '.mat'):
                 with h5py.File(file_name, "r") as f:
                     ignore_keys = ['__DATA_TYPES__'] # Known metadata that tools provide, add to this as needed.
