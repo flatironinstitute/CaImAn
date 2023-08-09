@@ -2137,32 +2137,32 @@ def load_iter(file_name: Union[str, List[str]], subindices=None, var_name_hdf5: 
                 else:
                     do_opencv = True
 
-		if do_opencv:
-                    if subindices is None:
-                        while True:
-                            ret, frame = cap.read()
-                            if ret:
-                                yield frame[..., 0].astype(outtype)
+                if do_opencv:
+                            if subindices is None:
+                                while True:
+                                    ret, frame = cap.read()
+                                    if ret:
+                                        yield frame[..., 0].astype(outtype)
+                                    else:
+                                        cap.release()
+                                        return
                             else:
+                                if isinstance(subindices, slice):
+                                    subindices = range(
+                                        subindices.start,
+                                        length if subindices.stop is None else subindices.stop,
+                                        1 if subindices.step is None else subindices.step)
+                                t = 0
+                                for ind in subindices:
+                                    while t <= ind:
+                                        ret, frame = cap.read() # I think this skips frames before beginning of window of interest
+                                        t += 1
+                                    if ret:
+                                        yield frame[..., 0].astype(outtype)
+                                    else:
+                                        return
                                 cap.release()
                                 return
-                    else:
-                        if isinstance(subindices, slice):
-                            subindices = range(
-                                subindices.start,
-                                length if subindices.stop is None else subindices.stop,
-                                1 if subindices.step is None else subindices.step)
-                        t = 0
-                        for ind in subindices:
-                            while t <= ind:
-                                ret, frame = cap.read() # I think this skips frames before beginning of window of interest
-                                t += 1
-                            if ret:
-                                yield frame[..., 0].astype(outtype)
-                            else:
-                                return
-                        cap.release()
-                        return
                 else: # Try pims fallback
                     pims_movie = pims.Video(file_name) # This is a lazy operation
                     length = len(pims_movie) # Hopefully this won't de-lazify it
@@ -2186,6 +2186,7 @@ def load_iter(file_name: Union[str, List[str]], subindices=None, var_name_hdf5: 
                                 if t < len(pims_movie):
                                     yield frame[..., 0].astype(outtype)
                         return
+                
             elif extension in ('.hdf5', '.h5', '.nwb', '.mat'):
                 with h5py.File(file_name, "r") as f:
                     ignore_keys = ['__DATA_TYPES__'] # Known metadata that tools provide, add to this as needed.
