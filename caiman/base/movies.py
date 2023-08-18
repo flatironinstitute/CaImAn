@@ -1331,7 +1331,7 @@ def load(file_name: Union[str, List[str]],
                                 is3D=is3D)
 
     elif isinstance(file_name, tuple):
-        print(f'**** Processing input file {file_name} as individualframes *****')
+        logging.debug(f'**** Processing input file {file_name} as individualframes *****')
         if shape is not None:
             # XXX Should this be an Exception?
             logging.error('movies.py:load(): A shape parameter is not supported for multiple movie input')
@@ -1473,7 +1473,7 @@ def load(file_name: Union[str, List[str]],
                     input_arr[counter] = frame[:, :, 0]
                     counter += 1
                     current_frame += 1
-
+                # handle spatial subindices
                 if len(subindices) > 1:
                     input_arr = input_arr[:, subindices[1]]
                 if len(subindices) > 2:
@@ -1491,7 +1491,7 @@ def load(file_name: Union[str, List[str]],
                 height, width = pims_movie.frame_shape[0:2]    # shape is (h, w, channels)
                 dims = [length, height, width]
                 if length <= 0 or width <= 0 or height <= 0:
-                    raise Exception(f"pims fallback failed to handle AVI file {file_name}. Giving up")
+                    raise OSError(f"pims fallback failed to handle AVI file {file_name}. Giving up")
 
                 if subindices is not None:
                     # FIXME Above should probably be a try/except block
@@ -1514,10 +1514,17 @@ def load(file_name: Union[str, List[str]],
                 else:
                     subindices = [np.r_[range(dims[0])]]
                     start_frame = 0
-                # Now we start working on the data
-                input_arr = np.zeros((length, height, width), dtype=np.uint8)
-                for i in range(len(pims_movie)): # iterate over frames
+                    
+                # Extract the data (note use dims[0] as it has been modified by subindices)
+                input_arr = np.zeros((dims[0], height, width), dtype=np.uint8)
+                for i in range(dims[0]): # iterate over frames
                     input_arr[i] = rgb2gray(pims_movie[i])
+                # spatial subinds
+                if len(subindices) > 1:
+                    input_arr = input_arr[:, subindices[1]]
+                if len(subindices) > 2:
+                    input_arr = input_arr[:, :, subindices[2]]
+
 
         elif extension == '.npy': # load npy file
             if fr is None:
@@ -1932,7 +1939,7 @@ def sbxreadskip(filename: str, subindices: slice) -> np.ndarray:
         for k in iterable_elements:
             assert k >= 0
             if counter % 100 == 0:
-                print(f'Reading Iteration: {k}')
+                logging.debug(f'Reading Iteration: {k}')
             fo.seek(k * nSamples, 0)
             ii16 = np.iinfo(np.uint16)
             tmp = ii16.max - \
@@ -2001,7 +2008,7 @@ def from_zip_file_to_movie(zipfile_name: str, start_end: Tuple = None) -> Any:
         movie
     '''
     mov: List = []
-    print('unzipping file into movie object')
+    logging.info('unzipping file into movie object')
     if start_end is not None:
         num_frames = start_end[1] - start_end[0]
 
@@ -2018,7 +2025,7 @@ def from_zip_file_to_movie(zipfile_name: str, start_end: Tuple = None) -> Any:
                         mov[counter] = np.array(Image.open(file))
 
                     if counter % 100 == 0:
-                        print([counter, idx])
+                        logging.debug([counter, idx])
 
                     counter += 1
 
