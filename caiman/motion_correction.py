@@ -46,7 +46,6 @@ import logging
 import numpy as np
 from numpy.fft import ifftshift
 import os
-import pdb
 import sys
 import pylab as pl
 import tifffile
@@ -3108,16 +3107,8 @@ def tile_and_correct_wrapper(params):
             shift_info.append([total_shift, start_step, xy_grid])
     # 
     if out_fname is not None:
-        # breakpoint()
-        # print(f"OUtfname is not note, is : {out_fname}")
-        # pdb.set_trace()
-
-        # if count >= 999:
-        #     #breakpoint()
-        #     raise  RuntimeError(f"out_fname is not none: {out_fname}")
         outv = np.memmap(out_fname, mode='r+', dtype=np.float32,
                          shape=prepare_shape(shape_mov), order='F')
-        print(f"count, outv.shape {count} {outv.shape}")
         if nonneg_movie:
             bias = np.float32(add_to_movie)
         else:
