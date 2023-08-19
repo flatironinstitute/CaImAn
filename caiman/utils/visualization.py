@@ -17,6 +17,7 @@ import matplotlib as mpl
 import matplotlib.cm as cm
 from matplotlib.widgets import Slider
 import numpy as np
+from numpy.typing import ArrayLike
 import pylab as pl
 from scipy.ndimage.measurements import center_of_mass
 from scipy.ndimage.filters import median_filter
@@ -24,7 +25,7 @@ from scipy.sparse import issparse, spdiags, coo_matrix, csc_matrix
 from skimage.measure import find_contours
 import sys
 from tempfile import NamedTemporaryFile
-from typing import Dict
+from typing import Any, Dict, Optional, Tuple
 from warnings import warn
 import holoviews as hv
 import functools as fct
@@ -1217,3 +1218,143 @@ def inspect_correlation_pnr(correlation_image_pnr, pnr_image):
     s_cn_min.on_changed(update)
     s_pnr_max.on_changed(update)
     s_pnr_min.on_changed(update)
+
+
+def get_rectangle_coords(im_dims: ArrayLike, 
+                         stride: int, 
+                         overlap: int) -> Tuple[np.ndarray, np.ndarray]:
+    """
+    Extract rectangle (patch) coordinates: a helper function used by view_quilt().
+    
+    Given dimensions of summary image (rows x colums), stride between patches, and overlap
+    between patches, returns row coordinates of the patches in patch_rows, and column 
+    coordinates patches in patch_cols. This is meant to be used by plot_patches().
+       
+    Args:
+        im_dims: array-like
+            dimension of image (num_rows, num_cols)
+        stride: int
+            stride between patches in pixels
+        overlap: int
+            overlap between patches in pixels
+    
+    Returns:
+        patch_rows: ndarray
+            num_patch_rows x 2 array, where row i contains onset and offset row pixels for patch row i
+        patch_cols: ndarray
+            num_patch_cols x 2 array, where row j contains onset and offset column pixels for patch column j
+            
+    Note: 
+        Currently assumes square patches so takes in a single number for stride/overlap. 
+    """
+    patch_width = overlap + stride
+    
+    patch_onset_rows = np.array(list(range(0, im_dims[0] - patch_width, stride)) + [im_dims[0] - patch_width])
+    patch_offset_rows = patch_onset_rows + patch_width
+    patch_offset_rows[patch_offset_rows > im_dims[0]-1] = im_dims[0]-1
+    patch_rows = np.column_stack((patch_onset_rows, patch_offset_rows))
+    
+    patch_onset_cols = np.array(list(range(0, im_dims[1] - patch_width, stride)) + [im_dims[1] - patch_width])
+    patch_offset_cols = patch_onset_cols + patch_width 
+    patch_offset_cols[patch_offset_cols > im_dims[1]-1] = im_dims[1]-1
+    patch_cols = np.column_stack((patch_onset_cols, patch_offset_cols))
+    
+    return patch_rows, patch_cols
+
+
+def rect_draw(row_minmax: ArrayLike, 
+              col_minmax: ArrayLike, 
+              color: Optional[str]='white', 
+              alpha: Optional[float]=0.3, 
+              ax: Optional[Any]=None) -> Tuple[Any, Any]:
+    """
+    Draw a single transluscent rectangle on given axes object.
+    
+    Args:
+        row_minmax: array-like
+            [row_min, row_max] -- 2-elt int bounds for rect rows
+        col_minmax: array-like 
+            [col_min, col_max] -- int bounds for rect cols
+        color : string
+            rectangle color, default 'yellow'
+        alpha : float
+            rectangle alpha (0. to 1., where 1 is opaque), default 0.3
+        ax : pyplot.Axes object
+            axes object upon which rectangle will be drawn, default None
+    
+    Returns:
+        ax (Axes object)
+        rect (Rectangle object)
+    """
+    from matplotlib.patches import Rectangle
+    
+    if ax is None:
+        ax = pl.gca()
+        
+    box_origin = (col_minmax[0], row_minmax[0])
+    box_height = row_minmax[1] - row_minmax[0] 
+    box_width = col_minmax[1] - col_minmax[0]
+
+    rect = Rectangle(box_origin, 
+                     width=box_width, 
+                     height=box_height,
+                     color=color, 
+                     alpha=alpha)
+    ax.add_patch(rect)
+
+    return ax, rect
+
+
+def view_quilt(template_image: np.ndarray, 
+               stride: int, 
+               overlap: int, 
+               color: Optional[str]='white', 
+               alpha: Optional[float]=0.3, 
+               vmin: Optional[float]=0.0, 
+               vmax: Optional[float]=0.6, 
+               figsize: Optional[Tuple]=(6,6)) -> Any:
+    """
+    Plot patches on template image given stride and overlap parameters. 
+    
+    Given stride and overlap, plot overlapping patch blocks on template image.
+    This can be useful for checking motion correction and cnmf spatial parameters. 
+    It ends up looking like a quilt pattern.
+    
+    Args:
+        template_image: ndarray
+            row x col summary image upon which to draw patches (e.g., correlation image)
+        stride (int) stride between patches in pixels
+        overlap (int) overlap between patches in pixels
+        color (str): color of patches, default 'white'
+        alpha (float) : patch transparency (0. to 1.: higher is more opaque), default 0.3
+        vmin (float) : vmin for plotting underlying template image, default None
+        vmax (float) : vmax for plotting underlying template image, default None
+        figsize tuple : fig size in inches (width, height), default (6.,6.)
+    
+    Returns:
+        ax: axes object
+    
+    Example:
+        # Uses cnm object (cnm) and correlation image (corr_image) as template:
+        patch_width = 2*cnm.params.patch['rf'] + 1
+        patch_overlap = cnm.params.patch['stride'] + 1
+        patch_stride = patch_width - patch_overlap
+        ax = plot_patches(corr_image, patch_stride, patch_overlap, vmin=0.0, vmax=0.6);
+        
+    Note: 
+        Currently assumes square patches so takes in a single number for stride/overlap.
+    """
+    im_dims = template_image.shape
+    patch_rows, patch_cols = get_rectangle_coords(im_dims, stride, overlap)
+    
+    f, ax = pl.subplots(figsize=figsize)
+    ax.imshow(template_image, cmap='gray', vmin=vmin, vmax=vmax)
+    for patch_row in patch_rows:
+        for patch_col in patch_cols:
+            #print(f"row: {patch_row}, col {patch_col}")
+            ax, _ = rect_draw(patch_row, patch_col, color='white', alpha=0.2, ax=ax)
+            
+    return ax
+
+
+# todo: implement bokeh version of quilt viewer
