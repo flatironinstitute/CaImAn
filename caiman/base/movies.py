@@ -1458,6 +1458,7 @@ def load(file_name: Union[str, List[str]],
                 else:
                     subindices = [np.r_[range(dims[0])]]
                     start_frame = 0
+                # Extract the data
                 input_arr = np.zeros((dims[0], height, width), dtype=np.uint8)
                 counter = 0
                 cap.set(1, start_frame)
@@ -1478,7 +1479,6 @@ def load(file_name: Union[str, List[str]],
                     input_arr = input_arr[:, subindices[1]]
                 if len(subindices) > 2:
                     input_arr = input_arr[:, :, subindices[2]]
-
                 # When everything done, release the capture
                 cap.release()
                 cv2.destroyAllWindows()
@@ -1515,10 +1515,11 @@ def load(file_name: Union[str, List[str]],
                     subindices = [np.r_[range(dims[0])]]
                     start_frame = 0
                     
-                # Extract the data (note use dims[0] as it has been modified by subindices)
+                # Extract the data (note dims[0] is num frames)
                 input_arr = np.zeros((dims[0], height, width), dtype=np.uint8)
-                for i in range(dims[0]): # iterate over frames
-                    input_arr[i] = rgb2gray(pims_movie[i])
+                for i, ind in enumerate(subindices[0]):
+                    input_arr[i] = rgb2gray(pims_movie[ind]).astype(outtype)
+                    # logging.debug(f"subindex and shape: {ind} {input_arr[i].shape}") # helpful when mc debugging deep in weeds, otherwise overkill 
                 # spatial subinds
                 if len(subindices) > 1:
                     input_arr = input_arr[:, subindices[1]]
@@ -2197,6 +2198,7 @@ def load_iter(file_name: Union[str, List[str]], subindices=None, var_name_hdf5: 
                                         1 if subindices.step is None else subindices.step)
                                 t = 0
                                 for ind in subindices:
+                                    # an abomination reading frames until it hits the desired frame
                                     while t <= ind:
                                         ret, frame = cap.read() # I think this skips frames before beginning of window of interest
                                         t += 1
@@ -2211,7 +2213,7 @@ def load_iter(file_name: Union[str, List[str]], subindices=None, var_name_hdf5: 
                     length = len(pims_movie) # Hopefully this won't de-lazify it
                     height, width = pims_movie.frame_shape[0:2] # shape is (h, w, channels)
                     if length <= 0 or width <= 0 or height <= 0:
-                        raise Exception(f"pims fallback failed to handle AVI file {file_name}. Giving up")
+                        raise OSError(f"pims fallback failed to handle AVI file {file_name}. Giving up")
 
                     if subindices is None:
                         for i in range(len(pims_movie)): # iterate over the frames
@@ -2219,17 +2221,13 @@ def load_iter(file_name: Union[str, List[str]], subindices=None, var_name_hdf5: 
                         return
                     else:
                         if isinstance(subindices, slice):
-                            subindices = range(
-                                subindices.start,
-                                length if subindices.stop is None else subindices.stop,
-                                1 if subindices.step is None else subindices.step)
-                        t = 0
+                            subindices = range(subindices.start,
+                                               length if subindices.stop is None else subindices.stop,
+                                               1 if subindices.step is None else subindices.step)
                         for ind in subindices:
-                            while t <= ind and t < len(pims_movie):
-                                frame = rgb2gray(pims_movie[t])
-                                t += 1
-                                if t < len(pims_movie):
-                                    yield frame[..., 0].astype(outtype)
+                            frame = rgb2gray(pims_movie[ind])
+                            # debug.logging(f"t, ind and frame shape: {ind} - {frame.shape}") # for extremely in the weeds debugging 
+                            yield frame # was frame[..., 0].astype(outtype)
                         return
                 
             elif extension in ('.hdf5', '.h5', '.nwb', '.mat'):
