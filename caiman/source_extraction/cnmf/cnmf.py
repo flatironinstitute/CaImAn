@@ -990,13 +990,15 @@ class CNMF(object):
 
 
 def load_CNMF(filename, n_processes=1, dview=None):
-    '''load object saved with the CNMF save method
+    '''load object saved with the CNMF save method. Currently implemented for hdf5 and nwb.
 
     Args:
         filename: str
             hdf5 (or nwb) file name containing the saved object
+        n_processes: int
+            number of processes to use, default 1
         dview: multiprocessing or ipyparallel object
-            useful to set up parllelization in the objects
+            useful to set up parllelization in the objects, default None
     '''
     new_obj = CNMF(n_processes)
     if os.path.splitext(filename)[1].lower() in ('.hdf5', '.h5'):
