@@ -15,6 +15,7 @@ from IPython.display import HTML
 from math import sqrt, ceil
 import matplotlib as mpl
 import matplotlib.cm as cm
+from matplotlib.patches import Rectangle
 from matplotlib.widgets import Slider
 import numpy as np
 from numpy.typing import ArrayLike
@@ -1228,7 +1229,7 @@ def get_rectangle_coords(im_dims: ArrayLike,
     
     Given dimensions of summary image (rows x colums), stride between patches, and overlap
     between patches, returns row coordinates of the patches in patch_rows, and column 
-    coordinates patches in patch_cols. This is meant to be used by plot_patches().
+    coordinates patches in patch_cols. This is meant to be used by view_quilt().
        
     Args:
         im_dims: array-like
@@ -1265,29 +1266,27 @@ def get_rectangle_coords(im_dims: ArrayLike,
 def rect_draw(row_minmax: ArrayLike, 
               col_minmax: ArrayLike, 
               color: Optional[str]='white', 
-              alpha: Optional[float]=0.3, 
+              alpha: Optional[float]=0.2, 
               ax: Optional[Any]=None) -> Tuple[Any, Any]:
     """
     Draw a single transluscent rectangle on given axes object.
     
     Args:
         row_minmax: array-like
-            [row_min, row_max] -- 2-elt int bounds for rect rows
+            [row_min, row_max] -- upper and lower bounds for rectangle rows (ints)
         col_minmax: array-like 
-            [col_min, col_max] -- int bounds for rect cols
-        color : string
-            rectangle color, default 'yellow'
+            [col_min, col_max] -- upper and lower bounds for rectangle columns (ints)
+        color: matplotlib.colors
+            Any acceptable matplotlib color spec (r,g,b), string, etc., default 'white' 
         alpha : float
-            rectangle alpha (0. to 1., where 1 is opaque), default 0.3
+            rectangle alpha (0. to 1., where 1 is opaque), default 0.2
         ax : pyplot.Axes object
             axes object upon which rectangle will be drawn, default None
     
     Returns:
-        ax (Axes object)
-        rect (Rectangle object)
+        ax: pyplot.Axes object
+        rect: matplotlib Rectangle object
     """
-    from matplotlib.patches import Rectangle
-    
     if ax is None:
         ax = pl.gca()
         
@@ -1308,15 +1307,13 @@ def rect_draw(row_minmax: ArrayLike,
 def view_quilt(template_image: np.ndarray, 
                stride: int, 
                overlap: int, 
-               color: Optional[str]='white', 
-               alpha: Optional[float]=0.3, 
-               vmin: Optional[float]=0.0, 
-               vmax: Optional[float]=0.6, 
-               figsize: Optional[Tuple]=(6,6)) -> Any:
+               color: Optional[Any]='white', 
+               alpha: Optional[float]=0.2, 
+               vmin: Optional[float]=None, 
+               vmax: Optional[float]=None, 
+               figsize: Optional[Tuple[float,float]]=(6.,6.)) -> Any:
     """
-    Plot patches on template image given stride and overlap parameters. 
-    
-    Given stride and overlap, plot overlapping patch blocks on template image.
+    Plot patches on template image given stride and overlap parameters on template image.
     This can be useful for checking motion correction and cnmf spatial parameters. 
     It ends up looking like a quilt pattern.
     
@@ -1325,14 +1322,15 @@ def view_quilt(template_image: np.ndarray,
             row x col summary image upon which to draw patches (e.g., correlation image)
         stride (int) stride between patches in pixels
         overlap (int) overlap between patches in pixels
-        color (str): color of patches, default 'white'
-        alpha (float) : patch transparency (0. to 1.: higher is more opaque), default 0.3
+        color: matplotlib.colors
+            Any acceptable matplotlib color (r,g,b), string, etc., default 'white' 
+        alpha (float) : patch transparency (0. to 1.: higher is more opaque), default 0.2
         vmin (float) : vmin for plotting underlying template image, default None
         vmax (float) : vmax for plotting underlying template image, default None
         figsize tuple : fig size in inches (width, height), default (6.,6.)
     
     Returns:
-        ax: axes object
+        ax: pyplot.Axes object
     
     Example:
         # Uses cnm object (cnm) and correlation image (corr_image) as template:
