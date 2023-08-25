@@ -1269,17 +1269,17 @@ def rect_draw(row_minmax: ArrayLike,
               alpha: Optional[float]=0.2, 
               ax: Optional[Any]=None) -> Tuple[Any, Any]:
     """
-    Draw a single transluscent rectangle on given axes object.
+    Draw a single rectangle on given axes object.
     
     Args:
         row_minmax: array-like
             [row_min, row_max] -- upper and lower bounds for rectangle rows (ints)
         col_minmax: array-like 
             [col_min, col_max] -- upper and lower bounds for rectangle columns (ints)
-        color: matplotlib.colors
+        color: matplotlib color
             Any acceptable matplotlib color spec (r,g,b), string, etc., default 'white' 
         alpha : float
-            rectangle alpha (0. to 1., where 1 is opaque), default 0.2
+            opaqueness level (0. to 1., where 1 is opaque), default 0.2
         ax : pyplot.Axes object
             axes object upon which rectangle will be drawn, default None
     
@@ -1322,12 +1322,12 @@ def view_quilt(template_image: np.ndarray,
             row x col summary image upon which to draw patches (e.g., correlation image)
         stride (int) stride between patches in pixels
         overlap (int) overlap between patches in pixels
-        color: matplotlib.colors
+        color: matplotlib color
             Any acceptable matplotlib color (r,g,b), string, etc., default 'white' 
         alpha (float) : patch transparency (0. to 1.: higher is more opaque), default 0.2
         vmin (float) : vmin for plotting underlying template image, default None
         vmax (float) : vmax for plotting underlying template image, default None
-        figsize tuple : fig size in inches (width, height), default (6.,6.)
+        figsize (tuple) : fig size in inches (width, height), default (6.,6.)
     
     Returns:
         ax: pyplot.Axes object
@@ -1341,6 +1341,7 @@ def view_quilt(template_image: np.ndarray,
         
     Note: 
         Currently assumes square patches so takes in a single number for stride/overlap.
+        TODO: implement bokeh version of this function
     """
     im_dims = template_image.shape
     patch_rows, patch_cols = get_rectangle_coords(im_dims, stride, overlap)
@@ -1353,6 +1354,3 @@ def view_quilt(template_image: np.ndarray,
             ax, _ = rect_draw(patch_row, patch_col, color='white', alpha=0.2, ax=ax)
             
     return ax
-
-
-# todo: implement bokeh version of quilt viewer
