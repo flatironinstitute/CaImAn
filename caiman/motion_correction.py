@@ -3076,9 +3076,6 @@ def tile_and_correct_wrapper(params):
     extension = extension.lower()
     shift_info = []
 
-    print("In tile and correct wrapper about to call load with subidxs")
-    print(f"subidx type: {type(idxs)}")
-
     imgs = cm.load(img_name, subindices=idxs, var_name_hdf5=var_name_hdf5,is3D=is3D)
     imgs = imgs[(slice(None),) + indices]
     mc = np.zeros(imgs.shape, dtype=np.float32)
