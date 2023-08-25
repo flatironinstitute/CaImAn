@@ -1331,7 +1331,7 @@ def load(file_name: Union[str, List[str]],
                                 is3D=is3D)
 
     elif isinstance(file_name, tuple):
-        logging.debug(f'**** Processing input file {file_name} as individualframes *****')
+        logging.debug(f'**** Processing input file {file_name} as individual frames *****')
         if shape is not None:
             # XXX Should this be an Exception?
             logging.error('movies.py:load(): A shape parameter is not supported for multiple movie input')
@@ -1408,10 +1408,12 @@ def load(file_name: Union[str, List[str]],
                 input_arr = np.squeeze(input_arr)
 
         elif extension in ('.avi', '.mkv'):      # load video file
-            # We first try with OpenCV, which is very dependent on having a working backend.
-            # This is backend-and-build dependent (the second argument to cv2.VideoCapture defaults to CAP_ANY, which
+            # We first try with OpenCV.
+            #
+            # OpenCV is backend-and-build dependent (the second argument to cv2.VideoCapture defaults to CAP_ANY, which
             # is "the first backend that thinks it can do the job". It often works, and on Linux and OSX builds of OpenCV
             # it usually uses GStreamer.
+            #
             # On Windows it has used a variety of things over different releases, and if the default doesn't work, it can
             # sometimes help to change backends (e.g. to cv2.CAP_DSHOW), but this is a guessing game. Future versions may provide
             # a flexible route to expose this option to the caller so users don't need to tweak code to get their movies loaded.
@@ -1479,7 +1481,7 @@ def load(file_name: Union[str, List[str]],
                     input_arr = input_arr[:, subindices[1]]
                 if len(subindices) > 2:
                     input_arr = input_arr[:, :, subindices[2]]
-                # When everything done, release the capture
+                # When everything is done, release the capture
                 cap.release()
                 cv2.destroyAllWindows()
             else:
@@ -1519,7 +1521,6 @@ def load(file_name: Union[str, List[str]],
                 input_arr = np.zeros((dims[0], height, width), dtype=np.uint8)
                 for i, ind in enumerate(subindices[0]):
                     input_arr[i] = rgb2gray(pims_movie[ind]).astype(outtype)
-                    # logging.debug(f"subindex and shape: {ind} {input_arr[i].shape}") # helpful when mc debugging deep in weeds, otherwise overkill 
                 # spatial subinds
                 if len(subindices) > 1:
                     input_arr = input_arr[:, subindices[1]]
@@ -2026,7 +2027,7 @@ def from_zip_file_to_movie(zipfile_name: str, start_end: Tuple = None) -> Any:
                         mov[counter] = np.array(Image.open(file))
 
                     if counter % 100 == 0:
-                        logging.debug([counter, idx])
+                        logging.debug(f"counter/idx: {counter} {idx}")
 
                     counter += 1
 
@@ -2198,9 +2199,9 @@ def load_iter(file_name: Union[str, List[str]], subindices=None, var_name_hdf5: 
                                         1 if subindices.step is None else subindices.step)
                                 t = 0
                                 for ind in subindices:
-                                    # an abomination reading frames until it hits the desired frame
+                                    # todo fix: wastefully reading frames until it hits the desired frame
                                     while t <= ind:
-                                        ret, frame = cap.read() # I think this skips frames before beginning of window of interest
+                                        ret, frame = cap.read() # this skips frames before beginning of window of interest
                                         t += 1
                                     if ret:
                                         yield frame[..., 0].astype(outtype)
@@ -2226,7 +2227,6 @@ def load_iter(file_name: Union[str, List[str]], subindices=None, var_name_hdf5: 
                                                1 if subindices.step is None else subindices.step)
                         for ind in subindices:
                             frame = rgb2gray(pims_movie[ind])
-                            # debug.logging(f"t, ind and frame shape: {ind} - {frame.shape}") # for extremely in the weeds debugging 
                             yield frame # was frame[..., 0].astype(outtype)
                         return
                 
