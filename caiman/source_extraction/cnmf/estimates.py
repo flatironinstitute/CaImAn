@@ -309,7 +309,7 @@ class Estimates(object):
         except:
             print("Bokeh could not be loaded. Either it is not installed or you are not running within a notebook")
             print("Using non-interactive plot as fallback")
-            self.plot_contours(img=img, idx=idx, crd=crd, thr_method=thr_method,
+            self.plot_contours(img=img, idx=idx, thr_method=thr_method,
                                thr=thr, params=params, cmap=cmap)
         return self
 
