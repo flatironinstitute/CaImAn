@@ -498,6 +498,8 @@ class Estimates(object):
                 name of colormap (e.g. 'viridis') used to plot image_neurons
 
         """
+        logging.warning("This plotter is likely inaccurate/buggy b/c of a Bokeh update. Fix pending.")
+
         if 'csc_matrix' not in str(type(self.A)):
             self.A = scipy.sparse.csc_matrix(self.A)
         if dims is None:
