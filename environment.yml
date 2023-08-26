@@ -12,6 +12,7 @@ dependencies:
 - ipyparallel
 - jupyter
 - matplotlib
+- moviepy
 - mypy
 - nose
 - numpy

@@ -25,6 +25,7 @@ import logging
 import numpy as np
 import os
 import pathlib
+import pims
 import pylab as pl
 import scipy
 from scipy.sparse import spdiags, issparse, csc_matrix, csr_matrix
@@ -1158,16 +1159,14 @@ def get_file_size(file_name, var_name_hdf5='mov'):
                 else:
                     T, dims = siz[0], siz[1:]
             elif extension in ('.avi', '.mkv'):
-                # See discussion in caiman.base.movies.load() for why we do this
-                if os.name == 'nt':
-                    cv_backend = cv2.CAP_DSHOW
-                else:
-                    cv_backend = cv2.CAP_ANY
-                cap = cv2.VideoCapture(file_name, cv_backend)
-                dims = [0, 0]
+                cap = cv2.VideoCapture(file_name)
+                dims = [int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)), int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))]
                 T = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-                dims[1] = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-                dims[0] = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+                if dims[0] <= 0 or dims[1] <= 0 or T <= 0:
+                    # fallback to pims, like load() and load_iter() do
+                    pims_movie = pims.Video(file_name)
+                    T = len(pims_movie)
+                    dims[0], dims[1] = pims_movie.frame_shape[0:2]
             elif extension == '.mmap':
                 filename = os.path.split(file_name)[-1]
                 Yr, dims, T = load_memmap(os.path.join(
