@@ -131,9 +131,9 @@ def extract_binary_masks_from_structural_channel(Y,
     for i in range(areas[1]):
         temp = (areas[0] == i + 1)
         if expand_method == 'dilation':
-            temp = dilation(temp, selem=selem)
+            temp = dilation(temp, footprint=selem)
         elif expand_method == 'closing':
-            temp = closing(temp, selem=selem)
+            temp = closing(temp, footprint=selem)
 
         A[:, i] = temp.flatten('F')
 
