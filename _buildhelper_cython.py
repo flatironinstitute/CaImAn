@@ -14,11 +14,11 @@
 # small as oasis). No more `pip install -e .`
 
 from Cython.Build import cythonize
-from distutils.command.build_ext import build_ext
 import numpy as np
 import os
 import sys
 from setuptools import setup, find_packages
+from setuptools.command.build_py import build_py as _build_py
 import setuptools.extension
 
 class build_py(_build_py):
@@ -27,15 +27,15 @@ class build_py(_build_py):
         return super().run()
 
     def initialize_options(self):
-        super.initalize_options()
+        super().initialize_options()
         if sys.platform == 'darwin':
             # TODO: Verify still needed; requirement was
             #       added w/ OSX 10.9
             # See also:
             # https://github.com/pandas-dev/pandas/issues/23424
-	    extra_compiler_args = ['-stdlib=libc++']
+            extra_compiler_args = ['-stdlib=libc++']
         else:
-	    extra_compiler_args = []
+            extra_compiler_args = []
 
         if self.distribution.ext_modules is None:
             self.distribution.ext_modules = []

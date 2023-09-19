@@ -10,12 +10,13 @@ authors = [
 	{ name = "Erick Cobos" },
 	{ name = "Jeremie Kalfon"}]
 readme = "README.md"
+dynamic = ["classifiers", "keywords", "license", "scripts", "version"]
 
 [build-system]
-requires = ["cython", "distutils", "numpy", "setuptools", "wheel"]
+requires = ["cython", "numpy", "setuptools", "wheel"]
 
 [tool.setuptools]
-py-modules = ["buildhelper_cython"]
+py-modules = ["_buildhelper_cython"]
 
 [tool.setuptools.cmdclass]
-build_py = "buildhelper_cython.build_py"
+build_py = "_buildhelper_cython.build_py"
