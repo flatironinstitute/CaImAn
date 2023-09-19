@@ -197,7 +197,8 @@ def update_temporal_components(Y, A, b, Cin, fin, bl=None, c1=None, g=None, sn=N
 
     A = scipy.sparse.hstack((A, b)).tocsc()
     S = np.zeros(np.shape(Cin))
-    Cin = np.vstack((Cin, fin))
+    if fin is not None:
+        Cin = np.vstack((Cin, fin))
     C = Cin.copy()
     nA = np.ravel(A.power(2).sum(axis=0)) + np.finfo(np.float32).eps
 
