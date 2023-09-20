@@ -672,7 +672,7 @@ def nb_view_patches3d(Y_r, A, C, dims, image_type='mean', Yr=None,
         source2_idx = ColumnDataSource(data=dict(idx=idx, length=length))
         source3 = ColumnDataSource(
             data=dict(image=[image_neurons[linit]], im=[image_neurons],
-                      x=[0], y=[d2], dw=[d3], dh=[d2]))
+                      x=[0], y=[0], dw=[d3], dh=[d2]))
         callback = CustomJS(args=dict(source=source, source_=source_, sourceN=sourceN,
                                       source2=source2, source2_=source2_, source2_idx=source2_idx),
                             code="""
@@ -755,7 +755,7 @@ def nb_view_patches3d(Y_r, A, C, dims, image_type='mean', Yr=None,
     plot1 = bpl.figure(x_range=xr, y_range=yr, width=300, height=300)
 
     if max_projection:
-        plot1.image(image=[image_neurons], x=0, y=image_neurons.shape[0],
+        plot1.image(image=[image_neurons], x=0, y=0,
                     dw=image_neurons.shape[1], dh=image_neurons.shape[0], palette=grayp)
         plot1.patch('c1x', 'c2x', alpha=0.6, color='purple',
                     line_width=2, source=source2)
