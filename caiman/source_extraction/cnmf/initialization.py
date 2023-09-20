@@ -444,6 +444,10 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
 
         f_in = resize(np.atleast_2d(f_in), [b_in.shape[-1], T])
 
+    elif nb == 0:
+        b_in = np.empty((np.prod(d), 0), dtype=np.float32, order='F')
+        f_in = np.empty((0, T), dtype=np.float32)
+
     if Ain.size > 0:
         Cin = resize(Cin, [K, T])
         center = np.asarray(
@@ -975,7 +979,7 @@ def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1,
         b_in = model.fit_transform(np.maximum(res, 0)).astype(np.float32)
         f_in = model.components_.astype(np.float32)
     else:
-        b_in = np.empty((A.shape[0], 0), dtype=np.float32)
+        b_in = np.empty((A.shape[0], 0), dtype=np.float32, order='F')
         f_in = np.empty((0, C.shape[1]), dtype=np.float32)
     return A, C, np.array(center, dtype='uint16'), b_in, f_in
 
@@ -1390,7 +1394,7 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
             b_in, s_in, f_in = spr.linalg.svds(B, k=nb)
             f_in *= s_in[:, np.newaxis]
     else:
-        b_in = np.empty((A.shape[0], 0))
+        b_in = np.empty((A.shape[0], 0), order='F')
         f_in = np.empty((0, T))
         if nb == 0:
             logging.info('Returning background as b0 and W')
