@@ -34,8 +34,8 @@ Below we have instructions on how to do all of the above steps. While all of thi
 If you have downloaded Caiman for standard use, you probably installed it using `conda` or `mamba` as described on the README page. As a contributor, you will want to set up a dedicated development environment. This means you will be setting up a version of Caiman you will edit and tweak, uncoupled from your main installation for everyday use. To set up a development environment so you can follow the worflow outlined above, do the following:
 
 1. Fork and clone the caiman repository    
-Go to the [https://github.com/flatironinstitute/CaImAn](Caiman repo) and hit the `Fork` button at the top right of the page. You now have Caiman on your own GitHub repo. On your computer, in your conda prompt, go to a directory where you want Caiman to download, and clone your personal Caiman repo: `git clone https://github.com/<your-username>/CaImAn.git` where <your-username> is replaced by your github username.
-2. Install in editable mode   
+Go to the [Caiman repo](https://github.com/flatironinstitute/CaImAn) and hit the `Fork` button at the top right of the page. You now have Caiman on your own GitHub page! On your computer, in your conda prompt, go to a directory where you want Caiman to download, and clone your personal Caiman repo: `git clone https://github.com/<your-username>/CaImAn.git` where <your-username> is replaced by your github username.
+2. Install in development mode   
 In the previous step, you cloned your personal fork of Caiman. Detailed instructions for installing in development mode can be found on our [installation page](./docs/source/Installation.rst) for both Windows and Mac/Linux. While there are some differences, they both involve creating a conda environment from the `environment.yml` file you downloaded when you cloned the repo, activating that environment, and end with an "in place" install:
 
         pip install -e . 
@@ -48,11 +48,13 @@ Note this section is partly based on the excellent [docs from Matplotlib](https:
 ## Second, work on a feature 
 Once you have a development environment, you can start working on the changes you envision. The main thing to remember is to follow the workflow in the diagram above. Let's say you want to work on feature `my_feature`. The first thing to do (label 1 in the diagram) is to create a new branch from the `dev` branch. Within the repo folder:
 
-    git checkout -b my_feature dev
+    git checkout dev # checkout dev branch        
+    git checkout -b my_feature  # create new branch off of dev
 
-Then from within this branch you can do your usual work on the feature: work on stuff, add, commits, etc. This corresponds to the workflow in the blue boxes in the above diagram (label 2 in the figure).
+Then from within this new branch you can do your work on the feature: code, add, commit, etc. This corresponds to the workflow in the blue boxes in the above diagram (label 2 in the figure).
 
-If you changed anything in the `.py` modules, we request that you run tests on your code before making a PR. You can test the code by typing `caimanmanager test`. 
+If you changed anything in the `.py` modules, we request that you run tests on your code before making a PR. You can test the code by typing `caimanmanager test`. But obviously you will probably
+want to test to make sure you code works in different uses cases, your plots run, and save this code and share it with us so we can test it too! This is all useful information for the developers.
 
 ## Third, make a PR
 Once your feature branch is ready, it's time to make a PR (label 3 in the figure). This is fairly simple:
@@ -82,7 +84,7 @@ Nobody remembers all the git commands, don't worry if you constantly are looking
 * [GitHub skillbuilding](https://skills.github.com/)
 * [Scipy git resources](https://docs.scipy.org/doc/scipy/dev/gitwash/gitwash.html#using-git)
 
-Again, if you want to contribute and find any of the above bits confusing, please reach out at [Gitter](https://app.gitter.im/#/room/#agiovann_Constrained_NMF:gitter.im). We are here to help.
+Again, if you want to contribute and find any of the above bits confusing, please reach out. We are here to help.
 
 
 
