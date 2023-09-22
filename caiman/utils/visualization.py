@@ -1351,7 +1351,10 @@ def view_quilt(template_image: np.ndarray,
     ax.imshow(template_image, cmap='gray', vmin=vmin, vmax=vmax)
     for patch_row in patch_rows:
         for patch_col in patch_cols:
-            #print(f"row: {patch_row}, col {patch_col}")
-            ax, _ = rect_draw(patch_row, patch_col, color='white', alpha=0.2, ax=ax)
+            ax, _ = rect_draw(patch_row, 
+                              patch_col, 
+                              color=color, 
+                              alpha=alpha, 
+                              ax=ax)
             
     return ax
