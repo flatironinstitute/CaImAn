@@ -7,11 +7,6 @@
 # This was ported from logic originally in the
 # old-stype setup.py, in order to comply with the
 # new PEP-517/PEP-518 build style.
-#
-# We intentionally do not support editable builds, as
-# they are confusing and usually the wrong thing for
-# projects that have a built component, even one as
-# small as oasis). No more `pip install -e .`
 
 from Cython.Build import cythonize
 import numpy as np
