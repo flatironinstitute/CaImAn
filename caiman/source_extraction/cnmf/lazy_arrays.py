@@ -1,14 +1,16 @@
-from warnings import warn
+#!/usr/bin/env
+
 from abc import ABC, abstractmethod
-from pathlib import Path
-from typing import *
 from itertools import product as iter_product
+from pathlib import Path
 from time import time
+from typing import *
+from warnings import warn
 
 
+import h5py
 import numpy as np
 from scipy.sparse import csc_matrix
-import h5py
 
 
 # TODO: Is there a better way to do this?
@@ -84,7 +86,7 @@ class LazyArray(ABC):
     @abstractmethod
     def _compute_at_indices(self, indices: Union[int, slice]) -> np.ndarray:
         """
-        Lazy computation logic goes here. Computes the array at the desired indices.
+        Must be implemented in sublcass. Lazy computation logic goes here. Computes the array at the desired indices.
 
         Args:
             indices (Union[int, slice]): the user's desired slice, i.e. slice object or int passed from `__getitem__()`
@@ -161,7 +163,7 @@ class LazyArray(ABC):
 
         else:
             raise IndexError(
-                f"You can index LazyArrays only using slice, int, or tuple of slice and int, "
+                f"You can index LazyArrays only using slice, range, int, or tuple of slice and int, "
                 f"you have passed a: <{type(item)}>"
             )
 
@@ -273,10 +275,10 @@ class LazyArrayRCM(LazyArray):
         temporal_std = np.nanstd(self.temporal, axis=1)
 
         # compute mean, max, min, and std projection images
-        self._mean_image = self.spatial.dot(temporal_mean).reshape(frame_dims, order="F")
-        self._max_image = self.spatial.dot(temporal_max).reshape(frame_dims, order="F")
-        self._min_image = self.spatial.dot(temporal_min).reshape(frame_dims, order="F")
-        self._std_image = self.spatial.dot(temporal_std).reshape(frame_dims, order="F")
+        self._mean_image = (self.spatial @ temporal_mean).reshape(frame_dims, order="F")
+        self._max_image = (self.spatial @ temporal_max).reshape(frame_dims, order="F")
+        self._min_image = (self.spatial @ temporal_min).reshape(frame_dims, order="F")
+        self._std_image = (self.spatial @ temporal_std).reshape(frame_dims, order="F")
 
     @property
     def spatial(self) -> np.ndarray:
@@ -327,9 +329,7 @@ class LazyArrayRCM(LazyArray):
         return self._std_image
 
     def _compute_at_indices(self, indices: Union[int, Tuple[int, int]]) -> np.ndarray:
-        rcm = self.spatial.dot(
-            self.temporal[:, indices]
-        ).reshape(
+        rcm = (self.spatial @ self.temporal[:, indices]).reshape(
             self.shape[1:] + (-1,), order="F"
         ).transpose([2, 0, 1])
 
@@ -344,8 +344,8 @@ class LazyArrayRCM(LazyArray):
                f"n_components: {self.n_components}"
 
     def __eq__(self, other):
-        if not isinstance(other, LazyArrayRCM):
-            raise TypeError(f"cannot compute equality for against types that are not {self.__class__.__name__}")
+        if not isinstance(other, self.__class__):
+            raise TypeError(f"cannot compute equality against types that are not {self.__class__.__name__}")
 
         if (self.spatial == other.spatial) and (self.temporal == other.temporal):
             return True
@@ -368,6 +368,7 @@ class LazyArrayResiduals(LazyArray):
             raw_movie: np.memmap,
             rcm: LazyArrayRCM,
             rcb: LazyArrayRCB,
+            timeout: float = 10.0,
     ):
         """
         Construct a LazyArray of the residuals, ``Y - (A ⊗ C) - (b ⊗ f)``
@@ -379,6 +380,8 @@ class LazyArrayResiduals(LazyArray):
 
             rcb (LazyArrayRCB): ``b ⊗ f``, reconstructed background lazy array
 
+            timeout (float): number of seconds allowed for min max calculation of raw video
+
         """
         self._raw_movie = raw_movie
         self._rcm = rcm
@@ -388,29 +391,31 @@ class LazyArrayResiduals(LazyArray):
         self._shape = self._raw_movie.shape
 
         # TODO: implement min max for residuals
-        # min_max_raw = self._quick_min_max(raw_movie, timeout)
-        # if min_max_raw is None:
-        #     self._min = None
-        #     self._max = None
+        min_max_raw = self._quick_min_max(raw_movie, timeout)
+        if min_max_raw is None:
+            self._min = None
+            self._max = None
 
-        # else:
-        #     _min, _max = min_max_raw
-        #
-        #     _min = _min - self._rcm.max - self._rcb.max
-        #     _max = _max -
+        else:
+            _min, _max = min_max_raw
+
+            _min = _min - self._rcm.max - self._rcb.max
+            _max = _max + self._rcm.max + self._rcb.max
+
+
 
     def _quick_min_max(self, data, timeout):
         # adapted from pyqtgraph.ImageView
         # Estimate the min/max values of *data* by subsampling.
         # Returns [(min, max), ...] with one item per channel
 
-        t = time()
+        t0 = time()
         while data.size > 1e6:
             ax = np.argmax(data.shape)
             sl = [slice(None)] * data.ndim
             sl[ax] = slice(None, None, 2)
             data = data[tuple(sl)]
-            if (time() - t) > timeout:
+            if (time() - t0) > timeout:
                 return None
 
         return float(np.nanmin(data)), float(np.nanmax(data))
