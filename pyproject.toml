@@ -1,0 +1,22 @@
+[project]
+name = "caiman"
+description = "Library and software for ROI detection and deconvolution of Calcium Imaging datasets"
+authors = [
+	{ name = "Andrea Giovannucci"},
+	{ name = "Eftychios Pnevmatikakis"},
+	{ name = "Johannes Friedrich" },
+	{ name = "Valentina Staneva" },
+	{ name = "Ben Deverett" },
+	{ name = "Erick Cobos" },
+	{ name = "Jeremie Kalfon"}]
+readme = "README.md"
+dynamic = ["classifiers", "keywords", "license", "scripts", "version"]
+
+[build-system]
+requires = ["cython", "numpy", "setuptools", "wheel"]
+
+[tool.setuptools]
+py-modules = ["_buildhelper_cython"]
+
+[tool.setuptools.cmdclass]
+build_py = "_buildhelper_cython.build_py"

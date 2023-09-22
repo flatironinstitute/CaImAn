@@ -3,7 +3,6 @@
 from setuptools import setup, find_packages
 import numpy as np
 import os
-from os import path
 import sys
 from Cython.Build import cythonize
 from setuptools.extension import Extension
@@ -13,7 +12,7 @@ from distutils.command.build_ext import build_ext
     Installation script for anaconda installers
 """
 
-here = path.abspath(path.dirname(__file__))
+here = os.path.abspath(os.path.dirname(__file__))
 
 with open('README.md', 'r') as rmf:
     readme = rmf.read()
