@@ -368,10 +368,14 @@ class LazyArrayResiduals(LazyArray):
             raw_movie: np.memmap,
             rcm: LazyArrayRCM,
             rcb: LazyArrayRCB,
-            timeout: float = 10.0,
+            raw_movie_mean_projection: Optional[np.ndarray] = None,
+            raw_movie_max_projection: Optional[np.ndarray] = None,
+            raw_movie_min_projection: Optional[np.ndarray] = None,
     ):
         """
-        Construct a LazyArray of the residuals, ``Y - (A ⊗ C) - (b ⊗ f)``
+        Construct a LazyArray of the residuals, ``Y - (A ⊗ C) - (b ⊗ f)``.
+
+        If projections of the raw movie are provided, then projections of the residuals will also be computed.
 
         Args:
             raw_movie (np.memmap): ``Y``, numpy memmap of the raw movie
@@ -382,6 +386,12 @@ class LazyArrayResiduals(LazyArray):
 
             timeout (float): number of seconds allowed for min max calculation of raw video
 
+            raw_movie_mean_projection (np.ndarray): optional, mean projection of the raw movie
+
+            raw_movie_max_projection (np.ndarray): optional, max projection of the raw movie
+
+            raw_movie_min_projection (np.ndarray): optional, min projection of the raw movie
+
         """
         self._raw_movie = raw_movie
         self._rcm = rcm
@@ -390,35 +400,16 @@ class LazyArrayResiduals(LazyArray):
         # shape of the residuals will be the same as the shape of the raw movie
         self._shape = self._raw_movie.shape
 
-        # TODO: implement min max for residuals
-        min_max_raw = self._quick_min_max(raw_movie, timeout)
-        if min_max_raw is None:
-            self._min = None
-            self._max = None
+        if raw_movie_mean_projection is not None:
+            self._mean_image = raw_movie_mean_projection - self._rcm.mean_image - self._rcb.mean_image
 
-        else:
-            _min, _max = min_max_raw
+        if raw_movie_max_projection is not None:
+            self._max_image = raw_movie_max_projection - self._rcm.max_image - self._rcb.max_image
+            self._max = raw_movie_max_projection.max() - self._rcm.max - self._rcb.max
 
-            _min = _min - self._rcm.max - self._rcb.max
-            _max = _max + self._rcm.max + self._rcb.max
-
-
-
-    def _quick_min_max(self, data, timeout):
-        # adapted from pyqtgraph.ImageView
-        # Estimate the min/max values of *data* by subsampling.
-        # Returns [(min, max), ...] with one item per channel
-
-        t0 = time()
-        while data.size > 1e6:
-            ax = np.argmax(data.shape)
-            sl = [slice(None)] * data.ndim
-            sl[ax] = slice(None, None, 2)
-            data = data[tuple(sl)]
-            if (time() - t0) > timeout:
-                return None
-
-        return float(np.nanmin(data)), float(np.nanmax(data))
+        if raw_movie_min_projection is not None:
+            self._min_image = raw_movie_max_projection - self._rcm.min_image - self._rcb.min_image
+            self._min = raw_movie_min_projection.min() - self._rcm.min - self._rcb.min
 
     @property
     def shape(self) -> Tuple[int, int, int]:
@@ -428,16 +419,25 @@ class LazyArrayResiduals(LazyArray):
     def n_frames(self) -> int:
         return self._shape[0]
 
-    # TODO: implement min max for residuals
     @property
     def min(self) -> float:
-        raise NotImplementedError
+        return self._min
 
     @property
     def max(self) -> float:
-        raise NotImplementedError
+        return self._max
 
-    # TODO: implement projection images for residuals
+    @property
+    def mean_image(self) -> np.ndarray:
+        return self._mean_image
+
+    @property
+    def max_image(self) -> np.ndarray:
+        return self._max_image
+
+    @property
+    def min_image(self) -> np.ndarray:
+        return self._min_image
 
     def _compute_at_indices(self, indices: Union[int, slice]) -> np.ndarray:
         residuals = self._raw_movie[indices] - self._rcm[indices] - self._rcb[indices]

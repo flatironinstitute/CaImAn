@@ -1,1 +1,1 @@
-from cnmf.lazy_arrays import LazyArrayRCM, LazyArrayRCB, LazyArrayResiduals
+from .cnmf.lazy_arrays import LazyArrayRCM, LazyArrayRCB, LazyArrayResiduals
