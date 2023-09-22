@@ -5,7 +5,7 @@ Created on Thu Jul 12 11:11:45 2018
 
 @author: epnevmatikakis
 """
-
+import bokeh
 import logging
 import matplotlib.pyplot as plt
 import numpy as np
@@ -249,7 +249,6 @@ class Estimates(object):
                 set of dictionary containing the various parameters
         """
         try:
-            import bokeh
             if 'csc_matrix' not in str(type(self.A)):
                 self.A = scipy.sparse.csc_matrix(self.A)
             if self.dims is None:
@@ -307,7 +306,7 @@ class Estimates(object):
                                use_cnn=params.quality['use_cnn'])
                 bokeh.plotting.show(bokeh.layouts.row(p1, p2))
         except:
-            print("Bokeh could not be loaded. Either it is not installed or you are not running within a notebook")
+            print("Error with bokeh plotter.")
             print("Using non-interactive plot as fallback")
             self.plot_contours(img=img, idx=idx, thr_method=thr_method,
                                thr=thr, params=params, cmap=cmap)
@@ -498,8 +497,6 @@ class Estimates(object):
                 name of colormap (e.g. 'viridis') used to plot image_neurons
 
         """
-        logging.warning("This plotter is likely inaccurate/buggy b/c of a Bokeh update. Fix pending.")
-
         if 'csc_matrix' not in str(type(self.A)):
             self.A = scipy.sparse.csc_matrix(self.A)
         if dims is None:
