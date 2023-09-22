@@ -13,3 +13,4 @@ from . import oasis
 from . import params
 from . import online_cnmf
 from .cnmf import CNMF as CNMF
+from .lazy_arrays import LazyArrayRCM, LazyArrayRCB, LazyArrayResiduals
