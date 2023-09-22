@@ -6,7 +6,7 @@ A Python toolbox for large-scale **Ca**lcium **Im**aging **An**alysis.
 CaImAn implements a set of essential methods required to analyze calcium and voltage imaging data. It provides fast and scalable algorithms for motion correction, source extraction, spike deconvolution, and registering neurons across multiple sessions. It is suitable for both two-photon and one-photon fluorescence microscopy data, and can be run in both offline and online modes. Documentation is [here](https://caiman.readthedocs.io/en/latest/). 
 
 # Quick start :rocket:
-To get started quickly, from installation to working through a demo notebook, take the following steps. If you do not already have conda installed, [you can find it here](https://docs.conda.io/en/latest/miniconda.html).
+Follow these three steps to get started quickly, from installation to working through a demo notebook. If you do not already have conda installed, [you can find it here](https://docs.conda.io/en/latest/miniconda.html).
 
 ### Step 1: Install caiman
 The following is all done in your anaconda prompt, starting in your base environment:
@@ -16,25 +16,25 @@ The following is all done in your anaconda prompt, starting in your base environ
     conda activate caiman  # activate virtual environment
 
 ### Step 2: Download code samples and data sets
-Create a working directory with code samples and related data in a folder called `caiman_data`. Run the following command from the caiman virtual environment created in the previous step:  
+Create a working directory called `caiman_data` that includes code samples and related data. Run the following command from the same virtual environment that you created in Step 1:  
 
     caimanmanager install
 
 ### Step 3: Try out a demo notebook
-Step 2 created a `caiman_data` folder in your home directory. Here, we `cd` to its demo notebooks folder, and open a Jupyter notebook:
+Go into the working directory you created in Step 2, and open a Jupyter notebook:
 
     cd <your home>/caiman_data/demos/notebooks  
     jupyter notebook 
 
 Jupyter will open. Click on `demo_pipeline.ipynb` to get started with a demo! 
 
-> Note that what counts as `<your home>` in the first command depends on your OS/computer. Be sure to fill in your actual home directory. On Linux/Mac it is `~` while on Windows it will be something like `C:\Users\your_user_name\` 
+> Note that what counts as `<your home>` in the first line depends on your OS/computer. Be sure to fill in your actual home directory. On Linux/Mac it is `~` while on Windows it will be something like `C:\Users\your_user_name\` 
 
 ## For installation help
 Caiman should install easily on Linux, Mac, and Windows. If you run into problems, we have a dedicated [installation page](./docs/source/Installation.rst): the details there should help you troubleshoot. If you don't find what you need there, *please* send us a [message on Gitter](https://app.gitter.im/#/room/#agiovann_Constrained_NMF:gitter.im), and we will help you get it sorted out. 
 
 # Demo notebooks :page_with_curl:
-Caiman provides demo notebooks to present each of our main pipelines, from motion correction to online CNMF. Once you've gotten things set up, the best way to get started is with the demo notebook that most closely matches your use case; you can adapt it for your particular needs. The notebooks covering the CNMF and CNMFE algorithms have the most details, covering many concepts used in the other notebooks.
+Caiman provides demo notebooks to present each of our main pipelines, from motion correction to online CNMF. Once you've gotten things set up, the best way to get started is to work through the demo notebook that most closely matches your use case; you can adapt it for your particular needs. The notebooks covering the CNMF and CNMFE algorithms have the most details, covering many concepts used in the other notebooks.
 
 The main use cases and notebooks are listed in the following table:
 
@@ -56,13 +56,14 @@ A comprehensive list of references, where you can find detailed discussion of th
 
 # Questions, help, and next steps 
 In addition to the demos, there are many ways to learn more about Caiman and receive help:
-- [The online documentation](https://caiman.readthedocs.io/en/latest/) contains a lot of general information about Caiman, the parameters, how to interpret its outputs, and more. 
-- The [Gitter forum](https://app.gitter.im/#/room/#agiovann_Constrained_NMF:gitter.im) is a great place to ask questions.
+- [The online documentation](https://caiman.readthedocs.io/en/latest/) contains a lot of general information about Caiman, the parameters, how to interpret its outputs, and more.
+- [GitHub Discussions](https://github.com/flatironinstitute/CaImAn/discussions) is our preferred venue to ask for help.
+- The [Gitter forum](https://app.gitter.im/#/room/#agiovann_Constrained_NMF:gitter.im) is our old forum: we sometimes will ask people to join us there when something can best be solved in real time.
 - If you have found a bug, we recommend searching the [issues at github](https://github.com/flatironinstitute/CaImAn/issues) and opening a new issue if you can't find the solution there. 
-- If there is a feature you would like to see implemented, feel free to come chat at Gitter or open an issue at Github.
+- If there is a feature you would like to see implemented, feel free to come chat at the above forumns or open an issue at Github.
 
 # How to contribute :hammer:
- Caiman is an open-source project and improves because of contributions from users all over the world. If there is something about Caiman that you would like to improve, then you are qualified to contribute. We are always looking for more contributors, so please come read the [contributors page](./CONTRIBUTING.md) for more details about how. 
+ Caiman is an open-source project and improves because of contributions from users all over the world. If there is something about Caiman that you would like to work on, then please reach out. We are always looking for more contributors, so please come read the [contributors page](./CONTRIBUTING.md) for more details about how. 
 
 # Videos 
 There are multiple online videos by Andrea Giovannucci from past Caiman workshops/events that are an excellent start for newcomers.
