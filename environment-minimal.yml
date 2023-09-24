@@ -9,7 +9,7 @@ dependencies:
 - ipyparallel
 - matplotlib
 - moviepy
-- numpy
+- numpy <2.0.0
 - numpydoc
 - opencv
 - peakutils
