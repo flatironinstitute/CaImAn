@@ -18,6 +18,7 @@ import caiman as cm
 from caiman.source_extraction import cnmf as cnmf
 from caiman.paths import caiman_datadir
 
+%matplotlib qt #otherwise vis will not work
 
 try:
     if __IPYTHON__:
@@ -39,14 +40,13 @@ logging.basicConfig(format=
     # filename="/tmp/caiman.log"
 # %%
 def main():
-    pass  # For compatibility between running under Spyder and the CLI
+    pass  # For compatibility between running under an IDE and the CLI
 
-# %% load data
+    # %% load data
 
     fname = [os.path.join(caiman_datadir(), 'example_movies', 'demoMovie.tif')]
 
-# %% set up some parameters
-
+    # %% set up some parameters
     fr = 10  # frame rate (Hz)
     decay_time = .75  # approximate length of transient event in seconds
     gSig = [6, 6]  # expected half size of neurons
@@ -78,28 +78,31 @@ def main():
                    'thresh_CNN_noisy': thresh_CNN_noisy,
                    'K': K}
     opts = cnmf.params.CNMFParams(params_dict=params_dict)
-# %% fit with online object
+
+    # %% fit with online object
     cnm = cnmf.online_cnmf.OnACID(params=opts)
     cnm.fit_online()
 
-# %% plot contours
-
+    # %% plot contours
     logging.info('Number of components:' + str(cnm.estimates.A.shape[-1]))
     Cn = cm.load(fname[0], subindices=slice(0,500)).local_correlations(swap_dim=False)
     cnm.estimates.plot_contours(img=Cn)
 
-# %% pass through the CNN classifier with a low threshold (keeps clearer neuron shapes and excludes processes)
+    # %% pass through the CNN classifier with a low threshold (keeps clearer neuron shapes and excludes processes)
     use_CNN = True
     if use_CNN:
         # threshold for CNN classifier
         opts.set('quality', {'min_cnn_thr': 0.05})
         cnm.estimates.evaluate_components_CNN(opts)
         cnm.estimates.plot_contours(img=Cn, idx=cnm.estimates.idx_components)
-# %% plot results
+    
+    # %% plot results
     cnm.estimates.view_components(img=Cn, idx=cnm.estimates.idx_components)
 
 # %%
-# This is to mask the differences between running this demo in Spyder
+# This is to mask the differences between running this demo in IDE
 # versus from the CLI
 if __name__ == "__main__":
     main()
+
+# %%
