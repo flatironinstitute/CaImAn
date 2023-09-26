@@ -4,13 +4,11 @@
 """
 Created on Sun Aug  6 11:43:39 2017
 
-Warning: this demonstrates the use of caiman.behavior, which is
-is legacy code that is not currently being tested or supported.
-
 @author: agiovann
 """
 
 import cv2
+from IPython import get_ipython
 import logging
 import numpy as np
 import pylab as pl
@@ -22,10 +20,11 @@ except:
 
 try:
     if __IPYTHON__:
-        # this is used for debugging purposes only. allows to reload classes
-        # when changed
-        get_ipython().magic('load_ext autoreload')
-        get_ipython().magic('autoreload 2')
+        print("Detected iPython")
+        ipython = get_ipython()
+        ipython.run_line_magic('load_ext', 'autoreload')
+        ipython.run_line_magic('autoreload', '2')
+        ipython.run_line_magic('matplotlib', 'qt')
 except NameError:
     pass
 

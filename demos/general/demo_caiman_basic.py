@@ -18,6 +18,7 @@ are tailored for that environment.
 
 import cv2
 import glob
+from IPython import get_ipython
 import logging
 import numpy as np
 import os
@@ -29,8 +30,11 @@ except:
 
 try:
     if __IPYTHON__:
-        get_ipython().magic('load_ext autoreload')
-        get_ipython().magic('autoreload 2')
+        print("Detected iPython")
+        ipython = get_ipython()
+        ipython.run_line_magic('load_ext', 'autoreload')
+        ipython.run_line_magic('autoreload', '2')
+        ipython.run_line_magic('matplotlib', 'qt')
 except NameError:
     pass
 
@@ -141,7 +145,6 @@ def main():
     cnm2.estimates.plot_contours(img=Cn, idx=cnm2.estimates.idx_components)
 
     # %% visualize selected components
-    # Note run in qt mode (%matplotlib qt) for this to work properly
     cnm2.estimates.view_components(images, idx=cnm2.estimates.idx_components, img=Cn)
    
     #%% only select high quality components (destructive)

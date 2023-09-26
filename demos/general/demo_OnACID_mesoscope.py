@@ -18,6 +18,7 @@ for sharing the data used in this demo.
 """
 
 import glob
+from IPython import get_ipython
 import numpy as np
 import os
 import logging
@@ -25,9 +26,11 @@ import matplotlib.pyplot as plt
 
 try:
     if __IPYTHON__:
-        # this is used for debugging purposes only.
-        get_ipython().magic('load_ext autoreload')
-        get_ipython().magic('autoreload 2')
+        print("Detected iPython")
+        ipython = get_ipython()
+        ipython.run_line_magic('load_ext', 'autoreload')
+        ipython.run_line_magic('autoreload', '2')
+        ipython.run_line_magic('matplotlib', 'qt')
 except NameError:
     pass
 
@@ -36,7 +39,6 @@ from caiman.paths import caiman_datadir
 from caiman.source_extraction import cnmf as cnmf
 from caiman.utils.utils import download_demo
 
-%matplotlib qt 
 
 logging.basicConfig(format=
                     "%(relativeCreated)12d [%(filename)s:%(funcName)20s():%(lineno)s]"\
