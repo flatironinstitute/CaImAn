@@ -6,9 +6,10 @@ Neurodata Without Borders (NWB) file format for loading the input and saving
 the output. It is meant as an example on how to use NWB files with CaImAn.
 authors: @agiovann and @epnev
 """
-
+#%%
 import cv2
 import glob
+from IPython import get_ipython
 import logging
 import matplotlib.pyplot as plt
 import numpy as np
@@ -21,12 +22,13 @@ except:
 
 try:
     if __IPYTHON__:
-        # this is used for debugging purposes only. allows to reload classes
-        # when changed
-        get_ipython().magic('load_ext autoreload')
-        get_ipython().magic('autoreload 2')
+        ipython = get_ipython()
+        ipython.run_line_magic('load_ext', 'autoreload')
+        ipython.run_line_magic('autoreload', '2')
+        ipython.run_line_magic('matplotlib', 'qt')
 except NameError:
     pass
+
 
 from datetime import datetime
 from dateutil.tz import tzlocal
@@ -43,7 +45,6 @@ from caiman.paths import caiman_datadir
 # You can log to a file using the filename parameter, or make the output more
 # or less verbose by setting level to logging.DEBUG, logging.INFO,
 # logging.WARNING, or logging.ERROR
-
 logging.basicConfig(format=
                     "%(relativeCreated)12d [%(filename)s:%(funcName)20s():%(lineno)s]"\
                     "[%(process)d] %(message)s",
@@ -51,9 +52,9 @@ logging.basicConfig(format=
 
 #%%
 def main():
-    pass  # For compatibility between running under Spyder and the CLI
+    pass  # For compatibility between running under an IDE and the CLI
 
-#%% Select file(s) to be processed (download if not present)
+    #%% Select file(s) to be processed (download if not present)
     fnames = [os.path.join(caiman_datadir(), 'example_movies/Sue_2x_3000_40_-46.nwb')]
     # estimates save path can be same or different from raw data path
     save_path = os.path.join(caiman_datadir(), 'example_movies/Sue_2x_3000_40_-46_CNMF_estimates.nwb')
@@ -62,7 +63,7 @@ def main():
     fr = 15.  # imaging rate in frames per second
     decay_time = 0.4  # length of a typical transient in seconds
 
-#%% load the file and save it in the NWB format (if it doesn't exist already)
+    #%% load the file and save it in the NWB format (if it doesn't exist already)
     if not os.path.exists(fnames[0]):
         fnames_orig = 'Sue_2x_3000_40_-46.tif'  # filename to be processed
         if fnames_orig in ['Sue_2x_3000_40_-46.tif', 'demoMovie.tif']:
@@ -79,7 +80,8 @@ def main():
              experiment_description='Experiment Description',
              session_id='Session 1',
              var_name_hdf5='TwoPhotonSeries')
-#%% First setup some parameters for data and motion correction
+        
+    #%% First setup some parameters for data and motion correction
     # motion correction parameters
     dxy = (2., 2.)  # spatial resolution in x and y in (um per pixel)
     # note the lower than usual spatial resolution here
@@ -95,7 +97,6 @@ def main():
     # maximum deviation allowed for patch with respect to rigid shifts
     max_deviation_rigid = 3
 
-    
     mc_dict = {
         'fnames': fnames,
         'fr': fr,
@@ -110,10 +111,9 @@ def main():
         #'var_name_hdf5': 'acquisition/TwoPhotonSeries'
         'var_name_hdf5': 'TwoPhotonSeries'
     }
-
     opts = params.CNMFParams(params_dict=mc_dict)
 
-# %% play the movie (optional)
+    # %% play the movie (optional)
     # playing the movie using opencv. It requires loading the movie in memory.
     # To close the video press q
     display_images = False
@@ -123,19 +123,19 @@ def main():
         moviehandle = m_orig.resize(1, 1, ds_ratio)
         moviehandle.play(q_max=99.5, fr=60, magnification=2)
 
-# %% start a cluster for parallel processing
+    # %% start a cluster for parallel processing
     c, dview, n_processes = cm.cluster.setup_cluster(
         backend='multiprocessing', n_processes=None, single_thread=False)
 
-# %%% MOTION CORRECTION
+    # %%% MOTION CORRECTION
     # first we create a motion correction object with the specified parameters
     mc = MotionCorrect(fnames, dview=dview, var_name_hdf5=opts.data['var_name_hdf5'], **opts.get_group('motion'))
     # note that the file is not loaded in memory
 
-# %% Run (piecewise-rigid motion) correction using NoRMCorre
+    # %% Run (piecewise-rigid motion) correction using NoRMCorre
     mc.motion_correct(save_movie=True)
 
-# %% compare with original movie
+    # %% compare with original movie
     if display_images:
         m_orig = cm.load_movie_chain(fnames, var_name_hdf5=opts.data['var_name_hdf5'])
         m_els = cm.load(mc.mmap_file)
@@ -144,7 +144,7 @@ def main():
                                       m_els.resize(1, 1, ds_ratio)], axis=2)
         moviehandle.play(fr=60, q_max=99.5, magnification=2)  # press q to exit
 
-# %% MEMORY MAPPING
+    # %% MEMORY MAPPING
     border_to_0 = 0 if mc.border_nan == 'copy' else mc.border_to_0
     # you can include the boundaries of the FOV if you used the 'copy' option
     # during motion correction, although be careful about the components near
@@ -159,12 +159,12 @@ def main():
     images = np.reshape(Yr.T, [T] + list(dims), order='F')
     # load frames in python format (T x X x Y)
 
-# %% restart cluster to clean up memory
+    # %% restart cluster to clean up memory
     cm.stop_server(dview=dview)
     c, dview, n_processes = cm.cluster.setup_cluster(
         backend='multiprocessing', n_processes=None, single_thread=False)
 
-# %%  parameters for source extraction and deconvolution
+    # %%  parameters for source extraction and deconvolution
     p = 1                    # order of the autoregressive system
     gnb = 2                  # number of global background components
     merge_thr = 0.85         # merging threshold, max correlation allowed
@@ -195,7 +195,8 @@ def main():
                  'tsub': tsub}
 
     opts.change_params(params_dict=opts_dict);
-# %% RUN CNMF ON PATCHES
+
+    # %% RUN CNMF ON PATCHES
     # First extract spatial and temporal components on patches and combine them
     # for this step deconvolution is turned off (p=0)
 
@@ -203,27 +204,28 @@ def main():
     cnm = cnmf.CNMF(n_processes, params=opts, dview=dview)
     cnm = cnm.fit(images)
 
-# %% ALTERNATE WAY TO RUN THE PIPELINE AT ONCE
+    # %% ALTERNATE WAY TO RUN THE PIPELINE AT ONCE (optional)
     
     #   you can also perform the motion correction plus cnmf fitting steps
     #   simultaneously after defining your parameters object using
     #  cnm1 = cnmf.CNMF(n_processes, params=opts, dview=dview)
     #  cnm1.fit_file(motion_correct=True)
 
-# %% plot contours of found components
+    # %% plot contours of found components
     Cn = cm.local_correlations(images, swap_dim=False)
     Cn[np.isnan(Cn)] = 0
     cnm.estimates.plot_contours(img=Cn)
     plt.title('Contour plots of found components')
 
-#%% save results in a separate file (just for demonstration purposes)
+    #%% save results in a separate file (just for demonstration purposes)
     cnm.estimates.Cn = Cn
     cnm.save(fname_new[:-4]+'hdf5')
     #cm.movie(Cn).save(fname_new[:-5]+'_Cn.tif')
 
-# %% RE-RUN seeded CNMF on accepted patches to refine and perform deconvolution
+    # %% RE-RUN seeded CNMF on accepted patches to refine and perform deconvolution
     cnm.params.change_params({'p': p})
     cnm2 = cnm.refit(images, dview=dview)
+
     # %% COMPONENT EVALUATION
     # the components are evaluated in three ways:
     #   a) the shape of each component must be correlated with the data
@@ -241,23 +243,24 @@ def main():
                                'min_cnn_thr': cnn_thr,
                                'cnn_lowest': cnn_lowest});
     cnm2.estimates.evaluate_components(images, cnm2.params, dview=dview)
-    #%%
+
+    #%%  Save new estimates object (after adding correlation image)
     cnm2.estimates.Cn = Cn
     cnm2.save(fname_new[:-4] + 'hdf5')
+
     # %% PLOT COMPONENTS
     cnm2.estimates.plot_contours(img=Cn, idx=cnm2.estimates.idx_components)
 
     # %% VIEW TRACES (accepted and rejected)
-
     if display_images:
         cnm2.estimates.view_components(images, img=Cn,
                                       idx=cnm2.estimates.idx_components)
         cnm2.estimates.view_components(images, img=Cn,
                                       idx=cnm2.estimates.idx_components_bad)
-    #%% update object with selected components
+    #%% update object with selected components (optional)
     # cnm2.estimates.select_components(use_object=True)
-    #%% Extract DF/F values
 
+    #%% Extract DF/F values
     cnm2.estimates.detrend_df_f(quantileMin=8, frames_window=250)
 
     #%% Show final traces
@@ -271,18 +274,18 @@ def main():
                                   include_bck=False)  # background not shown
 
     #%% STOP CLUSTER and clean up log files
-
     cm.stop_server(dview=dview)
     log_files = glob.glob('*_LOG_*')
     for log_file in log_files:
         os.remove(log_file)
+        
     #%% save the results in the original NWB file
-
     cnm2.estimates.save_NWB(save_path, imaging_rate=fr, session_start_time=datetime.now(tzlocal()),
                             raw_data_file=fnames[0])
 
 # %%
-# This is to mask the differences between running this demo in Spyder
+# This is to mask the differences between running this demo in IDE
 # versus from the CLI
 if __name__ == "__main__":
     main()
+# %%
