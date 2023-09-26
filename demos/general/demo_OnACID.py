@@ -9,7 +9,8 @@ For a more complete demo check the script demo_OnACID_mesoscope.py
 
 @author: jfriedrich & epnev
 """
-
+#%%
+from IPython import get_ipython
 import logging
 import numpy as np
 import os
@@ -18,13 +19,13 @@ import caiman as cm
 from caiman.source_extraction import cnmf as cnmf
 from caiman.paths import caiman_datadir
 
-%matplotlib qt #otherwise vis will not work
-
 try:
     if __IPYTHON__:
         print("Detected iPython")
-        get_ipython().magic('load_ext autoreload')
-        get_ipython().magic('autoreload 2')
+        ipython = get_ipython()
+        ipython.run_line_magic('load_ext', 'autoreload')
+        ipython.run_line_magic('autoreload', '2')
+        ipython.run_line_magic('matplotlib', 'qt')
 except NameError:
     pass
 
@@ -43,7 +44,6 @@ def main():
     pass  # For compatibility between running under an IDE and the CLI
 
     # %% load data
-
     fname = [os.path.join(caiman_datadir(), 'example_movies', 'demoMovie.tif')]
 
     # %% set up some parameters
@@ -57,12 +57,10 @@ def main():
     init_method = 'cnmf'  # initialization method
 
     # set up CNMF initialization parameters
-
     init_batch = 400  # number of frames for initialization
     patch_size = 32  # size of patch
     stride = 3  # amount of overlap between patches
     K = 4  # max number of components in each patch
-
     params_dict = {'fr': fr,
                    'fnames': fname,
                    'decay_time': decay_time,
