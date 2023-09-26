@@ -14,16 +14,18 @@ You can also run a large part of the pipeline with a single method
 
 Demo is also available as a jupyter notebook (see demo_pipeline_cnmfE.ipynb)
 """
-
+#%%
+from IPython import get_ipython
 import logging
 import matplotlib.pyplot as plt
 import numpy as np
 
 try:
     if __IPYTHON__:
-        # this is used for debugging purposes only. allows to reload classes when changed
-        get_ipython().magic('load_ext autoreload')
-        get_ipython().magic('autoreload 2')
+        ipython = get_ipython()
+        ipython.run_line_magic('load_ext', 'autoreload')
+        ipython.run_line_magic('autoreload', '2')
+        ipython.run_line_magic('matplotlib', 'qt')
 except NameError:
     pass
 
@@ -38,7 +40,6 @@ from caiman.source_extraction.cnmf import params as params
 # Set up the logger; change this if you like.
 # You can log to a file using the filename parameter, or make the output more or less
 # verbose by setting level to logging.DEBUG, logging.INFO, logging.WARNING, or logging.ERROR
-
 logging.basicConfig(format=
                     "%(relativeCreated)12d [%(filename)s:%(funcName)20s():%(lineno)s]"\
                     "[%(process)d] %(message)s",
@@ -47,9 +48,9 @@ logging.basicConfig(format=
 
 #%%
 def main():
-    pass # For compatibility between running under Spyder and the CLI
+    pass # For compatibility between running under an IDE and the CLI
 
-# %% start the cluster
+    #%% start the cluster
     try:
         cm.stop_server()  # stop it if it was running
     except():
@@ -59,7 +60,7 @@ def main():
                                                      n_processes=24,  # number of process to use, if you go out of memory try to reduce this one
                                                      single_thread=False)
 
-# %% First setup some parameters for motion correction
+    #%% First setup some parameters for motion correction
     # dataset dependent parameters
     fnames = ['data_endoscope.tif']  # filename to be processed
     fnames = [download_demo(fnames[0])]  # download file if not already present
@@ -95,9 +96,9 @@ def main():
 
     opts = params.CNMFParams(params_dict=mc_dict)
 
-# %% MOTION CORRECTION
-#  The pw_rigid flag set above, determines where to use rigid or pw-rigid
-#  motion correction
+    # %% MOTION CORRECTION
+    #  The pw_rigid flag set above, determines where to use rigid or pw-rigid
+    #  motion correction
     if motion_correct:
         # do motion correction rigid
         mc = MotionCorrect(fnames, dview=dview, **opts.get_group('motion'))
@@ -125,8 +126,7 @@ def main():
     Yr, dims, T = cm.load_memmap(fname_new)
     images = Yr.T.reshape((T,) + dims, order='F')
 
-# %% Parameters for source extraction and deconvolution (CNMF-E algorithm)
-
+    # %% Parameters for source extraction and deconvolution (CNMF-E algorithm)
     p = 1               # order of the autoregressive system
     K = None            # upper bound on number of components per patch, in general None for 1p data
     gSig = (3, 3)       # gaussian width of a 2D gaussian kernel, which approximates a neuron
@@ -181,7 +181,7 @@ def main():
                                     'del_duplicates': True,                # whether to remove duplicates from initialization
                                     'border_pix': bord_px})                # number of pixels to not consider in the borders)
 
-# %% compute some summary images (correlation and peak to noise)
+    # %% compute some summary images (correlation and peak to noise)
     # change swap dim if output looks weird, it is a problem with tiffile
     cn_filter, pnr = cm.summary_images.correlation_pnr(images[::1], gSig=gSig[0], swap_dim=False)
     # if your images file is too long this computation will take unnecessarily
@@ -194,17 +194,17 @@ def main():
     print(min_corr) # min correlation of peak (from correlation image)
     print(min_pnr)  # min peak to noise ratio
 
-# %% RUN CNMF ON PATCHES
+    # %% RUN CNMF ON PATCHES
     cnm = cnmf.CNMF(n_processes=n_processes, dview=dview, Ain=Ain, params=opts)
     cnm.fit(images)
 
-# %% ALTERNATE WAY TO RUN THE PIPELINE AT ONCE
+    # %% ALTERNATE WAY TO RUN THE PIPELINE AT ONCE (optional -- commented out)
     #   you can also perform the motion correction plus cnmf fitting steps
     #   simultaneously after defining your parameters object using
-#    cnm1 = cnmf.CNMF(n_processes, params=opts, dview=dview)
-#    cnm1.fit_file(motion_correct=True)
+    #    cnm1 = cnmf.CNMF(n_processes, params=opts, dview=dview)
+    #    cnm1.fit_file(motion_correct=True)
 
-# %% DISCARD LOW QUALITY COMPONENTS
+    # %% Quality Control: DISCARD LOW QUALITY COMPONENTS
     min_SNR = 2.5           # adaptive way to set threshold on the transient size
     r_values_min = 0.85    # threshold on space consistency (if you lower more components
     #                        will be accepted, potentially with worst quality)
@@ -217,14 +217,14 @@ def main():
     print('Number of total components: ', len(cnm.estimates.C))
     print('Number of accepted components: ', len(cnm.estimates.idx_components))
 
-# %% PLOT COMPONENTS
+    # %% PLOT COMPONENTS
     cnm.dims = dims
     display_images = True           # Set to true to show movies and images
     if display_images:
         cnm.estimates.plot_contours(img=cn_filter, idx=cnm.estimates.idx_components)
         cnm.estimates.view_components(images, idx=cnm.estimates.idx_components)
 
-# %% MOVIES
+    # %% MOVIES
     display_images = False           # Set to true to show movies and images
     if display_images:
         # fully reconstructed movie
@@ -234,10 +234,12 @@ def main():
         cnm.estimates.play_movie(images, q_max=99.9, magnification=2,
                                  include_bck=False, gain_res=4, bpx=bord_px)
 
-# %% STOP SERVER
+    # %% STOP SERVER
     cm.stop_server(dview=dview)
 
-# %% This is to mask the differences between running this demo in Spyder
+# %% This is to mask the differences between running this demo in IDE
 # versus from the CLI
 if __name__ == "__main__":
     main()
+
+# %%
