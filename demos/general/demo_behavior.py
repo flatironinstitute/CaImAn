@@ -4,6 +4,9 @@
 """
 Created on Sun Aug  6 11:43:39 2017
 
+Warning: this demonstrates the use of caiman.behavior, which is
+is legacy code that is not currently being tested or supported.
+
 @author: agiovann
 """
 
@@ -42,9 +45,9 @@ logging.basicConfig(format=
 
 #%%
 def main():
-    pass # For compatibility between running under Spyder and the CLI
+    pass # For compatibility between running under IDE and the CLI
 
-#%%
+    #%%
     pl.ion()
 
     fname = [u'demo_behavior.h5']
@@ -54,16 +57,19 @@ def main():
     # TODO: todocument
     m = cm._load_behavior(fname[0])
 
-#%% load, rotate and eliminate useless pixels
+    #%% load, rotate and eliminate useless pixels
     m = m.transpose([0, 2, 1])
     m = m[:, 150:, :]
-#%% visualize movie
+
+    #%% visualize movie
     m.play()
-#%% select interesting portion of the FOV (draw a polygon on the figure that pops up, when done press enter)
+
+    #%% select interesting portion of the FOV (draw a polygon on the figure that pops up, when done press enter)
     # TODO: Put the message below into the image
     print("Please draw a polygon delimiting the ROI on the image that will be displayed after the image; press enter when done")
     mask = np.array(behavior.select_roi(np.median(m[::100], 0), 1)[0], np.float32)
-#%%
+
+    #%%
     n_components = 4  # number of movement looked for
     resize_fact = 0.5  # for computational efficiency movies are downsampled
     # number of standard deviations above mean for the magnitude that are considered enough to measure the angle in polar coordinates
@@ -76,10 +82,11 @@ def main():
     spatial_filter_, time_trace_, of_or = cm.behavior.behavior.extract_motor_components_OF(m, n_components, mask=mask,
                                                                                            resize_fact=resize_fact, only_magnitude=only_magnitude, verbose=True, method_factorization='dict_learn', max_iter_DL=max_iter_DL)
 
-#%%
+    #%%
     mags, dircts, dircts_thresh, spatial_masks_thrs = cm.behavior.behavior.extract_magnitude_and_angle_from_OF(
         spatial_filter_, time_trace_, of_or, num_std_mag_for_angle=num_std_mag_for_angle, sav_filter_size=3, only_magnitude=only_magnitude)
-#%%
+    
+    #%%
     idd = 0
     axlin = pl.subplot(n_components, 2, 2)
     for mag, dirct, spatial_filter in zip(mags, dircts_thresh, spatial_filter_):
@@ -105,7 +112,7 @@ def main():
         idd += 1
 
 #%%
-# This is to mask the differences between running this demo in Spyder
+# This is to mask the differences between running this demo in an IDE
 # versus from the CLI
 if __name__ == "__main__":
     main()
