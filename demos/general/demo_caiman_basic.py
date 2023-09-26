@@ -141,6 +141,7 @@ def main():
     cnm2.estimates.plot_contours(img=Cn, idx=cnm2.estimates.idx_components)
 
     # %% visualize selected components
+    # Note run in qt mode (%matplotlib qt) for this to work properly
     cnm2.estimates.view_components(images, idx=cnm2.estimates.idx_components, img=Cn)
    
     #%% only select high quality components (destructive)
