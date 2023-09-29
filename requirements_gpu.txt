@@ -25,5 +25,4 @@ tensorflow-addons
 tifffile
 tk
 tqdm
-traitlets<5.10
 yapf

@@ -32,6 +32,5 @@ dependencies:
 - tifffile
 - tk
 - tqdm
-- traitlets < 5.10
 - yapf
 - z5py >= 2.0.15
