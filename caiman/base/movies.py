@@ -17,7 +17,6 @@ import h5py
 from IPython.display import display, Image
 import ipywidgets as widgets
 import logging
-import matplotlib.pyplot as plt
 from matplotlib import animation
 import numpy as np
 import os
