@@ -180,5 +180,3 @@ def main():
 # versus from the CLI
 if __name__ == "__main__":
     main()
-
-# %%

@@ -198,7 +198,7 @@ def main():
     cnm = cnmf.CNMF(n_processes, params=opts, dview=dview)
     cnm = cnm.fit(images)
 
-    # %% ALTERNATE WAY TO RUN THE PIPELINE AT ONCE (optional)
+    # %% Alternate way to run above pipeline using a single method (optional)
     #   you can also perform the motion correction plus cnmf fitting steps
     #   simultaneously after defining your parameters object using
     #  cnm1 = cnmf.CNMF(n_processes, params=opts, dview=dview)
@@ -281,4 +281,3 @@ def main():
 if __name__ == "__main__":
     main()
 
-# %%
