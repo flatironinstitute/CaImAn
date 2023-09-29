@@ -34,7 +34,6 @@ try:
         ipython = get_ipython()
         ipython.run_line_magic('load_ext', 'autoreload')
         ipython.run_line_magic('autoreload', '2')
-        ipython.run_line_magic('matplotlib', 'qt')
 except NameError:
     pass
 
@@ -156,7 +155,9 @@ def main():
     cnm2.save(cnm2.mmap_file[:-4]+'hdf5')
 
     # %% play movie with results (original, reconstructed, amplified residual)
-    cnm2.estimates.play_movie(images, magnification=4)
+    display_results = False
+    if display_results:
+        cnm2.estimates.play_movie(images, magnification=4)
 
     # %% STOP CLUSTER and clean up log files
     cm.stop_server(dview=dview)
