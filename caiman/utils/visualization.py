@@ -639,12 +639,10 @@ def nb_view_patches3d(Y_r, A, C, dims, image_type='mean', Yr=None,
                 Yr[index_permut].reshape(dims + (-1,), order='F'))
 
         elif image_type == 'mean':
-            image_neurons = np.array(A.mean(axis=1)).reshape(
-                dims, order='F')
+            image_neurons = np.array(A.mean(axis=1)).reshape(dims, order='F')
 
         elif image_type == 'max':
-            image_neurons = A.max(axis=1).toarray().reshape(
-                dims, order='F')
+            image_neurons = A.max(axis=1).toarray().reshape(dims, order='F')
 
         else:
             raise ValueError('image_type must be mean, max or corr')
