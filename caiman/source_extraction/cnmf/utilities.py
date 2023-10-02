@@ -1162,7 +1162,7 @@ def get_file_size(file_name, var_name_hdf5='mov'):
                 if 'CAIMAN_LOAD_AVI_FORCE_FALLBACK' in os.environ:
                         pims_movie = pims.PyAVReaderTimed(file_name) # duplicated code, but no cleaner way
                         T = len(pims_movie)
-                        dims[0], dims[1] = pims_movie.frame_shape[0:2]
+                        dims = pims_movie.frame_shape[0:2]
                 else:
                     cap = cv2.VideoCapture(file_name) # try opencv
                     dims = [int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)), int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))]
