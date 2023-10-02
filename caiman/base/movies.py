@@ -6,7 +6,7 @@ Contains the movie class.
 
 """
 
-# \package caiman/dource_ectraction/cnmf
+# \package caiman/source_ectraction/cnmf
 # \version   1.0
 # \copyright GNU General Public License v2.0
 # \date Created on Tue Jun 30 20:56:07 2015 , Updated on Fri Aug 19 17:30:11 2016

@@ -14,7 +14,7 @@ See Also:
 @author  epnev
 """
 
-# \package caiman/dource_ectraction/cnmf
+# \package caiman/source_extraction/cnmf
 # \version   1.0
 # \copyright GNU General Public License v2.0
 # \date Created on Sat Sep 12 15:52:53 2015
