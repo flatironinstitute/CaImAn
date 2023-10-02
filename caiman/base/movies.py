@@ -1488,7 +1488,7 @@ def load(file_name: Union[str, List[str]],
                 ###############################
                 # Pims codepath
                 ###############################
-                pims_movie = pims.Video(file_name)
+                pims_movie = pims.PyAVReaderTimed(file_name) #   # PyAVReaderIndexed()
                 length = len(pims_movie)
                 height, width = pims_movie.frame_shape[0:2]    # shape is (h, w, channels)
                 dims = [length, height, width]
@@ -1513,6 +1513,7 @@ def load(file_name: Union[str, List[str]],
                         elif isinstance(sb, np.ndarray):
                             dims[ind] = sb.shape[0]
                     start_frame = subindices[0][0]
+                    logging.debug(f"Subinds not none: start frame: {start_frame} and subinds: {subindices}")
                 else:
                     subindices = [np.r_[range(dims[0])]]
                     start_frame = 0
@@ -1521,12 +1522,12 @@ def load(file_name: Union[str, List[str]],
                 input_arr = np.zeros((dims[0], height, width), dtype=np.uint8)
                 for i, ind in enumerate(subindices[0]):
                     input_arr[i] = rgb2gray(pims_movie[ind]).astype(outtype)
+
                 # spatial subinds
                 if len(subindices) > 1:
                     input_arr = input_arr[:, subindices[1]]
                 if len(subindices) > 2:
                     input_arr = input_arr[:, :, subindices[2]]
-
 
         elif extension == '.npy': # load npy file
             if fr is None:

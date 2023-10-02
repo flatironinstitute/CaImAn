@@ -10,12 +10,15 @@ The script demonstrates how to construct and use the params and online_cnmf
 objects required for the analysis, and presents the various parameters that
 can be passed as options. A plot of the processing time for the various steps
 of the algorithm is also included.
+
 @author: Eftychios Pnevmatikakis @epnev
+
 Special thanks to Andreas Tolias and his lab at Baylor College of Medicine
 for sharing the data used in this demo.
 """
 
 import glob
+from IPython import get_ipython
 import numpy as np
 import os
 import logging
@@ -23,9 +26,11 @@ import matplotlib.pyplot as plt
 
 try:
     if __IPYTHON__:
-        # this is used for debugging purposes only.
-        get_ipython().magic('load_ext autoreload')
-        get_ipython().magic('autoreload 2')
+        print("Detected iPython")
+        ipython = get_ipython()
+        ipython.run_line_magic('load_ext', 'autoreload')
+        ipython.run_line_magic('autoreload', '2')
+        ipython.run_line_magic('matplotlib', 'qt')
 except NameError:
     pass
 
@@ -34,6 +39,7 @@ from caiman.paths import caiman_datadir
 from caiman.source_extraction import cnmf as cnmf
 from caiman.utils.utils import download_demo
 
+
 logging.basicConfig(format=
                     "%(relativeCreated)12d [%(filename)s:%(funcName)20s():%(lineno)s]"\
                     "[%(process)d] %(message)s",
@@ -41,9 +47,9 @@ logging.basicConfig(format=
 
 # %%
 def main():
-    pass # For compatibility between running under Spyder and the CLI
+    pass # For compatibility between running under IDE and the CLI
 
-# %%  download and list all files to be processed
+    # %%  download and list all files to be processed
 
     # folder inside ./example_movies where files will be saved
     fld_name = 'Mesoscope'
@@ -55,7 +61,7 @@ def main():
     # your list of files should look something like this
     logging.info(fnames)
 
-# %%   Set up some parameters
+    # %%   Set up some parameters
 
     fr = 15  # frame rate (Hz)
     decay_time = 0.5  # approximate length of transient event in seconds
@@ -100,22 +106,21 @@ def main():
                    'show_movie': show_movie}
     opts = cnmf.params.CNMFParams(params_dict=params_dict)
 
-# %% fit online
-
+    # %% fit online
     cnm = cnmf.online_cnmf.OnACID(params=opts)
     cnm.fit_online()
 
-# %% plot contours (this may take time)
+    # %% plot contours (this may take time)
     logging.info('Number of components: ' + str(cnm.estimates.A.shape[-1]))
     images = cm.load(fnames)
     Cn = images.local_correlations(swap_dim=False, frames_per_chunk=500)
     cnm.estimates.plot_contours(img=Cn, display_numbers=False)
 
-# %% view components
+    # %% view components
     cnm.estimates.view_components(img=Cn)
 
-# %% plot timing performance (if a movie is generated during processing, timing
-# will be severely over-estimated)
+    # %% plot timing performance (if a movie is generated during processing, timing
+    # will be severely over-estimated)
 
     T_motion = 1e3*np.array(cnm.t_motion)
     T_detect = 1e3*np.array(cnm.t_detect)
@@ -127,7 +132,8 @@ def main():
     plt.title('Processing time allocation')
     plt.xlabel('Frame #')
     plt.ylabel('Processing time [ms]')
-#%% RUN IF YOU WANT TO VISUALIZE THE RESULTS (might take time)
+
+    #%% RUN IF YOU WANT TO VISUALIZE THE RESULTS (might take time)
     c, dview, n_processes = \
         cm.cluster.setup_cluster(backend='multiprocessing', n_processes=None,
                                  single_thread=False)
@@ -170,7 +176,7 @@ def main():
     dview.terminate()
 
 #%%
-# This is to mask the differences between running this demo in Spyder
+# This is to mask the differences between running this demo in IDE
 # versus from the CLI
 if __name__ == "__main__":
     main()
