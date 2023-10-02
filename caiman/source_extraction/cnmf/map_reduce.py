@@ -9,7 +9,7 @@ Function for implementing parallel scalable segmentation of two photon imaging d
 
 @author: agiovann
 """
-#\package caiman/dource_ectraction/cnmf
+#\package caiman/source_ectraction/cnmf
 #\version   1.0
 #\copyright GNU General Public License v2.0
 #\date Created on Wed Feb 17 14:58:26 2016

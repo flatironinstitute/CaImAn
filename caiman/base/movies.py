@@ -6,7 +6,7 @@ Contains the movie class.
 
 """
 
-# \package caiman/dource_ectraction/cnmf
+# \package caiman/source_ectraction/cnmf
 # \version   1.0
 # \copyright GNU General Public License v2.0
 # \date Created on Tue Jun 30 20:56:07 2015 , Updated on Fri Aug 19 17:30:11 2016
@@ -1419,21 +1419,24 @@ def load(file_name: Union[str, List[str]],
             # a flexible route to expose this option to the caller so users don't need to tweak code to get their movies loaded.
             #
             # We have a fallback of trying to use the pims package if OpenCV fails
-
-            cap = cv2.VideoCapture(file_name)
-
-            length = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-            width  = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-            height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-
-            dims = [length, height, width]                     # type: ignore # a list in one block and a tuple in another
-            if length <= 0 or width <= 0 or height <= 0:       # OpenCV failure
+            if 'CAIMAN_LOAD_AVI_FORCE_FALLBACK' in os.environ: # User requested we don't even try opencv
+                logging.debug("Loading AVI/MKV file: PIMS codepath requested")
                 do_opencv = False
-                cap.release()
-                cv2.destroyAllWindows()
-                logging.warning(f"OpenCV failed to parse {file_name}, falling back to pims")
             else:
-                do_opencv = True
+                cap = cv2.VideoCapture(file_name)
+
+                length = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+                width  = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+                height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
+                dims = [length, height, width]                     # type: ignore # a list in one block and a tuple in another
+                if length <= 0 or width <= 0 or height <= 0:       # OpenCV failure
+                    do_opencv = False
+                    cap.release()
+                    cv2.destroyAllWindows()
+                    logging.warning(f"OpenCV failed to parse {file_name}, falling back to pims")
+                else:
+                    do_opencv = True
 
             if do_opencv:
                 ###############################
@@ -2170,18 +2173,22 @@ def load_iter(file_name: Union[str, List[str]], subindices=None, var_name_hdf5: 
                         yield frame.asarray().astype(outtype)
             elif extension in ('.avi', '.mkv'):
                 # First, let's see if OpenCV can handle this AVI file
-                cap = cv2.VideoCapture(file_name)
-                length = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-                width  = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-                height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-                if length <= 0 or width <= 0 or height <= 0: # Not a perfect way to do this, but it's a start. Could also do a try/except block?
-                    logging.warning(f"OpenCV failed to parse {file_name}, falling back to pims")
+                if 'CAIMAN_LOAD_AVI_FORCE_FALLBACK' in os.environ: # User requested we don't even try opencv
+                    logging.debug("Loading AVI/MKV file: PIMS codepath requested")
                     do_opencv = False
-                    # Close up shop, and get ready for the alternative
-                    cap.release()
-                    cv2.destroyAllWindows()
                 else:
-                    do_opencv = True
+                    cap = cv2.VideoCapture(file_name)
+                    length = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+                    width  = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+                    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+                    if length <= 0 or width <= 0 or height <= 0: # Not a perfect way to do this, but it's a start. Could also do a try/except block?
+                        logging.warning(f"OpenCV failed to parse {file_name}, falling back to pims")
+                        do_opencv = False
+                        # Close up shop, and get ready for the alternative
+                        cap.release()
+                        cv2.destroyAllWindows()
+                    else:
+                        do_opencv = True
 
                 if do_opencv:
                             if subindices is None:
