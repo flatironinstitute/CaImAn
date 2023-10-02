@@ -1138,7 +1138,7 @@ def get_file_size(file_name, var_name_hdf5='mov'):
     # TODO There is a lot of redundant code between this and caiman.base.movies.load() that should be unified somehow
     if isinstance(file_name, pathlib.Path):
         # We want to support these as input, but str has a broader set of operations that we'd like to use, so let's just convert.
-	# (specifically, filePath types don't support subscripting)
+        # (specifically, filePath types don't support subscripting)
         file_name = str(file_name)
     if isinstance(file_name, str):
         if os.path.exists(file_name):
