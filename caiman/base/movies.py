@@ -1420,6 +1420,7 @@ def load(file_name: Union[str, List[str]],
             #
             # We have a fallback of trying to use the pims package if OpenCV fails
             if 'CAIMAN_LOAD_AVI_FORCE_FALLBACK' in os.environ: # User requested we don't even try opencv
+                logging.debug("Loading AVI/MKV file: PIMS codepath requested")
                 do_opencv = False
             else:
                 cap = cv2.VideoCapture(file_name)
@@ -2173,6 +2174,7 @@ def load_iter(file_name: Union[str, List[str]], subindices=None, var_name_hdf5: 
             elif extension in ('.avi', '.mkv'):
                 # First, let's see if OpenCV can handle this AVI file
                 if 'CAIMAN_LOAD_AVI_FORCE_FALLBACK' in os.environ: # User requested we don't even try opencv
+                    logging.debug("Loading AVI/MKV file: PIMS codepath requested")
                     do_opencv = False
                 else:
                     cap = cv2.VideoCapture(file_name)
