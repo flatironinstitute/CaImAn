@@ -1,5 +1,9 @@
-# CaImAn 
-<img src="docs/LOGOS/Caiman_logo_FI.png" width="400" align="right">
+<a href="https://colab.research.google.com/drive/1vkp-uPV8tKavmX12bcN2L-jYH8_MgmHL?usp=sharing"><img src="https://img.shields.io/badge/-Colab%20Demo-blue" /></a>
+<a href="https://ncsu.qualtrics.com/jfe/form/SV_enuiA15WX8w74qy"><img src="https://img.shields.io/badge/-Caiman%20Survey-green" /></a>
+
+CaImAn
+======
+<img src="https://github.com/flatironinstitute/CaImAn/blob/main/docs/LOGOS/Caiman_logo_FI.png" width="400" align="right">
 
 A Python toolbox for large-scale **Ca**lcium **Im**aging **An**alysis.    
 
