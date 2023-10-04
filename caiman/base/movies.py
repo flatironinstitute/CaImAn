@@ -6,7 +6,7 @@ Contains the movie class.
 
 """
 
-# \package caiman/dource_ectraction/cnmf
+# \package caiman/source_ectraction/cnmf
 # \version   1.0
 # \copyright GNU General Public License v2.0
 # \date Created on Tue Jun 30 20:56:07 2015 , Updated on Fri Aug 19 17:30:11 2016
@@ -14,12 +14,13 @@ Contains the movie class.
 import cv2
 from functools import partial
 import h5py
+from IPython.display import display, Image
+import ipywidgets as widgets
 import logging
 from matplotlib import animation
 import numpy as np
 import os
 import pims
-from PIL import Image  # $ pip install pillow
 import pylab as pl
 import scipy.ndimage
 import scipy
@@ -31,6 +32,7 @@ from sklearn.cluster import KMeans
 from sklearn.decomposition import NMF, IncrementalPCA, FastICA
 from sklearn.metrics.pairwise import euclidean_distances
 import sys
+import threading
 import tifffile
 from tqdm import tqdm
 from typing import Any, Dict, List, Tuple, Union
@@ -524,7 +526,7 @@ class movie(ts.timeseries):
     def return_cropped(self, crop_top=0, crop_bottom=0, crop_left=0, crop_right=0, crop_begin=0, crop_end=0) -> np.ndarray:
         """
         Return a cropped version of the movie
-	The returned version is independent of the original, which is less memory-efficient but also less likely to be surprising.
+    The returned version is independent of the original, which is less memory-efficient but also less likely to be surprising.
 
         Args:
             crop_top/crop_bottom/crop_left,crop_right: how much to trim from each side
@@ -1185,14 +1187,14 @@ class movie(ts.timeseries):
     def play(self,
              gain: float = 1,
              fr=None,
-             magnification=1,
-             offset=0,
+             magnification: float = 1,
+             offset: float = 0,
              interpolation=cv2.INTER_LINEAR,
              backend: str = 'opencv',
              do_loop: bool = False,
              bord_px=None,
-             q_max=99.75,
-             q_min=1,
+             q_max: float = 99.75,
+             q_min: float = 1,
              plot_text: bool = False,
              save_movie: bool = False,
              opencv_codec: str = 'H264',
@@ -1205,14 +1207,15 @@ class movie(ts.timeseries):
 
             fr: framerate, playing speed if different from original (inter frame interval in seconds)
 
-            magnification: int
+            magnification: float
                 magnification factor
 
             offset: (undocumented)
 
-            interpolation: (undocumented)
+            interpolation:
+                interpolation method for 'opencv' and 'embed_opencv' backends
 
-            backend: 'pylab' or 'opencv', the latter much faster
+            backend: 'pylab', 'notebook', 'opencv' or 'embed_opencv'; the latter 2 are much faster
 
             do_loop: Whether to loop the video
 
@@ -1237,134 +1240,8 @@ class movie(ts.timeseries):
         Raises:
             Exception 'Unknown backend!'
         """
-        # todo: todocument
-        if backend == 'pylab':
-            logging.warning('*** WARNING *** SPEED MIGHT BE LOW. USE opencv backend if available')
-
-        gain *= 1.     # convert to float in case we were passed an int
-        if q_max < 100:
-            maxmov = np.nanpercentile(self[0:10], q_max)
-        else:
-            maxmov = np.nanmax(self)
-
-        if q_min > 0:
-            minmov = np.nanpercentile(self[0:10], q_min)
-        else:
-            minmov = np.nanmin(self)
-
-        if backend == 'pylab':
-            pl.ion()
-            fig = pl.figure(1)
-            ax = fig.add_subplot(111)
-            ax.set_title("Play Movie")
-            im = ax.imshow((offset + self[0] - minmov) * gain / (maxmov - minmov + offset),
-                           cmap=pl.cm.gray,
-                           vmin=0,
-                           vmax=1,
-                           interpolation='none')                                            # Blank starting image
-            fig.show()
-            im.axes.figure.canvas.draw()
-            pl.pause(1)
-
-        elif backend == 'notebook':
-            # First set up the figure, the axis, and the plot element we want to animate
-            fig = pl.figure()
-            im = pl.imshow(self[0], interpolation='None', cmap=pl.cm.gray)
-            pl.axis('off')
-
-            def animate(i):
-                im.set_data(self[i])
-                return im,
-
-            # call the animator.  blit=True means only re-draw the parts that have changed.
-            anim = animation.FuncAnimation(fig, animate, frames=self.shape[0], interval=1, blit=True)
-
-            # call our new function to display the animation
-            return visualization.display_animation(anim, fps=fr)
-
-        if fr is None:
-            fr = self.fr
-
-        looping = True
-        terminated = False
-        if save_movie:
-            fourcc = cv2.VideoWriter_fourcc(*opencv_codec)
-            frame_in = self[0]
-            if bord_px is not None and np.sum(bord_px) > 0:
-                frame_in = frame_in[bord_px:-bord_px, bord_px:-bord_px]
-            out = cv2.VideoWriter(movie_name, fourcc, 30.,
-                                  tuple([int(magnification * s) for s in frame_in.shape[1::-1]]))
-        while looping:
-
-            for iddxx, frame in enumerate(self):
-                if bord_px is not None and np.sum(bord_px) > 0:
-                    frame = frame[bord_px:-bord_px, bord_px:-bord_px]
-
-                if backend == 'opencv':
-                    if magnification != 1:
-                        frame = cv2.resize(frame, None, fx=magnification, fy=magnification, interpolation=interpolation)
-                    frame = (offset + frame - minmov) * gain / (maxmov - minmov)
-
-                    if plot_text == True:
-                        text_width, text_height = cv2.getTextSize('Frame = ' + str(iddxx),
-                                                                  fontFace=5,
-                                                                  fontScale=0.8,
-                                                                  thickness=1)[0]
-                        cv2.putText(frame,
-                                    'Frame = ' + str(iddxx),
-                                    ((frame.shape[1] - text_width) // 2, frame.shape[0] - (text_height + 5)),
-                                    fontFace=5,
-                                    fontScale=0.8,
-                                    color=(255, 255, 255),
-                                    thickness=1)
-
-                    cv2.imshow('frame', frame)
-                    if save_movie:
-                        if frame.ndim < 3:
-                            frame = np.repeat(frame[:, :, None], 3, axis=-1)
-                        frame = np.minimum((frame * 255.), 255).astype('u1')
-                        out.write(frame)
-                    if cv2.waitKey(int(1. / fr * 1000)) & 0xFF == ord('q'):
-                        looping = False
-                        terminated = True
-                        break
-
-                elif backend == 'pylab':
-
-                    im.set_data((offset + frame) * gain / maxmov)
-                    ax.set_title(str(iddxx))
-                    pl.axis('off')
-                    fig.canvas.draw()
-                    pl.pause(1. / fr * .5)
-                    ev = pl.waitforbuttonpress(1. / fr * .5)
-                    if ev is not None:
-                        pl.close()
-                        break
-
-                elif backend == 'notebook':
-                    logging.debug('Animated via MP4')
-                    break
-
-                else:
-                    raise Exception('Unknown backend!')
-
-            if terminated:
-                break
-
-            if save_movie:
-                out.release()
-                save_movie = False
-
-            if do_loop:
-                looping = True
-            else:
-                looping = False
-
-        if backend == 'opencv':
-            cv2.waitKey(100)
-            cv2.destroyAllWindows()
-            for i in range(10):
-                cv2.waitKey(100)
+        play_movie(self, gain, fr, magnification, offset, interpolation, backend, do_loop, bord_px,
+             q_max, q_min, plot_text, save_movie, opencv_codec, movie_name)
 
 
 def load(file_name: Union[str, List[str]],
@@ -1454,7 +1331,7 @@ def load(file_name: Union[str, List[str]],
                                 is3D=is3D)
 
     elif isinstance(file_name, tuple):
-        print(f'**** Processing input file {file_name} as individualframes *****')
+        logging.debug(f'**** Processing input file {file_name} as individual frames *****')
         if shape is not None:
             # XXX Should this be an Exception?
             logging.error('movies.py:load(): A shape parameter is not supported for multiple movie input')
@@ -1531,49 +1408,67 @@ def load(file_name: Union[str, List[str]],
                 input_arr = np.squeeze(input_arr)
 
         elif extension in ('.avi', '.mkv'):      # load video file
-            cap = cv2.VideoCapture(file_name)
-
-            try:
-                length = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-                width = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-                height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-            except:
-                logging.info('Roll back to opencv 2')
-                length = int(cap.get(cv2.cv.CV_CAP_PROP_FRAME_COUNT))
-                width = int(cap.get(cv2.cv.CV_CAP_PROP_FRAME_WIDTH))
-                height = int(cap.get(cv2.cv.CV_CAP_PROP_FRAME_HEIGHT))
-
-            cv_failed = False
-            dims = [length, height, width]                     # type: ignore # a list in one block and a tuple in another
-            if length == 0 or width == 0 or height == 0:       #CV failed to load
-                cv_failed = True
-            if subindices is not None:
-                if not isinstance(subindices, list):
-                    subindices = [subindices]
-                for ind, sb in enumerate(subindices):
-                    if isinstance(sb, range):
-                        subindices[ind] = np.r_[sb]
-                        dims[ind] = subindices[ind].shape[0]
-                    elif isinstance(sb, slice):
-                        if sb.start is None:
-                            sb = slice(0, sb.stop, sb.step)
-                        if sb.stop is None:
-                            sb = slice(sb.start, dims[ind], sb.step)
-                        subindices[ind] = np.r_[sb]
-                        dims[ind] = subindices[ind].shape[0]
-                    elif isinstance(sb, np.ndarray):
-                        dims[ind] = sb.shape[0]
-
-                start_frame = subindices[0][0]
+            # We first try with OpenCV.
+            #
+            # OpenCV is backend-and-build dependent (the second argument to cv2.VideoCapture defaults to CAP_ANY, which
+            # is "the first backend that thinks it can do the job". It often works, and on Linux and OSX builds of OpenCV
+            # it usually uses GStreamer.
+            #
+            # On Windows it has used a variety of things over different releases, and if the default doesn't work, it can
+            # sometimes help to change backends (e.g. to cv2.CAP_DSHOW), but this is a guessing game. Future versions may provide
+            # a flexible route to expose this option to the caller so users don't need to tweak code to get their movies loaded.
+            #
+            # We have a fallback of trying to use the pims package if OpenCV fails
+            if 'CAIMAN_LOAD_AVI_FORCE_FALLBACK' in os.environ: # User requested we don't even try opencv
+                logging.debug("Loading AVI/MKV file: PIMS codepath requested")
+                do_opencv = False
             else:
-                subindices = [np.r_[range(dims[0])]]
-                start_frame = 0
-            if not cv_failed:
+                cap = cv2.VideoCapture(file_name)
+
+                length = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+                width  = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+                height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+
+                dims = [length, height, width]                     # type: ignore # a list in one block and a tuple in another
+                if length <= 0 or width <= 0 or height <= 0:       # OpenCV failure
+                    do_opencv = False
+                    cap.release()
+                    cv2.destroyAllWindows()
+                    logging.warning(f"OpenCV failed to parse {file_name}, falling back to pims")
+                else:
+                    do_opencv = True
+
+            if do_opencv:
+                ###############################
+                # OpenCV codepath
+                ###############################
+                if subindices is not None:
+                    if not isinstance(subindices, list):
+                        subindices = [subindices]
+                    for ind, sb in enumerate(subindices):
+                        if isinstance(sb, range):
+                            subindices[ind] = np.r_[sb]
+                            dims[ind] = subindices[ind].shape[0]
+                        elif isinstance(sb, slice):
+                            if sb.start is None:
+                                sb = slice(0, sb.stop, sb.step)
+                            if sb.stop is None:
+                                sb = slice(sb.start, dims[ind], sb.step)
+                            subindices[ind] = np.r_[sb]
+                            dims[ind] = subindices[ind].shape[0]
+                        elif isinstance(sb, np.ndarray):
+                            dims[ind] = sb.shape[0]
+
+                    start_frame = subindices[0][0]
+                else:
+                    subindices = [np.r_[range(dims[0])]]
+                    start_frame = 0
+                # Extract the data
                 input_arr = np.zeros((dims[0], height, width), dtype=np.uint8)
                 counter = 0
                 cap.set(1, start_frame)
                 current_frame = start_frame
-                while True and counter < dims[0]:
+                while counter < dims[0]:
                     # Capture frame-by-frame
                     if current_frame != subindices[0][counter]:
                         current_frame = subindices[0][counter]
@@ -1584,27 +1479,60 @@ def load(file_name: Union[str, List[str]],
                     input_arr[counter] = frame[:, :, 0]
                     counter += 1
                     current_frame += 1
-
+                # handle spatial subindices
                 if len(subindices) > 1:
                     input_arr = input_arr[:, subindices[1]]
                 if len(subindices) > 2:
                     input_arr = input_arr[:, :, subindices[2]]
-            else:      #use pims to load movie
-                def rgb2gray(rgb):
-                    return np.dot(rgb[..., :3], [0.299, 0.587, 0.114])
-
-                pims_movie = pims.Video(file_name)
+                # When everything is done, release the capture
+                cap.release()
+                cv2.destroyAllWindows()
+            else:
+                ###############################
+                # Pims codepath
+                ###############################
+                pims_movie = pims.PyAVReaderTimed(file_name) #   # PyAVReaderIndexed()
                 length = len(pims_movie)
-                height, width = pims_movie.frame_shape[0:2]    #shape is (h,w,channels)
-                input_arr = np.zeros((length, height, width), dtype=np.uint8)
-                for i in range(len(pims_movie)):               #iterate over frames
-                    input_arr[i] = rgb2gray(pims_movie[i])
+                height, width = pims_movie.frame_shape[0:2]    # shape is (h, w, channels)
+                dims = [length, height, width]
+                if length <= 0 or width <= 0 or height <= 0:
+                    raise OSError(f"pims fallback failed to handle AVI file {file_name}. Giving up")
 
-            # When everything done, release the capture
-            cap.release()
-            cv2.destroyAllWindows()
+                if subindices is not None:
+                    # FIXME Above should probably be a try/except block
+                    if not isinstance(subindices, list):
+                        subindices = [subindices]
+                    for ind, sb in enumerate(subindices):
+                        if isinstance(sb, range):
+                            subindices[ind] = np.r_[sb]
+                            dims[ind] = subindices[ind].shape[0]
+                        elif isinstance(sb, slice):
+                            if sb.start is None:
+                                sb = slice(0, sb.stop, sb.step)
+                            if sb.stop is None:
+                                sb = slice(sb.start, dims[ind], sb.step)
+                            subindices[ind] = np.r_[sb]
+                            dims[ind] = subindices[ind].shape[0]
+                        elif isinstance(sb, np.ndarray):
+                            dims[ind] = sb.shape[0]
+                    start_frame = subindices[0][0]
+                    logging.debug(f"Subinds not none: start frame: {start_frame} and subinds: {subindices}")
+                else:
+                    subindices = [np.r_[range(dims[0])]]
+                    start_frame = 0
+                    
+                # Extract the data (note dims[0] is num frames)
+                input_arr = np.zeros((dims[0], height, width), dtype=np.uint8)
+                for i, ind in enumerate(subindices[0]):
+                    input_arr[i] = rgb2gray(pims_movie[ind]).astype(outtype)
 
-        elif extension == '.npy':      # load npy file
+                # spatial subinds
+                if len(subindices) > 1:
+                    input_arr = input_arr[:, subindices[1]]
+                if len(subindices) > 2:
+                    input_arr = input_arr[:, :, subindices[2]]
+
+        elif extension == '.npy': # load npy file
             if fr is None:
                 fr = 30
             if in_memory:
@@ -1804,11 +1732,11 @@ def load_movie_chain(file_list: List[str],
 # 'is_behavior' boolean flag.
 
 def _load_behavior(file_name:str) -> Any:
-	# This is custom code (that used to belong to movies.load() above, once activated by
-	# the undocumented "is_behavior" flag, to perform a custom load of data from an hdf5 file
-	# with a particular inner structure. The keys in that file are things like trial_1, trial_12, ..
-	# I refactored this out of load() to improve clarity of that function and to make it more clear
-	# that user code should not do things that way.
+    # This is custom code (that used to belong to movies.load() above, once activated by
+    # the undocumented "is_behavior" flag, to perform a custom load of data from an hdf5 file
+    # with a particular inner structure. The keys in that file are things like trial_1, trial_12, ..
+    # I refactored this out of load() to improve clarity of that function and to make it more clear
+    # that user code should not do things that way.
 
     if not isinstance(file_name, str):
         raise Exception(f'Invalid type in _load_behavior(); please do not use this function outside of demo_behavior.py')
@@ -2017,7 +1945,7 @@ def sbxreadskip(filename: str, subindices: slice) -> np.ndarray:
         for k in iterable_elements:
             assert k >= 0
             if counter % 100 == 0:
-                print(f'Reading Iteration: {k}')
+                logging.debug(f'Reading Iteration: {k}')
             fo.seek(k * nSamples, 0)
             ii16 = np.iinfo(np.uint16)
             tmp = ii16.max - \
@@ -2086,7 +2014,7 @@ def from_zip_file_to_movie(zipfile_name: str, start_end: Tuple = None) -> Any:
         movie
     '''
     mov: List = []
-    print('unzipping file into movie object')
+    logging.info('unzipping file into movie object')
     if start_end is not None:
         num_frames = start_end[1] - start_end[0]
 
@@ -2103,7 +2031,7 @@ def from_zip_file_to_movie(zipfile_name: str, start_end: Tuple = None) -> Any:
                         mov[counter] = np.array(Image.open(file))
 
                     if counter % 100 == 0:
-                        print([counter, idx])
+                        logging.debug(f"counter/idx: {counter} {idx}")
 
                     counter += 1
 
@@ -2168,13 +2096,13 @@ def rolling_window(ndarr, window_size, stride):
            yield ndarr[:, i + stride:]
 
 
-def load_iter(file_name, subindices=None, var_name_hdf5: str = 'mov', outtype=np.float32,
-              is3D: bool=False):
+def load_iter(file_name: Union[str, List[str]], subindices=None, var_name_hdf5: str='mov',
+              outtype=np.float32, is3D: bool=False):
     """
     load iterator over movie from file. Supports a variety of formats. tif, hdf5, avi.
 
     Args:
-        file_name: string
+        file_name:  string or List[str]
             name of file. Possible extensions are tif, avi and hdf5
 
         subindices: iterable indexes
@@ -2195,100 +2123,417 @@ def load_iter(file_name, subindices=None, var_name_hdf5: str = 'mov', outtype=np
 
         Exception 'File not found!'
     """
-    if os.path.exists(file_name):
-        extension = os.path.splitext(file_name)[1].lower()
-        if extension in ('.tif', '.tiff', '.btf'):
-            Y = tifffile.TiffFile(file_name).series[0]
-            dims = Y.shape[1:]
-            if len(dims)==3: # volumetric 3D data w/ multiple volumes per file
-                vol = np.empty(dims, dtype=outtype)
-                i = 0  # plane counter
-                if subindices is not None:
-                    if isinstance(subindices, slice):
-                        subindices = range(subindices.start,
-                        len(Y) if subindices.stop is None else subindices.stop,
-                        1 if subindices.step is None else subindices.step)
-                    t = 0  # volume counter
-                    for y in Y:
-                        if t in subindices:
-                            vol[i] = y.asarray()
-                        i += 1
-                        if i == dims[0]:
-                            i = 0
-                            if t in subindices:
-                                yield vol
-                            t +=1
-                else:
-                    for y in Y:
-                        vol[i] = y.asarray()
-                        i += 1
-                        if i == dims[0]:
-                            i = 0
-                            yield vol
-            elif len(dims) < 3 and is3D: # volumetric 3D data w/ 1 volume per file
-                yield load(file_name, subindices=subindices, outtype=outtype, is3D=is3D)
-            else: # 2D data
-                if subindices is not None:
-                    if isinstance(subindices, range):
-                        subindices = slice(subindices.start, subindices.stop, subindices.step)
-                    Y = Y[subindices]
-                for frame in Y:
-                    yield frame.asarray().astype(outtype)
-        elif extension in ('.avi', '.mkv'):
-            cap = cv2.VideoCapture(file_name)
-            if subindices is None:
-                while True:
-                    ret, frame = cap.read()
-                    if ret:
-                        yield frame[..., 0].astype(outtype)
-                    else:
-                        cap.release()
-                        return
-                        #raise StopIteration
-            else:
-                if isinstance(subindices, slice):
-                    subindices = range(
-                        subindices.start,
-                        int(cap.get(cv2.CAP_PROP_FRAME_COUNT)) if subindices.stop is None else subindices.stop,
-                        1 if subindices.step is None else subindices.step)
-                t = 0
-                for ind in subindices:
-#                    cap.set(1, ind)
-#                    ret, frame = cap.read()
-#                    if ret:
-#                        yield frame[..., 0]
-#                    else:
-#                        raise StopIteration
-                    while t <= ind:
-                        ret, frame = cap.read()
-                        t += 1
-                    if ret:
-                        yield frame[..., 0].astype(outtype)
-                    else:
-                        return
-                        #raise StopIteration
-                cap.release()
-
-                return
-                #raise StopIteration
-        elif extension in ('.hdf5', '.h5', '.nwb', '.mat'):
-            with h5py.File(file_name, "r") as f:
-                Y = f.get('acquisition/' + var_name_hdf5 + '/data'
-                           if extension == '.nwb' else var_name_hdf5)
-                if subindices is None:
-                    for y in Y:
-                        yield y.astype(outtype)
-                else:
-                    if isinstance(subindices, slice):
-                        subindices = range(subindices.start,
-                                           len(Y) if subindices.stop is None else subindices.stop,
-                                           1 if subindices.step is None else subindices.step)
-                    for ind in subindices:
-                        yield Y[ind].astype(outtype)
-        else:  # fall back to memory inefficient version
-            for y in load(file_name, var_name_hdf5=var_name_hdf5,
-                          subindices=subindices, outtype=outtype, is3D=is3D):
-                yield y
+    if isinstance(file_name, list) or isinstance(file_name, tuple):
+        for fname in file_name:
+            iterator = load_iter(fname, subindices, var_name_hdf5, outtype)
+            while True:
+                try:
+                    yield next(iterator)
+                except:
+                    break
     else:
-        logging.error(f"File request:[{file_name}] not found!")
-        raise Exception('File not found!')
+        if os.path.exists(file_name):
+            extension = os.path.splitext(file_name)[1].lower()
+            if extension in ('.tif', '.tiff', '.btf'):
+                Y = tifffile.TiffFile(file_name).series[0]
+                dims = Y.shape[1:]
+                if len(dims)==3: # volumetric 3D data w/ multiple volumes per file
+                    vol = np.empty(dims, dtype=outtype)
+                    i = 0  # plane counter
+                    if subindices is not None:
+                        if isinstance(subindices, slice):
+                            subindices = range(subindices.start,
+                            len(Y) if subindices.stop is None else subindices.stop,
+                            1 if subindices.step is None else subindices.step)
+                        t = 0  # volume counter
+                        for y in Y:
+                            if t in subindices:
+                                vol[i] = y.asarray()
+                            i += 1
+                            if i == dims[0]:
+                                i = 0
+                                if t in subindices:
+                                    yield vol
+                                t +=1
+                    else:
+                        for y in Y:
+                            vol[i] = y.asarray()
+                            i += 1
+                            if i == dims[0]:
+                                i = 0
+                                yield vol
+                elif len(dims) < 3 and is3D: # volumetric 3D data w/ 1 volume per file
+                    yield load(file_name, subindices=subindices, outtype=outtype, is3D=is3D)
+                else: # 2D data
+                    if subindices is not None:
+                        if isinstance(subindices, range):
+                            subindices = slice(subindices.start, subindices.stop, subindices.step)
+                        Y = Y[subindices]
+                    for frame in Y:
+                        yield frame.asarray().astype(outtype)
+            elif extension in ('.avi', '.mkv'):
+                # First, let's see if OpenCV can handle this AVI file
+                if 'CAIMAN_LOAD_AVI_FORCE_FALLBACK' in os.environ: # User requested we don't even try opencv
+                    logging.debug("Loading AVI/MKV file: PIMS codepath requested")
+                    do_opencv = False
+                else:
+                    cap = cv2.VideoCapture(file_name)
+                    length = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+                    width  = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
+                    height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
+                    if length <= 0 or width <= 0 or height <= 0: # Not a perfect way to do this, but it's a start. Could also do a try/except block?
+                        logging.warning(f"OpenCV failed to parse {file_name}, falling back to pims")
+                        do_opencv = False
+                        # Close up shop, and get ready for the alternative
+                        cap.release()
+                        cv2.destroyAllWindows()
+                    else:
+                        do_opencv = True
+
+                if do_opencv:
+                            if subindices is None:
+                                while True:
+                                    ret, frame = cap.read()
+                                    if ret:
+                                        yield frame[..., 0].astype(outtype)
+                                    else:
+                                        cap.release()
+                                        return
+                            else:
+                                if isinstance(subindices, slice):
+                                    subindices = range(
+                                        subindices.start,
+                                        length if subindices.stop is None else subindices.stop,
+                                        1 if subindices.step is None else subindices.step)
+                                t = 0
+                                for ind in subindices:
+                                    # todo fix: wastefully reading frames until it hits the desired frame
+                                    while t <= ind:
+                                        ret, frame = cap.read() # this skips frames before beginning of window of interest
+                                        t += 1
+                                    if ret:
+                                        yield frame[..., 0].astype(outtype)
+                                    else:
+                                        return
+                                cap.release()
+                                return
+                else: # Try pims fallback
+                    pims_movie = pims.Video(file_name) # This is a lazy operation
+                    length = len(pims_movie) # Hopefully this won't de-lazify it
+                    height, width = pims_movie.frame_shape[0:2] # shape is (h, w, channels)
+                    if length <= 0 or width <= 0 or height <= 0:
+                        raise OSError(f"pims fallback failed to handle AVI file {file_name}. Giving up")
+
+                    if subindices is None:
+                        for i in range(len(pims_movie)): # iterate over the frames
+                            yield rgb2gray(pims_movie[i])
+                        return
+                    else:
+                        if isinstance(subindices, slice):
+                            subindices = range(subindices.start,
+                                               length if subindices.stop is None else subindices.stop,
+                                               1 if subindices.step is None else subindices.step)
+                        for ind in subindices:
+                            frame = rgb2gray(pims_movie[ind])
+                            yield frame # was frame[..., 0].astype(outtype)
+                        return
+                
+            elif extension in ('.hdf5', '.h5', '.nwb', '.mat'):
+                with h5py.File(file_name, "r") as f:
+                    ignore_keys = ['__DATA_TYPES__'] # Known metadata that tools provide, add to this as needed.
+                    fkeys = list(filter(lambda x: x not in ignore_keys, f.keys()))
+                    if len(fkeys) == 1 and 'Dataset' in str(type(f[fkeys[0]])): # If the hdf5 file we're parsing has only one dataset inside it,
+                                                                                # ignore the arg and pick that dataset
+                        var_name_hdf5 = fkeys[0]
+                    Y = f.get('acquisition/' + var_name_hdf5 + '/data'
+                            if extension == '.nwb' else var_name_hdf5)
+                    if subindices is None:
+                        for y in Y:
+                            yield y.astype(outtype)
+                    else:
+                        if isinstance(subindices, slice):
+                            subindices = range(subindices.start,
+                                            len(Y) if subindices.stop is None else subindices.stop,
+                                            1 if subindices.step is None else subindices.step)
+                        for ind in subindices:
+                            yield Y[ind].astype(outtype)
+            else:  # fall back to memory inefficient version
+                for y in load(file_name, var_name_hdf5=var_name_hdf5,
+                            subindices=subindices, outtype=outtype, is3D=is3D):
+                    yield y
+        else:
+            logging.error(f"File request:[{file_name}] not found!")
+            raise Exception('File not found!')
+
+
+def play_movie(movie,
+               gain: float = 1.0,
+               fr=None,
+               magnification: float = 1.0,
+               offset: float = 0.0,
+               interpolation=cv2.INTER_LINEAR,
+               backend: str = 'opencv',
+               do_loop: bool = False,
+               bord_px=None,
+               q_max: float = 99.75,
+               q_min: float = 1,
+               plot_text: bool = False,
+               save_movie: bool = False,
+               opencv_codec: str = 'H264',
+               movie_name: str = 'movie.avi',
+               var_name_hdf5: str = 'mov',
+               subindices = slice(None),
+               tsub: int = 1) -> None:
+    """
+    Play the movie using opencv
+
+    Args:
+        movie: movie object, or filename or list of filenames
+
+        gain: adjust movie brightness
+
+        fr: framerate, playing speed if different from original (inter frame interval in seconds)
+
+        magnification: float
+            magnification factor
+
+        offset: (undocumented)
+
+        interpolation:
+            interpolation method for 'opencv' and 'embed_opencv' backends
+
+        backend: 'pylab', 'notebook', 'opencv' or 'embed_opencv'; the latter 2 are much faster
+
+        do_loop: Whether to loop the video
+
+        bord_px: int
+            truncate pixels from the borders
+
+        q_max, q_min: float in [0, 100]
+             percentile for maximum/minimum plotting value
+
+        plot_text: bool
+            show some text
+
+        save_movie: bool
+            flag to save an avi file of the movie
+
+        opencv_codec: str
+            FourCC video codec for saving movie. Check http://www.fourcc.org/codecs.php
+
+        movie_name: str
+            name of saved file
+
+        var_name_hdf5: str
+            if loading from hdf5/n5 name of the dataset inside the file to load (ignored if the file only has one dataset)
+
+        subindices: iterable indexes
+            for playing only a portion of the movie
+
+        tsub: int
+            temporal downsampling factor
+
+    Raises:
+        Exception 'Unknown backend!'
+    """
+    # todo: todocument
+    it = True if (isinstance(movie, list) or isinstance(movie, tuple) or isinstance(movie, str)) else False
+    if backend == 'pylab':
+        logging.warning('*** WARNING *** SPEED MIGHT BE LOW. USE opencv backend if available')
+
+    gain *= 1.     # convert to float in case we were passed an int
+    if q_max < 100:
+        maxmov = np.nanpercentile(load(movie, subindices=slice(0,10), var_name_hdf5=var_name_hdf5) if it else movie[0:10], q_max)
+    else:
+        if it:
+            maxmov = -np.inf
+            for frame in load_iter(movie, var_name_hdf5=var_name_hdf5):
+                maxmov = max(maxmov, np.nanmax(frame))
+        else:
+            maxmov = np.nanmax(movie)
+
+    if q_min > 0:
+        minmov = np.nanpercentile(load(movie, subindices=slice(0,10), var_name_hdf5=var_name_hdf5) if it else movie[0:10], q_min)
+    else:
+        if it:
+            minmov = np.inf
+            for frame in load_iter(movie, var_name_hdf5=var_name_hdf5):
+                minmov = min(minmov, np.nanmin(frame))
+        else:
+            minmov = np.nanmin(movie)
+
+    def process_frame(iddxx, frame, bord_px, magnification, interpolation, minmov, maxmov, gain, offset, plot_text):
+        if bord_px is not None and np.sum(bord_px) > 0:
+            frame = frame[bord_px:-bord_px, bord_px:-bord_px]
+        if magnification != 1:
+            frame = cv2.resize(frame, None, fx=magnification, fy=magnification, interpolation=interpolation)
+        frame = (offset + frame - minmov) * gain / (maxmov - minmov)
+
+        if plot_text == True:
+            text_width, text_height = cv2.getTextSize('Frame = ' + str(iddxx),
+                                                        fontFace=5,
+                                                        fontScale=0.8,
+                                                        thickness=1)[0]
+            cv2.putText(frame,
+                        'Frame = ' + str(iddxx),
+                        ((frame.shape[1] - text_width) // 2, frame.shape[0] - (text_height + 5)),
+                        fontFace=5,
+                        fontScale=0.8,
+                        color=(255, 255, 255),
+                        thickness=1)
+        return frame
+
+    if backend == 'pylab':
+        pl.ion()
+        fig = pl.figure(1)
+        ax = fig.add_subplot(111)
+        ax.set_title("Play Movie")
+        im = ax.imshow((offset + (load(movie, subindices=slice(0,2), var_name_hdf5=var_name_hdf5) if it else movie)[0] - minmov) * gain / (maxmov - minmov + offset),
+                       cmap=pl.cm.gray,
+                       vmin=0,
+                       vmax=1,
+                       interpolation='none')                                            # Blank starting image
+        fig.show()
+        im.axes.figure.canvas.draw()
+        pl.pause(1)
+
+    elif backend == 'notebook':
+        # First set up the figure, the axis, and the plot element we want to animate
+        fig = pl.figure()
+        im = pl.imshow(next(load_iter(movie, subindices=slice(0,1), var_name_hdf5=var_name_hdf5))\
+                    if it else movie[0], interpolation='None', cmap=pl.cm.gray)
+        pl.axis('off')
+
+        if it:
+            m_iter = load_iter(movie, subindices, var_name_hdf5)
+            def animate(i):
+                try:
+                    frame_sum = 0
+                    for _ in range(tsub):
+                        frame_sum += next(m_iter)
+                    im.set_data(frame_sum / tsub)
+                except StopIteration:
+                    pass
+                return im,
+        else:
+            def animate(i):
+                im.set_data(movie[i*tsub:(i+1)*tsub].mean(0))
+                return im,
+
+        # call the animator.  blit=True means only re-draw the parts that have changed.
+        frames = cm.source_extraction.cnmf.utilities.get_file_size(movie)[-1] if it else movie.shape[0]
+        frames = int(np.ceil(frames / tsub))
+        anim = animation.FuncAnimation(fig, animate, frames=frames, interval=1, blit=True)
+
+        # call our new function to display the animation
+        return visualization.display_animation(anim, fps=fr)
+
+    elif backend == 'embed_opencv':
+        stopButton = widgets.ToggleButton(
+            value=False,
+            description='Stop',
+            disabled=False,
+            button_style='danger', # 'success', 'info', 'warning', 'danger' or ''
+            tooltip='Description',
+            icon='square' # (FontAwesome names without the `fa-` prefix)
+        )
+        def view(button):
+            display_handle=display(None, display_id=True)
+            frame_sum = 0
+            for iddxx, frame in enumerate(load_iter(movie, subindices, var_name_hdf5) if it else movie[subindices]):
+                frame_sum += frame
+                if (iddxx+1) % tsub == 0:
+                    frame = process_frame(iddxx, frame_sum/tsub, bord_px, magnification, interpolation, minmov, maxmov, gain, offset, plot_text)
+                    frame_sum = 0
+                    display_handle.update(Image(data=cv2.imencode(
+                            '.jpg', np.clip((frame * 255.), 0, 255).astype('u1'))[1].tobytes()))
+                    pl.pause(1. / fr)
+                if stopButton.value==True:
+                    break
+        display(stopButton)
+        thread = threading.Thread(target=view, args=(stopButton,))
+        thread.start()
+
+    if fr is None:
+        try:
+            fr = movie.fr
+        except AttributeError:
+            raise Exception('Argument fr is None. You must provide the framerate for playing the movie.')
+
+    looping = True
+    terminated = False
+    if save_movie:
+        fourcc = cv2.VideoWriter_fourcc(*opencv_codec)
+        frame_in = next(load_iter(movie, subindices=slice(0,1), var_name_hdf5=var_name_hdf5))\
+                    if it else movie[0]
+        if bord_px is not None and np.sum(bord_px) > 0:
+            frame_in = frame_in[bord_px:-bord_px, bord_px:-bord_px]
+        out = cv2.VideoWriter(movie_name, fourcc, 30.,
+                              tuple([int(magnification * s) for s in frame_in.shape[1::-1]]))
+    while looping:
+
+        frame_sum = 0
+        for iddxx, frame in enumerate(load_iter(movie, subindices, var_name_hdf5) if it else movie[subindices]):
+            frame_sum += frame
+            if (iddxx+1) % tsub == 0:
+                frame = frame_sum / tsub
+                frame_sum *= 0
+
+                if backend == 'opencv' or (backend == 'embed_opencv' and save_movie):
+                    frame = process_frame(iddxx, frame, bord_px, magnification, interpolation, minmov, maxmov, gain, offset, plot_text)
+                    if backend == 'opencv':
+                        cv2.imshow('frame', frame)
+                    if save_movie:
+                        if frame.ndim < 3:
+                            frame = np.repeat(frame[:, :, None], 3, axis=-1)
+                        frame = np.minimum((frame * 255.), 255).astype('u1')
+                        out.write(frame)
+                    if backend == 'opencv' and (cv2.waitKey(int(1. / fr * 1000)) & 0xFF == ord('q')):
+                        looping = False
+                        terminated = True
+                        break
+
+                elif backend == 'embed_opencv' and not save_movie:
+                    break
+
+                elif backend == 'pylab':
+                    if bord_px is not None and np.sum(bord_px) > 0:
+                        frame = frame[bord_px:-bord_px, bord_px:-bord_px]
+                    im.set_data((offset + frame) * gain / maxmov)
+                    ax.set_title(str(iddxx))
+                    pl.axis('off')
+                    fig.canvas.draw()
+                    pl.pause(1. / fr * .5)
+                    ev = pl.waitforbuttonpress(1. / fr * .5)
+                    if ev is not None:
+                        pl.close()
+                        break
+
+                elif backend == 'notebook':
+                    logging.debug('Animated via MP4')
+                    break
+
+                else:
+                    raise Exception('Unknown backend!')
+
+        if terminated:
+            break
+
+        if save_movie:
+            out.release()
+            save_movie = False
+
+        if do_loop:
+            looping = True
+        else:
+            looping = False
+
+    if backend == 'opencv':
+        cv2.waitKey(100)
+        cv2.destroyAllWindows()
+        for i in range(10):
+            cv2.waitKey(100)
+
+def rgb2gray(rgb):
+    # Standard mathematical conversion
+    return np.dot(rgb[..., :3], [0.299, 0.587, 0.114])

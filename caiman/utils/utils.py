@@ -10,16 +10,7 @@ https://docs.python.org/3/library/urllib.request.htm
 
 """
 
-#\package Caiman/utils
-#\version   1.0
-#\bug
-#\warning
-#\copyright GNU General Public License v2.0
-#\date Created on Tue Jun 30 21:01:17 2015
-#\author: andrea giovannucci
-#\namespace utils
-#\pre none
-
+import certifi
 import cv2
 import h5py
 import multiprocessing
@@ -30,18 +21,19 @@ import numpy as np
 import os
 import pickle
 import scipy
+import ssl
 import subprocess
 import tensorflow as tf
 from scipy.ndimage.filters import gaussian_filter
 from tifffile import TiffFile
 from typing import Any, Dict, List, Tuple, Union, Iterable
+from urllib.request import urlopen
 
 try:
     cv2.setNumThreads(0)
 except:
     pass
 
-from urllib.request import urlopen
 
 from ..external.cell_magic_wand import cell_magic_wand
 from ..source_extraction.cnmf.spatial import threshold_components
@@ -72,25 +64,29 @@ def download_demo(name:str='Sue_2x_3000_40_-46.tif', save_folder:str='') -> str:
     #\bug
     #\warning
 
-    file_dict = {'Sue_2x_3000_40_-46.tif': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/Sue_2x_3000_40_-46.tif',
-                 'demoMovieJ.tif': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/demoMovieJ.tif',
-                 'demo_behavior.h5': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/demo_behavior.h5',
-                 'k53.tif': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/k53.tif',
-                 'k53_ROIs.hdf5': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/k53_ROIs.hdf5',
-                 'Tolias_mesoscope_1.hdf5': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/Tolias_mesoscope_1.hdf5',
-                 'Tolias_mesoscope_2.hdf5': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/Tolias_mesoscope_2.hdf5',
-                 'Tolias_mesoscope_3.hdf5': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/Tolias_mesoscope_3.hdf5',
-                 'data_endoscope.tif': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/data_endoscope.tif',
-                 'gmc_960_30mw_00001_red.tif': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/gmc_960_30mw_00001_red.tif',
-                 'gmc_960_30mw_00001_green.tif': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/gmc_960_30mw_00001_green.tif',
-                 'msCam13.avi': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/msCam13.avi',
-                 'alignment.pickle': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/alignment.pickle',
-                 'data_dendritic.tif': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/2014-04-05-003.tif',
-                 'blood_vessel_10Hz.mat': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/blood_vessel_10Hz.mat',
-                 'online_vs_offline.npz': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/online_vs_offline.npz',
-                 'demo_voltage_imaging_ROIs.hdf5': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/demo_voltage_imaging_ROIs.hdf5',
-                 'demo_voltage_imaging.hdf5': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/demo_voltage_imaging.hdf5', 
-                 'demo_voltage_imaging_summary_images.tif': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/demo_voltage_imaging_summary_images.tif'}
+    file_dict = {
+		'Sue_2x_3000_40_-46.tif': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/Sue_2x_3000_40_-46.tif',
+		'Sue_Split1.tif': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/Sue_Split1.tif',
+		'Sue_Split2.tif': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/Sue_Split2.tif',
+                'Tolias_mesoscope_1.hdf5': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/Tolias_mesoscope_1.hdf5',
+                'Tolias_mesoscope_2.hdf5': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/Tolias_mesoscope_2.hdf5',
+                'Tolias_mesoscope_3.hdf5': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/Tolias_mesoscope_3.hdf5',
+                'alignment.pickle': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/alignment.pickle',
+                'blood_vessel_10Hz.mat': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/blood_vessel_10Hz.mat',
+                'data_dendritic.tif': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/2014-04-05-003.tif',
+                'data_endoscope.tif': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/data_endoscope.tif',
+                'demoMovieJ.tif': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/demoMovieJ.tif',
+                'demo_behavior.h5': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/demo_behavior.h5',
+                'demo_voltage_imaging_ROIs.hdf5': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/demo_voltage_imaging_ROIs.hdf5',
+                'demo_voltage_imaging.hdf5': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/demo_voltage_imaging.hdf5', 
+                'demo_voltage_imaging_summary_images.tif': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/demo_voltage_imaging_summary_images.tif',
+                'gmc_960_30mw_00001_red.tif': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/gmc_960_30mw_00001_red.tif',
+                'gmc_960_30mw_00001_green.tif': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/gmc_960_30mw_00001_green.tif',
+                'k53.tif': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/k53.tif',
+                'k53_ROIs.hdf5': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/k53_ROIs.hdf5',
+                'msCam13.avi': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/msCam13.avi',
+                'online_vs_offline.npz': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/online_vs_offline.npz',
+		}
                  #          ,['./example_movies/demoMovie.tif','https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/demoMovie.tif']]
     base_folder = os.path.join(caiman_datadir(), 'example_movies')
     if os.path.exists(base_folder):
@@ -101,22 +97,25 @@ def download_demo(name:str='Sue_2x_3000_40_-46.tif', save_folder:str='') -> str:
             url = file_dict[name]
             logging.info(f"downloading {name} with urllib")
             logging.info(f"GET {url} HTTP/1.1")
+            if os.name == 'nt':
+                urllib_context = ssl.create_default_context(cafile = certifi.where() ) # On windows we need to avoid the limited default cert store
+            else:
+                urllib_context = None # Defaults are fine for Linux and OSX
             try:
-                f = urlopen(url)
+                f = urlopen(url, context=urllib_context)
             except:
                 logging.info(f"Trying to set user agent to download demo")
                 from urllib.request import Request
                 req = Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-                f = urlopen(req)
-                
-                
+                f = urlopen(req, context=urllib_context)
+
             data = f.read()
             with open(path_movie, "wb") as code:
                 code.write(data)
         else:
-            logging.info("File " + str(name) + " already downloaded")
+            logging.info(f"File {name} already downloaded")
     else:
-        raise Exception('Cannot find the example_movies folder in your caiman_datadir - did you make one with caimanmanager.py?')
+        raise Exception('Cannot find the example_movies folder in your caiman_datadir - did you make one with caimanmanager?')
     return path_movie
 
 
@@ -151,21 +150,25 @@ def download_model(name:str='mask_rcnn', save_folder:str='') -> str:
             url = file_dict[name]
             logging.info(f"downloading {name} with urllib")
             logging.info(f"GET {url} HTTP/1.1")
+            if os.name == 'nt':
+                urllib_context = ssl.create_default_context(cafile = certifi.where() ) # On windows we need to avoid the limited default cert store
+            else:
+                urllib_context = None # Defaults are fine for Linux and OSX
             try:
-                f = urlopen(url)
+                f = urlopen(url, context=urllib_context)
             except:
                 logging.info(f"Trying to set user agent to download demo")
                 from urllib.request import Request
                 req = Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-                f = urlopen(req)
-                                
+                f = urlopen(req, context=urllib_context)
+
             data = f.read()
             with open(path_movie, "wb") as code:
                 code.write(data)
         else:
             logging.info("File " + str(name) + " already downloaded")
     else:
-        raise Exception('Cannot find the model folder in your caiman_datadir - did you make one with caimanmanager.py?')
+        raise Exception('Cannot find the model folder in your caiman_datadir - did you make one with caimanmanager?')
     return path_movie
 
 

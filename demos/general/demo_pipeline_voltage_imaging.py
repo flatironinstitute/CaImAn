@@ -7,9 +7,11 @@ objects and call the relevant functions. See inside for detail.
 Dataset courtesy of Karel Svoboda Lab (Janelia Research Campus).
 author: @caichangjia
 """
+#%%
 import cv2
 import glob
 import h5py
+from IPython import get_ipython
 import logging
 import matplotlib.pyplot as plt
 import numpy as np
@@ -22,10 +24,10 @@ except:
 
 try:
     if __IPYTHON__:
-        # this is used for debugging purposes only. allows to reload classes
-        # when changed
-        get_ipython().magic('load_ext autoreload')
-        get_ipython().magic('autoreload 2')
+        ipython = get_ipython()
+        ipython.run_line_magic('load_ext', 'autoreload')
+        ipython.run_line_magic('autoreload', '2')
+        ipython.run_line_magic('matplotlib', 'qt')
 except NameError:
     pass
 
@@ -51,14 +53,14 @@ logging.basicConfig(format=
 
 # %%
 def main():
-    pass  # For compatibility between running under Spyder and the CLI
+    pass  # For compatibility between running using an IDE and the CLI
 
     # %%  Load demo movie and ROIs
     fnames = download_demo('demo_voltage_imaging.hdf5', 'volpy')  # file path to movie file (will download if not present)
     path_ROIs = download_demo('demo_voltage_imaging_ROIs.hdf5', 'volpy')  # file path to ROIs file (will download if not present)
     file_dir = os.path.split(fnames)[0]
     
-#%% dataset dependent parameters
+    #%% dataset dependent parameters
     # dataset dependent parameters
     fr = 400                                        # sample rate of the movie
 
@@ -86,22 +88,21 @@ def main():
 
     opts = volparams(params_dict=opts_dict)
 
-# %% play the movie (optional)
+    # %% play the movie (optional)
     # playing the movie using opencv. It requires loading the movie in memory.
     # To close the movie press q
     display_images = False
-
     if display_images:
         m_orig = cm.load(fnames)
         ds_ratio = 0.2
         moviehandle = m_orig.resize(1, 1, ds_ratio)
         moviehandle.play(q_max=99.5, fr=40, magnification=4)
 
-# %% start a cluster for parallel processing
+    # %% start a cluster for parallel processing
     c, dview, n_processes = cm.cluster.setup_cluster(
-        backend='local', n_processes=None, single_thread=False)
+        backend='multiprocessing', n_processes=None, single_thread=False)
 
-# %%% MOTION CORRECTION
+    # %%% MOTION CORRECTION
     # first we create a motion correction object with the specified parameters
     mc = MotionCorrect(fnames, dview=dview, **opts.get_group('motion'))
     # Run correction
@@ -114,7 +115,7 @@ def main():
         mc.mmap_file = [os.path.join(file_dir, mc_list[0])]
         print(f'reuse previously saved motion corrected file:{mc.mmap_file}')
 
-# %% compare with original movie
+    # %% compare with original movie
     if display_images:
         m_orig = cm.load(fnames)
         m_rig = cm.load(mc.mmap_file)
@@ -123,7 +124,7 @@ def main():
                                       m_rig.resize(1, 1, ds_ratio)], axis=2)
         moviehandle.play(fr=40, q_max=99.5, magnification=4)  # press q to exit
 
-# %% MEMORY MAPPING
+    # %% MEMORY MAPPING
     do_memory_mapping = True
     if do_memory_mapping:
         border_to_0 = 0 if mc.border_nan == 'copy' else mc.border_to_0
@@ -140,7 +141,7 @@ def main():
         fname_new = os.path.join(file_dir, mmap_list[0])
         print(f'reuse previously saved memory mapping file:{fname_new}')
     
-# %% SEGMENTATION
+    # %% SEGMENTATION
     # create summary images
     img = mean_image(mc.mmap_file[0], window = 1000, dview=dview)
     img = (img-np.mean(img))/np.std(img)
@@ -156,7 +157,7 @@ def main():
     cm.movie(summary_images).save(fnames[:-5] + '_summary_images.tif')
     fig, axs = plt.subplots(1, 2)
     axs[0].imshow(summary_images[0]); axs[1].imshow(summary_images[2])
-    axs[0].set_title('mean image'); axs[1].set_title('corr image')
+    axs[0].set_title('mean image'); axs[1].set_title('corr image');
 
     #%% methods for segmentation
     methods_list = ['manual_annotation',       # manual annotations need prepared annotated datasets in the same format as demo_voltage_imaging_ROIs.hdf5 
@@ -185,12 +186,12 @@ def main():
     axs[0].imshow(summary_images[0]); axs[1].imshow(ROIs.sum(0))
     axs[0].set_title('mean image'); axs[1].set_title('masks')
         
-# %% restart cluster to clean up memory
+    # %% restart cluster to clean up memory
     cm.stop_server(dview=dview)
     c, dview, n_processes = cm.cluster.setup_cluster(
-        backend='local', n_processes=None, single_thread=False, maxtasksperchild=1)
+        backend='multiprocessing', n_processes=None, single_thread=False, maxtasksperchild=1)
 
-# %% parameters for trace denoising and spike extraction
+    # %% parameters for trace denoising and spike extraction
     ROIs = ROIs                                   # region of interests
     index = list(range(len(ROIs)))                # index of neurons
     weights = None                                # if None, use ROIs for initialization; to reuse weights check reuse weights block 
@@ -233,25 +234,25 @@ def main():
 
     opts.change_params(params_dict=opts_dict);          
 
-#%% TRACE DENOISING AND SPIKE DETECTION
+    #%% TRACE DENOISING AND SPIKE DETECTION
     vpy = VOLPY(n_processes=n_processes, dview=dview, params=opts)
-    vpy.fit(n_processes=n_processes, dview=dview)
+    vpy.fit(n_processes=n_processes, dview=dview);
    
-#%% visualization
+    #%% visualization
     display_images = True
     if display_images:
         print(np.where(vpy.estimates['locality'])[0])    # neurons that pass locality test
         idx = np.where(vpy.estimates['locality'] > 0)[0]
         utils.view_components(vpy.estimates, img_corr, idx)
     
-#%% reconstructed movie
-# note the negative spatial weights is cutoff    
+    #%% reconstructed movie 
+    # note the negative spatial weights are cutoff    
     if display_images:
         mv_all = utils.reconstructed_movie(vpy.estimates.copy(), fnames=mc.mmap_file,
                                            idx=idx, scope=(0,1000), flip_signal=flip_signal)
         mv_all.play(fr=40, magnification=3)
     
-#%% save the result in .npy format 
+    #%% save the result in .npy format 
     save_result = True
     if save_result:
         vpy.estimates['ROIs'] = ROIs
@@ -259,8 +260,8 @@ def main():
         save_name = f'volpy_{os.path.split(fnames)[1][:-5]}_{threshold_method}'
         np.save(os.path.join(file_dir, save_name), vpy.estimates)
         
-#%% reuse weights 
-# set weights = reuse_weights in opts_dict dictionary
+    #%% reuse weights 
+    # set weights = reuse_weights in opts_dict dictionary
     estimates = np.load(os.path.join(file_dir, save_name+'.npy'), allow_pickle=True).item()
     reuse_weights = []
     for idx in range(ROIs.shape[0]):
@@ -269,14 +270,15 @@ def main():
         plt.figure(); plt.imshow(w);plt.colorbar(); plt.show()
         reuse_weights.append(w)
     
-# %% STOP CLUSTER and clean up log files
+    # %% STOP CLUSTER and clean up log files
     cm.stop_server(dview=dview)
     log_files = glob.glob('*_LOG_*')
     for log_file in log_files:
         os.remove(log_file)
 
 # %%
-# This is to mask the differences between running this demo in Spyder
+# This is to mask the differences between running this demo in an IDE
 # versus from the CLI
 if __name__ == "__main__":
     main()
+

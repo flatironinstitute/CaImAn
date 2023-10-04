@@ -37,7 +37,9 @@ More features will be added in the future.
 External interfaces
 -------------------
 
-A couple of very nice GUIs that directly call CaImAn have been developed recently
+A couple of very nice visualization tools that directly call CaImAn have been developed recently
 by external researchers. For more information please check the following projects:
 
-  - `MESmerize <http://www.mesmerizelab.org/>`_ (Python)
+  - `mesmerize-core <https://github.com/nel-lab/mesmerize-core>`_ - also simplifies grid search for parameter tuning
+  - `mesmerize-viz <https://github.com/kushalkolar/mesmerize-viz>`_ (WIP) - Widgets for calcium imaging analysis visualization in notebooks
+  - `fastplotlib <https://github.com/kushalkolar/fastplotlib>`_ - a fast plotting library that has been built with calcium imaging and neuroscience in mind

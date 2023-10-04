@@ -2,21 +2,25 @@ channels:
 - conda-forge
 dependencies:
 - python >=3.10
-- bokeh
+- av
+- bokeh >=3.1.1
 - coverage
 - cython
 - h5py
-- holoviews =1.15.2
+- holoviews >=1.16.2
 - ipykernel
 - ipython
 - ipyparallel
 - jupyter
+- jupyter_bokeh
 - matplotlib
+- moviepy
 - mypy
 - nose
-- numpy
+- numpy <2.0.0
 - numpydoc
 - opencv
+- panel >=1.0.2
 - peakutils
 - pims
 - psutil
@@ -24,8 +28,8 @@ dependencies:
 - pyqtgraph
 - scikit-image >=0.19.0
 - scikit-learn >=1.2
-- scipy
-- tensorflow >= 2.4.0
+- scipy >= 1.10.1
+- tensorflow >=2.4.0
 - tifffile
 - tk
 - tqdm

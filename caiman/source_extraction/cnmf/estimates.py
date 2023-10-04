@@ -5,7 +5,7 @@ Created on Thu Jul 12 11:11:45 2018
 
 @author: epnevmatikakis
 """
-
+import bokeh
 import logging
 import matplotlib.pyplot as plt
 import numpy as np
@@ -249,7 +249,6 @@ class Estimates(object):
                 set of dictionary containing the various parameters
         """
         try:
-            import bokeh
             if 'csc_matrix' not in str(type(self.A)):
                 self.A = scipy.sparse.csc_matrix(self.A)
             if self.dims is None:
@@ -282,8 +281,8 @@ class Estimates(object):
                                 self.dims[0], self.dims[1], coordinates=coor_g,
                                 thr_method=thr_method, thr=thr, show=False,
                                 line_color=line_color, cmap=cmap)
-                p1.plot_width = 450
-                p1.plot_height = 450 * self.dims[0] // self.dims[1]
+                p1.width = 450
+                p1.height = 450 * self.dims[0] // self.dims[1]
                 p1.title.text = "Accepted Components"
                 if params is not None:
                     p1.xaxis.axis_label = '''\
@@ -296,8 +295,8 @@ class Estimates(object):
                                 self.dims[0], self.dims[1], coordinates=coor_b,
                                 thr_method=thr_method, thr=thr, show=False,
                                 line_color=line_color, cmap=cmap)
-                p2.plot_width = 450
-                p2.plot_height = 450 * self.dims[0] // self.dims[1]
+                p2.width = 450
+                p2.height = 450 * self.dims[0] // self.dims[1]
                 p2.title.text = 'Rejected Components'
                 if params is not None:
                     p2.xaxis.axis_label = '''\
@@ -307,9 +306,9 @@ class Estimates(object):
                                use_cnn=params.quality['use_cnn'])
                 bokeh.plotting.show(bokeh.layouts.row(p1, p2))
         except:
-            print("Bokeh could not be loaded. Either it is not installed or you are not running within a notebook")
+            print("Error with bokeh plotter.")
             print("Using non-interactive plot as fallback")
-            self.plot_contours(img=img, idx=idx, crd=crd, thr_method=thr_method,
+            self.plot_contours(img=img, idx=idx, thr_method=thr_method,
                                thr=thr, params=params, cmap=cmap)
         return self
 
@@ -385,7 +384,7 @@ class Estimates(object):
 
         plt.ion()
         nr, T = self.C.shape
-        if self.R is None or self.R == b'NoneType':
+        if self.R is None or not isinstance(self.R, np.ndarray):
             self.R = self.YrA
         if self.R.shape != [nr, T]:
             if self.YrA is None:
@@ -437,7 +436,7 @@ class Estimates(object):
 
         plt.ion()
         nr, T = self.C.shape
-        if self.R is None or self.R == b'NoneType':
+        if self.R is None or not isinstance(self.R, np.ndarray):
             self.R = self.YrA
         if self.R.shape != (nr, T):
             if self.YrA is None:
@@ -504,7 +503,7 @@ class Estimates(object):
             dims = self.dims
         plt.ion()
         nr, T = self.C.shape
-        if self.R is None or self.R == b'NoneType':
+        if self.R is None or not isinstance(self.R, np.ndarray):
             self.R = self.YrA
         if self.R.shape != [nr, T]:
             if self.YrA is None:

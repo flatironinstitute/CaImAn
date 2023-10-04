@@ -3,67 +3,99 @@
 
 CaImAn
 ======
-<img src="https://github.com/flatironinstitute/CaImAn/blob/main/docs/LOGOS/Caiman_logo_FI.png" width="500" align="right">
+<img src="https://github.com/flatironinstitute/CaImAn/blob/main/docs/LOGOS/Caiman_logo_FI.png" width="400" align="right">
 
-A Python toolbox for large scale **Ca**lcium **Im**aging data **An**alysis and behavioral analysis.
+A Python toolbox for large-scale **Ca**lcium **Im**aging **An**alysis.    
 
-CaImAn implements a set of essential methods required in the analysis pipeline of large scale calcium imaging data. Fast and scalable algorithms are implemented for motion correction, source extraction, spike deconvolution, and component registration across multiple days. It is suitable for both two-photon and one-photon fluorescence microscopy data, and can be run in both batch and online modes. CaImAn also contains some routines for the analysis of behavior from video cameras. A list of features as well as relevant references can be found [here](https://caiman.readthedocs.io/en/latest/CaImAn_features_and_references.html).
+CaImAn implements a set of essential methods required to analyze calcium and voltage imaging data. It provides fast and scalable algorithms for motion correction, source extraction, spike deconvolution, and registering neurons across multiple sessions. It is suitable for both two-photon and one-photon fluorescence microscopy data, and can be run in both offline and online modes. Documentation is [here](https://caiman.readthedocs.io/en/latest/). 
 
-## Requirements
+# Quick start :rocket:
+Follow these three steps to get started quickly, from installation to working through a demo notebook. If you do not already have conda installed, [you can find it here](https://docs.conda.io/en/latest/miniconda.html).
 
-Right now, CaImAn works and is supported on the following platforms:
-* Linux on 64-bit x86 CPUs
-* MacOS on 64-bit x86 CPUs
-* Windows on 64-bit x86 CPUs
+### Step 1: Install caiman
+The following is all done in your anaconda prompt, starting in your base environment:
+  
+    conda install -n base -c conda-forge mamba   # install mamba in base environment
+    mamba create -n caiman -c conda-forge caiman # install caiman
+    conda activate caiman  # activate virtual environment
 
-32G RAM is required for a good experience, and depending on datasets, more may be necessary.
+### Step 2: Download code samples and data sets
+Create a working directory called `caiman_data` that includes code samples and related data. Run the following command from the same virtual environment that you created in Step 1:  
 
-CaImAn presently targets Python 3.9. Parts of CaImAn are written in C++, but apart possibly during install, this is not visible to the user. There is also an [older implementation](https://github.com/flatironinstitute/CaImAn-MATLAB) of CaImAn in Matlab (unsupported). That version can be used with [MCMC spike inference](https://github.com/epnev/continuous_time_ca_sampler) 
+    caimanmanager install
 
-### Other hardware
-* ARM-based versions of Apple hardware work (if on a 16G model), but currently happen under x86 emulation and we cannot support them as well. A native OSX port is planned for late 2021/early 2022.
-* Support for Linux on ARM (e.g. AWS Graviton) is not available (but it may work with the port of conda, if you compile Caiman yourself - we do not have binary packages and this is untested). If you care about this, please let us know.
+### Step 3: Try out a demo notebook
+Go into the working directory you created in Step 2, and open a Jupyter notebook:
+
+    cd <your home>/caiman_data/demos/notebooks  
+    jupyter notebook 
+
+Jupyter will open. Click on `demo_pipeline.ipynb` to get started with a demo! 
+
+> Note that what counts as `<your home>` in the first line depends on your OS/computer. Be sure to fill in your actual home directory. On Linux/Mac it is `~` while on Windows it will be something like `C:\Users\your_user_name\` 
+
+## For installation help
+Caiman should install easily on Linux, Mac, and Windows. If you run into problems, we have a dedicated [installation page](./docs/source/Installation.rst): the details there should help you troubleshoot. If you don't find what you need there, *please* send us a [message on Gitter](https://app.gitter.im/#/room/#agiovann_Constrained_NMF:gitter.im), and we will help you get it sorted out. 
+
+# Demo notebooks :page_with_curl:
+Caiman provides demo notebooks to present each of our main pipelines, from motion correction to online CNMF. Once you've gotten things set up, the best way to get started is to work through the demo notebook that most closely matches your use case; you can adapt it for your particular needs. The notebooks covering the CNMF and CNMFE algorithms have the most details, covering many concepts used in the other notebooks.
+
+The main use cases and notebooks are listed in the following table:
+
+| Use case | Demo notebook | Paper |
+|:-------- |:------------- | --------------------- |
+| CNMF for 2p or low-noise 1p data | [demo_pipeline.ipynb](./demos/notebooks/demo_pipeline.ipynb) |  [Pnevmatikakis et al., 2016](https://pubmed.ncbi.nlm.nih.gov/26774160/) | 
+| CNMFE for 1p data  | [demo_pipeline_cnmfE.ipynb](./demos/notebooks/demo_pipeline_cnmfE.ipynb) |  [Zhou et al., 2018](https://pubmed.ncbi.nlm.nih.gov/29469809/) | 
+| Volpy for voltage data | [demo_pipeline_voltage_imaging.ipynb](./demos/notebooks/demo_pipeline_voltage_imaging.ipynb) |  [Cai et al., 2021](https://pubmed.ncbi.nlm.nih.gov/33852574/) | 
+| Volumetric (3D) CNMF | [demo_caiman_cnmf_3D.ipynb](./demos/notebooks/demo_caiman_cnmf_3D.ipynb) | [Mentioned in Giovannucci et al., 2019](https://pubmed.ncbi.nlm.nih.gov/30652683/) | 
+| CNMF for dendrites | [demo_dendritic.ipynb](./demos/notebooks/demo_dendritic.ipynb) | Developed by Eftychios Pnevmatikakis | 
+| Online CNMF (OnACID) | [demo_OnACID_mesoscope.ipynb](./demos/notebooks/demo_OnACID_mesoscope.ipynb) |[Giovannucci et al., 2017](https://proceedings.neurips.cc/paper_files/paper/2017/hash/4edaa105d5f53590338791951e38c3ad-Abstract.html) | 
+| Online volumetric CNMF | [demo_online_3D.ipynb](./demos/notebooks/demo_online_3D.ipynb) | Developed by Johannes Friedrich | 
+| Online CNMFE (OnACID-E) | [demo_realtime_cnmfE.ipynb](./demos/notebooks/demo_realtime_cnmfE.ipynb) |[Friedrich et al. 2020](https://pubmed.ncbi.nlm.nih.gov/33507937/) | 
+| Motion correction | [demo_motion_correction.ipynb](./demos/notebooks/demo_motion_correction.ipynb) | [Pnevmatikakis et al., 2017](https://pubmed.ncbi.nlm.nih.gov/28782629/) | 
+| Register cells across sessions | [demo_multisession_registration.ipynb](./demos/notebooks/demo_multisession_registration.ipynb) | [Pnevmatikakis et al., 2016](https://pubmed.ncbi.nlm.nih.gov/26774160/) | 
+
+A comprehensive list of references, where you can find detailed discussion of the methods and their development, can be found [here](https://caiman.readthedocs.io/en/master/CaImAn_features_and_references.html#references). 
 
 
-## Install
+# Questions, help, and next steps 
+In addition to the demos, there are many ways to learn more about Caiman and receive help:
+- [The online documentation](https://caiman.readthedocs.io/en/latest/) contains a lot of general information about Caiman, the parameters, how to interpret its outputs, and more.
+- [GitHub Discussions](https://github.com/flatironinstitute/CaImAn/discussions) is our preferred venue to ask for help.
+- The [Gitter forum](https://app.gitter.im/#/room/#agiovann_Constrained_NMF:gitter.im) is our old forum: we sometimes will ask people to join us there when something can best be solved in real time.
+- If you have found a bug, we recommend searching the [issues at github](https://github.com/flatironinstitute/CaImAn/issues) and opening a new issue if you can't find the solution there. 
+- If there is a feature you would like to see implemented, feel free to come chat at the above forumns or open an issue at Github.
 
-The supported ways to install CaImAn use the Anaconda python distribution. If you do not already have it, first install a 3.x version for your platform from [here](https://docs.conda.io/en/latest/miniconda.html). Familiarise yourself with Conda before going further. If you are using an M1-based Mac, please ignore the ARM builds of conda; install an x86 version instead (ignore any warnings you get while doing so; it will work fine).
+# How to contribute :hammer:
+ Caiman is an open-source project and improves because of contributions from users all over the world. If there is something about Caiman that you would like to work on, then please reach out. We are always looking for more contributors, so please come read the [contributors page](./CONTRIBUTING.md) for more details about how. 
 
-We strongly recommend installing the mamba package into your base environment, with 'conda install -c conda-forge mamba', using it to build your conda environment. Mamba performs the same environment creation tasks that the base conda tool does, but far faster. In the instructions below, we assume you're using mamba, but if you're not, you can run the same commands with the conda tool instead.
+# Videos 
+There are multiple online videos by Andrea Giovannucci from past Caiman workshops/events that are an excellent start for newcomers.
 
-There are a few supported install methods.
+The following talk provides a good high-level introduction to Caiman:    
+https://www.youtube.com/watch?v=5APzPRbzUIA
 
-The easiest (and strongly recommended on Windows) is to use a binary conda package, installed as the environment is built. Install this with 'mamba create -n caiman -c conda-forge caiman'. This is suitable for most use, if you don't need to change the internals of the caiman package. You do not need to fetch the source code with this approach.
+The following talks are more in depth:
 
-Another option is to build it yourself; you will need a working compiler (easy on Linux, fairly easy on OSX, fairly involved on Windows). Clone the sources of this repo, create an environment with all the prereqs with 'mamba env create -n caiman -f environment.yml', activate the environment, and then do a 'pip install .' or 'pip install -e .' The former is a user install, the latter is more suitable for active development on the caiman sources.
+* https://www.youtube.com/watch?v=KjHrjhvhRy0
+* https://www.youtube.com/watch?v=rUwIqU6gVvw
+* https://www.youtube.com/watch?v=NZZ6_zo0YIM
+* https://www.youtube.com/watch?v=z6TlH28MLRo
 
-There are other ways to build/use caiman, but they may get less or no support depending on how different they are.
 
-More detailed docs on installation can be found [here](./docs/source/Installation.rst).
+# Related repositories :pushpin:
+There are many repositories that use Caiman, or help make using Caiman easier.
 
-After installing the software, the caimanmanager.py script (which will be put in your path on Linux and OSX) is used to unpack datafiles and demos into a directory called caiman\_data. Invoke it with the "install" argument.
+* [use\_cases repo](https://github.com/flatironinstitute/caiman_use_cases):  additional code (unmaintained) demonstrating how to reproduce results in some Caiman-related papers, and how to use/extend Caiman.
+* [jnormcorre](https://github.com/apasarkar/jnormcorre): [JAX](https://github.com/google/jax) implementation of NoRMCorre for motion correction using JAX acceleration
+* [funimag](https://github.com/paninski-lab/funimag): matrix decomposition for denoising and compression
+* [mesmerize-core](https://github.com/nel-lab/mesmerize-core): parameter optimization, data organization and visualizations with Caiman
+* [improv](https://github.com/project-improv/improv):  a platform for creating online analysis workflows that lets you use Caiman in real time (e.g., for all-optical experiments)
 
-If you are on Windows, the mechanism to put caimanmanager.py in your path may not work; in this case, you can locate it by typing python to bring up an interactive shell, and then
-```bash
->>> import sysconfig
->>> sysconfig.get_path('scripts')
-```
-You can invoke it as follows:
-```bash
-python C:/PATH/ABOVE/caimanmanager.py install
-```
+If you have questions about these related packages please reach out to their maintainers directly. If you would like your software to be in this list, please contact one of the developers or open an issue.
 
-If you want to use GPU functionality and have a GPU where you're running CaImAn (most likely a Linux system), you'll want, after you build your conda environment, to switch to a GPU build of the tensorflow package (conda list will tell you, after the version string, what build variant you have - you most likely will get an mlk build, but a "conda search -c conda-forge tensorflow" will probably show you some gpu variants you can switch to - pick one appropriate for your conda version, ideally of the same version of tensorflow you otherwise got). If you need help switching versions, reach out to us on the gitter channel.
-
-## Getting Started
-
-If you used caimanmanager to unpack the demos and data files, you will find in the caiman\_data folder a set of demos and jupyter notebooks. demo\_pipeline.py and demo\_behavior.py (or their notebook equivalents) are good introductions to the code.
-
-## Papers and data
-
-### Main paper
-A paper explaining most of the implementation details and benchmarking can be found [here](https://elifesciences.org/articles/38173).
-
+# Citing Caimian and related papers
+If you publish a paper that relied on Caiman, we kindly ask that you [cite Giovannucci et al., 2019](https://elifesciences.org/articles/38173):
 ```
 @article{giovannucci2019caiman,
   title={CaImAn: An open source tool for scalable Calcium Imaging data Analysis},
@@ -75,91 +107,21 @@ A paper explaining most of the implementation details and benchmarking can be fo
   publisher={eLife Sciences Publications Limited}
 }
 ```
-
-All the results and figures of the paper can be regenerated using this package. For more information visit this [page](https://github.com/flatironinstitute/caiman_use_cases/tree/master/use_cases/eLife_scripts).
-
-CaImAn implements a variety of algorithms for analyzing calcium (and voltage) imaging data. A list of references that provide the theoretical background and original code for the included methods can be found [here](https://caiman.readthedocs.io/en/latest/CaImAn_features_and_references.html). 
- 
-If you use this code please cite the corresponding papers where original methods appeared as well the companion paper.
-
-### Videos
-
-These talks by Andrea Giovannucci from past CaImAn workshops/events are an excellent start for newcomers. They go through NoRMCorre, CNMF(E) and VolPy.
-
-Open Neuroscience talks, this is a good high-level introduction to CaImAn:
-
-https://www.youtube.com/watch?v=5APzPRbzUIA
-
-Nemonic workshops, more in depth:
-
-https://www.youtube.com/watch?v=KjHrjhvhRy0
-
-https://www.youtube.com/watch?v=rUwIqU6gVvw
-
-https://www.youtube.com/watch?v=NZZ6_zo0YIM
-
-https://www.youtube.com/watch?v=z6TlH28MLRo
+If possible, we'd also ask that you cite the papers where the original algorithms you use (such as CNMF) were developed. A list of such references can be found [here](https://caiman.readthedocs.io/en/master/CaImAn_features_and_references.html#references). 
 
 
-### Real-time analysis of microendoscopic 1p data
-
-Our online algorithms can be used for real-time analysis of live-streaming data. An example for real-time analysis of microendoscopic 1p data is shown in the notebook `demos/notebooks/demo_realtime_cnmfE.ipynb`.
-For more information about the approach check the [paper](https://doi.org/10.1371/journal.pcbi.1008565).
-
-### Analysis pipeline for Voltage Imaging data
-
-VolPy is an analysis pipeline for voltage imaging data. The analysis is based on following objects:
-
-* `MotionCorrect`: An object for motion correction which can be used for both rigid and piece-wise rigid motion correction.
-* `volparams`: An object for setting parameters of voltage imaging. It can be set and changed easily and is passed into the algorithms.
-* `VOLPY`: An object for running the spike detection algorithm and saving results.
-
-The object detection network Mask R-CNN in VolPy is now compatible with tensorflow 2.4 or above.
-
-To see examples of how these methods are used, please consult the `demo_pipeline_voltage_imaging.py` script in the `demos/general` folder. For more information about the approach check the [general paper](https://journals.plos.org/ploscompbiol/article/comments?id=10.1371/journal.pcbi.1008806) on this pipeline.
-
-## Documentation & Wiki
-
-Documentation of the code can be found [here](https://caiman.readthedocs.io/en/master/). 
-
-Other docs:
-* [Running CaImAn on a Cluster](docs/CLUSTER.md)
-* [Install quirks on some Linux Distributions](docs/README-Distros.md)
-* [How CaImAn can use your GPUs](docs/README-GPU.md)
-
-# Main developers:
-
+# Main developers
 * (emeritus) Eftychios A. Pnevmatikakis, **Flatiron Institute, Simons Foundation** 
 * (emeritus) Andrea Giovannucci, **University of North Carolina, Chapel Hill**
-* Johannes Friedrich, **Flatiron Institute, Simons Foundation**
-* Changlia Cai, **University of North Carolina, Chapel Hill**
+* Johannes Friedrich, **Allen Institute,Seattle Washington**
+* Changjia Cai, **University of North Carolina, Chapel Hill**
 * Pat Gunn, **Flatiron Institute, Simons Foundation**
+* Eric Thomson, **Flatiron Institute, Simons Foundation**
 
-A complete list of contributors can be found [here](https://github.com/flatironinstitute/CaImAn/graphs/contributors).
+A complete list of contributors can be found [here](https://github.com/flatironinstitute/Caiman/graphs/contributors). Currently Pat Gunn, Johannes Friedrich, and Eric Thomson are the most active contributors.
 
-Currently Pat Gunn and Johannes Friedrich are the most active maintainers.
 
-# Supplementary repos
-* [use\_cases repo](https://github.com/flatironinstitute/caiman_use_cases) - Contains additional code (unmaintained) demonstrating how to use/extend CaImAn
-
-### Related packages
-* [jnormcorre](https://github.com/apasarkar/jnormcorre) - [JAX](https://github.com/google/jax) implementation of NoRMCorre for motion correction using JAX acceleration
-* [funimag](https://github.com/paninski-lab/funimag) - matrix decomposition for denoising and compression
-* [mesmerize-core](https://github.com/nel-lab/mesmerize-core) - parameter optimization, data organization and visualizations with caiman
-* [improv](https://github.com/project-improv/improv) - a platform for creating online analysis workflows
-
-If you have questions about these related packages please reach out to them directly.
-
-## Questions, comments, issues
-
-For support, you can create a Github issue describing any bugs you wish to report, or any feature requests you may have.
-
-You may also use the [gitter chat room](https://gitter.im/agiovann/Constrained_NMF) for discussion.
-
-Finally, you may reach out via email to one of the primary maintainers (above).
-
-## Acknowledgements
-
+# Acknowledgements 
 Special thanks to the following people for letting us use their datasets in demo files:
 
 * Weijian Yang, Darcy Peterka, Rafael Yuste, Columbia University
@@ -168,8 +130,7 @@ Special thanks to the following people for letting us use their datasets in demo
 * Clay Lacefield, Randy Bruno, Columbia University
 * Daniel Aharoni, Peyman Golshani, UCLA
 
-## License
-
+# License
 This program is free software; you can redistribute it and/or
 modify it under the terms of the GNU General Public License
 as published by the Free Software Foundation; either version 2

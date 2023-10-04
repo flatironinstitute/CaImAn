@@ -347,20 +347,31 @@ def setup_cluster(backend: str = 'multiprocessing',
                   single_thread: bool = False,
                   ignore_preexisting: bool = False,
                   maxtasksperchild: int = None) -> Tuple[Any, Any, Optional[int]]:
-    """Setup and/or restart a parallel cluster.
+    """
+    Setup and/or restart a parallel cluster.
     Args:
         backend: str
             'multiprocessing' [alias 'local'], 'ipyparallel', and 'SLURM'
             ipyparallel and SLURM backends try to restart if cluster running.
             backend='multiprocessing' raises an exception if a cluster is running.
+        n_processes: int
+            Sets number of processes to use. If None, is set automatically. 
+        single_thread: bool
+            If True, dview is set to None, so a single CPU/core is used
         ignore_preexisting: bool
             If True, ignores the existence of an already running multiprocessing
-            pool, which is usually indicative of a previously-started CaImAn cluster
+            pool (which usually indicates a previously-started CaImAn cluster)
+        maxtasksperchild: int
+            Only used for multiprocessing, default None (number of tasks a worker process can 
+            complete before it will exit and be replaced with a fresh worker process).
+            
 
     Returns:
         c: ipyparallel.Client object; only used for ipyparallel and SLURM backends, else None
-        dview: ipyparallel dview object, or for multiprocessing: Pool object
-        n_processes: number of workers in dview. None means guess at number of machine cores.
+        dview: multicore processing engine that is used for parallel processing. 
+            If backend is 'multiprocessing' then dview is Pool object.
+            If backend is 'ipyparallel' then dview is a DirectView object. 
+        n_processes: number of workers in dview. None means single core mode in use. 
     """
 
     if n_processes is None:
@@ -396,6 +407,8 @@ def setup_cluster(backend: str = 'multiprocessing',
             dview = c[:len(c)]
 
         elif (backend == 'multiprocessing') or (backend == 'local'):
+            if backend == 'local':
+                logger.info('The local backend is an alias for the multiprocessing backend, and the alias may be removed in some future version of Caiman')
             if len(multiprocessing.active_children()) > 0:
                 if ignore_preexisting:
                     logger.warn('Found an existing multiprocessing pool. '

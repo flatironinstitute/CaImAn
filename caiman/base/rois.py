@@ -15,8 +15,7 @@ import numpy as np
 import os
 
 import scipy
-from scipy.ndimage.filters import gaussian_filter
-from scipy.ndimage import label, center_of_mass
+from scipy.ndimage import label, gaussian_filter
 from scipy.optimize import linear_sum_assignment
 
 import shutil
@@ -107,7 +106,7 @@ def extract_binary_masks_from_structural_channel(Y,
                             method to expand binary masks (morphological closing or dilation)
 
         selem:              np.array
-                            morphological element with which to expand binary masks
+                            structuring element ('selem') with which to expand binary masks
 
     Returns:
         A:                  sparse column format matrix
@@ -132,9 +131,9 @@ def extract_binary_masks_from_structural_channel(Y,
     for i in range(areas[1]):
         temp = (areas[0] == i + 1)
         if expand_method == 'dilation':
-            temp = dilation(temp, selem=selem)
+            temp = dilation(temp, footprint=selem)
         elif expand_method == 'closing':
-            temp = closing(temp, selem=selem)
+            temp = closing(temp, footprint=selem)
 
         A[:, i] = temp.flatten('F')
 

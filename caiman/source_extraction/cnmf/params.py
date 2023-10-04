@@ -21,7 +21,7 @@ class CNMFParams(object):
                  memory_fact=1, n_processes=1, nb_patch=1, p_ssub=2, p_tsub=2,
                  remove_very_bad_comps=False, rf=None, stride=None,
                  check_nan=True, n_pixels_per_process=None,
-                 k=30, alpha_snmf=100, center_psf=False, gSig=[5, 5], gSiz=None,
+                 k=30, alpha_snmf=0.5, center_psf=False, gSig=[5, 5], gSiz=None,
                  init_iter=2, method_init='greedy_roi', min_corr=.85,
                  min_pnr=20, gnb=1, normalize_init=True, options_local_NMF=None,
                  ring_size_factor=1.5, rolling_length=100, rolling_sum=True,
@@ -256,7 +256,7 @@ class CNMFParams(object):
             max_iter_snmf : int, default: 500
                 maximum number of iterations for sparse NMF initialization
 
-            alpha_snmf: float, default: 100
+            alpha_snmf: float, default: 0.5
                 sparse NMF sparsity regularization weight
 
             sigma_smooth_snmf : (float, float, float), default: (.5,.5,.5)
@@ -972,9 +972,13 @@ class CNMFParams(object):
                     logging.warning(
                         "NOT setting value of key {0} in group {1}, because no prior key existed...".format(k, group))
             else:
-                if np.any(d[k] != v):
+                try:
+                    if np.any(d[k] != v):
+                        logging.info(
+                            "Changing key {0} in group {1} from {2} to {3}".format(k, group, d[k], v))
+                except ValueError: # d[k] and v also differ if above comparison fails, e.g. lists of different length
                     logging.info(
-                        "Changing key {0} in group {1} from {2} to {3}".format(k, group, d[k], v))
+                            "Changing key {0} in group {1} from {2} to {3}".format(k, group, d[k], v))
                 d[k] = v
 
     def get(self, group, key):
