@@ -141,7 +141,6 @@ def compute_eccentricity(A, dims, order='F'):
         ecc.append(np.sqrt(eigs[1]/(eigs[0] + np.finfo(np.float32).eps)))
     return np.array(ecc)
 
-#%%
 def find_activity_intervals(C, Npeaks: int = 5, tB=-3, tA=10, thres: float = 0.3) -> list:
     # todo todocument
     K, T = np.shape(C)
@@ -169,8 +168,6 @@ def find_activity_intervals(C, Npeaks: int = 5, tB=-3, tA=10, thres: float = 0.3
 
     return LOC
 
-
-#%%
 def classify_components_ep(Y, A, C, b, f, Athresh=0.1, Npeaks=5, tB=-3, tA=10, thres=0.3) -> tuple[np.ndarray, list]:
     """Computes the space correlation values between the detected spatial
     footprints and the original data when background and neighboring component
@@ -240,14 +237,13 @@ def classify_components_ep(Y, A, C, b, f, Athresh=0.1, Npeaks=5, tB=-3, tA=10, t
 
             if len(indexes) == 0:
                 indexes = set(LOC[i])
-                logging.warning('Component {0} is only active '.format(i) +
-                                'jointly with neighboring components. Space ' +
+                logging.warning(f'Component {i} is only active jointly with neighboring components. Space ' +
                                 'correlation calculation might be unreliable.')
 
             indexes = np.array(list(indexes)).astype(int)
             px = np.where(atemp > 0)[0]
             if px.size < 3:
-                logging.warning('Component {0} is almost empty. '.format(i) + 'Space correlation is set to 0.')
+                logging.warning(f'Component {i} is almost empty. Space correlation is set to 0.')
                 rval[i] = 0
                 significant_samples.append({0})
             else:
@@ -262,10 +258,6 @@ def classify_components_ep(Y, A, C, b, f, Athresh=0.1, Npeaks=5, tB=-3, tA=10, t
             significant_samples.append(0)
 
     return rval, significant_samples
-
-
-#%%
-
 
 def evaluate_components_CNN(A,
                             dims,
@@ -341,10 +333,6 @@ def evaluate_components_CNN(A,
             sess.close()
 
     return predictions, final_crops
-
-
-#%%
-
 
 def evaluate_components(Y: np.ndarray,
                         traces: np.ndarray,

@@ -178,7 +178,7 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
     # remove components that are empty or have a nan
     ff = np.where((np.sum(C, axis=1)==0) + np.isnan(np.sum(C, axis=1)))[0]
     if np.size(ff) > 0:
-        logging.info("Eliminating empty and nan components: {}".format(ff))
+        logging.info(f"Eliminating empty and nan components: {ff}")
         A_in = csc_column_remove(A_in, list(ff))
         C = np.delete(C, list(ff), 0)
         # update indices
@@ -244,7 +244,7 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
     #ff = np.where(np.sum(A_, axis=0) == 0)  # remove empty components
     ff = np.asarray(A_.sum(0) == 0).nonzero()[1]
     if np.size(ff) > 0:
-        logging.info('removing {0} empty spatial component(s)'.format(ff.shape[0]))
+        logging.info(f'removing {ff.shape[0]} empty spatial component(s)')
         if any(ff < nr):
             A_ = csc_column_remove(A_, list(ff[ff < nr]))
             C = np.delete(C, list(ff[ff < nr]), 0)

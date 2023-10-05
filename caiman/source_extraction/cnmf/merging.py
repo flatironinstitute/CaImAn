@@ -1,17 +1,11 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
-"""Merging of spatially overlapping components that are temporally correlated
-Created on Tue Sep  8 16:23:57 2015
-
-@author: agiovann
 """
-#\package caiman/source_extraction/cnmf
-#\version   1.0
-#\copyright GNU General Public License v2.0
+Merging of spatially overlapping components that are temporally correlated
+"""
 
-import numpy as np
 import logging
+import numpy as np
 import scipy
 from scipy.sparse import csgraph, csc_matrix, lil_matrix, csr_matrix
 
@@ -233,7 +227,7 @@ def merge_components(Y, A, b, C, R, f, S, sn_pix, temporal_params,
             merged_ROIs = []
             for i in range(nbmrg):
                 merged_ROI = np.where(list_conxcomp[:, ind[i]])[0]
-                logging.info('Merging components {}'.format(merged_ROI))
+                logging.info(f'Merging components {merged_ROI}')
                 merged_ROIs.append(merged_ROI)
                 Acsc = A.tocsc()[:, merged_ROI]
                 Ctmp = np.array(C)[merged_ROI, :] + np.array(R)[merged_ROI, :]

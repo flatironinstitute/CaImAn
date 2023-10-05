@@ -67,6 +67,7 @@ def cnmf_patches(args_in):
             Empty Exception
         """
 
+    #FIXME Fix in-function imports
     import logging
     from . import cnmf
     file_name, idx_, shapes, params = args_in
@@ -74,12 +75,6 @@ def cnmf_patches(args_in):
     logger = logging.getLogger(__name__)
     name_log = os.path.basename(
         file_name[:-5]) + '_LOG_ ' + str(idx_[0]) + '_' + str(idx_[-1])
-    # logger = logging.getLogger(name_log)
-    # hdlr = logging.FileHandler('./' + name_log)
-    # formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
-    # hdlr.setFormatter(formatter)
-    # logger.addHandler(hdlr)
-    # logger.setLevel(logging.INFO)
 
     logger.debug(name_log + 'START')
 
@@ -230,7 +225,7 @@ def run_CNMF_patches(file_name, shape, params, gnb=1, dview=None,
             foo[id_f] = 1
             patch_centers.append(scipy.ndimage.center_of_mass(
                 foo.reshape(dims, order='F')))
-    logging.info('Patch size: {0}'.format(id_2d))
+    logging.info(f'Patch size: {id_2d}')
     st = time.time()
     if dview is not None:
         if 'multiprocessing' in str(type(dview)):

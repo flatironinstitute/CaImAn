@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+
 """ Online Constrained Nonnegative Matrix Factorization
 
 The general file class which is used to analyze calcium imaging data in an
@@ -52,6 +53,7 @@ try:
 except():
     pass
 
+#FIXME ???
 try:
     profile
 except:
@@ -246,7 +248,7 @@ class OnACID(object):
         self.estimates.CY = self.estimates.CY * 1. / self.params.get('online', 'init_batch')
         self.estimates.CC = 1 * self.estimates.CC / self.params.get('online', 'init_batch')
 
-        logging.info('Expecting {0} components'.format(str(expected_comps)))
+        logging.info(f'Expecting {expected_comps} components')
         self.estimates.CY.resize([expected_comps + self.params.get('init', 'nb'), self.estimates.CY.shape[-1]], refcheck=False)
         if self.params.get('online', 'use_dense'):
             self.estimates.Ab_dense = np.zeros((self.estimates.CY.shape[-1], expected_comps + self.params.get('init', 'nb')),
@@ -1205,7 +1207,7 @@ class OnACID(object):
                                        use_add=self.params.get('ring_CNN', 'use_add'),
                                        use_bias=self.params.get('ring_CNN', 'use_bias'))
             if self.params.get('ring_CNN', 'reuse_model'):
-                logging.info('Using existing model from {}'.format(self.params.get('ring_CNN', 'path_to_model')))
+                logging.info('Using existing model from {self.params.get("ring_CNN", "path_to_model")}')
                 model_LN.load_weights(self.params.get('ring_CNN', 'path_to_model'))
             else:
                 logging.info('Estimating model from scratch, starting training.')
@@ -1213,7 +1215,7 @@ class OnACID(object):
                                                                 epochs=self.params.get('ring_CNN', 'max_epochs'),
                                                                 patience=self.params.get('ring_CNN', 'patience'),
                                                                 schedule=sch)
-                logging.info('Training complete. Model saved in {}.'.format(path_to_model))
+                logging.info(f'Training complete. Model saved in {path_to_model}.')
                 self.params.set('ring_CNN', {'path_to_model': path_to_model})
         else:
             model_LN = None
@@ -1248,9 +1250,10 @@ class OnACID(object):
                 process_files = fls[:init_files + extra_files]
                 init_batc_iter = [0] * (extra_files + init_files)
 
-        #     Go through all files
+            # Go through all files
+            # TODO Use better variable names
             for file_count, ffll in enumerate(process_files):
-                logging.warning('Now processing file {}'.format(ffll))
+                logging.warning(f'Now processing file {ffll}')
                 Y_ = caiman.base.movies.load_iter(
                     ffll, var_name_hdf5=self.params.get('data', 'var_name_hdf5'),
                     subindices=slice(init_batc_iter[file_count], None, None))

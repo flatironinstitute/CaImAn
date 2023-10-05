@@ -1,18 +1,10 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 """ Initialize the component for the CNMF
 
 contain a list of functions to initialize the neurons and the corresponding traces with
 different set of methods like ICA PCA, greedy roi
-
-
 """
-#\package Caiman/source_extraction/cnmf/
-#\version   1.0
-#\copyright GNU General Public License v2.0
-#\date Created on Tue Jun 30 21:01:17 2015
-#\author: Eftychios A. Pnevmatikakis
 
 import cv2
 import logging
@@ -46,6 +38,7 @@ try:
 except:
     pass
 
+#FIXME review this and find a better way to do it
 warnings.filterwarnings(action='ignore', category=ConvergenceWarning)
 
 def resize(Y, size, interpolation=cv2.INTER_LINEAR):
@@ -668,7 +661,7 @@ def compressedNMF(Y_ds, nr, r_ov=10, max_iter_snmf=500,
         A /= nA
         C *= nA[:, np.newaxis]
         if (np.linalg.norm(C - C__)/np.linalg.norm(C__) < tol) & (np.linalg.norm(A - A__)/np.linalg.norm(A__) < tol):
-            logging.info('Graph NMF converged after {} iterations'.format(it+1))
+            logging.info(f'Graph NMF converged after {it + 1} iterations')
             break
     A_in = A
     C_in = C
@@ -719,7 +712,7 @@ def graphNMF(Y_ds, nr, max_iter_snmf=500, lambda_gnmf=1,
         A /= nA
         C *= nA[:, np.newaxis]
         if (np.linalg.norm(C - C_)/np.linalg.norm(C_) < tol) & (np.linalg.norm(A - A_)/np.linalg.norm(A_) < tol):
-            logging.info('Graph NMF converged after {} iterations'.format(it+1))
+            logging.info(f'Graph NMF converged after {it + 1} iterations')
             break
     A_in = A
     C_in = C
@@ -1373,7 +1366,7 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
         b_in = spr.eye(len(B), dtype='float32')
         f_in = B
     elif nb > 0:
-        logging.info('Estimate low rank background (rank = {0})'.format(nb))
+        logging.info(f'Estimate low rank background (rank = {nb})')
         print(nb)
         if use_NMF:
             model = NMF(n_components=nb, init='nndsvdar')
@@ -1840,9 +1833,9 @@ def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
                     break
                 else:
                     if num_neurons % 100 == 1:
-                        logging.info('{0} neurons have been initialized'.format(num_neurons - 1))
+                        logging.info(f'{num_neurons - 1} neurons have been initialized')
 
-    logging.info('In total, {0} neurons were initialized.'.format(num_neurons))
+    logging.info(f'In total, {num_neurons} neurons were initialized.')
     # A = np.reshape(Ain[:num_neurons], (-1, d1 * d2)).transpose()
     A = np.reshape(Ain[:num_neurons], (-1, d1 * d2), order='F').transpose()
     C = Cin[:num_neurons]
