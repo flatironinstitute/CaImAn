@@ -15,7 +15,7 @@ import logging
 import numpy as np
 from scipy.ndimage import convolve, generate_binary_structure
 from scipy.sparse import coo_matrix
-from typing import Any, List, Optional, Tuple
+from typing import Any, Optional
 
 import caiman as cm
 from caiman.source_extraction.cnmf.pre_processing import get_noise_fft
@@ -289,7 +289,7 @@ def local_correlations(Y, eight_neighbours: bool = True, swap_dim: bool = True, 
 
 
 def correlation_pnr(Y, gSig=None, center_psf: bool = True, swap_dim: bool = True,
-                    background_filter: str = 'disk') -> Tuple[np.ndarray, np.ndarray]:
+                    background_filter: str = 'disk') -> tuple[np.ndarray, np.ndarray]:
     """
     compute the correlation image and the peak-to-noise ratio (PNR) image.
     If gSig is provided, then spatially filtered the video.
@@ -433,7 +433,7 @@ def correlation_image_ecobost(mov, chunk_size: int = 1000, dview=None):
     return correlation_image
 
 
-def map_corr(scan) -> Tuple[Any, Any, Any, int]:
+def map_corr(scan) -> tuple[Any, Any, Any, int]:
     '''This part of the code is in a mapping function that's run over different
     movies in parallel
     '''
@@ -471,7 +471,7 @@ def map_corr(scan) -> Tuple[Any, Any, Any, int]:
 
 
 def prepare_local_correlations(Y, swap_dim: bool = False,
-                               eight_neighbours: bool = False) -> Tuple[Any, Any, Any, Any, Any, Any, Any, Any]:
+                               eight_neighbours: bool = False) -> tuple[Any, Any, Any, Any, Any, Any, Any, Any]:
     """Computes the correlation image and some statistics to update it online
 
     Args:
@@ -755,7 +755,7 @@ def local_correlations_movie_offline(file_name,
     if Tot_frames is None:
         _, Tot_frames = get_file_size(file_name)
 
-    params: List = [[file_name, range(j, j + window), eight_neighbours, swap_dim,
+    params:list = [[file_name, range(j, j + window), eight_neighbours, swap_dim,
                      order_mean, ismulticolor, remove_baseline, winSize_baseline,
                      quantil_min_baseline, gaussian_blur]
                     for j in range(0, Tot_frames - window, stride)]
@@ -777,7 +777,7 @@ def local_correlations_movie_offline(file_name,
     return mm
 
 
-def local_correlations_movie_parallel(params: Tuple) -> np.ndarray:
+def local_correlations_movie_parallel(params:tuple) -> np.ndarray:
     mv_name, idx, eight_neighbours, swap_dim, order_mean, ismulticolor, remove_baseline, winSize_baseline, quantil_min_baseline, gaussian_blur = params
     mv = cm.load(mv_name, subindices=idx, in_memory=True)
     if gaussian_blur:
@@ -824,7 +824,7 @@ def mean_image(file_name,
     if Tot_frames is None:
         _, Tot_frames = get_file_size(file_name)
 
-    params: List = [[file_name, range(j * window, (j + 1) * window)]
+    params:list = [[file_name, range(j * window, (j + 1) * window)]
                     for j in range(int(Tot_frames / window))]
 
     remain_frames = Tot_frames - int(Tot_frames / window) * window
@@ -847,7 +847,7 @@ def mean_image(file_name,
         mean_image = mm.mean(axis=0)
     return mean_image
 
-def mean_image_parallel(params: Tuple) -> np.ndarray:
+def mean_image_parallel(params:tuple) -> np.ndarray:
     mv_name, idx = params
     mv = cm.load(mv_name, subindices=idx, in_memory=True)
     return mv.mean(axis=0)[np.newaxis,:,:]

@@ -31,7 +31,6 @@ from sklearn.decomposition import NMF, FastICA
 from sklearn.exceptions import ConvergenceWarning
 from sklearn.utils.extmath import randomized_svd, squared_norm, randomized_range_finder
 import sys
-from typing import List
 import warnings
 
 import caiman

@@ -35,7 +35,7 @@ import sys
 import threading
 import tifffile
 from tqdm import tqdm
-from typing import Any, Dict, List, Tuple, Union
+from typing import Any, Optional, Union
 import warnings
 # Flip to normal import if this is ever resolved: https://github.com/constantinpape/z5/issues/146
 # import z5py
@@ -118,7 +118,7 @@ class movie(ts.timeseries):
                        template=None,
                        method: str = 'opencv',
                        remove_blanks: bool = False,
-                       interpolation: str = 'cubic') -> Tuple[Any, Tuple, Any, Any]:
+                       interpolation: str = 'cubic') -> tuple[Any, tuple, Any, Any]:
         """
         Extract shifts and motion corrected movie automatically,
 
@@ -315,7 +315,7 @@ class movie(ts.timeseries):
                             axis=0)
 
     def extract_shifts(self, max_shift_w: int = 5, max_shift_h: int = 5, template=None,
-                       method: str = 'opencv') -> Tuple[List, List]:
+                       method: str = 'opencv') -> tuple[list, list]:
         """
         Performs motion correction using the opencv matchtemplate function. At every iteration a template is built by taking the median of all frames and then used to align the other frames.
 
@@ -509,7 +509,7 @@ class movie(ts.timeseries):
             return a * x + b
 
         try:
-            p0: Tuple = (y[0] - y[-1], 1e-6, y[-1])
+            p0:tuple = (y[0] - y[-1], 1e-6, y[-1])
             popt, _ = scipy.optimize.curve_fit(expf, x, y, p0=p0)
             y_fit = expf(x, *popt)
         except:
@@ -580,7 +580,7 @@ class movie(ts.timeseries):
         return to_3D(self,shape[::-1],order=order).transpose([2,1,0])
     
     def computeDFF(self, secsWindow: int = 5, quantilMin: int = 8, method: str = 'only_baseline', in_place: bool = False,
-                   order: str = 'F') -> Tuple[Any, Any]:
+                   order: str = 'F') -> tuple[Any, Any]:
         """
         compute the DFF of the movie or remove baseline
 
@@ -672,7 +672,7 @@ class movie(ts.timeseries):
                                        beta: int = 1,
                                        tol=5e-7,
                                        sparseness: str = 'components',
-                                       **kwargs) -> Tuple[np.ndarray, np.ndarray]:
+                                       **kwargs) -> tuple[np.ndarray, np.ndarray]:
         """
         See documentation for scikit-learn NMF
         """
@@ -696,7 +696,7 @@ class movie(ts.timeseries):
                    lambda1: int = 100,
                    iterations: int = -5,
                    model=None,
-                   **kwargs) -> Tuple[np.ndarray, np.ndarray]:
+                   **kwargs) -> tuple[np.ndarray, np.ndarray]:
         """ Method performing online matrix factorization and using the spams
 
         (http://spams-devel.gforge.inria.fr/doc-python/html/index.html) package from Inria.
@@ -753,7 +753,7 @@ class movie(ts.timeseries):
 
         return time_comps, np.array(space_comps)
 
-    def IPCA(self, components: int = 50, batch: int = 1000) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    def IPCA(self, components: int = 50, batch: int = 1000) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         Iterative Principal Component analysis, see sklearn.decomposition.incremental_pca
 
@@ -954,7 +954,7 @@ class movie(ts.timeseries):
                              fx: float = .25,
                              fy: float = .25,
                              n_clusters: int = 4,
-                             max_iter: int = 500) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+                             max_iter: int = 500) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         Partition the FOV in clusters that are grouping pixels close in space and in mutual correlation
 
@@ -1037,7 +1037,7 @@ class movie(ts.timeseries):
         max_els = 2**61 - 1    # the bug for sizes >= 2**31 is appears to be fixed now
         if elm > max_els:
             chunk_size = max_els // d
-            new_m: List = []
+            new_m:list = []
             logging.debug('Resizing in chunks because of opencv bug')
             for chunk in range(0, T, chunk_size):
                 logging.debug([chunk, np.minimum(chunk + chunk_size, T)])
@@ -1244,12 +1244,12 @@ class movie(ts.timeseries):
              q_max, q_min, plot_text, save_movie, opencv_codec, movie_name)
 
 
-def load(file_name: Union[str, List[str]],
+def load(file_name: Union[str, list[str]],
          fr: float = 30,
          start_time: float = 0,
-         meta_data: Dict = None,
+         meta_data:dict = None,
          subindices=None,
-         shape: Tuple[int, int] = None,
+         shape: tuple[int, int] = None,
          var_name_hdf5: str = 'mov',
          in_memory: bool = False,
          is_behavior: bool = False,
@@ -1662,7 +1662,7 @@ def load(file_name: Union[str, List[str]],
                  meta_data=meta_data)
 
 
-def load_movie_chain(file_list: List[str],
+def load_movie_chain(file_list: list[str],
                      fr: float = 30,
                      start_time=0,
                      meta_data=None,
@@ -1789,7 +1789,7 @@ def loadmat_sbx(filename: str):
     return data_
 
 
-def _check_keys(checkdict: Dict) -> None:
+def _check_keys(checkdict:dict) -> None:
     """
     checks if entries in dictionary are mat-objects. If yes todict is called to change them to nested dictionaries.
     Modifies its parameter in-place.
@@ -1800,7 +1800,7 @@ def _check_keys(checkdict: Dict) -> None:
             checkdict[key] = _todict(checkdict[key])
 
 
-def _todict(matobj) -> Dict:
+def _todict(matobj) -> dict:
     """
     A recursive function which constructs from matobjects nested dictionaries
     """
@@ -1964,7 +1964,7 @@ def sbxreadskip(filename: str, subindices: slice) -> np.ndarray:
     return x.transpose([2, 1, 0])
 
 
-def sbxshape(filename: str) -> Tuple[int, int, int]:
+def sbxshape(filename: str) -> tuple[int, int, int]:
     """
     Args:
         filename should be full path excluding .sbx
@@ -1996,14 +1996,14 @@ def sbxshape(filename: str) -> Tuple[int, int, int]:
     return x
 
 
-def to_3D(mov2D: np.ndarray, shape: Tuple, order='F') -> np.ndarray:
+def to_3D(mov2D:np.ndarray, shape:tuple, order='F') -> np.ndarray:
     """
     transform a vectorized movie into a 3D shape
     """
     return np.reshape(mov2D, shape, order=order)
 
 
-def from_zip_file_to_movie(zipfile_name: str, start_end: Tuple = None) -> Any:
+def from_zip_file_to_movie(zipfile_name: str, start_end:Optional[tuple] = None) -> Any:
     '''
     Read/convert a movie from a zipfile.
 
@@ -2013,7 +2013,7 @@ def from_zip_file_to_movie(zipfile_name: str, start_end: Tuple = None) -> Any:
     Returns:
         movie
     '''
-    mov: List = []
+    mov:list = []
     logging.info('unzipping file into movie object')
     if start_end is not None:
         num_frames = start_end[1] - start_end[0]
@@ -2039,7 +2039,7 @@ def from_zip_file_to_movie(zipfile_name: str, start_end: Tuple = None) -> Any:
 
 
 def from_zipfiles_to_movie_lists(zipfile_name: str, max_frames_per_movie: int = 3000,
-                                 binary: bool = False) -> List[str]:
+                                 binary: bool = False) -> list[str]:
     '''
     Transform zip file into set of tif movies
     Args:
@@ -2096,7 +2096,7 @@ def rolling_window(ndarr, window_size, stride):
            yield ndarr[:, i + stride:]
 
 
-def load_iter(file_name: Union[str, List[str]], subindices=None, var_name_hdf5: str='mov',
+def load_iter(file_name: Union[str, list[str]], subindices=None, var_name_hdf5: str='mov',
               outtype=np.float32, is3D: bool=False):
     """
     load iterator over movie from file. Supports a variety of formats. tif, hdf5, avi.

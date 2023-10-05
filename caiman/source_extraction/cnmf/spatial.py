@@ -1,13 +1,9 @@
 #!/usr/bin/env python
 
 """
-Created on Wed Aug 05 20:38:27 2015
-
-# -*- coding: utf-8 -*-
-@author: agiovann
+Functions for managing spatial components
 """
 
-# noinspection PyCompatibility
 import cv2
 import logging
 import numpy as np
@@ -27,7 +23,6 @@ from sklearn.pipeline import make_pipeline
 import tempfile
 import time
 import psutil
-from typing import List
 
 from ...mmapping import load_memmap, parallel_dot_product
 from ...utils.stats import csc_column_remove
@@ -230,9 +225,9 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
             dview.results.clear()
     else:
         parallel_result = list(map(regression_ipyparallel, pixel_groups))
-    data:List = []
-    rows:List = []
-    cols:List = []
+    data:list = []
+    rows:list = []
+    cols:list = []
     for chunk in parallel_result:
         for pars in chunk:
             px, idxs_, a = pars
@@ -518,9 +513,9 @@ def threshold_components(A, dims, medw=None, thr_method='max', maxthr=0.1, nrgth
         res = list(map(threshold_components_parallel, pars))
 
     res.sort(key=lambda x: x[1])
-    indices:List = []
+    indices:list = []
     indptr = [0]
-    data:List = []
+    data:list = []
     for r in res:
         At, i = r
         indptr.append(indptr[-1]+At.indptr[-1])
@@ -875,7 +870,7 @@ def determine_search_location(A, dims, method='ellipse', min_size=3, max_size=8,
             Coor['z'] = np.kron(list(range(d3)), np.ones(d2 * d1))
         if not dist == np.inf:  # determine search area for each neuron
             cm = np.zeros((nr, len(dims)))  # vector for center of mass
-            Vr:List = []  # cell(nr,1);
+            Vr:list = []  # cell(nr,1);
             dist_indicator = []
             pars = []
             # for each dim
@@ -906,7 +901,7 @@ def determine_search_location(A, dims, method='ellipse', min_size=3, max_size=8,
 
     elif method == 'dilate':
         indptr = [0]
-        indices:List = []
+        indices:list = []
         data = []
         if dview is None:
             for i in range(nr):

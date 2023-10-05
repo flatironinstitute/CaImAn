@@ -10,7 +10,6 @@ import logging
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy.sparse
-from typing import List
 import time
 
 import caiman
@@ -163,7 +162,7 @@ class Estimates(object):
         self.groups = None
 
         self.dims = dims
-        self.shifts:List = []
+        self.shifts:list = []
 
         self.A_thr = None
         self.discarded_components = None

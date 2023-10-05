@@ -16,7 +16,7 @@ import tensorflow as tf
 import scipy
 from scipy.sparse import csc_matrix
 from scipy.stats import norm
-from typing import Any, List, Tuple, Union
+from typing import Any, Union
 import warnings
 
 from caiman.paths import caiman_datadir
@@ -41,7 +41,7 @@ def compute_event_exceptionality(traces: np.ndarray,
                                  robust_std: bool = False,
                                  N: int = 5,
                                  use_mode_fast: bool = False,
-                                 sigma_factor: float = 3.) -> Tuple[np.ndarray, np.ndarray, Any, Any]:
+                                 sigma_factor: float = 3.) -> tuple[np.ndarray, np.ndarray, Any, Any]:
     """
     Define a metric and order components according to the probability of some "exceptional events" (like a spike).
 
@@ -142,10 +142,10 @@ def compute_eccentricity(A, dims, order='F'):
     return np.array(ecc)
 
 #%%
-def find_activity_intervals(C, Npeaks: int = 5, tB=-3, tA=10, thres: float = 0.3) -> List:
+def find_activity_intervals(C, Npeaks: int = 5, tB=-3, tA=10, thres: float = 0.3) -> list:
     # todo todocument
     K, T = np.shape(C)
-    L: List = []
+    L:list = []
     for i in range(K):
         if np.sum(np.abs(np.diff(C[i, :]))) == 0:
             L.append([])
@@ -171,7 +171,7 @@ def find_activity_intervals(C, Npeaks: int = 5, tB=-3, tA=10, thres: float = 0.3
 
 
 #%%
-def classify_components_ep(Y, A, C, b, f, Athresh=0.1, Npeaks=5, tB=-3, tA=10, thres=0.3) -> Tuple[np.ndarray, List]:
+def classify_components_ep(Y, A, C, b, f, Athresh=0.1, Npeaks=5, tB=-3, tA=10, thres=0.3) -> tuple[np.ndarray, list]:
     """Computes the space correlation values between the detected spatial
     footprints and the original data when background and neighboring component
     activity has been removed.
@@ -225,7 +225,7 @@ def classify_components_ep(Y, A, C, b, f, Athresh=0.1, Npeaks=5, tB=-3, tA=10, t
     LOC = find_activity_intervals(C, Npeaks=Npeaks, tB=tB, tA=tA, thres=thres)
     rval = np.zeros(K)
 
-    significant_samples: List[Any] = []
+    significant_samples:list[Any] = []
     for i in range(K):
         if (i + 1) % 200 == 0:         # Show status periodically
             logging.info('Components evaluated:' + str(i))
@@ -273,7 +273,7 @@ def evaluate_components_CNN(A,
                             model_name: str = os.path.join(caiman_datadir(), 'model', 'cnn_model'),
                             patch_size: int = 50,
                             loaded_model=None,
-                            isGPU: bool = False) -> Tuple[Any, np.array]:
+                            isGPU: bool = False) -> tuple[Any, np.array]:
     """ evaluate component quality using a CNN network
 
         if isGPU is false, and the environment variable 'CAIMAN_ALLOW_GPU' is not set,
@@ -359,7 +359,7 @@ def evaluate_components(Y: np.ndarray,
                         Athresh: float = 0.1,
                         Npeaks: int = 5,
                         thresh_C: float = 0.3,
-                        sigma_factor: float = 3.) -> Tuple[Any, Any, Any, Any, Any, Any]:
+                        sigma_factor: float = 3.) -> tuple[Any, Any, Any, Any, Any, Any]:
     """ Define a metric and order components according to the probability of some "exceptional events" (like a spike).
 
     Such probability is defined as the likelihood of observing the actual trace value over N samples given an estimated noise distribution.
@@ -532,7 +532,7 @@ def estimate_components_quality_auto(Y,
                                      thresh_cnn_lowest=0.1,
                                      thresh_fitness_delta=-20.,
                                      min_SNR_reject=0.5,
-                                     gSig_range=None) -> Tuple[np.array, np.array, float, float, float]:
+                                     gSig_range=None) -> tuple[np.array, np.array, float, float, float]:
     ''' estimates the quality of component automatically
 
     Args:
@@ -649,7 +649,7 @@ def select_components_from_metrics(A,
                                    gSig_range=None,
                                    neuron_class=1,
                                    predictions=None,
-                                   **kwargs) -> Tuple[np.array, np.array, Any]:
+                                   **kwargs) -> tuple[np.array, np.array, Any]:
     '''Selects components based on pre-computed metrics. For each metric
     space correlation, trace SNR, and CNN classifier both an upper and a lower
     thresholds are considered. A component is accepted if and only if it
@@ -712,7 +712,7 @@ def estimate_components_quality(traces,
                                 robust_std=False,
                                 Athresh=0.1,
                                 thresh_C=0.3,
-                                num_traces_per_group=20) -> Tuple[np.ndarray, ...]:
+                                num_traces_per_group=20) -> tuple[np.ndarray, ...]:
     """ Define a metric and order components according to the probability of some "exceptional events" (like a spike).
 
     Such probability is defined as the likelihood of observing the actual trace value over N samples given an estimated noise distribution.

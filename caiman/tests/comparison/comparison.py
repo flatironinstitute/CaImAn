@@ -1,27 +1,14 @@
 #!/usr/bin/env python
+
 """ compare how the elements behave
 
 We create a folder ground truth that possess the same thing than the other
 in a form of a dictionnary containing nparrays and other info.
 the other files contains every test and the name is the date of the test
 
-See Also
-------------
-
-Link 
-
-\image dev/kalfon/img/datacomparison.pdf
-\author: jeremie KALFON
-\date Created on Tue Jun 30 21:01:17 2015
-\copyright GNU General Public License v2.0
-\package CaImAn/comparison
 """
-#
-#\image html dev/kalfon/img/datacomparison.pdf
-#\version   1.0
-#
-#
-#
+
+#FIXME this file needs some attention
 
 import copy
 import datetime
@@ -31,7 +18,6 @@ import numpy as np
 import os
 import platform as plt
 import scipy
-from typing import Dict
 
 # Set up the logger; change this if you like.
 # You can log to a file using the filename parameter, or make the output more or less
@@ -128,7 +114,7 @@ class Comparison(object):
 
     def __init__(self):
 
-        self.comparison:Dict[str, Dict] = {
+        self.comparison:dict[str, dict] = {
             'rig_shifts': {},
             'pwrig_shifts': {},
             'cnmf_on_patch': {},
