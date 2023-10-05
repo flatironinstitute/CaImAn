@@ -919,14 +919,12 @@ class CNMFParams(object):
         self.init['gSiz'] = tuple([gs + 1 if gs % 2 == 0 else gs for gs in self.init['gSiz']])
         if self.patch['rf'] is not None:
             if np.any(np.array(self.patch['rf']) <= self.init['gSiz'][0]):
-                logging.warning("Changing rf from {0} to {1} ".format(self.patch['rf'], 2*self.init['gSiz'][0]) +
-                                "because the constraint rf > gSiz was not satisfied.")
+                logging.warning(f"Changing rf from {self.patch['rf']} to {2 * self.init['gSiz'][0]} because the constraint rf > gSiz was not satisfied.")
 #        if self.motion['gSig_filt'] is None:
 #            self.motion['gSig_filt'] = self.init['gSig']
         if self.init['nb'] <= 0 and (self.patch['nb_patch'] != self.init['nb'] or
                                      self.patch['low_rank_background'] is not None):
-            logging.warning("gnb={0}, hence setting keys nb_patch ".format(self.init['nb']) +
-                            "and low_rank_background in group patch automatically.")
+            logging.warning(f"gnb={self.init['nb']}, hence setting keys nb_patch and low_rank_background in group patch automatically.")
             self.set('patch', {'nb_patch': self.init['nb'], 'low_rank_background': None})
         if self.init['nb'] == -1 and self.spatial['update_background_components']:
             logging.warning("gnb=-1, hence setting key update_background_components " +
@@ -963,22 +961,20 @@ class CNMFParams(object):
         """
 
         if not hasattr(self, group):
-            raise KeyError('No group in CNMFParams named {0}'.format(group))
+            raise KeyError(f'No group in CNMFParams named {group}')
 
         d = getattr(self, group)
         for k, v in val_dict.items():
             if k not in d and not set_if_not_exists:
                 if verbose:
                     logging.warning(
-                        "NOT setting value of key {0} in group {1}, because no prior key existed...".format(k, group))
+                        f"NOT setting value of key {k} in group {group}, because no prior key existed...")
             else:
                 try:
                     if np.any(d[k] != v):
-                        logging.info(
-                            "Changing key {0} in group {1} from {2} to {3}".format(k, group, d[k], v))
+                        logging.info(f"Changing key {k} in group {group} from {d[k]} to {v}")
                 except ValueError: # d[k] and v also differ if above comparison fails, e.g. lists of different length
-                    logging.info(
-                            "Changing key {0} in group {1} from {2} to {3}".format(k, group, d[k], v))
+                    logging.info(f"Changing key {k} in group {group} from {d[k]} to {v}")
                 d[k] = v
 
     def get(self, group, key):
@@ -992,11 +988,11 @@ class CNMFParams(object):
         """
 
         if not hasattr(self, group):
-            raise KeyError('No group in CNMFParams named {0}'.format(group))
+            raise KeyError(f'No group in CNMFParams named {group}')
 
         d = getattr(self, group)
         if key not in d:
-            raise KeyError('No key {0} in group {1}'.format(key, group))
+            raise KeyError(f'No key {key} in group {group}')
 
         return d[key]
 
@@ -1008,7 +1004,7 @@ class CNMFParams(object):
         """
 
         if not hasattr(self, group):
-            raise KeyError('No group in CNMFParams named {0}'.format(group))
+            raise KeyError(f'No group in CNMFParams named {group}')
 
         return getattr(self, group)
 
@@ -1044,7 +1040,7 @@ class CNMFParams(object):
     def __repr__(self):
 
         formatted_outputs = [
-            '{}:\n\n{}'.format(group_name, pformat(group_dict))
+            f'{group_name}:\n\n{pformat(group_dict)}'
             for group_name, group_dict in self.to_dict().items()
         ]
 
@@ -1068,6 +1064,6 @@ class CNMFParams(object):
                 if k in d:
                     flag = False
             if flag:
-                logging.warning('No parameter {0} found!'.format(k))
+                logging.warning(f'No parameter {k} found!')
         self.check_consistency()
         return self
