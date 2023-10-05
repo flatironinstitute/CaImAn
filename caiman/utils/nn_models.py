@@ -1,13 +1,13 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
+#!/usr/bin/env python
+
 """
 This file contains a set of methods for the online analysis of microendoscopic
-one photon data using a "ring-CNN" background model. The code uses tensorflow
-and tensorflow.keras and has been tested with tensorflow 1.13 and tensorflow 2.
-@author: epnevmatikakis
+one photon data using a "ring-CNN" background model.
 """
 
 import numpy as np
+import os
+import tensorflow as tf
 from tensorflow.keras.layers import Input, Dense, Reshape, Layer, Activation
 from tensorflow.keras.models import Model
 from tensorflow.keras.optimizers import Adam
@@ -15,12 +15,11 @@ from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping, LearningR
 from tensorflow.keras import backend as K
 from tensorflow.keras.initializers import Constant, RandomUniform
 from tensorflow.keras.utils import Sequence
+import time
+
 from caiman.source_extraction.cnmf.utilities import get_file_size
 from caiman.base.movies import load
 from caiman.paths import caiman_datadir
-import tensorflow as tf
-import time
-import os
 
 
 class CalciumDataset(Sequence):

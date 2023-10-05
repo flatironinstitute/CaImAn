@@ -1,11 +1,8 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
+
 """
-OPTICAL FLOW
-
-Created on Wed Mar 16 16:31:55 2016
-
-@author: agiovann
+Functions related to optical flow
 """
 
 import cv2
@@ -27,7 +24,7 @@ except:
 
 def select_roi(img: np.ndarray, n_rois: int = 1) -> list:
     """
-    Create a mask from a the convex polygon enclosed between selected points
+    Create a mask from a convex polygon enclosed between selected points
 
     Args:
         img: 2D ndarray

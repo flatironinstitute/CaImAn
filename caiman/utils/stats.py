@@ -1,25 +1,11 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
-"""
-Created on Thu Oct 20 13:49:57 2016
-
-@author: agiovann
-"""
 
 import logging
 import numpy as np
 import scipy
 
-try:
-    import numba
-except:
-    pass
-
 from scipy.linalg.lapack import dpotrf, dpotrs
 from scipy import fftpack
-
-#%%
-
 
 def mode_robust_fast(inputData, axis=None):
     """
@@ -43,10 +29,6 @@ def mode_robust_fast(inputData, axis=None):
         dataMode = _hsm(data)
 
     return dataMode
-
-
-#%%
-
 
 def mode_robust(inputData, axis=None, dtype=None):
     """
@@ -102,11 +84,6 @@ def mode_robust(inputData, axis=None, dtype=None):
         dataMode = _hsm(data)
 
     return dataMode
-
-
-#%%
-#@numba.jit("void(f4[:])")
-
 
 def _hsm(data):
     if data.size == 1:
@@ -170,15 +147,11 @@ def compressive_nmf(A, L, R, r, X=None, Y=None, max_iter=100, ls=0):
 
     return X, Y
 
-#%% kernel density estimation
-
-
 def mode_robust_kde(inputData, axis=None):
     """
     Extracting the dataset of the mode using kernel density estimation
     """
     if axis is not None:
-
         def fnc(x):
             return mode_robust_kde(x)
 

@@ -1,10 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
-"""
-Created on Thu Oct 20 12:12:34 2016
-
-@author: agiovann
-"""
 
 import cv2
 import itertools
@@ -31,10 +25,8 @@ except:
 try:
     profile
 except:
-
     def profile(a):
         return a
-
 
 @profile
 def compute_event_exceptionality(traces: np.ndarray,
