@@ -274,16 +274,16 @@ class Comparison(object):
             os.makedirs(dr + istr)
         information.update({'diff': {}})
         information.update({'differences': {'proc': False, 'params_movie': False, 'params_cnm': False}})
-                                                                                                            # INFORMATION FOR THE USER
+
         if data['processor'] != information['processor']:
-            logging.info("you don't have the same processor as groundtruth.. the time difference can vary"
-                         " because of that\n try recreate your own groundtruth before testing. Compare: " +
-                         str(data['processor']) + " to " + str(information['processor']) + "\n")
+            logging.info("You don't have the same processor as was used to generate the ground truth. The processing time can vary.\n" +
+                         "For time comparison, Create your own groundtruth standard for future testing.\n" +
+                         f"Compare: {data['processor']} to {information['processor']}\n")
             information['differences']['proc'] = True
         if data['params'] != information['params']:
-            logging.warning("you are not using the same movie parameters... Things can go wrong")
-            logging.warning('you must use the same parameters to compare your version of the code with '
-                            'the groundtruth one. look for the groundtruth parameters with the see() method\n')
+            logging.warning("You are not using the same movie parameters. Results will not be comparable.")
+            logging.warning('You must use the same parameters as the groundtruth.\n' +
+                            'examine the groundtruth parameters with the see() method\n')
             information['differences']['params_movie'] = True
                                                                                                             # We must cleanup some fields to permit an accurate comparison
         if not normalised_compare_cnmpatches(data['cnmpatch'], cnmpatch):
@@ -293,9 +293,9 @@ class Comparison(object):
                 )                                                                                           # TODO: Now that we have deeply nested data structures, find a module that gives you tight differences.
             diffkeys = [k for k in data['cnmpatch'] if data['cnmpatch'][k] != cnmpatch[k]]
             for k in diffkeys:
-                logging.info("{}:{}->{}".format(k, data['cnmpatch'][k], cnmpatch[k]))
+                logging.info(f"{k}:{data['cnmpatch'][k]}->{cnmpatch[k]}")
 
-            logging.warning('you are not using the same parameters in your cnmf on patches initialization\n')
+            logging.warning('You are not using the same parameters in your cnmf on patches initialization\n')
             information['differences']['params_cnm'] = True
 
         # for rigid
@@ -308,13 +308,6 @@ class Comparison(object):
                     timer=self.comparison['rig_shifts']['timer'] - data['timer']['rig_shifts'],
                     sensitivity=self.comparison['rig_shifts']['sensitivity'])
         })
-        #try:
-        #    pl.gcf().savefig(dr + str(i) + '/' + 'rigidcorrection.pdf')
-        #    pl.close()
-        #except:
-        #    pass
-
-        # for cnmf on patch
         information['diff'].update({
             'cnmpatch':
             cnmf(Cn=Cn,
@@ -328,12 +321,6 @@ class Comparison(object):
                  dims_gt=dims_gt,
                  timer=self.comparison['cnmf_on_patch']['timer'] - data['timer']['cnmf_on_patch'])
         })
-        #try:
-        #    pl.gcf().savefig(dr + istr + '/' + 'onpatch.pdf')
-        #    pl.close()
-        #except:
-        #    pass
-
         # CNMF FULL FRAME
         information['diff'].update({
             'cnmfull':
