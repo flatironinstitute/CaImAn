@@ -116,7 +116,7 @@ def merge_components(Y, A, b, C, R, f, S, sn_pix, temporal_params,
             discrete time constant
 
         empty: list
-            (to document)
+            indices of neurons that were removed, as they were merged with other neurons.
 
         R:  np.ndarray
             residuals
