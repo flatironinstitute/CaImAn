@@ -10,16 +10,7 @@ https://docs.python.org/3/library/urllib.request.htm
 
 """
 
-#\package Caiman/utils
-#\version   1.0
-#\bug
-#\warning
-#\copyright GNU General Public License v2.0
-#\date Created on Tue Jun 30 21:01:17 2015
-#\author: andrea giovannucci
-#\namespace utils
-#\pre none
-
+import certifi
 import cv2
 import h5py
 import multiprocessing
@@ -30,18 +21,19 @@ import numpy as np
 import os
 import pickle
 import scipy
+import ssl
 import subprocess
 import tensorflow as tf
 from scipy.ndimage.filters import gaussian_filter
 from tifffile import TiffFile
 from typing import Any, Dict, List, Tuple, Union, Iterable
+from urllib.request import urlopen
 
 try:
     cv2.setNumThreads(0)
 except:
     pass
 
-from urllib.request import urlopen
 
 from ..external.cell_magic_wand import cell_magic_wand
 from ..source_extraction.cnmf.spatial import threshold_components
@@ -105,22 +97,25 @@ def download_demo(name:str='Sue_2x_3000_40_-46.tif', save_folder:str='') -> str:
             url = file_dict[name]
             logging.info(f"downloading {name} with urllib")
             logging.info(f"GET {url} HTTP/1.1")
+            if os.name == 'nt':
+                urllib_context = ssl.create_default_context(cafile = certifi.where() ) # On windows we need to avoid the limited default cert store
+            else:
+                urllib_context = None # Defaults are fine for Linux and OSX
             try:
-                f = urlopen(url)
+                f = urlopen(url, context=urllib_context)
             except:
                 logging.info(f"Trying to set user agent to download demo")
                 from urllib.request import Request
                 req = Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-                f = urlopen(req)
-                
-                
+                f = urlopen(req, context=urllib_context)
+
             data = f.read()
             with open(path_movie, "wb") as code:
                 code.write(data)
         else:
-            logging.info("File " + str(name) + " already downloaded")
+            logging.info(f"File {name} already downloaded")
     else:
-        raise Exception('Cannot find the example_movies folder in your caiman_datadir - did you make one with caimanmanager.py?')
+        raise Exception('Cannot find the example_movies folder in your caiman_datadir - did you make one with caimanmanager?')
     return path_movie
 
 
@@ -155,21 +150,25 @@ def download_model(name:str='mask_rcnn', save_folder:str='') -> str:
             url = file_dict[name]
             logging.info(f"downloading {name} with urllib")
             logging.info(f"GET {url} HTTP/1.1")
+            if os.name == 'nt':
+                urllib_context = ssl.create_default_context(cafile = certifi.where() ) # On windows we need to avoid the limited default cert store
+            else:
+                urllib_context = None # Defaults are fine for Linux and OSX
             try:
-                f = urlopen(url)
+                f = urlopen(url, context=urllib_context)
             except:
                 logging.info(f"Trying to set user agent to download demo")
                 from urllib.request import Request
                 req = Request(url, headers={'User-Agent': 'Mozilla/5.0'})
-                f = urlopen(req)
-                                
+                f = urlopen(req, context=urllib_context)
+
             data = f.read()
             with open(path_movie, "wb") as code:
                 code.write(data)
         else:
             logging.info("File " + str(name) + " already downloaded")
     else:
-        raise Exception('Cannot find the model folder in your caiman_datadir - did you make one with caimanmanager.py?')
+        raise Exception('Cannot find the model folder in your caiman_datadir - did you make one with caimanmanager?')
     return path_movie
 
 

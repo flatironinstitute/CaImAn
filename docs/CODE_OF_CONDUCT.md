@@ -17,7 +17,6 @@ Behavior outside these bounds is not restricted by this CoC.
 We believe in:
 * Honesty
 * Fairness
-* Deferring to law enforcement and aiding them in discovering the truth should any accusations possibly amount to a criminal or tort claim
 * Due process (similar to our courts)
 * Marking topics as out-of-bounds instead of marking perspectives as out-of-bounds
 * Not letting long contributions to the project create leniency for egregious behaviour

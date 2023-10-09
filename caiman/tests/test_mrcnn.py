@@ -1,12 +1,20 @@
 #!/usr/bin/env python
+
+import numpy as np
+import os
+import tensorflow as tf
+
 import caiman as cm
 from caiman.paths import caiman_datadir
 from caiman.utils.utils import download_model, download_demo
 from caiman.source_extraction.volpy.mrcnn import neurons
 import caiman.source_extraction.volpy.mrcnn.model as modellib
-import numpy as np
-import os
-import tensorflow as tf
+
+# mrcnn disables eager execution during its import, making a lot of later tests unhappy because
+# under nose, all tests run under the same process. Non-eager execution sends modern tensorflow down
+# some rare code paths.
+# It apparently doesn't even need to do this. So let's just undo it immediately
+tf.compat.v1.enable_eager_execution()
 
 def mrcnn(img, size_range, weights_path):
     config = neurons.NeuronsConfig()

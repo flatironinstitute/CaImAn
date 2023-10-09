@@ -25,6 +25,7 @@ import logging
 import numpy as np
 import os
 import pathlib
+import pims
 import pylab as pl
 import scipy
 from scipy.sparse import spdiags, issparse, csc_matrix, csr_matrix
@@ -1134,6 +1135,7 @@ def get_file_size(file_name, var_name_hdf5='mov'):
             T: int or tuple of int
                 number of timesteps in each file
     """
+    # TODO There is a lot of redundant code between this and caiman.base.movies.load() that should be unified somehow
     if isinstance(file_name, pathlib.Path):
         # We want to support these as input, but str has a broader set of operations that we'd like to use, so let's just convert.
 	# (specifically, filePath types don't support subscripting)
@@ -1158,16 +1160,13 @@ def get_file_size(file_name, var_name_hdf5='mov'):
                     T, dims = siz[0], siz[1:]
             elif extension in ('.avi', '.mkv'):
                 cap = cv2.VideoCapture(file_name)
-                dims = [0, 0]
-                try:
-                    T = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-                    dims[1] = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
-                    dims[0] = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
-                except():
-                    print('Roll back to opencv 2')
-                    T = int(cap.get(cv2.cv.CV_CAP_PROP_FRAME_COUNT))
-                    dims[1] = int(cap.get(cv2.cv.CV_CAP_PROP_FRAME_WIDTH))
-                    dims[0] = int(cap.get(cv2.cv.CV_CAP_PROP_FRAME_HEIGHT))
+                dims = [int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)), int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))]
+                T = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+                if dims[0] <= 0 or dims[1] <= 0 or T <= 0:
+                    # fallback to pims, like load() and load_iter() do
+                    pims_movie = pims.Video(file_name)
+                    T = len(pims_movie)
+                    dims[0], dims[1] = pims_movie.frame_shape[0:2]
             elif extension == '.mmap':
                 filename = os.path.split(file_name)[-1]
                 Yr, dims, T = load_memmap(os.path.join(

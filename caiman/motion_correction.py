@@ -3107,7 +3107,7 @@ def tile_and_correct_wrapper(params):
                                                                        shifts_opencv=shifts_opencv, gSig_filt=gSig_filt,
                                                                        use_cuda=use_cuda, border_nan=border_nan)
             shift_info.append([total_shift, start_step, xy_grid])
-
+    # 
     if out_fname is not None:
         outv = np.memmap(out_fname, mode='r+', dtype=np.float32,
                          shape=prepare_shape(shape_mov), order='F')
