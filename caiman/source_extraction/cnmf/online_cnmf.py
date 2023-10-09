@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+
 """ Online Constrained Nonnegative Matrix Factorization
 
 The general file class which is used to analyze calcium imaging data in an
@@ -26,7 +27,6 @@ from sklearn.decomposition import NMF
 from sklearn.preprocessing import normalize
 import tensorflow as tf
 from time import time
-from typing import List, Tuple
 
 import caiman
 import caiman.paths
@@ -53,6 +53,7 @@ try:
 except():
     pass
 
+#FIXME ???
 try:
     profile
 except:
@@ -247,7 +248,7 @@ class OnACID(object):
         self.estimates.CY = self.estimates.CY * 1. / self.params.get('online', 'init_batch')
         self.estimates.CC = 1 * self.estimates.CC / self.params.get('online', 'init_batch')
 
-        logging.info('Expecting {0} components'.format(str(expected_comps)))
+        logging.info(f'Expecting {expected_comps} components')
         self.estimates.CY.resize([expected_comps + self.params.get('init', 'nb'), self.estimates.CY.shape[-1]], refcheck=False)
         if self.params.get('online', 'use_dense'):
             self.estimates.Ab_dense = np.zeros((self.estimates.CY.shape[-1], expected_comps + self.params.get('init', 'nb')),
@@ -308,12 +309,12 @@ class OnACID(object):
         self.update_counter = 2**np.linspace(0, 1, self.N, dtype=np.float32)
         self.estimates.CC = np.ascontiguousarray(self.estimates.CC)
         self.estimates.CY = np.ascontiguousarray(self.estimates.CY)
-        self.time_neuron_added:List = []
+        self.time_neuron_added:list = []
         for nneeuu in range(self.N):
             self.time_neuron_added.append((nneeuu, self.params.get('online', 'init_batch')))
         if self.params.get('online', 'dist_shape_update'):
             self.time_spend = 0
-            self.comp_upd:List = []
+            self.comp_upd:list = []
         # setup per patch classifier
 
         if self.params.get('online', 'path_to_model') is None or self.params.get('online', 'sniper_mode') is False:
@@ -399,10 +400,10 @@ class OnACID(object):
             self.estimates.max_img = Yres.max(-1)
 
         self.comp_upd = []
-        self.t_shapes:List = []
-        self.t_detect:List = []
-        self.t_motion:List = []
-        self.t_stat:List = []
+        self.t_shapes:list = []
+        self.t_detect:list = []
+        self.t_motion:list = []
+        self.t_stat:list = []
 
         return self
 
@@ -1206,7 +1207,7 @@ class OnACID(object):
                                        use_add=self.params.get('ring_CNN', 'use_add'),
                                        use_bias=self.params.get('ring_CNN', 'use_bias'))
             if self.params.get('ring_CNN', 'reuse_model'):
-                logging.info('Using existing model from {}'.format(self.params.get('ring_CNN', 'path_to_model')))
+                logging.info('Using existing model from {self.params.get("ring_CNN", "path_to_model")}')
                 model_LN.load_weights(self.params.get('ring_CNN', 'path_to_model'))
             else:
                 logging.info('Estimating model from scratch, starting training.')
@@ -1214,7 +1215,7 @@ class OnACID(object):
                                                                 epochs=self.params.get('ring_CNN', 'max_epochs'),
                                                                 patience=self.params.get('ring_CNN', 'patience'),
                                                                 schedule=sch)
-                logging.info('Training complete. Model saved in {}.'.format(path_to_model))
+                logging.info(f'Training complete. Model saved in {path_to_model}.')
                 self.params.set('ring_CNN', {'path_to_model': path_to_model})
         else:
             model_LN = None
@@ -1224,7 +1225,7 @@ class OnACID(object):
         extra_files = len(fls) - 1
         init_files = 1
         t = init_batch
-        self.Ab_epoch:List = []
+        self.Ab_epoch:list = []
         t_online = []
         if extra_files == 0:     # check whether there are any additional files
             process_files = fls[:init_files]     # end processing at this file
@@ -1249,9 +1250,10 @@ class OnACID(object):
                 process_files = fls[:init_files + extra_files]
                 init_batc_iter = [0] * (extra_files + init_files)
 
-        #     Go through all files
+            # Go through all files
+            # TODO Use better variable names
             for file_count, ffll in enumerate(process_files):
-                logging.warning('Now processing file {}'.format(ffll))
+                logging.warning(f'Now processing file {ffll}')
                 Y_ = caiman.base.movies.load_iter(
                     ffll, var_name_hdf5=self.params.get('data', 'var_name_hdf5'),
                     subindices=slice(init_batc_iter[file_count], None, None))
@@ -2094,8 +2096,8 @@ def get_candidate_components(sv, dims, Yres_buf, min_num_trial=3, gSig=(5, 5),
     idx = []
     all_indices = []
     ijsig_all = []
-    cnn_pos:List = []
-    local_maxima:List = []
+    cnn_pos:list = []
+    local_maxima:list = []
     Y_patch = []
     ksize = tuple([int(3 * i / 2) * 2 + 1 for i in gSig])
     compute_corr = test_both
@@ -2201,7 +2203,7 @@ def get_candidate_components(sv, dims, Yres_buf, min_num_trial=3, gSig=(5, 5),
             rval = corr(ain.copy(), np.mean(Ypx, -1))
             if rval > rval_thr:
                 keep_corr.append(i)
-        keep_final:List = list(set().union(keep_cnn, keep_corr))
+        keep_final:list = list(set().union(keep_cnn, keep_corr))
         if len(keep_final) > 0:
             Ain = np.stack(Ain)[keep_final]
         else:

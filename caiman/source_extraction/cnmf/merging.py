@@ -1,17 +1,11 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
-"""Merging of spatially overlapping components that are temporally correlated
-Created on Tue Sep  8 16:23:57 2015
-
-@author: agiovann
 """
-#\package caiman/source_extraction/cnmf
-#\version   1.0
-#\copyright GNU General Public License v2.0
+Merging of spatially overlapping components that are temporally correlated
+"""
 
-import numpy as np
 import logging
+import numpy as np
 import scipy
 from scipy.sparse import csgraph, csc_matrix, lil_matrix, csr_matrix
 
@@ -25,7 +19,7 @@ from .utilities import update_order_greedy
 def merge_components(Y, A, b, C, R, f, S, sn_pix, temporal_params,
                      spatial_params, dview=None, thr=0.85, fast_merge=True,
                      mx=1000, bl=None, c1=None, sn=None, g=None,
-                     merge_parallel=False, max_merge_area=None):
+                     merge_parallel=False, max_merge_area=None) -> tuple[scipy.sparse.csc_matrix, np.ndarray, int, list, np.ndarray, float, float, float, float, list, np.ndarray]:
 
     """ Merging of spatially overlapping components that have highly correlated temporal activity
 
@@ -115,11 +109,14 @@ def merge_components(Y, A, b, C, R, f, S, sn_pix, temporal_params,
         c1: float
             initial concentration
 
+        sn: float
+            noise level
+
         g:  float
             discrete time constant
 
-        sn: float
-            noise level
+        empty: list
+            indices of neurons that were removed, as they were merged with other neurons.
 
         R:  np.ndarray
             residuals
@@ -127,7 +124,7 @@ def merge_components(Y, A, b, C, R, f, S, sn_pix, temporal_params,
         Exception "The number of elements of bl\c1\g\sn must match the number of components"
     """
 
-    #tests and initialization
+    # tests and initialization
     nr = A.shape[1]
     A = csc_matrix(A)
     if bl is not None and len(bl) != nr:
@@ -147,7 +144,7 @@ def merge_components(Y, A, b, C, R, f, S, sn_pix, temporal_params,
 
     [d, t] = np.shape(Y)
 
-    # % find graph of overlapping spatial components
+    # find graph of overlapping spatial components
     A_corr = scipy.sparse.triu(A.T * A)
     A_corr.setdiag(0)
     A_corr = A_corr.tocsc()
@@ -181,9 +178,6 @@ def merge_components(Y, A, b, C, R, f, S, sn_pix, temporal_params,
             for j1 in range(np.size(fm)):
                 for j2 in range(j1 + 1, np.size(fm)):
                     cor[i] = cor[i] + C_corr[fm[j1], fm[j2]]
-
-#        if not fast_merge:
-#            Y_res = Y - A.dot(C) #residuals=background=noise
         if np.size(cor) > 1:
             # we get the size (indices)
             ind = np.argsort(np.squeeze(cor))[::-1]
@@ -211,7 +205,6 @@ def merge_components(Y, A, b, C, R, f, S, sn_pix, temporal_params,
             else:
                merge_res = list(dview.map_sync(merge_iter, zip(Acsc_mats, C_to_norms, Ctmp_mats, fms, gs, g_idxs, indxs, tps)))
                dview.results.clear()        
-            #merge_res = list(dview.map(merge_iter, zip(Acsc_mats, C_to_norms, Ctmp_mats, fms, gs, g_idxs, indxs, tps)))
             bl_merged = np.array([res[0] for res in merge_res])
             c1_merged = np.array([res[1] for res in merge_res])
             A_merged = csc_matrix(scipy.sparse.vstack([csc_matrix(res[2]) for res in merge_res]).T)
@@ -233,7 +226,7 @@ def merge_components(Y, A, b, C, R, f, S, sn_pix, temporal_params,
             merged_ROIs = []
             for i in range(nbmrg):
                 merged_ROI = np.where(list_conxcomp[:, ind[i]])[0]
-                logging.info('Merging components {}'.format(merged_ROI))
+                logging.info(f'Merging components {merged_ROI}')
                 merged_ROIs.append(merged_ROI)
                 Acsc = A.tocsc()[:, merged_ROI]
                 Ctmp = np.array(C)[merged_ROI, :] + np.array(R)[merged_ROI, :]
@@ -282,7 +275,6 @@ def merge_components(Y, A, b, C, R, f, S, sn_pix, temporal_params,
             if sn is not None:
                 sn = np.hstack((sn[good_neurons], np.array(sn_merged).flatten()))
             if g is not None:
-#                g = np.vstack((np.vstack(g)[good_neurons], g_merged))
                 g = np.vstack(g)[good_neurons]
                 if g.shape[1] == 0:
                     g = np.zeros((len(good_neurons), g_merged.shape[1]))
@@ -315,18 +307,6 @@ def merge_iteration(Acsc, C_to_norm, Ctmp, fast_merge, g, g_idx, indx, temporal_
             if nc == 0:
                 break
             computedA = np.maximum(Acsc.dot(Ctmp.dot(computedC.T)) / nc, 0)
-
-#        computedA = Acsc.dot(scipy.sparse.diags(
-#            C_to_norm, 0, (len(C_to_norm), len(C_to_norm)))).sum(axis=1)
-#
-#        # we operate a rank one NMF, refining it multiple times (see cnmf demos )
-#        for _ in range(10):
-#            computedC = np.maximum(Acsc.T.dot(computedA).T.dot(
-#                Ctmp) / (computedA.T * computedA), 0)
-#            if computedC * computedC.T == 0:
-#                break
-#            computedA = np.maximum(
-#                Acsc.dot(Ctmp.dot(computedC.T)) / (computedC * computedC.T), 0)
     else:
         logging.info('Simple merging ny taking best neuron')
         computedC = Ctmp[indx]
@@ -335,7 +315,6 @@ def merge_iteration(Acsc, C_to_norm, Ctmp, fast_merge, g, g_idx, indx, temporal_
     A_to_norm = np.sqrt(computedA.T.dot(computedA)) #/Acsc.power(2).sum(0).max())
     computedA /= A_to_norm
     computedC *= A_to_norm
-    # r = (computedA.T.dot(Acsc.dot(Ctmp)))/(computedA.T.dot(computedA)) - computedC
     r = ((Acsc.T.dot(computedA)).dot(Ctmp))/(computedA.T.dot(computedA)) - computedC
     # we then compute the traces ( deconvolution ) to have a clean c and noise in the background
     c_in =  np.array(computedC+r).squeeze()

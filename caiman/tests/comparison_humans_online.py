@@ -1,5 +1,5 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
+#!/usr/bin/env python
+
 """
 Complete pipeline for CaImAn online processing and comparison with consensus
 annotation. The script processes one (or more) of the provided datasets and 
@@ -8,35 +8,24 @@ i) contour plots of the detected components (Fig. 4)
 ii) the correlation coefficient of the traces against consensus (Fig. 5) 
 iii) timing information about the different steps of caiman online. (Fig. 8)
     For more information check the companion paper.
-@author: Andrea Giovannucci @agiovann and Eftychios Pnevmatikakis @epnev
 """
+
 import numpy as np
 
-try:
-    if __IPYTHON__:
-        print('Debugging!')
-        # this is used for debugging purposes only. allows to reload classes when changed
-        get_ipython().magic('load_ext autoreload')
-        get_ipython().magic('autoreload 2')
-except NameError:
-    print('Not IPYTHON')
-    pass
+import cv2
+import gc
+import glob
+import logging
+import matplotlib.pyplot as plt
+import os
+import scipy
+import sys
+import time
 
 import caiman as cm
 from caiman.source_extraction import cnmf as cnmf
 from caiman.source_extraction.cnmf.estimates import Estimates, compare_components
 from caiman.source_extraction.cnmf.online_cnmf import load_OnlineCNMF
-import matplotlib.pyplot as plt
-import scipy
-import cv2
-import glob
-import os
-import sys
-import time
-import gc
-import logging
-
-from builtins import str
 
 try:
     cv2.setNumThreads(1)

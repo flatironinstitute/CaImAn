@@ -35,7 +35,6 @@ Copyright (C) 2011, the scikit-image team
  STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING
  IN ANY WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE
  POSSIBILITY OF SUCH DAMAGE.
-
 """
 
 import collections
@@ -49,7 +48,7 @@ import os
 import sys
 import pylab as pl
 import tifffile
-from typing import List, Optional, Tuple
+from typing import Optional
 from skimage.transform import resize as resize_sk
 from skimage.transform import warp as warp_sk
 
@@ -288,9 +287,9 @@ class MotionCorrect(object):
         logging.debug('Entering Rigid Motion Correction')
         logging.debug(-self.min_mov)  # XXX why the minus?
         self.total_template_rig = template
-        self.templates_rig:List = []
-        self.fname_tot_rig:List = []
-        self.shifts_rig:List = []
+        self.templates_rig:list = []
+        self.fname_tot_rig:list = []
+        self.shifts_rig:list = []
 
         for fname_cur in self.fname:
             _fname_tot_rig, _total_template_rig, _templates_rig, _shifts_rig = motion_correct_batch_rigid(
@@ -353,14 +352,14 @@ class MotionCorrect(object):
         else:
             self.total_template_els = template
 
-        self.fname_tot_els:List = []
-        self.templates_els:List = []
-        self.x_shifts_els:List = []
-        self.y_shifts_els:List = []
+        self.fname_tot_els:list = []
+        self.templates_els:list = []
+        self.x_shifts_els:list = []
+        self.y_shifts_els:list = []
         if self.is3D:
-            self.z_shifts_els:List = []
+            self.z_shifts_els:list = []
 
-        self.coord_shifts_els:List = []
+        self.coord_shifts_els:list = []
         for name_cur in self.fname:
             _fname_tot_els, new_template_els, _templates_els,\
                 _x_shifts_els, _y_shifts_els, _z_shifts_els, _coord_shifts_els = motion_correct_batch_pwrigid(
@@ -399,7 +398,7 @@ class MotionCorrect(object):
         supported. Returns either cm.movie or the path to a memory mapped file.
 
         Args:
-            fname: str of List[str]
+            fname: str of list[str]
                 name(s) of the movie to motion correct. It should not contain
                 nans. All the loadable formats from CaImAn are acceptable
 
@@ -842,7 +841,7 @@ def motion_correct_online(movie_iterable, add_to_movie, max_shift_w=25, max_shif
 
     big_mov = None
     if return_mov:
-        mov:Optional[List] = []
+        mov:Optional[list] = []
     else:
         mov = None
 
@@ -1186,7 +1185,7 @@ def motion_correct_parallel(file_names, fr=10, template=None, margins_out=0,
             number of pixels to remove from the borders
 
     Returns:
-        base file names of the motion corrected files:List[str]
+        base file names of the motion corrected files:list[str]
 
     Raises:
         Exception
@@ -2345,7 +2344,7 @@ def tile_and_correct(img, template, strides, overlaps, max_shifts, newoverlaps=N
         return new_img - add_to_movie, total_shifts, start_step, xy_grid
 
 #%%
-def tile_and_correct_3d(img:np.ndarray, template:np.ndarray, strides:Tuple, overlaps:Tuple, max_shifts:Tuple, newoverlaps:Optional[Tuple]=None, newstrides:Optional[Tuple]=None, upsample_factor_grid:int=4,
+def tile_and_correct_3d(img:np.ndarray, template:np.ndarray, strides:tuple, overlaps:tuple, max_shifts:tuple, newoverlaps:Optional[tuple]=None, newstrides:Optional[tuple]=None, upsample_factor_grid:int=4,
                      upsample_factor_fft:int=10, show_movie:bool=False, max_deviation_rigid:int=2, add_to_movie:int=0, shifts_opencv:bool=True, gSig_filt=None,
                      use_cuda:bool=False, border_nan:bool=True):
     """ perform piecewise rigid motion correction iteration, by
@@ -2862,7 +2861,7 @@ def motion_correct_batch_rigid(fname, max_shifts, dview=None, splits=56, num_spl
 
     save_movie = False
     fname_tot_rig = None
-    res_rig:List = []
+    res_rig:list = []
     for iter_ in range(num_iter):
         logging.debug(iter_)
         old_templ = new_templ.copy()
@@ -2893,7 +2892,7 @@ def motion_correct_batch_rigid(fname, max_shifts, dview=None, splits=56, num_spl
 
     total_template = new_templ
     templates = []
-    shifts:List = []
+    shifts:list = []
     for rr in res_rig:
         shift_info, idxs, tmpl = rr
         templates.append(tmpl)

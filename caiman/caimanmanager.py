@@ -11,7 +11,6 @@ import shutil
 import string
 import subprocess
 import sys     # for sys.prefix
-from typing import Dict, List, Tuple
 
 from caiman.paths import caiman_datadir
 
@@ -209,7 +208,7 @@ def system_diagnose() -> None:
 ###############
 
 
-def runcmd(cmdlist: List[str], ignore_error: bool = False, verbose: bool = True) -> Tuple[str, str, int]:
+def runcmd(cmdlist:list[str], ignore_error: bool = False, verbose: bool = True) -> tuple[str, str, int]:
     # In most of my codebases, runcmd saves and returns the output.
     # Here I've modified it to send right to stdout, because nothing
     # uses the output and because the demos sometimes have issues

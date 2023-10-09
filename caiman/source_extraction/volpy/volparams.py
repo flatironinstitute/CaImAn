@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import logging
 import numpy as np
 
@@ -70,7 +72,7 @@ class volparams(object):
         }
 
         self.change_params(params_dict)
-#%%
+
     def set(self, group, val_dict, set_if_not_exists=False, verbose=False):
         """ Add key-value pairs to a group. Existing key-value pairs will be overwritten
             if specified in val_dict, but not deleted.
@@ -82,21 +84,18 @@ class volparams(object):
         """
 
         if not hasattr(self, group):
-            raise KeyError('No group in CNMFParams named {0}'.format(group))
+            raise KeyError(f'No group in CNMFParams named {group}')
 
         d = getattr(self, group)
         for k, v in val_dict.items():
             if k not in d and not set_if_not_exists:
                 if verbose:
-                    logging.warning(
-                        "NOT setting value of key {0} in group {1}, because no prior key existed...".format(k, group))
+                    logging.warning(f"Not setting value of key {k} in group {group}, because no prior key existed...")
             else:
                 if np.any(d[k] != v):
-                    logging.warning(
-                        "Changing key {0} in group {1} from {2} to {3}".format(k, group, d[k], v))
+                    logging.warning(f"Changing key {k} in group {group} from {d[k]} to {v}")
                 d[k] = v
 
-#%%
     def get(self, group, key):
         """ Get a value for a given group and key. Raises an exception if no such group/key combination exists.
 
@@ -108,11 +107,11 @@ class volparams(object):
         """
 
         if not hasattr(self, group):
-            raise KeyError('No group in CNMFParams named {0}'.format(group))
+            raise KeyError(f'No group in CNMFParams named {group}')
 
         d = getattr(self, group)
         if key not in d:
-            raise KeyError('No key {0} in group {1}'.format(key, group))
+            raise KeyError(f'No key {key} in group {group}')
 
         return d[key]
 
@@ -124,7 +123,7 @@ class volparams(object):
         """
 
         if not hasattr(self, group):
-            raise KeyError('No group in CNMFParams named {0}'.format(group))
+            raise KeyError(f'No group in CNMFParams named {group}')
 
         return getattr(self, group)
 
@@ -138,5 +137,5 @@ class volparams(object):
                 if k in d:
                     flag = False
             if flag:
-                logging.warning('No parameter {0} found!'.format(k))
+                logging.warning(f'No parameter {k} found!')
         return self

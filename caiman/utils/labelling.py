@@ -1,14 +1,9 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
 
-"""
-Created on Thu Oct 20 15:18:21 2016
-
-@author: agiovann
-"""
-
+import logging
+from scipy.ndimage import filters as ft
 import caiman as cm
-#%%
 
 def pre_preprocess_movie_labeling(dview, file_names, median_filter_size=(2, 1, 1),
                                   resize_factors=[.2, .1666666666], diameter_bilateral_blur=4):
@@ -17,10 +12,6 @@ def pre_preprocess_movie_labeling(dview, file_names, median_filter_size=(2, 1, 1
 
     def pre_process_handle(args):
         # todo: todocument
-
-        from scipy.ndimage import filters as ft
-        import logging
-
         fil, resize_factors, diameter_bilateral_blur, median_filter_size = args
 
         name_log = fil[:-4] + '_LOG'

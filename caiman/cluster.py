@@ -1,17 +1,12 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-""" functions related to the creation and management of the cluster
+
+""" functions related to the creation and management of the "cluster",
+meaning the framework for distributed computation.
 
 We put arrays on disk as raw bytes, extending along the first dimension.
 Alongside each array x we ensure the value x.dtype which stores the data type.
-
-@author andrea giovannucci
 """
-
-# \package caiman
-# \version   1.0
-# \copyright GNU General Public License v2.0
-# \date Created on Thu Oct 20 12:07:09 2016
 
 import glob
 import ipyparallel
@@ -28,18 +23,18 @@ import shutil
 import subprocess
 import sys
 import time
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Optional, Union
 
 from .mmapping import load_memmap
 
 logger = logging.getLogger(__name__)
 
 
-def extract_patch_coordinates(dims: Tuple,
-                              rf: Union[List, Tuple],
-                              stride: Union[List[int], Tuple],
+def extract_patch_coordinates(dims: tuple,
+                              rf: Union[list, tuple],
+                              stride: Union[list[int], tuple],
                               border_pix: int = 0,
-                              indices=[slice(None)] * 2) -> Tuple[List, List]:
+                              indices=[slice(None)] * 2) -> tuple[list, list]:
     """
     Partition the FOV in patches
     and return the indexed in 2D and 1D (flatten, order='F') formats
@@ -105,8 +100,8 @@ def extract_patch_coordinates(dims: Tuple,
 
     return list(map(np.sort, coords_flat)), shapes
 
-def apply_to_patch(mmap_file, shape: Tuple[Any, Any, Any], dview, rf, stride, function, *args,
-                   **kwargs) -> Tuple[List, Any, Tuple]:
+def apply_to_patch(mmap_file, shape: tuple[Any, Any, Any], dview, rf, stride, function, *args,
+                   **kwargs) -> tuple[list, Any, tuple]:
     """
     apply function to patches in parallel or not
 
@@ -179,7 +174,7 @@ def apply_to_patch(mmap_file, shape: Tuple[Any, Any, Any], dview, rf, stride, fu
         file_res = list(map(function_place_holder, args_in))
     return file_res, idx_flat, shape_grid
 
-def function_place_holder(args_in: Tuple) -> np.ndarray:
+def function_place_holder(args_in: tuple) -> np.ndarray:
     #todo: todocument
 
     file_name, idx_, shapes, function, args, kwargs = args_in
@@ -346,7 +341,7 @@ def setup_cluster(backend: str = 'multiprocessing',
                   n_processes: int = None,
                   single_thread: bool = False,
                   ignore_preexisting: bool = False,
-                  maxtasksperchild: int = None) -> Tuple[Any, Any, Optional[int]]:
+                  maxtasksperchild: int = None) -> tuple[Any, Any, Optional[int]]:
     """
     Setup and/or restart a parallel cluster.
     Args:
