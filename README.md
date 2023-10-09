@@ -94,7 +94,7 @@ There are many repositories that use Caiman, or help make using Caiman easier.
 
 If you have questions about these related packages please reach out to their maintainers directly. If you would like your software to be in this list, please contact one of the developers or open an issue.
 
-# Citing Caimian and related papers
+# Citing Caiman and related papers
 If you publish a paper that relied on Caiman, we kindly ask that you [cite Giovannucci et al., 2019](https://elifesciences.org/articles/38173):
 ```
 @article{giovannucci2019caiman,
