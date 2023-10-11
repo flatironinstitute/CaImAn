@@ -2101,7 +2101,6 @@ def high_pass_filter_space(img_orig, gSig_filt=None, freq=None, order=None):
             return cm.movie(np.array([cv2.idft(cv2.dft(img, flags=cv2.DFT_COMPLEX_OUTPUT) * 
                             H[..., None])[..., 0] for img in img_orig]) / (rows*cols))
 
-
 def tile_and_correct(img, template, strides, overlaps, max_shifts, newoverlaps=None, newstrides=None, upsample_factor_grid=4,
                      upsample_factor_fft=10, show_movie=False, max_deviation_rigid=2, add_to_movie=0, shifts_opencv=False, gSig_filt=None,
                      use_cuda=False, border_nan=True):
