@@ -822,7 +822,7 @@ class Estimates(object):
         else:
             R = None
 
-        self.F_dff = detrend_df_f(self.A, self.b, self.C, self.f, self.YrA,
+        self.F_dff = detrend_df_f(self.A, self.b, self.C, self.f, R,
                                   quantileMin=quantileMin,
                                   frames_window=frames_window,
                                   flag_auto=flag_auto, use_fast=use_fast,
