@@ -1604,6 +1604,22 @@ def load(file_name: Union[str, List[str]],
         elif extension == '.sima':
             raise Exception("movies.py:load(): FATAL: sima support was removed in 1.9.8")
 
+        elif extension == '.isxd':
+            import isx
+            mov = isx.Movie.read(file_name)
+            T = mov.timing.num_samples
+            dims = mov.spacing.num_pixels
+            fr = 1e6 / mov.timing.period.to_usecs()
+
+            idx_frames = np.arange(T)
+            if subindices is not None:
+                idx_frames = idx_frames[subindices]
+                T = len(idx_frames)
+
+            input_arr = np.zeros([T] + list(dims), dtype=outtype)
+            for idx in range(T):
+                input_arr[idx, :, :] = mov.get_frame_data(idx)
+
         else:
             raise Exception('Unknown file type')
     else:

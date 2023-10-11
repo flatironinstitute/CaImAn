@@ -1228,11 +1228,17 @@ def get_file_size(file_name, var_name_hdf5='mov'):
                 elif info['channels'] == 3:
                     info['nChan'] = 1
                     factor = 2
-            
+
                 # Determine number of frames in whole file
                 T = int(os.path.getsize(
                     file_name[:-4] + '.sbx') / info['recordsPerBuffer'] / info['sz'][1] * factor / 4 - 1)
-                
+
+            elif extension in ('.isxd'):
+                import isx
+                info = isx.Movie.read(file_name)
+                dims = info.spacing.num_pixels
+                T = info.timing.num_samples
+
             else:
                 raise Exception('Unknown file type')
             dims = tuple(dims)
