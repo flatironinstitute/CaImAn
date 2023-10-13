@@ -26,14 +26,14 @@ from past.utils import old_div
 import cv2
 import h5py
 import logging
+from nd2reader import ND2Reader
 import numpy as np
 import os
 import pathlib
 import pylab as pl
 import scipy
-from scipy.sparse import spdiags, issparse, csc_matrix, csr_matrix
 import scipy.ndimage.morphology as morph
-from nd2reader import ND2Reader
+from scipy.sparse import spdiags, issparse, csc_matrix, csr_matrix
 import tifffile
 from typing import List
 # https://github.com/constantinpape/z5/issues/146
