@@ -8,6 +8,7 @@ dependencies:
 - holoviews =1.15.2
 - ipyparallel
 - matplotlib
+- nd2reader
 - numpy
 - numpydoc
 - opencv

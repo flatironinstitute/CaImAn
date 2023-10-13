@@ -14,6 +14,7 @@ dependencies:
 - jupyter
 - matplotlib
 - mypy
+- nd2reader
 - nose
 - numpy
 - numpydoc

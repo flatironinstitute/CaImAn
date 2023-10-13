@@ -9,6 +9,7 @@ jupyter
 keras
 matplotlib
 mypy
+nd2reader
 numpy
 numpydoc
 opencv-python
