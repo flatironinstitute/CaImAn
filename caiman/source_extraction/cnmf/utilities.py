@@ -32,12 +32,9 @@ import os
 import pathlib
 import pylab as pl
 import scipy
-import scipy.ndimage.morphology as morph
 from scipy.sparse import spdiags, issparse, csc_matrix, csr_matrix
+import scipy.ndimage as ndi
 import tifffile
-from typing import List
-# https://github.com/constantinpape/z5/issues/146
-#import z5py
 
 from .initialization import greedyROI
 from ...base.rois import com
@@ -523,7 +520,7 @@ def detrend_df_f_auto(A, b, C, f, dims=None, YrA=None, use_annulus = True,
 
         for k in range(K):
             a = A[:, k].toarray().reshape(dims, order='F') > 0
-            a2 = np.bitwise_xor(morph.binary_dilation(a, R), a)
+            a2 = np.bitwise_xor(ndi.morphology.binary_dilation(a, R), a)
             a2 = a2.astype(float).flatten(order='F')
             a2 /= np.sqrt(a2.sum())
             a2 = scipy.sparse.csc_matrix(a2)
