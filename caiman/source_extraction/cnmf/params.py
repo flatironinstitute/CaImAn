@@ -950,11 +950,6 @@ class CNMFParams(object):
                 logging.warning(key + "=0, hence setting key update_num_comps " +
                                 "in group online automatically to False.")
 
-        # if using greedy init, ensure rf > gSiz
-        if (self.patch["rf"] is not None) and (self.init["gSiz"] is not None):
-            if not self.patch["rf"] > max(self.init["gSiz"]):
-                raise ValueError(f"`rf`: {self.patch['rf']} < `gSiz`: {self.init['gSiz']}, rf MUST be larger than gSiz")
-
     def set(self, group, val_dict, set_if_not_exists=False, verbose=False):
         """ Add key-value pairs to a group. Existing key-value pairs will be overwritten
             if specified in val_dict, but not deleted.
