@@ -6,7 +6,7 @@ import os
 import pkg_resources
 from pprint import pformat
 import scipy
-from scipy.ndimage.morphology import generate_binary_structure, iterate_structure
+from scipy.ndimage import generate_binary_structure, iterate_structure
 
 import caiman.utils.utils
 from ...paths import caiman_datadir

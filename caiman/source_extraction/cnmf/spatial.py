@@ -12,10 +12,14 @@ import scipy
 from scipy.sparse import coo_matrix, csc_matrix, csr_matrix
 from scipy.sparse import spdiags
 from scipy.linalg import eig
-from scipy.ndimage import label, binary_dilation
-from scipy.ndimage.filters import median_filter
-from scipy.ndimage.morphology import binary_closing
-from scipy.ndimage.morphology import generate_binary_structure, iterate_structure
+from scipy.ndimage import (
+    label,
+    binary_dilation,
+    binary_closing,
+    median_filter,
+    generate_binary_structure,
+    iterate_structure
+)
 import shutil
 from sklearn.decomposition import NMF
 from sklearn.preprocessing import StandardScaler
@@ -534,7 +538,7 @@ def threshold_components_parallel(pars):
        (ii) Thresholding
        (iii) Morphological closing of spatial support
        (iv) Extraction of largest connected component ( to remove small unconnected pixel )
-       /!\ need to be called through the function threshold components
+       ! need to be called through the function threshold components
 
        Args:
            [parsed] - A list of actual parameters:
