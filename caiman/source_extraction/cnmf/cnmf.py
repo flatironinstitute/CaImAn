@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 """ Constrained Nonnegative Matrix Factorization
 
@@ -14,24 +13,19 @@ Its architecture is similar to the one of scikit-learn calling the function fit 
 See Also:
     http://www.cell.com/neuron/fulltext/S0896-6273(15)01084-3
 .. mage:: docs/img/quickintro.png
-@author andrea giovannucci
 """
-#\package Caiman/utils
-#\version   1.0
-#\copyright GNU General Public License v2.0
-#\date Created on Fri Aug 26 15:44:32 2016
 
 from copy import deepcopy
 import cv2
+import glob
 import inspect
 import logging
 import numpy as np
 import os
+import pathlib
 import psutil
 import scipy
 import sys
-import glob
-import pathlib
 
 from .estimates import Estimates
 from .initialization import initialize_components, compute_W
@@ -75,7 +69,6 @@ class CNMF(object):
     See Also:
     @url http://www.cell.com/neuron/fulltext/S0896-6273(15)01084-3
     .. image:: docs/img/quickintro.png
-    @author andrea giovannucci
     """
     def __init__(self, n_processes, k=5, gSig=[4, 4], gSiz=None, merge_thresh=0.8, p=2, dview=None,
                  Ain=None, Cin=None, b_in=None, f_in=None, do_merge=True,

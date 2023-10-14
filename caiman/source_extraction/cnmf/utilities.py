@@ -6,18 +6,7 @@ We put arrays on disk as raw bytes, extending along the first dimension.
 Alongside each array x we ensure the value x.dtype which stores the string
 description of the array's dtype.
 
-See Also:
-------------
-
-@url
-.. image::
-@author  epnev
 """
-
-# \package caiman/dource_ectraction/cnmf
-# \version   1.0
-# \copyright GNU General Public License v2.0
-# \date Created on Sat Sep 12 15:52:53 2015
 
 import cv2
 import h5py
@@ -31,9 +20,6 @@ import scipy
 from scipy.sparse import spdiags, issparse, csc_matrix, csr_matrix
 import scipy.ndimage as ndi
 import tifffile
-from typing import List
-# https://github.com/constantinpape/z5/issues/146
-#import z5py
 
 from .initialization import greedyROI
 from ...base.rois import com
@@ -1012,7 +998,7 @@ def update_order_greedy(A, flag_AA=True):
         Eftychios A. Pnevmatikakis, Simons Foundation, 2017
     """
     K = np.shape(A)[-1]
-    parllcomp:List = []
+    parllcomp:list = []
     for i in range(K):
         new_list = True
         for ls in parllcomp:
@@ -1138,7 +1124,7 @@ def get_file_size(file_name, var_name_hdf5='mov'):
     # TODO There is a lot of redundant code between this and caiman.base.movies.load() that should be unified somehow
     if isinstance(file_name, pathlib.Path):
         # We want to support these as input, but str has a broader set of operations that we'd like to use, so let's just convert.
-	# (specifically, filePath types don't support subscripting)
+        # (specifically, filePath types don't support subscripting)
         file_name = str(file_name)
     if isinstance(file_name, str):
         if os.path.exists(file_name):
@@ -1159,14 +1145,19 @@ def get_file_size(file_name, var_name_hdf5='mov'):
                 else:
                     T, dims = siz[0], siz[1:]
             elif extension in ('.avi', '.mkv'):
-                cap = cv2.VideoCapture(file_name)
-                dims = [int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)), int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))]
-                T = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-                if dims[0] <= 0 or dims[1] <= 0 or T <= 0:
-                    # fallback to pims, like load() and load_iter() do
-                    pims_movie = pims.Video(file_name)
-                    T = len(pims_movie)
-                    dims[0], dims[1] = pims_movie.frame_shape[0:2]
+                if 'CAIMAN_LOAD_AVI_FORCE_FALLBACK' in os.environ:
+                        pims_movie = pims.PyAVReaderTimed(file_name) # duplicated code, but no cleaner way
+                        T = len(pims_movie)
+                        dims = pims_movie.frame_shape[0:2]
+                else:
+                    cap = cv2.VideoCapture(file_name) # try opencv
+                    dims = [int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)), int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))]
+                    T = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+                    cap.release()
+                    if dims[0] <= 0 or dims[1] <= 0 or T <= 0: # if no opencv, do pims instead. See also load()
+                        pims_movie = pims.PyAVReaderTimed(file_name)
+                        T = len(pims_movie)
+                        dims[0], dims[1] = pims_movie.frame_shape[0:2]
             elif extension == '.mmap':
                 filename = os.path.split(file_name)[-1]
                 Yr, dims, T = load_memmap(os.path.join(

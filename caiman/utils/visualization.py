@@ -3,14 +3,10 @@
 
 """ List of plotting functions to visualize what's happening in the code """
 
-#\package Caiman/utils
-#\version   1.0
-#\copyright GNU General Public License v2.0
-#\date Created on Tue Jun 30 21:01:17 2016
-#\author: andrea giovannucci
-
 import base64
 import cv2
+import functools as fct
+import holoviews as hv
 from IPython.display import HTML
 from math import sqrt, ceil
 import matplotlib as mpl
@@ -26,10 +22,8 @@ from scipy.sparse import issparse, spdiags, coo_matrix, csc_matrix
 from skimage.measure import find_contours
 import sys
 from tempfile import NamedTemporaryFile
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Optional
 from warnings import warn
-import holoviews as hv
-import functools as fct
 
 from ..base.rois import com
 from ..summary_images import local_correlations
@@ -39,6 +33,7 @@ try:
 except:
     pass
 
+#FIXME Look into converting this into a standard import
 try:
     import bokeh
     import bokeh.plotting as bpl
@@ -415,7 +410,7 @@ def get_contours(A, dims, thr=0.9, thr_method='nrg', swap_dim=False):
 
     # for each patches
     for i in range(nr):
-        pars:Dict = dict()
+        pars:dict = dict()
         # we compute the cumulative sum of the energy of the Ath component that has been ordered from least to highest
         patch_data = A.data[A.indptr[i]:A.indptr[i + 1]]
         indx = np.argsort(patch_data)[::-1]
@@ -1222,7 +1217,7 @@ def inspect_correlation_pnr(correlation_image_pnr, pnr_image):
 
 def get_rectangle_coords(im_dims: ArrayLike, 
                          stride: int, 
-                         overlap: int) -> Tuple[np.ndarray, np.ndarray]:
+                         overlap: int) -> tuple[np.ndarray, np.ndarray]:
     """
     Extract rectangle (patch) coordinates: a helper function used by view_quilt().
     
@@ -1266,7 +1261,7 @@ def rect_draw(row_minmax: ArrayLike,
               col_minmax: ArrayLike, 
               color: Optional[str]='white', 
               alpha: Optional[float]=0.2, 
-              ax: Optional[Any]=None) -> Tuple[Any, Any]:
+              ax: Optional[Any]=None) -> tuple[Any, Any]:
     """
     Draw a single rectangle on given axes object.
     
@@ -1310,7 +1305,7 @@ def view_quilt(template_image: np.ndarray,
                alpha: Optional[float]=0.2, 
                vmin: Optional[float]=None, 
                vmax: Optional[float]=None, 
-               figsize: Optional[Tuple[float,float]]=(6.,6.)) -> Any:
+               figsize: Optional[tuple[float,float]]=(6.,6.)) -> Any:
     """
     Plot patches on template image given stride and overlap parameters on template image.
     This can be useful for checking motion correction and cnmf spatial parameters. 

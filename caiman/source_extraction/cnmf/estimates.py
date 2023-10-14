@@ -1,16 +1,10 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Thu Jul 12 11:11:45 2018
+#!/usr/bin/env python
 
-@author: epnevmatikakis
-"""
 import bokeh
 import logging
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy.sparse
-from typing import List
 import time
 
 import caiman
@@ -163,7 +157,7 @@ class Estimates(object):
         self.groups = None
 
         self.dims = dims
-        self.shifts:List = []
+        self.shifts:list = []
 
         self.A_thr = None
         self.discarded_components = None
@@ -1305,7 +1299,7 @@ class Estimates(object):
 
         for i in range(nbmrg):
             merged_ROI = list(set(components[i]))
-            logging.info('Merging components {}'.format(merged_ROI))
+            logging.info(f'Merging components {merged_ROI}')
             merged_ROIs.append(merged_ROI)
 
             Acsc = self.A.tocsc()[:, merged_ROI]
@@ -1461,7 +1455,7 @@ class Estimates(object):
         duplicates_gt, indices_keep_gt, indices_remove_gt, D_gt, overlap_gt = detect_duplicates_and_subsets(
             A_gt_thr_bin,predictions=predictions, r_values=r_values, dist_thr=dist_thr, min_dist=min_dist,
             thresh_subset=thresh_subset)
-        logging.info('Number of duplicates: {}'.format(len(duplicates_gt)))
+        logging.info(f'Number of duplicates: {len(duplicates_gt)}')
         if len(duplicates_gt) > 0:
             if plot_duplicates:
                 plt.figure()
