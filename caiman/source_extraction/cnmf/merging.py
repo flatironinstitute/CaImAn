@@ -121,7 +121,7 @@ def merge_components(Y, A, b, C, R, f, S, sn_pix, temporal_params,
         R:  np.ndarray
             residuals
     Raises:
-        Exception "The number of elements of bl\c1\g\sn must match the number of components"
+        Exception "The number of elements of bl, c1, g, sn must match the number of components"
     """
 
     # tests and initialization

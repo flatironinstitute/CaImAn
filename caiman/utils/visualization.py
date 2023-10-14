@@ -16,8 +16,7 @@ from matplotlib.widgets import Slider
 import numpy as np
 from numpy.typing import ArrayLike
 import pylab as pl
-from scipy.ndimage.measurements import center_of_mass
-from scipy.ndimage.filters import median_filter
+from scipy.ndimage import center_of_mass, median_filter
 from scipy.sparse import issparse, spdiags, coo_matrix, csc_matrix
 from skimage.measure import find_contours
 import sys

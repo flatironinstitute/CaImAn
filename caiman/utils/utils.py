@@ -24,7 +24,7 @@ import scipy
 import ssl
 import subprocess
 import tensorflow as tf
-from scipy.ndimage.filters import gaussian_filter
+from scipy.ndimage import gaussian_filter
 from tifffile import TiffFile
 from typing import Any, Union, Iterable
 from urllib.request import urlopen

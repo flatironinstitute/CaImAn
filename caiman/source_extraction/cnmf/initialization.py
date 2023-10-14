@@ -15,8 +15,7 @@ from multiprocessing import current_process
 import numpy as np
 import scipy
 import scipy.ndimage as nd
-from scipy.ndimage.measurements import center_of_mass
-from scipy.ndimage.filters import correlate
+from scipy.ndimage import center_of_mass, correlate
 import scipy.sparse as spr
 from skimage.morphology import disk
 from sklearn.decomposition import NMF, FastICA
