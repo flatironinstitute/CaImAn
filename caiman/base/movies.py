@@ -12,21 +12,15 @@ import h5py
 from IPython.display import display, Image
 import ipywidgets as widgets
 import logging
-from matplotlib import animation
+import matplotlib
 import numpy as np
 import os
 import pathlib
 import pims
 import pylab as pl
-import scipy.ndimage
 import scipy
-from scipy.io import loadmat
-from skimage.transform import warp, AffineTransform
-from skimage.feature import match_template
+import skimage
 import sklearn
-from sklearn.cluster import KMeans
-from sklearn.decomposition import NMF, IncrementalPCA, FastICA
-from sklearn.metrics.pairwise import euclidean_distances
 import sys
 import threading
 import tifffile
@@ -368,7 +362,7 @@ class movie(ts.timeseries):
                 res = cv2.matchTemplate(frame, template, cv2.TM_CCORR_NORMED)
                 top_left = cv2.minMaxLoc(res)[3]
             elif method == 'skimage':
-                res = match_template(frame, template)
+                res = skimage.feature.match_template(frame, template)
                 top_left = np.unravel_index(np.argmax(res), res.shape)
                 top_left = top_left[::-1]
             else:
@@ -475,8 +469,8 @@ class movie(ts.timeseries):
 
             elif method == 'skimage':
 
-                tform = AffineTransform(translation=(-sh_y_n, -sh_x_n))
-                self[i] = warp(frame, tform, preserve_range=True, order=interpolation)
+                tform = skimage.transform.AffineTransform(translation=(-sh_y_n, -sh_x_n))
+                self[i] = skimage.transform.warp(frame, tform, preserve_range=True, order=interpolation)
 
             else:
                 raise Exception('Unknown shift application method')
@@ -679,7 +673,7 @@ class movie(ts.timeseries):
         Y = np.reshape(self, (T, h * w))
         Y = Y - np.percentile(Y, 1)
         Y = np.clip(Y, 0, np.Inf)
-        estimator = NMF(n_components=n_components, init=init, tol=tol, **kwargs)
+        estimator = sklearn.decomposition.NMF(n_components=n_components, init=init, tol=tol, **kwargs)
         time_components = estimator.fit_transform(Y)
         components_ = estimator.components_
         space_components = np.reshape(components_, (n_components, h, w))
@@ -772,7 +766,7 @@ class movie(ts.timeseries):
         frame_samples = np.reshape(self, (num_frames, frame_size)).T
 
         # run IPCA to approxiate the SVD
-        ipca_f = IncrementalPCA(n_components=components, batch_size=batch)
+        ipca_f = sklearn.decomposition.IncrementalPCA(n_components=components, batch_size=batch)
         ipca_f.fit(frame_samples)
 
         # construct the reduced version of the movie vectors using only the
@@ -834,7 +828,7 @@ class movie(ts.timeseries):
 
         eigenstuff = np.concatenate([n_eigenframes, n_eigenseries])
 
-        ica = FastICA(n_components=componentsICA, fun=ICAfun, **kwargs)
+        ica = sklearn.decomposition.FastICA(n_components=componentsICA, fun=ICAfun, **kwargs)
         joint_ics = ica.fit_transform(eigenstuff)
 
         # extract the independent frames
@@ -852,28 +846,6 @@ class movie(ts.timeseries):
         _, _, clean_vectors = self.IPCA(components, batch)
         self = self.__class__(np.reshape(np.float32(clean_vectors.T), np.shape(self)), **self.__dict__)
         return self
-
-    def IPCA_io(self, n_components: int = 50, fun: str = 'logcosh', max_iter: int = 1000, tol=1e-20) -> np.ndarray:
-        """ DO NOT USE STILL UNDER DEVELOPMENT
-        """
-        pca_comp = n_components
-        [T, d1, d2] = self.shape
-        M = np.reshape(self, (T, d1 * d2))
-        [U, S, V] = scipy.sparse.linalg.svds(M, pca_comp)
-        S = np.diag(S)
-        #        whiteningMatrix = np.dot(scipy.linalg.inv(np.sqrt(S)),U.T)
-        #        dewhiteningMatrix = np.dot(U,np.sqrt(S))
-        whiteningMatrix = np.dot(scipy.linalg.inv(S), U.T)
-        dewhiteningMatrix = np.dot(U, S)
-        whitesig = np.dot(whiteningMatrix, M)
-        wsigmask = np.reshape(whitesig.T, (d1, d2, pca_comp))
-        f_ica = sklearn.decomposition.FastICA(whiten=False, fun=fun, max_iter=max_iter, tol=tol)
-        S_ = f_ica.fit_transform(whitesig.T)
-        A_ = f_ica.mixing_
-        A = np.dot(A_, whitesig)
-        mask = np.reshape(A.T, (d1, d2, pca_comp)).transpose([2, 0, 1])
-
-        return mask
 
     def local_correlations(self,
                            eight_neighbours: bool = False,
@@ -976,9 +948,9 @@ class movie(ts.timeseries):
 
         idxA, idxB = np.meshgrid(list(range(w)), list(range(h)))
         coordmat = np.vstack((idxA.flatten(), idxB.flatten()))
-        distanceMatrix = euclidean_distances(coordmat.T)
+        distanceMatrix = sklearn.metrics.pairwise.euclidean_distances(coordmat.T)
         distanceMatrix = distanceMatrix / np.max(distanceMatrix)
-        estim = KMeans(n_clusters=n_clusters, max_iter=max_iter)
+        estim = sklearn.cluster.KMeans(n_clusters=n_clusters, max_iter=max_iter)
         kk = estim.fit(tradeoff_weight * mcoef - (1 - tradeoff_weight) * distanceMatrix)
         labs = kk.labels_
         fovs = np.reshape(labs, (h, w))
@@ -1548,7 +1520,7 @@ def load(file_name: Union[str, list[str]],
                     input_arr = input_arr[np.newaxis, :, :]
 
         elif extension == '.mat':      # load npy file
-            input_arr = loadmat(file_name)['data']
+            input_arr = scipy.io.loadmat(file_name)['data']
             input_arr = np.rollaxis(input_arr, 2, -3)
             if subindices is not None:
                 input_arr = input_arr[subindices]
@@ -1780,7 +1752,7 @@ def loadmat_sbx(filename: str):
     from mat files. It calls the function check keys to fix all entries
     which are still mat-objects
     """
-    data_ = loadmat(filename, struct_as_record=False, squeeze_me=True)
+    data_ = scipy.io.loadmat(filename, struct_as_record=False, squeeze_me=True)
     _check_keys(data_)
     return data_
 
@@ -2562,7 +2534,7 @@ def play_movie(movie,
         # call the animator.  blit=True means only re-draw the parts that have changed.
         frames = get_file_size(movie)[-1] if it else movie.shape[0]
         frames = int(np.ceil(frames / tsub))
-        anim = animation.FuncAnimation(fig, animate, frames=frames, interval=1, blit=True)
+        anim = matplotlib.animation.FuncAnimation(fig, animate, frames=frames, interval=1, blit=True)
 
         # call our new function to display the animation
         return visualization.display_animation(anim, fps=fr)
