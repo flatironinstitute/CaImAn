@@ -9,8 +9,9 @@ import scipy
 from scipy.ndimage import generate_binary_structure, iterate_structure
 
 import caiman.utils.utils
+import caiman.base.movies
 from ...paths import caiman_datadir
-from .utilities import dict_compare, get_file_size
+from .utilities import dict_compare
 
 
 class CNMFParams(object):
@@ -892,11 +893,11 @@ class CNMFParams(object):
         """
         self.data['last_commit'] = '-'.join(caiman.utils.utils.get_caiman_version())
         if self.data['dims'] is None and self.data['fnames'] is not None:
-            self.data['dims'] = get_file_size(self.data['fnames'], var_name_hdf5=self.data['var_name_hdf5'])[0]
+            self.data['dims'] = caiman.base.movies.get_file_size(self.data['fnames'], var_name_hdf5=self.data['var_name_hdf5'])[0]
         if self.data['fnames'] is not None:
             if isinstance(self.data['fnames'], str):
                 self.data['fnames'] = [self.data['fnames']]
-            T = get_file_size(self.data['fnames'], var_name_hdf5=self.data['var_name_hdf5'])[1]
+            T = caiman.base.movies.get_file_size(self.data['fnames'], var_name_hdf5=self.data['var_name_hdf5'])[1]
             if len(self.data['fnames']) > 1:
                 T = T[0]
             num_splits = max(T//max(self.motion['num_frames_split'], 10), 1)

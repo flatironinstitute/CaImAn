@@ -1,15 +1,10 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
+
 """ Suite of functions that help manage movie data
 
 Contains the movie class.
 
 """
-
-# \package caiman/source_ectraction/cnmf
-# \version   1.0
-# \copyright GNU General Public License v2.0
-# \date Created on Tue Jun 30 20:56:07 2015 , Updated on Fri Aug 19 17:30:11 2016
 
 import cv2
 from functools import partial
@@ -1564,9 +1559,9 @@ def load(file_name: Union[str, list[str]],
                 return movie(**f).astype(outtype)
 
         elif extension in ('.hdf5', '.h5', '.nwb'):
-           # TODO: Merge logic here with utilities.py:get_file_size()
+           # TODO: Merge logic here with get_file_size()
            with h5py.File(file_name, "r") as f:
-                ignore_keys = ['__DATA_TYPES__'] # Known metadata that tools provide, add to this as needed. Sync with utils.py:get_file_size() !!
+                ignore_keys = ['__DATA_TYPES__'] # Known metadata that tools provide, add to this as needed. Sync with get_file_size() !!
                 fkeys = list(filter(lambda x: x not in ignore_keys, f.keys()))
                 if len(fkeys) == 1 and 'Dataset' in str(type(f[fkeys[0]])): # If the hdf5 file we're parsing has only one dataset inside it,
                                                                             # ignore the arg and pick that dataset
@@ -2265,23 +2260,166 @@ def load_iter(file_name: Union[str, list[str]], subindices=None, var_name_hdf5: 
             logging.error(f"File request:[{file_name}] not found!")
             raise Exception('File not found!')
 
+def get_file_size(file_name, var_name_hdf5='mov'):
+    """ Computes the dimensions of a file or a list of files without loading
+    it/them in memory. An exception is thrown if the files have FOVs with
+    different sizes
+        Args:
+            file_name: str/filePath or various list types
+                locations of file(s)
+
+            var_name_hdf5: 'str'
+                if loading from hdf5 name of the dataset to load
+
+        Returns:
+            dims: tuple
+                dimensions of FOV
+
+            T: int or tuple of int
+                number of timesteps in each file
+    """
+    # TODO There is a lot of redundant code between this, load(), and load_iter() that should be unified somehow
+    if isinstance(file_name, pathlib.Path):
+        # We want to support these as input, but str has a broader set of operations that we'd like to use, so let's just convert.
+        # (specifically, filePath types don't support subscripting)
+        file_name = str(file_name)
+    if isinstance(file_name, str):
+        if os.path.exists(file_name):
+            _, extension = os.path.splitext(file_name)[:2]
+            extension = extension.lower()
+            if extension == '.mat':
+                byte_stream, file_opened = scipy.io.matlab.mio._open_file(file_name, appendmat=False)
+                mjv, mnv = scipy.io.matlab.mio.get_matfile_version(byte_stream)
+                if mjv == 2:
+                    extension = '.h5'
+            if extension in ['.tif', '.tiff', '.btf']:
+                tffl = tifffile.TiffFile(file_name)
+                siz = tffl.series[0].shape
+                # tiff files written in append mode
+                if len(siz) < 3:
+                    dims = siz
+                    T = len(tffl.pages)
+                else:
+                    T, dims = siz[0], siz[1:]
+            elif extension in ('.avi', '.mkv'):
+                if 'CAIMAN_LOAD_AVI_FORCE_FALLBACK' in os.environ:
+                        pims_movie = pims.PyAVReaderTimed(file_name) # duplicated code, but no cleaner way
+                        T = len(pims_movie)
+                        dims = pims_movie.frame_shape[0:2]
+                else:
+                    cap = cv2.VideoCapture(file_name) # try opencv
+                    dims = [int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)), int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))]
+                    T = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+                    cap.release()
+                    if dims[0] <= 0 or dims[1] <= 0 or T <= 0: # if no opencv, do pims instead. See also load()
+                        pims_movie = pims.PyAVReaderTimed(file_name)
+                        T = len(pims_movie)
+                        dims[0], dims[1] = pims_movie.frame_shape[0:2]
+            elif extension == '.mmap':
+                filename = os.path.split(file_name)[-1]
+                Yr, dims, T = load_memmap(os.path.join(
+                        os.path.split(file_name)[0], filename))
+            elif extension in ('.h5', '.hdf5', '.nwb'):
+                # FIXME this doesn't match the logic in movies.py:load()
+                # Consider pulling a lot of the "data source" code out into one place
+                with h5py.File(file_name, "r") as f:
+                    ignore_keys = ['__DATA_TYPES__'] # Known metadata that tools provide, add to this as needed. Sync with movies.my:load() !!
+                    kk = list(filter(lambda x: x not in ignore_keys, f.keys()))
+                    if len(kk) == 1 and 'Dataset' in str(type(f[kk[0]])): # TODO: Consider recursing into a group to find a dataset
+                        siz = f[kk[0]].shape
+                    elif var_name_hdf5 in f:
+                        if extension == '.nwb':
+                            siz = f[var_name_hdf5]['data'].shape
+                        else:
+                            siz = f[var_name_hdf5].shape
+                    elif var_name_hdf5 in f['acquisition']:
+                        siz = f['acquisition'][var_name_hdf5]['data'].shape
+                    else:
+                        logging.error('The file does not contain a variable' +
+                                      'named {0}'.format(var_name_hdf5))
+                        raise Exception('Variable not found. Use one of the above')
+                T, dims = siz[0], siz[1:]
+            elif extension in ('.n5', '.zarr'):
+                try:
+                    import z5py
+                except:
+                    raise Exception("z5py not available; if you need this use the conda-based setup")
+
+                with z5py.File(file_name, "r") as f:
+                    kk = list(f.keys())
+                    if len(kk) == 1:
+                        siz = f[kk[0]].shape
+                    elif var_name_hdf5 in f:
+                        if extension == '.nwb':
+                            siz = f[var_name_hdf5]['data'].shape
+                        else:
+                            siz = f[var_name_hdf5].shape
+                    elif var_name_hdf5 in f['acquisition']:
+                        siz = f['acquisition'][var_name_hdf5]['data'].shape
+                    else:
+                        logging.error('The file does not contain a variable' +
+                                      'named {0}'.format(var_name_hdf5))
+                        raise Exception('Variable not found. Use one of the above')
+                T, dims = siz[0], siz[1:]
+            elif extension in ('.sbx'):
+                from ...base.movies import loadmat_sbx
+                info = loadmat_sbx(file_name[:-4]+ '.mat')['info']
+                dims = tuple((info['sz']).astype(int))
+                # Defining number of channels/size factor
+                if info['channels'] == 1:
+                    info['nChan'] = 2
+                    factor = 1
+                elif info['channels'] == 2:
+                    info['nChan'] = 1
+                    factor = 2
+                elif info['channels'] == 3:
+                    info['nChan'] = 1
+                    factor = 2
+            
+                # Determine number of frames in whole file
+                T = int(os.path.getsize(
+                    file_name[:-4] + '.sbx') / info['recordsPerBuffer'] / info['sz'][1] * factor / 4 - 1)
+                
+            else:
+                raise Exception('Unknown file type')
+            dims = tuple(dims)
+        else:
+            raise Exception('File not found!')
+    elif isinstance(file_name, tuple):
+        from ...base.movies import load
+        dims = load(file_name[0], var_name_hdf5=var_name_hdf5).shape
+        T = len(file_name)
+
+    elif isinstance(file_name, list):
+        if len(file_name) == 1:
+            dims, T = get_file_size(file_name[0], var_name_hdf5=var_name_hdf5)
+        else:
+            dims, T = zip(*[get_file_size(fn, var_name_hdf5=var_name_hdf5)
+                for fn in file_name])
+            if len(set(dims)) > 1:
+                raise Exception('Files have FOVs with different sizes')
+            else:
+                dims = dims[0]
+    else:
+        raise Exception('Unknown input type')
+    return dims, T
 
 def play_movie(movie,
-               gain: float = 1.0,
+               gain:float = 1.0,
                fr=None,
-               magnification: float = 1.0,
-               offset: float = 0.0,
+               magnification:float = 1.0,
+               offset:float = 0.0,
                interpolation=cv2.INTER_LINEAR,
-               backend: str = 'opencv',
-               do_loop: bool = False,
+               backend:str = 'opencv',
+               do_loop:bool = False,
                bord_px=None,
-               q_max: float = 99.75,
-               q_min: float = 1,
-               plot_text: bool = False,
-               save_movie: bool = False,
-               opencv_codec: str = 'H264',
-               movie_name: str = 'movie.avi',
-               var_name_hdf5: str = 'mov',
+               q_max:float = 99.75,
+               q_min:float = 1.0,
+               plot_text:bool = False,
+               save_movie:bool = False,
+               opencv_codec:str = 'H264',
+               movie_name:str = 'movie.avi', # why?
+               var_name_hdf5:str = 'mov',
                subindices = slice(None),
                tsub: int = 1) -> None:
     """
@@ -2339,9 +2477,9 @@ def play_movie(movie,
     # todo: todocument
     it = True if (isinstance(movie, list) or isinstance(movie, tuple) or isinstance(movie, str)) else False
     if backend == 'pylab':
-        logging.warning('*** WARNING *** SPEED MIGHT BE LOW. USE opencv backend if available')
+        logging.warning('*** Using pylab. This might be slow. If you can use the opencv backend it may be faster')
 
-    gain *= 1.     # convert to float in case we were passed an int
+    gain = float(gain)     # convert to float in case we were passed an int
     if q_max < 100:
         maxmov = np.nanpercentile(load(movie, subindices=slice(0,10), var_name_hdf5=var_name_hdf5) if it else movie[0:10], q_max)
     else:
@@ -2421,7 +2559,7 @@ def play_movie(movie,
                 return im,
 
         # call the animator.  blit=True means only re-draw the parts that have changed.
-        frames = cm.source_extraction.cnmf.utilities.get_file_size(movie)[-1] if it else movie.shape[0]
+        frames = get_file_size(movie)[-1] if it else movie.shape[0]
         frames = int(np.ceil(frames / tsub))
         anim = animation.FuncAnimation(fig, animate, frames=frames, interval=1, blit=True)
 
@@ -2471,7 +2609,6 @@ def play_movie(movie,
         out = cv2.VideoWriter(movie_name, fourcc, 30.,
                               tuple([int(magnification * s) for s in frame_in.shape[1::-1]]))
     while looping:
-
         frame_sum = 0
         for iddxx, frame in enumerate(load_iter(movie, subindices, var_name_hdf5) if it else movie[subindices]):
             frame_sum += frame
@@ -2510,7 +2647,6 @@ def play_movie(movie,
                         break
 
                 elif backend == 'notebook':
-                    logging.debug('Animated via MP4')
                     break
 
                 else:
