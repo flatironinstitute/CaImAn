@@ -15,6 +15,7 @@ import logging
 from matplotlib import animation
 import numpy as np
 import os
+import pathlib
 import pims
 import pylab as pl
 import scipy.ndimage
@@ -2260,7 +2261,7 @@ def load_iter(file_name: Union[str, list[str]], subindices=None, var_name_hdf5: 
             logging.error(f"File request:[{file_name}] not found!")
             raise Exception('File not found!')
 
-def get_file_size(file_name, var_name_hdf5='mov'):
+def get_file_size(file_name, var_name_hdf5='mov') -> tuple[tuple, Union[int, tuple]]:
     """ Computes the dimensions of a file or a list of files without loading
     it/them in memory. An exception is thrown if the files have FOVs with
     different sizes
@@ -2320,8 +2321,7 @@ def get_file_size(file_name, var_name_hdf5='mov'):
                 Yr, dims, T = load_memmap(os.path.join(
                         os.path.split(file_name)[0], filename))
             elif extension in ('.h5', '.hdf5', '.nwb'):
-                # FIXME this doesn't match the logic in movies.py:load()
-                # Consider pulling a lot of the "data source" code out into one place
+                # FIXME this doesn't match the logic in load()
                 with h5py.File(file_name, "r") as f:
                     ignore_keys = ['__DATA_TYPES__'] # Known metadata that tools provide, add to this as needed. Sync with movies.my:load() !!
                     kk = list(filter(lambda x: x not in ignore_keys, f.keys()))
@@ -2335,11 +2335,12 @@ def get_file_size(file_name, var_name_hdf5='mov'):
                     elif var_name_hdf5 in f['acquisition']:
                         siz = f['acquisition'][var_name_hdf5]['data'].shape
                     else:
-                        logging.error('The file does not contain a variable' +
-                                      'named {0}'.format(var_name_hdf5))
+                        logging.error(f'The file does not contain a variable named {var_name_hdf5}')
                         raise Exception('Variable not found. Use one of the above')
                 T, dims = siz[0], siz[1:]
-            elif extension in ('.n5', '.zarr'):
+            elif extension in ('.n5', '.zarr'): # TODO: After #1168, if where things land leaves us with compatible APIs between h5 and zarr/n5,
+                                                # replace this and above with a dispatch to common code that takes an open handle and has the interiour of
+                                                # both these blocks (they're nearly identical)
                 try:
                     import z5py
                 except:
@@ -2357,12 +2358,10 @@ def get_file_size(file_name, var_name_hdf5='mov'):
                     elif var_name_hdf5 in f['acquisition']:
                         siz = f['acquisition'][var_name_hdf5]['data'].shape
                     else:
-                        logging.error('The file does not contain a variable' +
-                                      'named {0}'.format(var_name_hdf5))
+                        logging.error(f'The file does not contain a variable named {var_name_hdf5}')
                         raise Exception('Variable not found. Use one of the above')
                 T, dims = siz[0], siz[1:]
             elif extension in ('.sbx'):
-                from ...base.movies import loadmat_sbx
                 info = loadmat_sbx(file_name[:-4]+ '.mat')['info']
                 dims = tuple((info['sz']).astype(int))
                 # Defining number of channels/size factor
@@ -2403,6 +2402,8 @@ def get_file_size(file_name, var_name_hdf5='mov'):
     else:
         raise Exception('Unknown input type')
     return dims, T
+
+################################
 
 def play_movie(movie,
                gain:float = 1.0,
