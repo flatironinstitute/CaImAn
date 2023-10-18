@@ -352,7 +352,7 @@ class CNMF(object):
         else:
             data_set_name = self.params.get('data', 'var_name_hdf5')
             if motion_correct:
-                mc = MotionCorrect(fnames, dview=self.dview, indices=indices, **self.params.motion)
+                mc = MotionCorrect(fnames, dview=self.dview, **self.params.motion)
                 mc.motion_correct(save_movie=True, output_dir=output_dir)
                 fname_mc = mc.fname_tot_els if self.params.motion['pw_rigid'] else mc.fname_tot_rig
                 if self.params.get('motion', 'pw_rigid'):
