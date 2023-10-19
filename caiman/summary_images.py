@@ -14,8 +14,8 @@ from scipy.sparse import coo_matrix
 from typing import Any, Optional
 
 import caiman as cm
+import caiman.base.movies
 from caiman.source_extraction.cnmf.pre_processing import get_noise_fft
-from caiman.source_extraction.cnmf.utilities import get_file_size
 
 def max_correlation_image(Y, bin_size: int = 1000, eight_neighbours: bool = True, swap_dim: bool = True) -> np.ndarray:
     """Computes the max-correlation image for the input dataset Y with bin_size
@@ -712,7 +712,7 @@ def local_correlations_movie_offline(file_name,
 
     """
     if Tot_frames is None:
-        _, Tot_frames = get_file_size(file_name)
+        _, Tot_frames = caiman.base.movies.get_file_size(file_name)
 
     params:list = [[file_name, range(j, j + window), eight_neighbours, swap_dim,
                      order_mean, ismulticolor, remove_baseline, winSize_baseline,
@@ -782,7 +782,7 @@ def mean_image(file_name,
 
     """
     if Tot_frames is None:
-        _, Tot_frames = get_file_size(file_name)
+        _, Tot_frames = caiman.base.movies.get_file_size(file_name)
 
     params:list = [[file_name, range(j * window, (j + 1) * window)]
                     for j in range(int(Tot_frames / window))]

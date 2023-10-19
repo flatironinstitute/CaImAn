@@ -29,6 +29,7 @@ import tensorflow as tf
 from time import time
 
 import caiman
+import caiman.base.movies
 import caiman.paths
 from .cnmf import CNMF
 from .estimates import Estimates
@@ -36,7 +37,7 @@ from .initialization import imblur, initialize_components, hals, downscale
 from .oasis import OASIS
 from .params import CNMFParams
 from .pre_processing import get_noise_fft
-from .utilities import (update_order, get_file_size, peak_local_max, decimation_matrix,
+from .utilities import (update_order, peak_local_max, decimation_matrix,
                         gaussian_filter, uniform_filter)
 from ... import mmapping
 from ...components_evaluation import compute_event_exceptionality
@@ -1055,7 +1056,7 @@ class OnACID(object):
             self.estimates.lam = np.zeros(nr)
         else:
             raise Exception('Unknown initialization method!')
-        dims, Ts = get_file_size(fls, var_name_hdf5=self.params.get('data', 'var_name_hdf5'))
+        dims, Ts = caiman.base.movies.get_file_size(fls, var_name_hdf5=self.params.get('data', 'var_name_hdf5'))
         dims = Y.shape[1:]
         self.params.set('data', {'dims': dims})
         T1 = np.array(Ts).sum()*self.params.get('online', 'epochs') if T is None else T

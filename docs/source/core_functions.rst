@@ -29,7 +29,9 @@ Movie Handling
 .. automethod:: movie.play
 .. automethod:: movie.resize
 .. automethod:: movie.computeDFF
+.. autofunction:: get_file_size
 .. autofunction:: load
+.. autofunction:: load_iter
 .. autofunction:: load_movie_chain
 
 Timeseries Handling
@@ -185,7 +187,6 @@ Utilities
 
 .. autofunction:: detrend_df_f
 .. autofunction:: update_order
-.. autofunction:: get_file_size
 
 
 ROIs

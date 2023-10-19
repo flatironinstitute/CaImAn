@@ -2816,7 +2816,7 @@ def motion_correct_batch_rigid(fname, max_shifts, dview=None, splits=56, num_spl
 
     """
 
-    dims, T = cm.source_extraction.cnmf.utilities.get_file_size(fname, var_name_hdf5=var_name_hdf5)
+    dims, T = caiman.base.movies.get_file_size(fname, var_name_hdf5=var_name_hdf5)
     Ts = np.arange(T)[subidx].shape[0]
     step = Ts // 10 if is3D else Ts // 50
     corrected_slicer = slice(subidx.start, subidx.stop, step + 1)
@@ -3135,7 +3135,7 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
     extension = extension.lower()
     is_fiji = False
 
-    dims, T = cm.source_extraction.cnmf.utilities.get_file_size(fname, var_name_hdf5=var_name_hdf5)
+    dims, T = caiman.base.movies.get_file_size(fname, var_name_hdf5=var_name_hdf5)
     z = np.zeros(dims)
     dims = z[indices].shape
     logging.debug(f'Number of Splits: {splits}')

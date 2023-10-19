@@ -1,15 +1,10 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
+
 """ Suite of functions that help manage movie data
 
 Contains the movie class.
 
 """
-
-# \package caiman/source_ectraction/cnmf
-# \version   1.0
-# \copyright GNU General Public License v2.0
-# \date Created on Tue Jun 30 20:56:07 2015 , Updated on Fri Aug 19 17:30:11 2016
 
 import cv2
 from functools import partial
@@ -17,20 +12,15 @@ import h5py
 from IPython.display import display, Image
 import ipywidgets as widgets
 import logging
-from matplotlib import animation
+import matplotlib
 import numpy as np
 import os
+import pathlib
 import pims
 import pylab as pl
-import scipy.ndimage
 import scipy
-from scipy.io import loadmat
-from skimage.transform import warp, AffineTransform
-from skimage.feature import match_template
+import skimage
 import sklearn
-from sklearn.cluster import KMeans
-from sklearn.decomposition import NMF, IncrementalPCA, FastICA
-from sklearn.metrics.pairwise import euclidean_distances
 import sys
 import threading
 import tifffile
@@ -372,7 +362,7 @@ class movie(ts.timeseries):
                 res = cv2.matchTemplate(frame, template, cv2.TM_CCORR_NORMED)
                 top_left = cv2.minMaxLoc(res)[3]
             elif method == 'skimage':
-                res = match_template(frame, template)
+                res = skimage.feature.match_template(frame, template)
                 top_left = np.unravel_index(np.argmax(res), res.shape)
                 top_left = top_left[::-1]
             else:
@@ -479,8 +469,8 @@ class movie(ts.timeseries):
 
             elif method == 'skimage':
 
-                tform = AffineTransform(translation=(-sh_y_n, -sh_x_n))
-                self[i] = warp(frame, tform, preserve_range=True, order=interpolation)
+                tform = skimage.transform.AffineTransform(translation=(-sh_y_n, -sh_x_n))
+                self[i] = skimage.transform.warp(frame, tform, preserve_range=True, order=interpolation)
 
             else:
                 raise Exception('Unknown shift application method')
@@ -683,7 +673,7 @@ class movie(ts.timeseries):
         Y = np.reshape(self, (T, h * w))
         Y = Y - np.percentile(Y, 1)
         Y = np.clip(Y, 0, np.Inf)
-        estimator = NMF(n_components=n_components, init=init, tol=tol, **kwargs)
+        estimator = sklearn.decomposition.NMF(n_components=n_components, init=init, tol=tol, **kwargs)
         time_components = estimator.fit_transform(Y)
         components_ = estimator.components_
         space_components = np.reshape(components_, (n_components, h, w))
@@ -776,7 +766,7 @@ class movie(ts.timeseries):
         frame_samples = np.reshape(self, (num_frames, frame_size)).T
 
         # run IPCA to approxiate the SVD
-        ipca_f = IncrementalPCA(n_components=components, batch_size=batch)
+        ipca_f = sklearn.decomposition.IncrementalPCA(n_components=components, batch_size=batch)
         ipca_f.fit(frame_samples)
 
         # construct the reduced version of the movie vectors using only the
@@ -838,7 +828,7 @@ class movie(ts.timeseries):
 
         eigenstuff = np.concatenate([n_eigenframes, n_eigenseries])
 
-        ica = FastICA(n_components=componentsICA, fun=ICAfun, **kwargs)
+        ica = sklearn.decomposition.FastICA(n_components=componentsICA, fun=ICAfun, **kwargs)
         joint_ics = ica.fit_transform(eigenstuff)
 
         # extract the independent frames
@@ -856,28 +846,6 @@ class movie(ts.timeseries):
         _, _, clean_vectors = self.IPCA(components, batch)
         self = self.__class__(np.reshape(np.float32(clean_vectors.T), np.shape(self)), **self.__dict__)
         return self
-
-    def IPCA_io(self, n_components: int = 50, fun: str = 'logcosh', max_iter: int = 1000, tol=1e-20) -> np.ndarray:
-        """ DO NOT USE STILL UNDER DEVELOPMENT
-        """
-        pca_comp = n_components
-        [T, d1, d2] = self.shape
-        M = np.reshape(self, (T, d1 * d2))
-        [U, S, V] = scipy.sparse.linalg.svds(M, pca_comp)
-        S = np.diag(S)
-        #        whiteningMatrix = np.dot(scipy.linalg.inv(np.sqrt(S)),U.T)
-        #        dewhiteningMatrix = np.dot(U,np.sqrt(S))
-        whiteningMatrix = np.dot(scipy.linalg.inv(S), U.T)
-        dewhiteningMatrix = np.dot(U, S)
-        whitesig = np.dot(whiteningMatrix, M)
-        wsigmask = np.reshape(whitesig.T, (d1, d2, pca_comp))
-        f_ica = sklearn.decomposition.FastICA(whiten=False, fun=fun, max_iter=max_iter, tol=tol)
-        S_ = f_ica.fit_transform(whitesig.T)
-        A_ = f_ica.mixing_
-        A = np.dot(A_, whitesig)
-        mask = np.reshape(A.T, (d1, d2, pca_comp)).transpose([2, 0, 1])
-
-        return mask
 
     def local_correlations(self,
                            eight_neighbours: bool = False,
@@ -980,9 +948,9 @@ class movie(ts.timeseries):
 
         idxA, idxB = np.meshgrid(list(range(w)), list(range(h)))
         coordmat = np.vstack((idxA.flatten(), idxB.flatten()))
-        distanceMatrix = euclidean_distances(coordmat.T)
+        distanceMatrix = sklearn.metrics.pairwise.euclidean_distances(coordmat.T)
         distanceMatrix = distanceMatrix / np.max(distanceMatrix)
-        estim = KMeans(n_clusters=n_clusters, max_iter=max_iter)
+        estim = sklearn.cluster.KMeans(n_clusters=n_clusters, max_iter=max_iter)
         kk = estim.fit(tradeoff_weight * mcoef - (1 - tradeoff_weight) * distanceMatrix)
         labs = kk.labels_
         fovs = np.reshape(labs, (h, w))
@@ -1552,7 +1520,7 @@ def load(file_name: Union[str, list[str]],
                     input_arr = input_arr[np.newaxis, :, :]
 
         elif extension == '.mat':      # load npy file
-            input_arr = loadmat(file_name)['data']
+            input_arr = scipy.io.loadmat(file_name)['data']
             input_arr = np.rollaxis(input_arr, 2, -3)
             if subindices is not None:
                 input_arr = input_arr[subindices]
@@ -1564,9 +1532,9 @@ def load(file_name: Union[str, list[str]],
                 return movie(**f).astype(outtype)
 
         elif extension in ('.hdf5', '.h5', '.nwb'):
-           # TODO: Merge logic here with utilities.py:get_file_size()
+           # TODO: Merge logic here with get_file_size()
            with h5py.File(file_name, "r") as f:
-                ignore_keys = ['__DATA_TYPES__'] # Known metadata that tools provide, add to this as needed. Sync with utils.py:get_file_size() !!
+                ignore_keys = ['__DATA_TYPES__'] # Known metadata that tools provide, add to this as needed. Sync with get_file_size() !!
                 fkeys = list(filter(lambda x: x not in ignore_keys, f.keys()))
                 if len(fkeys) == 1 and 'Dataset' in str(type(f[fkeys[0]])): # If the hdf5 file we're parsing has only one dataset inside it,
                                                                             # ignore the arg and pick that dataset
@@ -1784,7 +1752,7 @@ def loadmat_sbx(filename: str):
     from mat files. It calls the function check keys to fix all entries
     which are still mat-objects
     """
-    data_ = loadmat(filename, struct_as_record=False, squeeze_me=True)
+    data_ = scipy.io.loadmat(filename, struct_as_record=False, squeeze_me=True)
     _check_keys(data_)
     return data_
 
@@ -2265,23 +2233,166 @@ def load_iter(file_name: Union[str, list[str]], subindices=None, var_name_hdf5: 
             logging.error(f"File request:[{file_name}] not found!")
             raise Exception('File not found!')
 
+def get_file_size(file_name, var_name_hdf5='mov') -> tuple[tuple, Union[int, tuple]]:
+    """ Computes the dimensions of a file or a list of files without loading
+    it/them in memory. An exception is thrown if the files have FOVs with
+    different sizes
+        Args:
+            file_name: str/filePath or various list types
+                locations of file(s)
+
+            var_name_hdf5: 'str'
+                if loading from hdf5 name of the dataset to load
+
+        Returns:
+            dims: tuple
+                dimensions of FOV
+
+            T: int or tuple of int
+                number of timesteps in each file
+    """
+    # TODO There is a lot of redundant code between this, load(), and load_iter() that should be unified somehow
+    if isinstance(file_name, pathlib.Path):
+        # We want to support these as input, but str has a broader set of operations that we'd like to use, so let's just convert.
+        # (specifically, filePath types don't support subscripting)
+        file_name = str(file_name)
+    if isinstance(file_name, str):
+        if os.path.exists(file_name):
+            _, extension = os.path.splitext(file_name)[:2]
+            extension = extension.lower()
+            if extension == '.mat':
+                byte_stream, file_opened = scipy.io.matlab.mio._open_file(file_name, appendmat=False)
+                mjv, mnv = scipy.io.matlab.mio.get_matfile_version(byte_stream)
+                if mjv == 2:
+                    extension = '.h5'
+            if extension in ['.tif', '.tiff', '.btf']:
+                tffl = tifffile.TiffFile(file_name)
+                siz = tffl.series[0].shape
+                # tiff files written in append mode
+                if len(siz) < 3:
+                    dims = siz
+                    T = len(tffl.pages)
+                else:
+                    T, dims = siz[0], siz[1:]
+            elif extension in ('.avi', '.mkv'):
+                if 'CAIMAN_LOAD_AVI_FORCE_FALLBACK' in os.environ:
+                        pims_movie = pims.PyAVReaderTimed(file_name) # duplicated code, but no cleaner way
+                        T = len(pims_movie)
+                        dims = pims_movie.frame_shape[0:2]
+                else:
+                    cap = cv2.VideoCapture(file_name) # try opencv
+                    dims = [int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)), int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))]
+                    T = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+                    cap.release()
+                    if dims[0] <= 0 or dims[1] <= 0 or T <= 0: # if no opencv, do pims instead. See also load()
+                        pims_movie = pims.PyAVReaderTimed(file_name)
+                        T = len(pims_movie)
+                        dims[0], dims[1] = pims_movie.frame_shape[0:2]
+            elif extension == '.mmap':
+                filename = os.path.split(file_name)[-1]
+                Yr, dims, T = load_memmap(os.path.join(
+                        os.path.split(file_name)[0], filename))
+            elif extension in ('.h5', '.hdf5', '.nwb'):
+                # FIXME this doesn't match the logic in load()
+                with h5py.File(file_name, "r") as f:
+                    ignore_keys = ['__DATA_TYPES__'] # Known metadata that tools provide, add to this as needed. Sync with movies.my:load() !!
+                    kk = list(filter(lambda x: x not in ignore_keys, f.keys()))
+                    if len(kk) == 1 and 'Dataset' in str(type(f[kk[0]])): # TODO: Consider recursing into a group to find a dataset
+                        siz = f[kk[0]].shape
+                    elif var_name_hdf5 in f:
+                        if extension == '.nwb':
+                            siz = f[var_name_hdf5]['data'].shape
+                        else:
+                            siz = f[var_name_hdf5].shape
+                    elif var_name_hdf5 in f['acquisition']:
+                        siz = f['acquisition'][var_name_hdf5]['data'].shape
+                    else:
+                        logging.error(f'The file does not contain a variable named {var_name_hdf5}')
+                        raise Exception('Variable not found. Use one of the above')
+                T, dims = siz[0], siz[1:]
+            elif extension in ('.n5', '.zarr'): # TODO: After #1168, if where things land leaves us with compatible APIs between h5 and zarr/n5,
+                                                # replace this and above with a dispatch to common code that takes an open handle and has the interiour of
+                                                # both these blocks (they're nearly identical)
+                try:
+                    import z5py
+                except:
+                    raise Exception("z5py not available; if you need this use the conda-based setup")
+
+                with z5py.File(file_name, "r") as f:
+                    kk = list(f.keys())
+                    if len(kk) == 1:
+                        siz = f[kk[0]].shape
+                    elif var_name_hdf5 in f:
+                        if extension == '.nwb':
+                            siz = f[var_name_hdf5]['data'].shape
+                        else:
+                            siz = f[var_name_hdf5].shape
+                    elif var_name_hdf5 in f['acquisition']:
+                        siz = f['acquisition'][var_name_hdf5]['data'].shape
+                    else:
+                        logging.error(f'The file does not contain a variable named {var_name_hdf5}')
+                        raise Exception('Variable not found. Use one of the above')
+                T, dims = siz[0], siz[1:]
+            elif extension in ('.sbx'):
+                info = loadmat_sbx(file_name[:-4]+ '.mat')['info']
+                dims = tuple((info['sz']).astype(int))
+                # Defining number of channels/size factor
+                if info['channels'] == 1:
+                    info['nChan'] = 2
+                    factor = 1
+                elif info['channels'] == 2:
+                    info['nChan'] = 1
+                    factor = 2
+                elif info['channels'] == 3:
+                    info['nChan'] = 1
+                    factor = 2
+            
+                # Determine number of frames in whole file
+                T = int(os.path.getsize(
+                    file_name[:-4] + '.sbx') / info['recordsPerBuffer'] / info['sz'][1] * factor / 4 - 1)
+                
+            else:
+                raise Exception('Unknown file type')
+            dims = tuple(dims)
+        else:
+            raise Exception('File not found!')
+    elif isinstance(file_name, tuple):
+        from ...base.movies import load
+        dims = load(file_name[0], var_name_hdf5=var_name_hdf5).shape
+        T = len(file_name)
+
+    elif isinstance(file_name, list):
+        if len(file_name) == 1:
+            dims, T = get_file_size(file_name[0], var_name_hdf5=var_name_hdf5)
+        else:
+            dims, T = zip(*[get_file_size(fn, var_name_hdf5=var_name_hdf5)
+                for fn in file_name])
+            if len(set(dims)) > 1:
+                raise Exception('Files have FOVs with different sizes')
+            else:
+                dims = dims[0]
+    else:
+        raise Exception('Unknown input type')
+    return dims, T
+
+################################
 
 def play_movie(movie,
-               gain: float = 1.0,
+               gain:float = 1.0,
                fr=None,
-               magnification: float = 1.0,
-               offset: float = 0.0,
+               magnification:float = 1.0,
+               offset:float = 0.0,
                interpolation=cv2.INTER_LINEAR,
-               backend: str = 'opencv',
-               do_loop: bool = False,
+               backend:str = 'opencv',
+               do_loop:bool = False,
                bord_px=None,
-               q_max: float = 99.75,
-               q_min: float = 1,
-               plot_text: bool = False,
-               save_movie: bool = False,
-               opencv_codec: str = 'H264',
-               movie_name: str = 'movie.avi',
-               var_name_hdf5: str = 'mov',
+               q_max:float = 99.75,
+               q_min:float = 1.0,
+               plot_text:bool = False,
+               save_movie:bool = False,
+               opencv_codec:str = 'H264',
+               movie_name:str = 'movie.avi', # why?
+               var_name_hdf5:str = 'mov',
                subindices = slice(None),
                tsub: int = 1) -> None:
     """
@@ -2339,9 +2450,9 @@ def play_movie(movie,
     # todo: todocument
     it = True if (isinstance(movie, list) or isinstance(movie, tuple) or isinstance(movie, str)) else False
     if backend == 'pylab':
-        logging.warning('*** WARNING *** SPEED MIGHT BE LOW. USE opencv backend if available')
+        logging.warning('*** Using pylab. This might be slow. If you can use the opencv backend it may be faster')
 
-    gain *= 1.     # convert to float in case we were passed an int
+    gain = float(gain)     # convert to float in case we were passed an int
     if q_max < 100:
         maxmov = np.nanpercentile(load(movie, subindices=slice(0,10), var_name_hdf5=var_name_hdf5) if it else movie[0:10], q_max)
     else:
@@ -2421,9 +2532,9 @@ def play_movie(movie,
                 return im,
 
         # call the animator.  blit=True means only re-draw the parts that have changed.
-        frames = cm.source_extraction.cnmf.utilities.get_file_size(movie)[-1] if it else movie.shape[0]
+        frames = get_file_size(movie)[-1] if it else movie.shape[0]
         frames = int(np.ceil(frames / tsub))
-        anim = animation.FuncAnimation(fig, animate, frames=frames, interval=1, blit=True)
+        anim = matplotlib.animation.FuncAnimation(fig, animate, frames=frames, interval=1, blit=True)
 
         # call our new function to display the animation
         return visualization.display_animation(anim, fps=fr)
@@ -2471,7 +2582,6 @@ def play_movie(movie,
         out = cv2.VideoWriter(movie_name, fourcc, 30.,
                               tuple([int(magnification * s) for s in frame_in.shape[1::-1]]))
     while looping:
-
         frame_sum = 0
         for iddxx, frame in enumerate(load_iter(movie, subindices, var_name_hdf5) if it else movie[subindices]):
             frame_sum += frame
@@ -2510,7 +2620,6 @@ def play_movie(movie,
                         break
 
                 elif backend == 'notebook':
-                    logging.debug('Animated via MP4')
                     break
 
                 else:

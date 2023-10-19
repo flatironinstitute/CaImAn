@@ -17,8 +17,7 @@ from tensorflow.keras.initializers import Constant, RandomUniform
 from tensorflow.keras.utils import Sequence
 import time
 
-from caiman.source_extraction.cnmf.utilities import get_file_size
-from caiman.base.movies import load
+import caiman.base.movies
 from caiman.paths import caiman_datadir
 
 
@@ -31,7 +30,7 @@ class CalciumDataset(Sequence):
         if isinstance(files, str):
             files = [files]
         self.files = files
-        dims, T = get_file_size(files, var_name_hdf5=var_name_hdf5)
+        dims, T = caiman.base.movies.get_file_size(files, var_name_hdf5=var_name_hdf5)
         if subindices is not None:
             T = len(range(T)[subindices])
         if isinstance(T, int):
@@ -54,8 +53,8 @@ class CalciumDataset(Sequence):
         file_id = int(index / batches_per_npy)
         batch_id = int(index % batches_per_npy)
         lb, ub = batch_id*self.batch_size, (batch_id + 1)*self.batch_size
-        X = load(os.path.join(self.files[file_id]), subindices=slice(lb, ub),
-                 var_name_hdf5=self.var_name_hdf5)
+        X = caiman.base.movies.load(os.path.join(self.files[file_id]), subindices=slice(lb, ub),
+                                    var_name_hdf5=self.var_name_hdf5)
         X = X.astype(np.float32)
         X = np.expand_dims(X, axis=-1)
         return X, X
