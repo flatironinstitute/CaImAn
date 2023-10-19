@@ -12,9 +12,9 @@ import scipy
 from scipy.sparse import spdiags, diags, coo_matrix, csc_matrix
 import sys
 
-from .deconvolution import constrained_foopsi
-from .utilities import update_order_greedy
-from ...mmapping import parallel_dot_product
+import caiman.mmapping
+import caiman.source_extraction.cnmf.deconvolution
+import caiman.source_extraction.cnmf.utilities
 
 def make_G_matrix(T, g):
     """
@@ -50,7 +50,7 @@ def constrained_foopsi_parallel(arg_in):
 
     Ytemp, nT, jj_, bl, c1, g, sn, argss = arg_in
     T = np.shape(Ytemp)[0]
-    cc_, cb_, c1_, gn_, sn_, sp_, lam_ = constrained_foopsi(
+    cc_, cb_, c1_, gn_, sn_, sp_, lam_ = caiman.source_extraction.cnmf.deconvolution.constrained_foopsi(
         Ytemp, bl=bl, c1=c1, g=g, sn=sn, **argss)
     gd_ = np.max(np.real(np.roots(np.hstack((1, -gn_.T)))))
     gd_vec = gd_**list(range(T))
@@ -207,14 +207,14 @@ def update_temporal_components(Y, A, b, Cin, fin, bl=None, c1=None, g=None, sn=N
         bl_siz1 = d // (np.maximum(num_blocks_per_run_temp - 1, 1))
         bl_siz2 = int(psutil.virtual_memory().available/(num_blocks_per_run_temp + 1) - 4*A.nnz) // int(4*T)
         # block_size_temp
-        YA = parallel_dot_product(Y, A.tocsr(), dview=dview, block_size=min(bl_siz1, bl_siz2),
-                                  transpose=True, num_blocks_per_run=num_blocks_per_run_temp) * diags(1. / nA);
+        YA = caiman.mmapping.parallel_dot_product(Y, A.tocsr(), dview=dview, block_size=min(bl_siz1, bl_siz2),
+                                                  transpose=True, num_blocks_per_run=num_blocks_per_run_temp) * diags(1. / nA)
     else:
         YA = (A.T.dot(Y).T) * diags(1. / nA)
     AA = ((A.T.dot(A)) * diags(1. / nA)).tocsr()
     YrA = YA - AA.T.dot(Cin).T
     # creating the patch of components to be computed in parallel
-    parrllcomp, len_parrllcomp = update_order_greedy(AA[:nr, :][:, :nr])
+    parrllcomp, len_parrllcomp = caiman.source_extraction.cnmf.utilities.update_order_greedy(AA[:nr, :][:, :nr])
     logging.info("entering the deconvolution ")
     C, S, bl, YrA, c1, sn, g, lam = update_iteration(parrllcomp, len_parrllcomp, nb, C, S, bl, nr,
                                                      ITER, YrA, c1, sn, g, Cin, T, nA, dview, debug, AA, kwargs)

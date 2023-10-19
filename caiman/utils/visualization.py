@@ -1,5 +1,5 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
+
 
 """ List of plotting functions to visualize what's happening in the code """
 
@@ -9,10 +9,9 @@ import functools as fct
 import holoviews as hv
 from IPython.display import HTML
 from math import sqrt, ceil
-import matplotlib as mpl
-import matplotlib.cm as cm
-from matplotlib.patches import Rectangle
-from matplotlib.widgets import Slider
+import matplotlib
+import matplotlib.patches
+import matplotlib.widgets
 import numpy as np
 from numpy.typing import ArrayLike
 import pylab as pl
@@ -24,15 +23,15 @@ from tempfile import NamedTemporaryFile
 from typing import Any, Optional
 from warnings import warn
 
-from ..base.rois import com
-from ..summary_images import local_correlations
+import caiman.base.rois
+import caiman.summary_images
 
 try:
     cv2.setNumThreads(0)
 except:
     pass
 
-#FIXME Look into converting this into a standard import
+# FIXME Look into converting this into a standard import
 try:
     import bokeh
     import bokeh.plotting as bpl
@@ -156,8 +155,8 @@ def nb_view_patches(Yr, A, C, b, f, d1, d2, YrA=None, image_neurons=None, thr=0.
             name of colormap (e.g. 'viridis') used to plot image_neurons
     """
 
-    colormap = cm.get_cmap(cmap)
-    grayp = [mpl.colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
+    colormap = matplotlib.cm.get_cmap(cmap)
+    grayp = [matplotlib.colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
     nr, T = C.shape
     nA2 = np.ravel(np.power(A, 2).sum(0)) if isinstance(A, np.ndarray) else np.ravel(A.power(2).sum(0))
     b = np.squeeze(b)
@@ -330,9 +329,9 @@ def hv_view_patches(Yr, A, C, b, f, d1, d2, YrA=None, image_neurons=None, denois
         Y_r = C + YrA
     if image_neurons is None:
         image_neurons = A.mean(1).reshape((d1, d2), order='F')
-    smp = cm.ScalarMappable(cmap=cmap)
+    smp = matplotlib.cm.ScalarMappable(cmap=cmap)
     im_rgb = smp.to_rgba(image_neurons)[:, :, :3]
-    im_hsv = mpl.colors.rgb_to_hsv(im_rgb)
+    im_hsv = matplotlib.colors.rgb_to_hsv(im_rgb)
 
     def norm(a, rg=(0, 1)):
         a_norm = (a - a.min()) / (a.max() - a.min())
@@ -405,7 +404,7 @@ def get_contours(A, dims, thr=0.9, thr_method='nrg', swap_dim=False):
     coordinates = []
 
     # get the center of mass of neurons( patches )
-    cm = com(A, *dims)
+    cm = caiman.base.rois.com(A, *dims)
 
     # for each patches
     for i in range(nr):
@@ -518,8 +517,8 @@ def nb_view_patches3d(Y_r, A, C, dims, image_type='mean', Yr=None,
     A = csc_matrix(A)[index_permut, :]
     dims = tuple(np.array(dims)[order[:3]])
     d1, d2, d3 = dims
-    colormap = cm.get_cmap(cmap)
-    grayp = [mpl.colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
+    colormap = matplotlib.cm.get_cmap(cmap)
+    grayp = [matplotlib.colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
     nr, T = C.shape
 
     x = np.arange(T)
@@ -530,7 +529,7 @@ def nb_view_patches3d(Y_r, A, C, dims, image_type='mean', Yr=None,
 
     if max_projection:
         if image_type == 'corr':
-            tmp = [(local_correlations(
+            tmp = [(caiman.summary_images.local_correlations(
                 Yr[index_permut].reshape(dims + (-1,), order='F'))[:, ::-1]).max(i)
                 for i in range(3)]
 
@@ -629,7 +628,7 @@ def nb_view_patches3d(Y_r, A, C, dims, image_type='mean', Yr=None,
     else:
 
         if image_type == 'corr':
-            image_neurons = local_correlations(
+            image_neurons = caiman.summary_images.local_correlations(
                 Yr[index_permut].reshape(dims + (-1,), order='F'))
 
         elif image_type == 'mean':
@@ -641,7 +640,7 @@ def nb_view_patches3d(Y_r, A, C, dims, image_type='mean', Yr=None,
         else:
             raise ValueError('image_type must be mean, max or corr')
 
-        cmap = bokeh.models.mappers.LinearColorMapper([mpl.colors.rgb2hex(m)
+        cmap = bokeh.models.mappers.LinearColorMapper([matplotlib.colors.rgb2hex(m)
                                                        for m in colormap(np.arange(colormap.N))])
         cmap.high = image_neurons.max()
         coors = get_contours(A, dims, thr=thr)
@@ -782,8 +781,8 @@ def nb_imshow(image, cmap='jet'):
     """
     Interactive equivalent of imshow for ipython notebook
     """
-    colormap = cm.get_cmap(cmap)  # choose any matplotlib colormap here
-    grayp = [mpl.colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
+    colormap = matplotlib.cm.get_cmap(cmap)  # choose any matplotlib colormap here
+    grayp = [matplotlib.colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
     xr = Range1d(start=0, end=image.shape[1])
     yr = Range1d(start=image.shape[0], end=0)
     p = bpl.figure(x_range=xr, y_range=yr)
@@ -837,7 +836,7 @@ def nb_plot_contour(image, A, d1, d2, thr=None, thr_method='max', maxthr=0.2, nr
     p = nb_imshow(image, cmap=cmap)
     p.width = 600
     p.height = 600 * d1 // d2
-    center = com(A, d1, d2)
+    center = caiman.base.rois.com(A, d1, d2)
     p.circle(center[:, 1], center[:, 0], size=10, color="black",
              fill_color=None, line_width=2, alpha=1)
     if coordinates is None:
@@ -964,7 +963,7 @@ def view_patches_bar(Yr, A, C, b, f, d1, d2, YrA=None, img=None,
     ax3 = pl.axes([0.55, 0.55, 0.4, 0.4])
     ax2 = pl.axes([0.05, 0.1, 0.9, 0.4])
 
-    s_comp = Slider(axcomp, 'Component', 0, nr + nb - 1, valinit=0)
+    s_comp = matplotlib.widgets.Slider(axcomp, 'Component', 0, nr + nb - 1, valinit=0)
     vmax = np.percentile(img, 95)
 
     def update(val):
@@ -1109,7 +1108,7 @@ def plot_contours(A, Cn, thr=None, thr_method='max', maxthr=0.2, nrgthr=0.9, dis
     if display_numbers:
         d1, d2 = np.shape(Cn)
         d, nr = np.shape(A)
-        cm = com(A, d1, d2)
+        cm = caiman.base.rois.com(A, d1, d2)
         if max_number is None:
             max_number = A.shape[1]
         for i in range(np.minimum(nr, max_number)):
@@ -1194,13 +1193,13 @@ def inspect_correlation_pnr(correlation_image_pnr, pnr_image):
     pl.title('PNR')
     pl.colorbar()
 
-    s_cn_max = Slider(pl.axes([0.05, 0.01, 0.35, 0.03]), 'vmax',
+    s_cn_max = matplotlib.widgets.Slider(pl.axes([0.05, 0.01, 0.35, 0.03]), 'vmax',
                       correlation_image_pnr.min(), correlation_image_pnr.max(), valinit=correlation_image_pnr.max())
-    s_cn_min = Slider(pl.axes([0.05, 0.07, 0.35, 0.03]), 'vmin',
+    s_cn_min = matplotlib.widgets.Slider(pl.axes([0.05, 0.07, 0.35, 0.03]), 'vmin',
                       correlation_image_pnr.min(), correlation_image_pnr.max(), valinit=correlation_image_pnr.min())
-    s_pnr_max = Slider(pl.axes([0.5, 0.01, 0.35, 0.03]), 'vmax',
+    s_pnr_max = matplotlib.widgets.Slider(pl.axes([0.5, 0.01, 0.35, 0.03]), 'vmax',
                        pnr_image.min(), pnr_image.max(), valinit=pnr_image.max())
-    s_pnr_min = Slider(pl.axes([0.5, 0.07, 0.35, 0.03]), 'vmin',
+    s_pnr_min = matplotlib.widgets.Slider(pl.axes([0.5, 0.07, 0.35, 0.03]), 'vmin',
                        pnr_image.min(), pnr_image.max(), valinit=pnr_image.min())
 
     def update(val):
@@ -1287,11 +1286,11 @@ def rect_draw(row_minmax: ArrayLike,
     box_height = row_minmax[1] - row_minmax[0] 
     box_width = col_minmax[1] - col_minmax[0]
 
-    rect = Rectangle(box_origin, 
-                     width=box_width, 
-                     height=box_height,
-                     color=color, 
-                     alpha=alpha)
+    rect = matplotlib.patches.Rectangle(box_origin, 
+                                        width=box_width, 
+                                        height=box_height,
+                                        color=color, 
+                                        alpha=alpha)
     ax.add_patch(rect)
 
     return ax, rect

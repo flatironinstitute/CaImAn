@@ -25,7 +25,7 @@ import sys
 import time
 from typing import Any, Optional, Union
 
-from .mmapping import load_memmap
+import caiman.mmapping
 
 logger = logging.getLogger(__name__)
 
@@ -178,7 +178,7 @@ def function_place_holder(args_in: tuple) -> np.ndarray:
     #todo: todocument
 
     file_name, idx_, shapes, function, args, kwargs = args_in
-    Yr, _, _ = load_memmap(file_name)
+    Yr, _, _ = caiman.mmapping.load_memmap(file_name)
     Yr = Yr[idx_, :]
     Yr.filename = file_name
     _, T = Yr.shape

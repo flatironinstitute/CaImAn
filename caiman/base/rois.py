@@ -21,7 +21,7 @@ import time
 from typing import Any, Optional
 import zipfile
 
-from ..motion_correction import tile_and_correct
+import caiman.motion_correction
 
 try:
     cv2.setNumThreads(0)
@@ -434,11 +434,11 @@ def register_ROIs(A1,
             y_remap = (flow[:, :, 1] + y_grid).astype(np.float32)
 
         else:
-            template2, shifts, _, xy_grid = tile_and_correct(template2,
-                                                             template1 - template1.min(),
-                                                             [int(dims[0] / 4), int(dims[1] / 4)], [16, 16], [10, 10],
-                                                             add_to_movie=template2.min(),
-                                                             shifts_opencv=True)
+            template2, shifts, _, xy_grid = caiman.motion_correction.tile_and_correct(template2,
+                                                                                      template1 - template1.min(),
+                                                                                      [int(dims[0] / 4), int(dims[1] / 4)], [16, 16], [10, 10],
+                                                                                      add_to_movie=template2.min(),
+                                                                                      shifts_opencv=True)
 
             dims_grid = tuple(np.max(np.stack(xy_grid, axis=0), axis=0) - np.min(np.stack(xy_grid, axis=0), axis=0) + 1)
             _sh_ = np.stack(shifts, axis=0)

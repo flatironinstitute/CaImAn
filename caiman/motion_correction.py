@@ -54,15 +54,16 @@ from skimage.transform import warp as warp_sk
 
 import caiman as cm
 import caiman.base.movies
+import caiman.mmapping
 import caiman.motion_correction
 import caiman.paths
-from .mmapping import prepare_shape
 
 try:
     cv2.setNumThreads(0)
 except:
     pass
 
+# FIXME clean up these extra imports
 from cv2 import dft as fftn
 from cv2 import idft as ifftn
 opencv = True
@@ -79,8 +80,6 @@ try:
     profile
 except:
     def profile(a): return a
-#%%
-
 
 class MotionCorrect(object):
     """
@@ -529,7 +528,7 @@ class MotionCorrect(object):
             dims = m_reg.shape
             fname_tot = caiman.paths.memmap_frames_filename(save_base_name, dims[1:], dims[0], order)
             big_mov = np.memmap(fname_tot, mode='w+', dtype=np.float32,
-                        shape=prepare_shape((np.prod(dims[1:]), dims[0])), order=order)
+                        shape=caiman.mmapping.prepare_shape((np.prod(dims[1:]), dims[0])), order=order)
             big_mov[:] = np.reshape(m_reg.transpose(1, 2, 0), (np.prod(dims[1:]), dims[0]), order='F')
             big_mov.flush()
             del big_mov
@@ -620,7 +619,7 @@ def apply_shift_online(movie_iterable, xy_shifts, save_base_name=None, order='F'
         fname_tot = caiman.paths.memmap_frames_filename(save_base_name, dims[1:], dims[0], order)
         fname_tot = caiman.paths.fn_relocated(fname_tot)
         big_mov = np.memmap(fname_tot, mode='w+', dtype=np.float32,
-                            shape=prepare_shape((np.prod(dims[1:]), dims[0])), order=order)
+                            shape=caiman.mmapping.prepare_shape((np.prod(dims[1:]), dims[0])), order=order)
 
     for page, shift in zip(movie_iterable, xy_shifts):
         if 'tifffile' in str(type(movie_iterable[0])):
@@ -857,7 +856,7 @@ def motion_correct_online(movie_iterable, add_to_movie, max_shift_w=25, max_shif
 
             fname_tot:Optional[str] = caiman.paths.memmap_frames_filename(save_base_name, dims[1:], dims[0], order)
             big_mov = np.memmap(fname_tot, mode='w+', dtype=np.float32,
-                                shape=prepare_shape((np.prod(dims[1:]), dims[0])), order=order)
+                                shape=caiman.mmapping.prepare_shape((np.prod(dims[1:]), dims[0])), order=order)
 
         else:
             fname_tot = None
@@ -3107,7 +3106,7 @@ def tile_and_correct_wrapper(params):
     # 
     if out_fname is not None:
         outv = np.memmap(out_fname, mode='r+', dtype=np.float32,
-                         shape=prepare_shape(shape_mov), order='F')
+                         shape=caiman.mmapping.prepare_shape(shape_mov), order='F')
         if nonneg_movie:
             bias = np.float32(add_to_movie)
         else:
@@ -3171,7 +3170,7 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
             fname_tot = os.path.join(os.path.split(fname)[0], fname_tot)
 
         np.memmap(fname_tot, mode='w+', dtype=np.float32,
-                  shape=prepare_shape(shape_mov), order=order)
+                  shape=caiman.mmapping.prepare_shape(shape_mov), order=order)
         logging.info(f'Saving file as {fname_tot}')
     else:
         fname_tot = None

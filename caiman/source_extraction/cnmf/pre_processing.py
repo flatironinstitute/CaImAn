@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 """ A set of pre-processing operations in the input dataset:
 
@@ -11,20 +10,14 @@
 @authors: agiovann epnev
 @image docs/img/greedyroi.png
 """
-#\package caiman/source_extraction/cnmf
-#\version   1.0
-#\copyright GNU General Public License v2.0
-#\date Created on Tue Jun 30 21:01:17 2015
 
-
+import logging
 import numpy as np
 import scipy
+from scipy.linalg import toeplitz
 import shutil
 import tempfile
-import logging
-from ...mmapping import load_memmap
-
-#%%
+from caiman.mmapping import load_memmap
 
 
 def interpolate_missing_data(Y):
@@ -92,8 +85,6 @@ def find_unsaturated_pixels(Y, saturationValue=None, saturationThreshold=0.9, sa
 
     return normalPixels
 
-
-#%%
 def get_noise_welch(Y, noise_range=[0.25, 0.5], noise_method='logmexp',
                     max_num_samples_fft=3072):
     """Estimate the noise level for each pixel by averaging the power spectral density.
@@ -282,8 +273,6 @@ def get_noise_fft_parallel(Y, n_pixels_per_process=100, dview=None, **kwargs):
         raise
 
     return sn_s, psx_s
-#%%
-
 
 def fft_psd_parallel(Y, sn_s, i, num_pixels, **kwargs):
     """helper function to parallelize get_noise_fft
@@ -411,7 +400,6 @@ def estimate_time_constant(Y, sn, p=None, lags=5, include_noise=False, pixels=No
     if pixels is None:
         pixels = np.arange(np.size(Y) // np.shape(Y)[-1])
 
-    from scipy.linalg import toeplitz
     npx = len(pixels)
     lags += p
     XC = np.zeros((npx, 2 * lags + 1))

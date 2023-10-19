@@ -6,13 +6,12 @@ import os
 import pkg_resources
 from pprint import pformat
 import scipy
-from scipy.ndimage import generate_binary_structure, iterate_structure
+import scipy.ndimage
 
 import caiman.utils.utils
 import caiman.base.movies
-from ...paths import caiman_datadir
-from .utilities import dict_compare
-
+import caiman.paths
+import caiman.source_extraction.cnmf.utilities
 
 class CNMFParams(object):
     """Class for setting and changing the various parameters."""
@@ -728,7 +727,7 @@ class CNMFParams(object):
         self.spatial = {
             'block_size_spat': block_size_spat, # number of pixels to parallelize residual computation ** DECREASE IF MEMORY ISSUES
             'dist': 3,                       # expansion factor of ellipse
-            'expandCore': iterate_structure(generate_binary_structure(2, 1), 2).astype(int),
+            'expandCore': scipy.ndimage.iterate_structure(scipy.ndimage.generate_binary_structure(2, 1), 2).astype(int),
             # Flag to extract connected components (might want to turn to False for dendritic imaging)
             'extract_cc': True,
             'maxthr': 0.1,                   # Max threshold
@@ -823,7 +822,7 @@ class CNMFParams(object):
             # path to CNN model for testing new comps
             'num_times_comp_updated': num_times_comp_updated,
             'opencv_codec': 'H264',            # FourCC video codec for saving movie. Check http://www.fourcc.org/codecs.php
-            'path_to_model': os.path.join(caiman_datadir(), 'model',
+            'path_to_model': os.path.join(caiman.paths.caiman_datadir(), 'model',
                                           'cnn_model_online.h5'),
             'ring_CNN': False,                 # flag for using a ring CNN background model 
             'rval_thr': rval_thr,              # space correlation threshold
@@ -1023,7 +1022,7 @@ class CNMFParams(object):
 
         for k1, child_dict1 in parent_dict1.items():
             child_dict2 = parent_dict2[k1]
-            added, removed, modified, same = dict_compare(child_dict1, child_dict2)
+            added, removed, modified, same = caiman.source_extraction.cnmf.utilities.dict_compare(child_dict1, child_dict2)
             if len(added) != 0 or len(removed) != 0 or len(modified) != 0 or len(same) != len(child_dict1):
                 return False
 

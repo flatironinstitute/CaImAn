@@ -28,8 +28,8 @@ import tempfile
 import time
 import psutil
 
-from ...mmapping import load_memmap, parallel_dot_product
-from ...utils.stats import csc_column_remove
+from caiman.mmapping import load_memmap, parallel_dot_product
+from caiman.utils.stats import csc_column_remove
 
 
 def basis_denoising(y, c, boh, sn, id2_, px):

@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 """
 Functions for implementing parallel scalable segmentation of two photon imaging data
@@ -13,8 +12,8 @@ import scipy
 from sklearn.decomposition import NMF
 import time
 
-from ...mmapping import load_memmap
-from ...cluster import extract_patch_coordinates
+from caiman.cluster import extract_patch_coordinates
+from caiman.mmapping import load_memmap
 
 def cnmf_patches(args_in):
     """Function that is run for each patches

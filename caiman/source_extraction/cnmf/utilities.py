@@ -18,11 +18,11 @@ import scipy
 from scipy.sparse import spdiags, issparse, csc_matrix, csr_matrix
 import scipy.ndimage as ndi
 
-from .initialization import greedyROI
-from ...base.rois import com
-from ...mmapping import parallel_dot_product, load_memmap
-from ...cluster import extract_patch_coordinates
-from ...utils.stats import df_percentile
+from caiman.base.rois import com
+from caiman.cluster import extract_patch_coordinates
+from caiman.mmapping import parallel_dot_product, load_memmap
+from caiman.source_extraction.cnmf.initialization import greedyROI
+from caiman.utils.stats import df_percentile
 
 
 def get_border_type(mode):

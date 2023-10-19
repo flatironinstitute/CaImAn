@@ -1,25 +1,29 @@
 #!/usr/bin/env python
 
 import bokeh
+import cv2
 import logging
 import matplotlib.pyplot as plt
 import numpy as np
+import os
+from pynwb import NWBHDF5IO, TimeSeries, NWBFile
+from pynwb.base import Images
+from pynwb.image import GrayscaleImage
+from pynwb.ophys import ImageSegmentation, Fluorescence, OpticalChannel, ImageSeries
+from pynwb.device import Device
 import scipy.sparse
 import time
+import uuid
 
 import caiman
-from .utilities import detrend_df_f, decimation_matrix
-from .spatial import threshold_components
-from .temporal import constrained_foopsi_parallel
-from .merging import merge_iteration, merge_components
-from ...components_evaluation import (
-        evaluate_components_CNN, estimate_components_quality_auto,
-        select_components_from_metrics, compute_eccentricity)
-from ...base.rois import (
-        detect_duplicates_and_subsets, nf_match_neurons_in_binary_masks,
-        nf_masks_to_neurof_dict)
-from .initialization import downscale
-
+import caiman.base.rois
+import caiman.components_evaluation
+import caiman.source_extraction.cnmf.initialization
+import caiman.source_extraction.cnmf.merging
+import caiman.source_extraction.cnmf.spatial
+import caiman.source_extraction.cnmf.temporal
+import caiman.source_extraction.cnmf.utilities
+import caiman.utilities
 
 class Estimates(object):
     """
@@ -630,9 +634,9 @@ class Estimates(object):
             if ssub_B == 1:
                 B = self.b0[:, None] + self.W.dot(B - self.b0[:, None])
             else:
-                WB = self.W.dot(downscale(B.reshape(dims + (B.shape[-1],), order='F'),
+                WB = self.W.dot(caiman.source_extraction.cnmf.initialization.downscale(B.reshape(dims + (B.shape[-1],), order='F'),
                               (ssub_B, ssub_B, 1)).reshape((-1, B.shape[-1]), order='F'))
-                Wb0 = self.W.dot(downscale(self.b0.reshape(dims, order='F'),
+                Wb0 = self.W.dot(caiman.source_extraction.cnmf.initialization.downscale(self.b0.reshape(dims, order='F'),
                               (ssub_B, ssub_B)).reshape((-1, 1), order='F'))
                 B = self.b0.flatten('F')[:, None] + (np.repeat(np.repeat((WB - Wb0).reshape(((dims[0] - 1) // ssub_B + 1, (dims[1] - 1) // ssub_B + 1, -1), order='F'),
                                      ssub_B, 0), ssub_B, 1)[:dims[0], :dims[1]].reshape((-1, B.shape[-1]), order='F'))
@@ -663,7 +667,6 @@ class Estimates(object):
             return mov
 
         if thr > 0:
-            import cv2
             if save_movie:
                 fourcc = cv2.VideoWriter_fourcc(*opencv_codec)
                 out = cv2.VideoWriter(movie_name, fourcc, 30.0,
@@ -725,7 +728,7 @@ class Estimates(object):
             if ssub_B == 1:
                 return self.b0[:, None] + self.W.dot(Yr - self.A.dot(self.C) - self.b0[:, None])
             else:
-                ds_mat = decimation_matrix(self.dims, ssub_B)
+                ds_mat = caiman.source_extraction.cnmf.utilities.decimation_matrix(self.dims, ssub_B)
                 B = ds_mat.dot(Yr) - ds_mat.dot(self.A).dot(self.C) - ds_mat.dot(self.b0)[:, None]
                 B = self.W.dot(B).reshape(((self.dims[0] - 1) // ssub_B + 1,
                                            (self.dims[1] - 1) // ssub_B + 1, -1), order='F')
@@ -800,6 +803,7 @@ class Estimates(object):
             self: CNMF object
                 self.F_dff contains the DF/F normalized traces
         """
+        # FIXME This method shares its name with a function elsewhere in the codebase (which it wraps)
 
         if self.C is None or self.C.shape[0] == 0:
             logging.warning("There are no components for DF/F extraction!")
@@ -816,7 +820,7 @@ class Estimates(object):
         else:
             R = None
 
-        self.F_dff = detrend_df_f(self.A, self.b, self.C, self.f, self.YrA,
+        self.F_dff = caiman.utilities.detrend_df_f(self.A, self.b, self.C, self.f, self.YrA,
                                   quantileMin=quantileMin,
                                   frames_window=frames_window,
                                   flag_auto=flag_auto, use_fast=use_fast,
@@ -983,10 +987,11 @@ class Estimates(object):
                 self.idx_components contains the indeced of components above
                 the required treshold.
         """
+        # FIXME this method shares its name with a function elsewhere in the codebase (that it wraps)
         dims = params.get('data', 'dims')
         gSig = params.get('init', 'gSig')
         min_cnn_thr = params.get('quality', 'min_cnn_thr')
-        predictions = evaluate_components_CNN(self.A, dims, gSig)[0]
+        predictions = caiman.components_evaluation.evaluate_components_CNN(self.A, dims, gSig)[0]
         self.cnn_preds = predictions[:, neuron_class]
         self.idx_components = np.where(self.cnn_preds >= min_cnn_thr)[0]
         return self
@@ -1033,7 +1038,7 @@ class Estimates(object):
         dims = imgs.shape[1:]
         opts = params.get_group('quality')
         idx_components, idx_components_bad, SNR_comp, r_values, cnn_preds = \
-            estimate_components_quality_auto(imgs, self.A, self.C, self.b, self.f, self.YrA,
+            caiman.components_evaluation.estimate_components_quality_auto(imgs, self.A, self.C, self.b, self.f, self.YrA,
                                              params.get('data', 'fr'),
                                              params.get('data', 'decay_time'),
                                              params.get('init', 'gSig'),
@@ -1059,7 +1064,7 @@ class Estimates(object):
         self.r_values = r_values
         self.cnn_preds = cnn_preds
         if opts['use_ecc']:
-            self.ecc = compute_eccentricity(self.A, dims)
+            self.ecc = caiman.components_evaluation.compute_eccentricity(self.A, dims)
             idx_ecc = np.where(self.ecc < opts['max_ecc'])[0]
             self.idx_components_bad = np.union1d(self.idx_components_bad,
                                                  np.setdiff1d(self.idx_components,
@@ -1136,7 +1141,7 @@ class Estimates(object):
             self.evaluate_components(imgs, params, dview=dview)
         else:
             self.idx_components, self.idx_components_bad, self.cnn_preds = \
-            select_components_from_metrics(self.A, dims, params.get('init', 'gSig'),
+            caiman.components_evaluation.select_components_from_metrics(self.A, dims, params.get('init', 'gSig'),
                                            self.r_values, self.SNR_comp,
                                            predictions=self.cnn_preds,
                                            r_values_min=opts['rval_thr'],
@@ -1197,11 +1202,11 @@ class Estimates(object):
 
         if 'multiprocessing' in str(type(dview)):
             results = dview.map_async(
-                constrained_foopsi_parallel, args_in).get(4294967)
+                caiman.source_extraction.cnmf.temporal.constrained_foopsi_parallel, args_in).get(4294967)
         elif dview is not None:
-            results = dview.map_sync(constrained_foopsi_parallel, args_in)
+            results = dview.map_sync(caiman.source_extraction.cnmf.temporal.constrained_foopsi_parallel, args_in)
         else:
-            results = list(map(constrained_foopsi_parallel, args_in))
+            results = list(map(caiman.source_extraction.cnmf.temporal.constrained_foopsi_parallel, args_in))
 
         results = list(zip(*results))
 
@@ -1226,12 +1231,12 @@ class Estimates(object):
 
                 if 'multiprocessing' in str(type(dview)):
                     results = dview.map_async(
-                        constrained_foopsi_parallel, args_in).get(4294967)
+                        caiman.source_extraction.cnmf.temporal.constrained_foopsi_parallel, args_in).get(4294967)
                 elif dview is not None:
-                    results = dview.map_sync(constrained_foopsi_parallel,
+                    results = dview.map_sync(caiman.source_extraction.cnmf.temporal.constrained_foopsi_parallel,
                                              args_in)
                 else:
-                    results = list(map(constrained_foopsi_parallel, args_in))
+                    results = list(map(caiman.source_extraction.cnmf.temporal.constrained_foopsi_parallel, args_in))
 
                 results = list(zip(*results))
                 order = list(results[7])
@@ -1242,10 +1247,11 @@ class Estimates(object):
                          dview=None, max_merge_area=None):
             """merges components
             """
+            # FIXME This method shares its name with a function elsewhere in the codebase (which it wraps)
             self.A, self.C, self.nr, self.merged_ROIs, self.S, \
             self.bl, self.c1, self.neurons_sn, self.g, empty_merged, \
             self.YrA =\
-                merge_components(Y, self.A, self.b, self.C, self.YrA,
+                caiman.source_extraction.cnmf.merging.merge_components(Y, self.A, self.b, self.C, self.YrA,
                                  self.f, self.S, self.sn, params.get_group('temporal'),
                                  params.get_group('spatial'), dview=dview,
                                  bl=self.bl, c1=self.c1, sn=self.neurons_sn,
@@ -1311,7 +1317,7 @@ class Estimates(object):
             g_idx = [merged_ROI[indx]]
             fast_merge = True
             bm, cm, computedA, computedC, gm, \
-            sm, ss, yra = merge_iteration(Acsc, C_to_norm, Ctmp, fast_merge,
+            sm, ss, yra = caiman.source_extraction.cnmf.merging.merge_iteration(Acsc, C_to_norm, Ctmp, fast_merge,
                                           None, g_idx, indx, params.temporal)
 
             A_merged[:, i] = computedA[:, np.newaxis]
@@ -1392,7 +1398,7 @@ class Estimates(object):
         '''
 
         if self.A_thr is None:
-            A_thr = threshold_components(self.A, self.dims,  maxthr=maxthr, dview=dview,
+            A_thr = caiman.source_extraction.cnmf.spatial.threshold_components(self.A, self.dims,  maxthr=maxthr, dview=dview,
                                          medw=None, thr_method='max', nrgthr=0.99,
                                          extract_cc=True, se=None, ss=None)
 
@@ -1452,7 +1458,7 @@ class Estimates(object):
 
         A_gt_thr_bin = (self.A_thr.toarray() > 0).reshape([self.dims[0], self.dims[1], -1], order='F').transpose([2, 0, 1]) * 1.
 
-        duplicates_gt, indices_keep_gt, indices_remove_gt, D_gt, overlap_gt = detect_duplicates_and_subsets(
+        duplicates_gt, indices_keep_gt, indices_remove_gt, D_gt, overlap_gt = caiman.base.rois.detect_duplicates_and_subsets(
             A_gt_thr_bin,predictions=predictions, r_values=r_values, dist_thr=dist_thr, min_dist=min_dist,
             thresh_subset=thresh_subset)
         logging.info(f'Number of duplicates: {len(duplicates_gt)}')
@@ -1491,7 +1497,7 @@ class Estimates(object):
             raise Exception(
                 'You need to compute thresholded components before calling this method: use the threshold_components method')
         bin_masks = self.A_thr.reshape([self.dims[0], self.dims[1], -1], order='F').transpose([2, 0, 1])
-        return nf_masks_to_neurof_dict(bin_masks, dataset_name)
+        return caiman.base.rois.nf_masks_to_neurof_dict(bin_masks, dataset_name)
 
     def save_NWB(self,
                  filename,
@@ -1546,15 +1552,7 @@ class Estimates(object):
             location: str
         """
 
-        from pynwb import NWBHDF5IO, TimeSeries, NWBFile
-        from pynwb.base import Images
-        from pynwb.image import GrayscaleImage
-        from pynwb.ophys import ImageSegmentation, Fluorescence, OpticalChannel, ImageSeries
-        from pynwb.device import Device
-        import os
-
         if identifier is None:
-            import uuid
             identifier = uuid.uuid1().hex
 
         if '.nwb' != os.path.splitext(filename)[-1].lower():
@@ -1720,7 +1718,7 @@ def compare_components(estimate_gt, estimate_cmp,  Cn=None, thresh_cost=.8, min_
     A_gt_thr_bin = (estimate_gt.A_thr.toarray()>0).reshape([dims[0], dims[1], -1], order='F').transpose([2, 0, 1]) * 1.
     A_thr_bin = (estimate_cmp.A_thr.toarray()>0).reshape([dims[0], dims[1], -1], order='F').transpose([2, 0, 1]) * 1.
 
-    tp_gt, tp_comp, fn_gt, fp_comp, performance_cons_off = nf_match_neurons_in_binary_masks(
+    tp_gt, tp_comp, fn_gt, fp_comp, performance_cons_off = caiman.base.rois.nf_match_neurons_in_binary_masks(
         A_gt_thr_bin, A_thr_bin, thresh_cost=thresh_cost, min_dist=min_dist, print_assignment=print_assignment,
         plot_results=plot_results, Cn=Cn, labels=labels)
 

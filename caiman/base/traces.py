@@ -1,25 +1,19 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
-"""
-author: agiovann
-"""
-#%%
+
 import cv2
 import logging
 import numpy as np
 import pylab as pl
 pl.ion()
-from . import timeseries as ts
+
+import caiman.base.timeseries
 
 try:
     cv2.setNumThreads(0)
 except:
     pass
 
-#%%
-
-
-class trace(ts.timeseries):
+class trace(caiman.base.timeseries.timeseries):
     """
     Class representing a trace.
 
@@ -130,7 +124,3 @@ class trace(ts.timeseries):
     def extract_epochs(self, trigs=None, tb=1, ta=1):
         raise Exception('Not Implemented. Look at movie resize')
 
-
-if __name__ == "__main__":
-    tracedata = trace(3 + np.random.random((2000, 4)), fr=30, start_time=0)
-    tracedata_dff = tracedata.computeDFF()

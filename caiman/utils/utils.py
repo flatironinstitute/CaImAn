@@ -1,13 +1,7 @@
 #!/usr/bin/env python
 
 """ pure utilities (other)
-
 generally useful functions for CaImAn
-
-See Also
-------------
-https://docs.python.org/3/library/urllib.request.htm
-
 """
 
 import certifi
@@ -35,12 +29,10 @@ except:
     pass
 
 
-from ..external.cell_magic_wand import cell_magic_wand
-from ..source_extraction.cnmf.spatial import threshold_components
+from caiman.external.cell_magic_wand import cell_magic_wand
 from caiman.paths import caiman_datadir
+from caiman.source_extraction.cnmf.spatial import threshold_components
 import caiman.utils
-
-#%%
 
 
 def download_demo(name:str='Sue_2x_3000_40_-46.tif', save_folder:str='') -> str:

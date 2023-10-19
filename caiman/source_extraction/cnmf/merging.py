@@ -9,10 +9,10 @@ import numpy as np
 import scipy
 from scipy.sparse import csgraph, csc_matrix, lil_matrix, csr_matrix
 
-from .spatial import update_spatial_components, threshold_components
-from .temporal import update_temporal_components
-from .deconvolution import constrained_foopsi
-from .utilities import update_order_greedy
+from caiman.source_extraction.cnmf.deconvolution import constrained_foopsi
+from caiman.source_extraction.cnmf.spatial import update_spatial_components, threshold_components
+from caiman.source_extraction.cnmf.temporal import update_temporal_components
+from caiman.source_extraction.cnmf.utilities import update_order_greedy
 
 
 
