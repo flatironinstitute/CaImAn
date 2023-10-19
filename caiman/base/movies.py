@@ -27,8 +27,7 @@ import tifffile
 from tqdm import tqdm
 from typing import Any, Optional, Union
 import warnings
-# Flip to normal import if this is ever resolved: https://github.com/constantinpape/z5/issues/146
-# import z5py
+import zarr
 from zipfile import ZipFile
 
 import caiman as cm
@@ -1565,11 +1564,7 @@ def load(file_name: Union[str, list[str]],
                     raise Exception('Key not found in hdf5 file')
 
         elif extension in ('.n5', '.zarr'):
-           try:
-               import z5py
-           except ImportError:
-               raise Exception("z5py library not available; if you need this functionality use the conda package")
-           with z5py.File(file_name, "r") as f:
+           with zarr.open(file_name, "r") as f:
                 fkeys = list(f.keys())
                 if len(fkeys) == 1: # If the n5/zarr file we're parsing has only one dataset inside it, ignore the arg and pick that dataset
                     var_name_hdf5 = fkeys[0]
@@ -2313,12 +2308,7 @@ def get_file_size(file_name, var_name_hdf5='mov') -> tuple[tuple, Union[int, tup
             elif extension in ('.n5', '.zarr'): # TODO: After #1168, if where things land leaves us with compatible APIs between h5 and zarr/n5,
                                                 # replace this and above with a dispatch to common code that takes an open handle and has the interiour of
                                                 # both these blocks (they're nearly identical)
-                try:
-                    import z5py
-                except:
-                    raise Exception("z5py not available; if you need this use the conda-based setup")
-
-                with z5py.File(file_name, "r") as f:
+                with zarr.open(file_name, "r") as f:
                     kk = list(f.keys())
                     if len(kk) == 1:
                         siz = f[kk[0]].shape
