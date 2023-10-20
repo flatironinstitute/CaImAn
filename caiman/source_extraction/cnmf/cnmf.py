@@ -31,8 +31,6 @@ from caiman.components_evaluation import estimate_components_quality
 import caiman.mmapping
 from caiman.motion_correction import MotionCorrect
 import caiman.paths
-from caiman.utils.utils import save_dict_to_hdf5, load_dict_from_hdf5
-
 from caiman.source_extraction.cnmf.estimates import Estimates
 from caiman.source_extraction.cnmf.initialization import initialize_components, compute_W
 from caiman.source_extraction.cnmf.map_reduce import run_CNMF_patches
@@ -42,6 +40,7 @@ from caiman.source_extraction.cnmf.pre_processing import preprocess_data
 from caiman.source_extraction.cnmf.spatial import update_spatial_components
 from caiman.source_extraction.cnmf.temporal import update_temporal_components, constrained_foopsi_parallel
 from caiman.source_extraction.cnmf.utilities import update_order
+from caiman.utils.utils import save_dict_to_hdf5, load_dict_from_hdf5
 
 
 try:
@@ -62,9 +61,6 @@ class CNMF(object):
     it computes it using all the files inside of cnmf folder.
     Its architecture is similar to the one of scikit-learn calling the function fit to run everything which is part
     of the structure of the class
-
-    it is calling everyfunction from the cnmf folder
-    you can find out more at how the functions are called and how they are laid out at the ipython notebook
 
     See Also:
     @url http://www.cell.com/neuron/fulltext/S0896-6273(15)01084-3
