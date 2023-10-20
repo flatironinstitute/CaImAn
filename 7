@@ -1,0 +1,151 @@
+Transaction
+
+  Prefix: C:\Users\Eric\miniconda3\envs\dev_test
+
+  All requested packages already installed
+
+
+Looking for: ['notebook']
+
+
+Pinned packages:
+  - python 3.10.*
+
+
+
+C:\Users\Eric\development\dev_packages\CaImAn>SET DISTUTILS_USE_SDK=1 
+
+C:\Users\Eric\development\dev_packages\CaImAn>SET MSSdk=1 
+
+C:\Users\Eric\development\dev_packages\CaImAn>SET "VS_VERSION=16.0" 
+
+C:\Users\Eric\development\dev_packages\CaImAn>SET "VS_MAJOR=16" 
+
+C:\Users\Eric\development\dev_packages\CaImAn>SET "VS_YEAR=2019" 
+
+C:\Users\Eric\development\dev_packages\CaImAn>set "MSYS2_ARG_CONV_EXCL=/AI;/AL;/OUT;/out" 
+
+C:\Users\Eric\development\dev_packages\CaImAn>set "MSYS2_ENV_CONV_EXCL=CL" 
+
+C:\Users\Eric\development\dev_packages\CaImAn>set "PY_VCRUNTIME_REDIST=\bin\vcruntime140.dll" 
+
+C:\Users\Eric\development\dev_packages\CaImAn>set "CXX=cl.exe" 
+
+C:\Users\Eric\development\dev_packages\CaImAn>set "CC=cl.exe" 
+
+C:\Users\Eric\development\dev_packages\CaImAn>set "VSINSTALLDIR=" 
+
+C:\Users\Eric\development\dev_packages\CaImAn>set "NEWER_VS_WITH_OLDER_VC=0" 
+
+C:\Users\Eric\development\dev_packages\CaImAn>for /F "usebackq tokens=*" %i in (`vswhere.exe -nologo -products * -version [16.0,17.0) -property installationPath`) do (set "VSINSTALLDIR=%i\" ) 
+
+C:\Users\Eric\development\dev_packages\CaImAn>(set "VSINSTALLDIR=C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\" ) 
+
+C:\Users\Eric\development\dev_packages\CaImAn>if not exist "C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\" (for /F "usebackq tokens=*" %i in (`vswhere.exe -nologo -products * -requires Microsoft.VisualStudio.ComponentGroup.VC.Tools.142.x86.x64 -property installationPath`) do (
+set "VSINSTALLDIR=%i\"  
+ set "NEWER_VS_WITH_OLDER_VC=1" 
+) ) 
+
+C:\Users\Eric\development\dev_packages\CaImAn>if not exist "C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\" (for /F "usebackq tokens=*" %i in (`vswhere.exe -nologo -products * -requires Microsoft.VisualStudio.Component.VC.v142.x86.x64 -property installationPath`) do (
+set "VSINSTALLDIR=%i\"  
+ set "NEWER_VS_WITH_OLDER_VC=1" 
+) ) 
+
+C:\Users\Eric\development\dev_packages\CaImAn>if not exist "C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\" (set "VSINSTALLDIR=C:\Program Files (x86)\Microsoft Visual Studio\2019\Professional\" ) 
+
+C:\Users\Eric\development\dev_packages\CaImAn>if not exist "C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\" (set "VSINSTALLDIR=C:\Program Files (x86)\Microsoft Visual Studio\2019\Community\" ) 
+
+C:\Users\Eric\development\dev_packages\CaImAn>if not exist "C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\" (set "VSINSTALLDIR=C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\" ) 
+
+C:\Users\Eric\development\dev_packages\CaImAn>if not exist "C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\" (set "VSINSTALLDIR=C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\" ) 
+
+C:\Users\Eric\development\dev_packages\CaImAn>IF NOT "" == "" (
+set "INCLUDE=;C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\VC\Tools\MSVC\14.29.30133\include;C:\Program Files (x86)\Windows Kits\NETFXSDK\4.8\include\um;C:\Program Files (x86)\Windows Kits\10\include\10.0.19041.0\ucrt;C:\Program Files (x86)\Windows Kits\10\include\10.0.19041.0\shared;C:\Program Files (x86)\Windows Kits\10\include\10.0.19041.0\um;C:\Program Files (x86)\Windows Kits\10\include\10.0.19041.0\winrt;C:\Program Files (x86)\Windows Kits\10\include\10.0.19041.0\cppwinrt"  
+ set "LIB=;C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\VC\Tools\MSVC\14.29.30133\lib\x64;C:\Program Files (x86)\Windows Kits\NETFXSDK\4.8\lib\um\x64;C:\Program Files (x86)\Windows Kits\10\lib\10.0.19041.0\ucrt\x64;C:\Program Files (x86)\Windows Kits\10\lib\10.0.19041.0\um\x64"  
+ set "CMAKE_PREFIX_PATH=;" 
+) 
+
+C:\Users\Eric\development\dev_packages\CaImAn>call :GetWin10SdkDir 
+
+C:\Users\Eric\development\dev_packages\CaImAn>call :GetWin10SdkDirHelper HKLM\SOFTWARE\Wow6432Node  1>nul 2>&1 
+
+C:\Users\Eric\development\dev_packages\CaImAn>if errorlevel 1 call :GetWin10SdkDirHelper HKCU\SOFTWARE\Wow6432Node  1>nul 2>&1 
+
+C:\Users\Eric\development\dev_packages\CaImAn>if errorlevel 1 call :GetWin10SdkDirHelper HKLM\SOFTWARE  1>nul 2>&1 
+
+C:\Users\Eric\development\dev_packages\CaImAn>if errorlevel 1 call :GetWin10SdkDirHelper HKCU\SOFTWARE  1>nul 2>&1 
+
+C:\Users\Eric\development\dev_packages\CaImAn>if errorlevel 1 exit /B 1 
+
+C:\Users\Eric\development\dev_packages\CaImAn>exit /B 0 
+
+C:\Users\Eric\development\dev_packages\CaImAn>for /F %i in ('dir /ON /B "C:\Program Files (x86)\Windows Kits\10\\include\10.*"') DO (SET WindowsSDKVer=%~i ) 
+
+C:\Users\Eric\development\dev_packages\CaImAn>(SET WindowsSDKVer=10.0.19041.0 ) 
+
+C:\Users\Eric\development\dev_packages\CaImAn>if errorlevel 1 (echo "Didn't find any windows 10 SDK. I'm not sure if things will work, but let's try..." )  else (echo Windows SDK version found as: "10.0.19041.0" ) 
+Windows SDK version found as: "10.0.19041.0"
+
+C:\Users\Eric\development\dev_packages\CaImAn>set "CMAKE_PLAT=x64" 
+
+C:\Users\Eric\development\dev_packages\CaImAn>set "VCVARSBAT=64" 
+
+C:\Users\Eric\development\dev_packages\CaImAn>set "CMAKE_ARGS=-DCMAKE_BUILD_TYPE=Release" 
+
+C:\Users\Eric\development\dev_packages\CaImAn>IF "" == "1" (set "CMAKE_ARGS=-DCMAKE_BUILD_TYPE=Release -DCMAKE_INSTALL_PREFIX= -DCMAKE_PROGRAM_PATH=\bin;\Scripts;\Library\bin;\bin;\Scripts;\Library\bin" ) 
+
+C:\Users\Eric\development\dev_packages\CaImAn>IF NOT "win-64" == "win-64" (
+set "CONDA_BUILD_CROSS_COMPILATION=1"  
+ set "CMAKE_ARGS=-DCMAKE_BUILD_TYPE=Release -DCMAKE_SYSTEM_NAME=Windows -DCMAKE_SYSTEM_PROCESSOR=AMD64" 
+)  else (set "CONDA_BUILD_CROSS_COMPILATION=0" ) 
+
+C:\Users\Eric\development\dev_packages\CaImAn>IF 2019 GEQ 2019 (
+set "CMAKE_GEN=Visual Studio 16 2019"  
+ set "USE_NEW_CMAKE_GEN_SYNTAX=1" 
+)  ELSE (
+IF "win-64" == "win-64" (set "CMAKE_GEN=Visual Studio 16 2019 Win64" )  else (set "CMAKE_GEN=Visual Studio 16 2019" )  
+ set "USE_NEW_CMAKE_GEN_SYNTAX=0" 
+) 
+
+C:\Users\Eric\development\dev_packages\CaImAn>echo "NEWER_VS_WITH_OLDER_VC=0" 
+"NEWER_VS_WITH_OLDER_VC=0"
+
+C:\Users\Eric\development\dev_packages\CaImAn>if "0" == "1" (set /p NEWER_VS= 0<"C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\\VC\Auxiliary\Build\Microsoft.VCToolsVersion.default.txt" ) 
+
+C:\Users\Eric\development\dev_packages\CaImAn>type "C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\\VC\Auxiliary\Build\Microsoft.VCToolsVersion.default.txt" 
+14.29.30133
+
+C:\Users\Eric\development\dev_packages\CaImAn>dir "C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\\VC\Redist\MSVC\" 
+ Volume in drive C is Windows
+ Volume Serial Number is 0AA1-E2EF
+
+ Directory of C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\VC\Redist\MSVC
+
+09/21/2023  10:09 PM    <DIR>          .
+09/21/2023  10:09 PM    <DIR>          ..
+09/21/2023  10:09 PM    <DIR>          14.29.30133
+09/21/2023  10:09 PM    <DIR>          v142
+               0 File(s)              0 bytes
+               4 Dir(s)  394,062,659,584 bytes free
+
+C:\Users\Eric\development\dev_packages\CaImAn>if "0" == "1" (
+echo ""  
+ if "~0,4" == "14.2" (set "CMAKE_GEN=Visual Studio 16 2019" )  else (set "CMAKE_GEN=Visual Studio 17 2022" )  
+ set "USE_NEW_CMAKE_GEN_SYNTAX=1" 
+) 
+
+C:\Users\Eric\development\dev_packages\CaImAn>IF "Visual Studio 16 2019" == "" SET "CMAKE_GENERATOR=Visual Studio 16 2019" 
+
+C:\Users\Eric\development\dev_packages\CaImAn>IF "1" == "1" (
+IF "x64" == "" SET "CMAKE_GENERATOR_PLATFORM=x64"  
+ IF "v142" == "" SET "CMAKE_GENERATOR_TOOLSET=v142" 
+) 
+
+C:\Users\Eric\development\dev_packages\CaImAn>pushd C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools\ 
+
+C:\Program Files (x86)\Microsoft Visual Studio\2019\BuildTools>CALL "VC\Auxiliary\Build\vcvars64.bat" -vcvars_ver=14.29 10.0.19041.0 
+**********************************************************************
+** Visual Studio 2019 Developer Command Prompt v16.11.30
+** Copyright (c) 2021 Microsoft Corporation
+**********************************************************************
+[vcvarsall.bat] Environment initialized for: 'x64'
