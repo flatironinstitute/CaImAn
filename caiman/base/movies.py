@@ -1537,9 +1537,9 @@ def load(file_name: Union[str, list[str]],
                 f = h5py.File(file_name, "r")
             ignore_keys = ['__DATA_TYPES__'] # Known metadata that tools provide, add to this as needed. Sync with get_file_size() !!
             fkeys = list(filter(lambda x: x not in ignore_keys, f.keys()))
-            if len(fkeys) == 1 and 'Dataset' in str(type(f[fkeys[0]])): # If the file we're parsing has only one dataset inside it,
-                                                                        # ignore the arg and pick that dataset
-                                                                        # TODO: Consider recursing into a group to find a dataset
+            if len(fkeys) == 1: # If the file we're parsing has only one dataset inside it,
+                                # ignore the arg and pick that dataset
+                                # TODO: Consider recursing into a group to find a dataset
                 var_name_hdf5 = fkeys[0]
             if extension == '.nwb': # Apparently nwb files are specially-formatted hdf5 files
                 try:
@@ -2186,8 +2186,8 @@ def load_iter(file_name: Union[str, list[str]], subindices=None, var_name_hdf5: 
                     f = h5py.File(file_name, "r")
                 ignore_keys = ['__DATA_TYPES__'] # Known metadata that tools provide, add to this as needed.
                 fkeys = list(filter(lambda x: x not in ignore_keys, f.keys()))
-                if len(fkeys) == 1 and 'Dataset' in str(type(f[fkeys[0]])): # If the hdf5 file we're parsing has only one dataset inside it,
-                                                                            # ignore the arg and pick that dataset
+                if len(fkeys) == 1: # If the hdf5 file we're parsing has only one dataset inside it,
+                                    # ignore the arg and pick that dataset
                     var_name_hdf5 = fkeys[0]
                 Y = f.get('acquisition/' + var_name_hdf5 + '/data'
                         if extension == '.nwb' else var_name_hdf5)
@@ -2277,7 +2277,7 @@ def get_file_size(file_name, var_name_hdf5='mov') -> tuple[tuple, Union[int, tup
                     f = h5py.File(file_name, "r")
                 ignore_keys = ['__DATA_TYPES__'] # Known metadata that tools provide, add to this as needed. Sync with movies.my:load() !!
                 kk = list(filter(lambda x: x not in ignore_keys, f.keys()))
-                if len(kk) == 1 and 'Dataset' in str(type(f[kk[0]])): # TODO: Consider recursing into a group to find a dataset
+                if len(kk) == 1: # TODO: Consider recursing into a group to find a dataset
                     siz = f[kk[0]].shape
                 elif var_name_hdf5 in f:
                     if extension == '.nwb':
