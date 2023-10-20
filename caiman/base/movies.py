@@ -34,6 +34,7 @@ from zipfile import ZipFile
 import caiman as cm
 import caiman.base.movies
 import caiman.base.timeseries
+import caiman.base.traces
 import caiman.mmapping
 import caiman.summary_images
 import caiman.utils.visualization
@@ -1587,7 +1588,7 @@ def load(file_name: Union[str, list[str]],
 
         elif extension == '.mmap':
             filename = os.path.split(file_name)[-1]
-            Yr, dims, T = caiman.memmapping.load_memmap(
+            Yr, dims, T = caiman.mmapping.load_memmap(
                 os.path.join(                  # type: ignore # same dims typing issue as above
                     os.path.split(file_name)[0], filename))
             images = np.reshape(Yr.T, [T] + list(dims), order='F')
@@ -2284,7 +2285,7 @@ def get_file_size(file_name, var_name_hdf5='mov') -> tuple[tuple, Union[int, tup
                         dims[0], dims[1] = pims_movie.frame_shape[0:2]
             elif extension == '.mmap':
                 filename = os.path.split(file_name)[-1]
-                Yr, dims, T = caiman.memmapping.load_memmap(os.path.join(
+                Yr, dims, T = caiman.mmapping.load_memmap(os.path.join(
                         os.path.split(file_name)[0], filename))
             elif extension in ('.h5', '.hdf5', '.nwb'):
                 # FIXME this doesn't match the logic in load()

@@ -23,7 +23,6 @@ import caiman.source_extraction.cnmf.merging
 import caiman.source_extraction.cnmf.spatial
 import caiman.source_extraction.cnmf.temporal
 import caiman.source_extraction.cnmf.utilities
-import caiman.utilities
 
 class Estimates(object):
     """
@@ -820,7 +819,7 @@ class Estimates(object):
         else:
             R = None
 
-        self.F_dff = caiman.utilities.detrend_df_f(self.A, self.b, self.C, self.f, self.YrA,
+        self.F_dff = caiman.source_extraction_cnmf.utilities.detrend_df_f(self.A, self.b, self.C, self.f, self.YrA,
                                   quantileMin=quantileMin,
                                   frames_window=frames_window,
                                   flag_auto=flag_auto, use_fast=use_fast,
