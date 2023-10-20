@@ -2201,25 +2201,29 @@ def load_iter(file_name: Union[str, list[str]], subindices=None, var_name_hdf5: 
                             yield frame # was frame[..., 0].astype(outtype)
                         return
                 
-            elif extension in ('.hdf5', '.h5', '.nwb', '.mat'):
-                with h5py.File(file_name, "r") as f:
-                    ignore_keys = ['__DATA_TYPES__'] # Known metadata that tools provide, add to this as needed.
-                    fkeys = list(filter(lambda x: x not in ignore_keys, f.keys()))
-                    if len(fkeys) == 1 and 'Dataset' in str(type(f[fkeys[0]])): # If the hdf5 file we're parsing has only one dataset inside it,
-                                                                                # ignore the arg and pick that dataset
-                        var_name_hdf5 = fkeys[0]
-                    Y = f.get('acquisition/' + var_name_hdf5 + '/data'
-                            if extension == '.nwb' else var_name_hdf5)
-                    if subindices is None:
-                        for y in Y:
-                            yield y.astype(outtype)
-                    else:
-                        if isinstance(subindices, slice):
-                            subindices = range(subindices.start,
-                                            len(Y) if subindices.stop is None else subindices.stop,
-                                            1 if subindices.step is None else subindices.step)
-                        for ind in subindices:
-                            yield Y[ind].astype(outtype)
+            elif extension in ('.hdf5', '.h5', '.nwb', '.mat', 'n5', 'zarr'):
+                if extension in ('n5', 'zarr'): # Thankfully, the zarr library lines up closely with h5py past the initial open
+                    f = zarr.open(file_name, "r"):
+                else:
+                    f = h5py.File(file_name, "r"):
+                ignore_keys = ['__DATA_TYPES__'] # Known metadata that tools provide, add to this as needed.
+                fkeys = list(filter(lambda x: x not in ignore_keys, f.keys()))
+                if len(fkeys) == 1 and 'Dataset' in str(type(f[fkeys[0]])): # If the hdf5 file we're parsing has only one dataset inside it,
+                                                                            # ignore the arg and pick that dataset
+                    var_name_hdf5 = fkeys[0]
+                Y = f.get('acquisition/' + var_name_hdf5 + '/data'
+                        if extension == '.nwb' else var_name_hdf5)
+                if subindices is None:
+                    for y in Y:
+                        yield y.astype(outtype)
+                else:
+                    if isinstance(subindices, slice):
+                        subindices = range(subindices.start,
+                                        len(Y) if subindices.stop is None else subindices.stop,
+                                        1 if subindices.step is None else subindices.step)
+                    for ind in subindices:
+                        yield Y[ind].astype(outtype)
+                # zarr doesn't have a close(), but falling out of scope causes both h5py and zarr to clean up
             else:  # fall back to memory inefficient version
                 for y in load(file_name, var_name_hdf5=var_name_hdf5,
                             subindices=subindices, outtype=outtype, is3D=is3D):
