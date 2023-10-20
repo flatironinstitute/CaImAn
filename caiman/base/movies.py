@@ -1530,61 +1530,39 @@ def load(file_name: Union[str, list[str]],
             with np.load(file_name) as f:
                 return movie(**f).astype(outtype)
 
-        elif extension in ('.hdf5', '.h5', '.nwb'):
-           # TODO: Merge logic here with get_file_size()
-           with h5py.File(file_name, "r") as f:
-                ignore_keys = ['__DATA_TYPES__'] # Known metadata that tools provide, add to this as needed. Sync with get_file_size() !!
-                fkeys = list(filter(lambda x: x not in ignore_keys, f.keys()))
-                if len(fkeys) == 1 and 'Dataset' in str(type(f[fkeys[0]])): # If the hdf5 file we're parsing has only one dataset inside it,
-                                                                            # ignore the arg and pick that dataset
-                                                                            # TODO: Consider recursing into a group to find a dataset
-                    var_name_hdf5 = fkeys[0]
-
-                if extension == '.nwb': # Apparently nwb files are specially-formatted hdf5 files
-                    try:
-                        fgroup = f[var_name_hdf5]['data']
-                    except:
-                        fgroup = f['acquisition'][var_name_hdf5]['data']
-                else:
-                    fgroup = f[var_name_hdf5]
-
-                if var_name_hdf5 in f or var_name_hdf5 in f['acquisition']:
-                    if subindices is None:
-                        images = np.array(fgroup).squeeze()
-                    else:
-                        if type(subindices).__module__ == 'numpy':
-                            subindices = subindices.tolist()
-                        if len(fgroup.shape) > 3:
-                            logging.warning(f'fgroup.shape has dimensionality greater than 3 {fgroup.shape} in load')
-                        images = np.array(fgroup[subindices]).squeeze()
-
-                    return movie(images.astype(outtype))
-                else:
-                    logging.debug('KEYS:' + str(f.keys()))
-                    raise Exception('Key not found in hdf5 file')
-
-        elif extension in ('.n5', '.zarr'):
-           with zarr.open(file_name, "r") as f:
-                fkeys = list(f.keys())
-                if len(fkeys) == 1: # If the n5/zarr file we're parsing has only one dataset inside it, ignore the arg and pick that dataset
-                    var_name_hdf5 = fkeys[0]
-
+        elif extension in ('.hdf5', '.h5', '.nwb', 'n5', 'zarr'):
+            if extension in ('n5', 'zarr'): # Thankfully, the zarr library lines up closely with h5py past the initial open
+                f = zarr.open(file_name, "r"):
+            else:
+                f = h5py.File(file_name, "r"):
+            ignore_keys = ['__DATA_TYPES__'] # Known metadata that tools provide, add to this as needed. Sync with get_file_size() !!
+            fkeys = list(filter(lambda x: x not in ignore_keys, f.keys()))
+            if len(fkeys) == 1 and 'Dataset' in str(type(f[fkeys[0]])): # If the file we're parsing has only one dataset inside it,
+                                                                        # ignore the arg and pick that dataset
+                                                                        # TODO: Consider recursing into a group to find a dataset
+                var_name_hdf5 = fkeys[0]
+            if extension == '.nwb': # Apparently nwb files are specially-formatted hdf5 files
+                try:
+                    fgroup = f[var_name_hdf5]['data']
+                except:
+                    fgroup = f['acquisition'][var_name_hdf5]['data']
+            else:
                 fgroup = f[var_name_hdf5]
 
-                if var_name_hdf5 in f or var_name_hdf5 in f['acquisition']:
-                    if subindices is None:
-                        images = np.array(fgroup).squeeze()
-                    else:
-                        if type(subindices).__module__ == 'numpy':
-                            subindices = subindices.tolist()
-                        if len(fgroup.shape) > 3:
-                            logging.warning(f'fgroup.shape has dimensionality greater than 3 {fgroup.shape} in load')
-                        images = np.array(fgroup[subindices]).squeeze()
-
-                    return movie(images.astype(outtype))
+            if var_name_hdf5 in f or var_name_hdf5 in f['acquisition']:
+                if subindices is None:
+                    images = np.array(fgroup).squeeze()
                 else:
-                    logging.debug('KEYS:' + str(f.keys()))
-                    raise Exception('Key not found in n5 or zarr file')
+                    if type(subindices).__module__ == 'numpy':
+                        subindices = subindices.tolist()
+                    if len(fgroup.shape) > 3:
+                        logging.warning(f'fgroup.shape has dimensionality greater than 3 {fgroup.shape} in load')
+                    images = np.array(fgroup[subindices]).squeeze()
+
+                return movie(images.astype(outtype))
+            else:
+                logging.debug('KEYS:' + str(f.keys()))
+                raise Exception('Key not found in hdf5 file')
 
         elif extension == '.mmap':
             filename = os.path.split(file_name)[-1]
