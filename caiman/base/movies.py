@@ -1532,9 +1532,9 @@ def load(file_name: Union[str, list[str]],
 
         elif extension in ('.hdf5', '.h5', '.nwb', 'n5', 'zarr'):
             if extension in ('n5', 'zarr'): # Thankfully, the zarr library lines up closely with h5py past the initial open
-                f = zarr.open(file_name, "r"):
+                f = zarr.open(file_name, "r")
             else:
-                f = h5py.File(file_name, "r"):
+                f = h5py.File(file_name, "r")
             ignore_keys = ['__DATA_TYPES__'] # Known metadata that tools provide, add to this as needed. Sync with get_file_size() !!
             fkeys = list(filter(lambda x: x not in ignore_keys, f.keys()))
             if len(fkeys) == 1 and 'Dataset' in str(type(f[fkeys[0]])): # If the file we're parsing has only one dataset inside it,
@@ -2181,9 +2181,9 @@ def load_iter(file_name: Union[str, list[str]], subindices=None, var_name_hdf5: 
                 
             elif extension in ('.hdf5', '.h5', '.nwb', '.mat', 'n5', 'zarr'):
                 if extension in ('n5', 'zarr'): # Thankfully, the zarr library lines up closely with h5py past the initial open
-                    f = zarr.open(file_name, "r"):
+                    f = zarr.open(file_name, "r")
                 else:
-                    f = h5py.File(file_name, "r"):
+                    f = h5py.File(file_name, "r")
                 ignore_keys = ['__DATA_TYPES__'] # Known metadata that tools provide, add to this as needed.
                 fkeys = list(filter(lambda x: x not in ignore_keys, f.keys()))
                 if len(fkeys) == 1 and 'Dataset' in str(type(f[fkeys[0]])): # If the hdf5 file we're parsing has only one dataset inside it,
@@ -2272,9 +2272,9 @@ def get_file_size(file_name, var_name_hdf5='mov') -> tuple[tuple, Union[int, tup
             elif extension in ('.h5', '.hdf5', '.nwb', 'n5', 'zarr'):
                 # FIXME this doesn't match the logic in load()
                 if extension in ('n5', 'zarr'): # Thankfully, the zarr library lines up closely with h5py past the initial open
-                    f = zarr.open(file_name, "r"):
+                    f = zarr.open(file_name, "r")
                 else:
-                    f = h5py.File(file_name, "r"):
+                    f = h5py.File(file_name, "r")
                 ignore_keys = ['__DATA_TYPES__'] # Known metadata that tools provide, add to this as needed. Sync with movies.my:load() !!
                 kk = list(filter(lambda x: x not in ignore_keys, f.keys()))
                 if len(kk) == 1 and 'Dataset' in str(type(f[kk[0]])): # TODO: Consider recursing into a group to find a dataset
