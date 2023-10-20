@@ -2269,41 +2269,26 @@ def get_file_size(file_name, var_name_hdf5='mov') -> tuple[tuple, Union[int, tup
                 filename = os.path.split(file_name)[-1]
                 Yr, dims, T = load_memmap(os.path.join(
                         os.path.split(file_name)[0], filename))
-            elif extension in ('.h5', '.hdf5', '.nwb'):
+            elif extension in ('.h5', '.hdf5', '.nwb', 'n5', 'zarr'):
                 # FIXME this doesn't match the logic in load()
-                with h5py.File(file_name, "r") as f:
-                    ignore_keys = ['__DATA_TYPES__'] # Known metadata that tools provide, add to this as needed. Sync with movies.my:load() !!
-                    kk = list(filter(lambda x: x not in ignore_keys, f.keys()))
-                    if len(kk) == 1 and 'Dataset' in str(type(f[kk[0]])): # TODO: Consider recursing into a group to find a dataset
-                        siz = f[kk[0]].shape
-                    elif var_name_hdf5 in f:
-                        if extension == '.nwb':
-                            siz = f[var_name_hdf5]['data'].shape
-                        else:
-                            siz = f[var_name_hdf5].shape
-                    elif var_name_hdf5 in f['acquisition']:
-                        siz = f['acquisition'][var_name_hdf5]['data'].shape
+                if extension in ('n5', 'zarr'): # Thankfully, the zarr library lines up closely with h5py past the initial open
+                    f = zarr.open(file_name, "r"):
+                else:
+                    f = h5py.File(file_name, "r"):
+                ignore_keys = ['__DATA_TYPES__'] # Known metadata that tools provide, add to this as needed. Sync with movies.my:load() !!
+                kk = list(filter(lambda x: x not in ignore_keys, f.keys()))
+                if len(kk) == 1 and 'Dataset' in str(type(f[kk[0]])): # TODO: Consider recursing into a group to find a dataset
+                    siz = f[kk[0]].shape
+                elif var_name_hdf5 in f:
+                    if extension == '.nwb':
+                        siz = f[var_name_hdf5]['data'].shape
                     else:
-                        logging.error(f'The file does not contain a variable named {var_name_hdf5}')
-                        raise Exception('Variable not found. Use one of the above')
-                T, dims = siz[0], siz[1:]
-            elif extension in ('.n5', '.zarr'): # TODO: After #1168, if where things land leaves us with compatible APIs between h5 and zarr/n5,
-                                                # replace this and above with a dispatch to common code that takes an open handle and has the interiour of
-                                                # both these blocks (they're nearly identical)
-                with zarr.open(file_name, "r") as f:
-                    kk = list(f.keys())
-                    if len(kk) == 1:
-                        siz = f[kk[0]].shape
-                    elif var_name_hdf5 in f:
-                        if extension == '.nwb':
-                            siz = f[var_name_hdf5]['data'].shape
-                        else:
-                            siz = f[var_name_hdf5].shape
-                    elif var_name_hdf5 in f['acquisition']:
-                        siz = f['acquisition'][var_name_hdf5]['data'].shape
-                    else:
-                        logging.error(f'The file does not contain a variable named {var_name_hdf5}')
-                        raise Exception('Variable not found. Use one of the above')
+                        siz = f[var_name_hdf5].shape
+                elif var_name_hdf5 in f['acquisition']:
+                    siz = f['acquisition'][var_name_hdf5]['data'].shape
+                else:
+                    logging.error(f'The file does not contain a variable named {var_name_hdf5}')
+                    raise Exception('Variable not found. Use one of the above')
                 T, dims = siz[0], siz[1:]
             elif extension in ('.sbx'):
                 info = loadmat_sbx(file_name[:-4]+ '.mat')['info']
