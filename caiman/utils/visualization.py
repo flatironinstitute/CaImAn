@@ -40,7 +40,6 @@ except:
     print("Bokeh could not be loaded. Either it is not installed or you are not running within a notebook")
 
 
-#%%
 def view_patches(Yr, A, C, b, f, d1, d2, YrA=None, secs=1):
     """view spatial and temporal components (secs=0 interactive)
 
@@ -889,14 +888,9 @@ def anim_to_html(anim, fps=20):
 
     return VIDEO_TAG.format(anim._encoded_video.decode('ascii'))
 
-#%%
-
-
 def display_animation(anim, fps=20):
     pl.close(anim._fig)
     return HTML(anim_to_html(anim, fps=fps))
-#%%
-
 
 def view_patches_bar(Yr, A, C, b, f, d1, d2, YrA=None, img=None,
                      r_values=None, SNR=None, cnn_preds=None):
@@ -1028,8 +1022,6 @@ def view_patches_bar(Yr, A, C, b, f, d1, d2, YrA=None, img=None,
     s_comp.set_val(0)
     fig.canvas.mpl_connect('key_release_event', arrow_key_image_control)
     pl.show()
-#%%
-
 
 def plot_contours(A, Cn, thr=None, thr_method='max', maxthr=0.2, nrgthr=0.9, display_numbers=True, max_number=None,
                   cmap=None, swap_dim=False, colors='w', vmin=None, vmax=None, coordinates=None,

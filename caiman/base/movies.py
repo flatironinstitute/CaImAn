@@ -32,7 +32,6 @@ import warnings
 from zipfile import ZipFile
 
 import caiman as cm
-import caiman.base.movies
 import caiman.base.timeseries
 import caiman.base.traces
 import caiman.mmapping
@@ -2352,7 +2351,7 @@ def get_file_size(file_name, var_name_hdf5='mov') -> tuple[tuple, Union[int, tup
         else:
             raise Exception('File not found!')
     elif isinstance(file_name, tuple):
-        dims = caiman.base.movies.load(file_name[0], var_name_hdf5=var_name_hdf5).shape
+        dims = load(file_name[0], var_name_hdf5=var_name_hdf5).shape
         T = len(file_name)
 
     elif isinstance(file_name, list):
