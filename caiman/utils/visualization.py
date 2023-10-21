@@ -1145,7 +1145,7 @@ def plot_shapes(Ab, dims, num_comps=15, size=(15, 15), comps_per_row=None,
 
 def nb_inspect_correlation_pnr(corr, pnr, cmap='jet', num_bins=100):
     """
-    Inspect correlation and pnr images to infer the min_corr, min_pnr
+    inspect correlation and pnr images to infer the min_corr, min_pnr
 
     Args:
         corr: ndarray
@@ -1161,8 +1161,9 @@ def nb_inspect_correlation_pnr(corr, pnr, cmap='jet', num_bins=100):
             number of bins to use for plotting histogram of corr/pnr values
 
     Returns:
-        layout of holoviews plot object (typically just plots in notebook)
+        Holoviews plot object (typically just plots in notebook, but can be returned).
     """
+
     hv_corr = hv.Image(corr, 
                        vdims='corr', 
                        label='correlation').opts(cmap=cmap)
@@ -1174,14 +1175,15 @@ def nb_inspect_correlation_pnr(corr, pnr, cmap='jet', num_bins=100):
         obj = im.select(x=rx, y=ry) if rx and ry else im
         return hv.operation.histogram(obj, num_bins=num_bins)
 
-    str_corr = (hv.streams.RangeXY(source=hv_corr)
-                .rename(x_range='rx', y_range='ry'))
-    str_pnr = (hv.streams.RangeXY(source=hv_pnr)
-               .rename(x_range='rx', y_range='ry'))
+    str_corr = (hv.streams.RangeXY(source=hv_corr).rename(x_range='rx', y_range='ry'))
+    str_pnr = (hv.streams.RangeXY(source=hv_pnr).rename(x_range='rx', y_range='ry'))
     
-    hist_corr = hv.DynamicMap(fct.partial(hist, im=hv_corr), streams=[str_corr])
-    hist_pnr = hv.DynamicMap(fct.partial(hist, im=hv_pnr), streams=[str_pnr])
-
+    hist_corr = hv.DynamicMap(
+        fct.partial(hist, im=hv_corr), streams=[str_corr])
+    
+    hist_pnr = hv.DynamicMap(
+        fct.partial(hist, im=hv_pnr), streams=[str_pnr])
+    
     return (hv_corr << hist_corr) + (hv_pnr << hist_pnr)
 
 
