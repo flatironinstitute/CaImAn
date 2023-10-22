@@ -255,8 +255,33 @@ Caiman makes extensive use of the log system, and we have place many loggers thr
 debugging. If you hit a bug, it is often helpful to set your debugging level to ``DEBUG`` so you can see what
 the different functions in Caiman are doing. 
 
-Once you have configured your logger, you can change the level (say, from `WARNING` to `DEBUG`) using the following: 
+Once you have configured your logger, you can change the level (say, from ``WARNING`` to ``DEBUG``) using the following: 
 
 ::
  
    logging.getLogger().setLevel(logging.DEBUG) 
+
+
+Initialization vs fitting
+--------------------------
+For the main computations in the pipeline -- like motion correction and CNMF -- Caiman breaks things into two steps:
+
+* Initialize the estimator object (e.g., ``MotionCorrect``, ``CNMF``) by sending it the set of parameters it will use. 
+* Run the method on the object to generate the results. For ``CNMF`` this will be the ``fit()`` method. For motion correction it is ``motion_correct()``.
+
+This modular architecture, where models are initialized with parameters, and then estimates are made with a separate 
+call to a method that carries out the calculations on data fed to the model, is useful for a few reasons. The main 
+reason is that it allows for efficient exploration of parameter space. Often, after setting some *initial* set of 
+parameters, you will want to modify the parameters after visualizing your data (e.g., after viewing the size of the neurons). 
+
+Note that our API is like that used by the `scikit-learn <https://scikit-learn.org/stable/>`_ machine learning library. 
+From their `manuscript on api design <https://arxiv.org/abs/1309.0238/>_``:
+::
+
+    Estimator initialization and actual learning are strictly separated...
+    The constructor of an estimator does not see any actual data, nor does 
+    it perform any actual learning. All it does is attach the given parameters 
+    to the object....Actual learning is performed by the `fit` method. p 4-5
+
+Thanks to Kushal Kolar for pointing out this document.
+
