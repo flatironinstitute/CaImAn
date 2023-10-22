@@ -212,3 +212,51 @@ Variables for online processing
 
 The same ``estimates`` object is also used for the results of online
 processing, stored in ``onacid.estimates``.
+
+
+Logging
+-------
+Python has a powerful built-in `logging module <https://docs.python.org/3/library/logging.html/>`_ for generating 
+log messages while a program is running. It lets you generate custom log messages, and set a threshold to 
+determine which logs you will see. You will only receive messages above the severity threshold you set: 
+you can choose from: ``logging.DEBUG``, ``logging.INFO``, ``logging.WARNING``, ``logging.ERROR``, or ``logging.CRITICAL``. 
+For instance, setting the threshold to ``logging.DEBUG`` will print out every logging statement, while setting it 
+to ``logging.ERROR`` will print out only errors and critical messages. This system gives much more flexibility and 
+control than interspersing ``print()`` statements in your code when debugging. 
+
+Our custom formatted log string is defined in the ``log_format`` parameter below, which draws from a 
+predefined `set of attributes <https://docs.python.org/3/library/logging.html#logrecord-attributes/>`_ provided by 
+the logging module. We have set each log to display the time, severity level, filename/function name/line number 
+of the file creating the log, the process ID, and the actual log message. 
+
+While logging is especially helpful when running code on a server, it can also be helpful to get feedback locally, either 
+to audit progress or diagnose problems when debugging. If you set 
+this feature up by running the following cell, the logs will by default go to console. If you want to direct 
+your log to file (which you can indicate with ``use_logfile = True``), then it will automatically be directed 
+to your ``caiman_data/temp`` directory as defined in the ``caiman.paths`` module. You can set another path manually 
+by changing the argument to the ``filename`` parameter in ``basicConfig()``.
+
+::
+
+   use_logfile = True # set to True to log to file
+   if use_logfile:
+      current_datetime = datetime.datetime.now().strftime("_%Y%m%d_%H%M%S")
+      log_filename = 'demo_pipeline' + current_datetime + '.log'  
+      log_path = Path(cm.paths.get_tempdir()) / log_filename
+      print(f"Will save logging data to {log_path}")
+   else:
+      log_path = None
+   log_format = "{asctime} - {levelname} - [{filename} {funcName}() {lineno}] - pid {process} - {message}"
+   logging.basicConfig(format=log_format,
+                       filename=log_path, 
+                       level=logging.WARNING, style="{") #DEBUG, INFO, WARNING, ERROR, CRITICAL
+
+Caiman makes extensive use of the log system, and we have place many loggers throughough the code to aid in 
+debugging. If you hit a bug, it is often helpful to set your debugging level to ``DEBUG`` so you can see what
+the different functions in Caiman are doing. 
+
+Once you have configured your logger, you can change the level (say, from `WARNING` to `DEBUG`) using the following: 
+
+::
+ 
+   logging.getLogger().setLevel(logging.DEBUG) 
