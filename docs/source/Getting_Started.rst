@@ -216,6 +216,7 @@ processing, stored in ``onacid.estimates``.
 
 Logging
 -------
+
 Python has a powerful built-in `logging module <https://docs.python.org/3/library/logging.html/>`_ for generating 
 log messages while a program is running. It lets you generate custom log messages, and set a threshold to 
 determine which logs you will see. You will only receive messages above the severity threshold you set: 
@@ -262,8 +263,10 @@ Once you have configured your logger, you can change the level (say, from ``WARN
    logging.getLogger().setLevel(logging.DEBUG) 
 
 
+
 Initialization vs fitting
 --------------------------
+
 For the main computations in the pipeline -- like motion correction and CNMF -- Caiman breaks things into two steps:
 
 * Initialize the estimator object (e.g., ``MotionCorrect``, ``CNMF``) by sending it the set of parameters it will use. 
@@ -285,3 +288,39 @@ From their `manuscript on api design <https://arxiv.org/abs/1309.0238/>_``:
 
 Thanks to Kushal Kolar for pointing out this document.
 
+On cluster setup and shutdown
+-------------------------------
+
+Caiman is optimized for parallelization and works well at HPC centers as well as laptops with multiple CPU cores. 
+The cluster is set up with the ``setup_cluster()`` function, which takes in multiple parameters:
+
+::
+
+    c, cluster, n_processes = cm.cluster.setup_cluster(backend='multiprocessing', 
+                                                                    n_processes=None, 
+                                                                    ignore_preexisting=False)
+
+The ``backend`` parameter determines the type of cluster used. The default value, ``'multiprocessing'``, uses the 
+multiprocessing package, but ``ipyparallel`` is also available. More information on these choices can be 
+found [here](https://github.com/flatironinstitute/CaImAn/blob/master/docs/CLUSTER.md). You can set the number of 
+processes (cpu cores) to use with the ``n_processes`` parameter: the default value ``None`` will lead to the function 
+selecting one *less* than the total number of logical cores available.  
+
+The parameter ``ignore_preexisting``, which defaults to ``False``, is a failsafe used to avoid overwhelming your resources. 
+If you try to start another cluster when Caiman already has one running, you will get an error. However, sometimes 
+on more powerful machines you may want to spin up multiple Caiman environments. In that case, 
+set ``ignore_preexisting`` to ``True`` and you will not get an error.
+
+The output variable ``cluster`` is the multicore processing object that will be used in subsequent processing steps. It is 
+the multicore processing object that will be passed around in subsequent stages and is the fulcrum for parallelization. The 
+other output that can be useful to check is ``n_processes``, as it will tell you how many processes you 
+successfully spawned. 
+
+Once you are done running computations that will use the cluster (typically: motion correction, CNMF, and component 
+evaluation), then it can be a useful to save CPU resources by shutting it down: 
+
+::
+
+    cm.stop_server(dview=cluster)
+    
+You may also have noticed that we use this method to shut down pre-existing clusters before starting a new one.
