@@ -324,3 +324,21 @@ evaluation), then it can be a useful to save CPU resources by shutting it down:
     cm.stop_server(dview=cluster)
     
 You may also have noticed that we use this method to shut down pre-existing clusters before starting a new one.
+
+
+Memory Mapping
+---------------
+
+Caiman uses memory mapping extensively as a tool for out-of-core computation. In general, memory mapped files are 
+binary files saved to disk, and the operating system can work with them as if they were in RAM by just loading 
+parts of the files into memory when needed for particular computations. This is known as *out of core computation*. 
+This is how Caiman is able to work with large files without loading them into RAM. 
+
+.. image:: ../img/memmap_cartoon.jpg
+
+When saving memory mapped files, you can save them in F (Fortran) or C order. This determines whether the bytes 
+will be read/written by column or by row, respectively. This is important because certain operations are much 
+faster on C-order arrays vs F-order arrays. For motion correction, which needs to access contiguous sequences of 
+frames (often in the middle of the movie), it is much more efficient to read and write in F order. On the other 
+hand, when it comes to CNMF, you need to access individual pixels across the entire movie, so Caiman saves the 
+motion-corrected movie in C-order before running CNMF.
