@@ -217,7 +217,7 @@ processing, stored in ``onacid.estimates``.
 Logging
 -------
 
-Python has a powerful built-in `logging module <https://docs.python.org/3/library/logging.html/>`_ for generating 
+Python has a powerful built-in `logging module <https://docs.python.org/3/library/logging.html>`_ for generating 
 log messages while a program is running. It lets you generate custom log messages, and set a threshold to 
 determine which logs you will see. You will only receive messages above the severity threshold you set: 
 you can choose from: ``logging.DEBUG``, ``logging.INFO``, ``logging.WARNING``, ``logging.ERROR``, or ``logging.CRITICAL``. 
@@ -226,7 +226,7 @@ to ``logging.ERROR`` will print out only errors and critical messages. This syst
 control than interspersing ``print()`` statements in your code when debugging. 
 
 Our custom formatted log string is defined in the ``log_format`` parameter below, which draws from a 
-predefined `set of attributes <https://docs.python.org/3/library/logging.html#logrecord-attributes/>`_ provided by 
+predefined `set of attributes <https://docs.python.org/3/library/logging.html#logrecord-attributes>`_ provided by 
 the logging module. We have set each log to display the time, severity level, filename/function name/line number 
 of the file creating the log, the process ID, and the actual log message. 
 
@@ -252,7 +252,7 @@ by changing the argument to the ``filename`` parameter in ``basicConfig()``.
                        filename=log_path, 
                        level=logging.WARNING, style="{") #DEBUG, INFO, WARNING, ERROR, CRITICAL
 
-Caiman makes extensive use of the log system, and we have place many loggers throughough the code to aid in 
+Caiman makes extensive use of the log system, and we have place many loggers interleaved throughough the code to aid in 
 debugging. If you hit a bug, it is often helpful to set your debugging level to ``DEBUG`` so you can see what
 the different functions in Caiman are doing. 
 
@@ -264,21 +264,24 @@ Once you have configured your logger, you can change the level (say, from ``WARN
 
 
 
-Initialization vs fitting
---------------------------
+Estimator design
+----------------
 
-For the main computations in the pipeline -- like motion correction and CNMF -- Caiman breaks things into two steps:
+For the main computations in the pipeline -- like motion correction and CNMF -- the estimators are not initialized and
+run all at once. These are broken up into two steps:
 
 * Initialize the estimator object (e.g., ``MotionCorrect``, ``CNMF``) by sending it the set of parameters it will use. 
-* Run the method on the object to generate the results. For ``CNMF`` this will be the ``fit()`` method. For motion correction it is ``motion_correct()``.
+* Run the estimator, fitting it to actual data. For ``CNMF`` this will be done using the ``fit()`` method. For motion correction 
+  it is ``motion_correct()``.
 
 This modular architecture, where models are initialized with parameters, and then estimates are made with a separate 
-call to a method that carries out the calculations on data fed to the model, is useful for a few reasons. The main 
-reason is that it allows for efficient exploration of parameter space. Often, after setting some *initial* set of 
+call to a method that carries out the calculations on data fed to the model, is useful for a few reasons. One is that 
+it allows for efficient exploration of parameter space. Often, after setting some *initial* set of 
 parameters, you will want to modify the parameters after visualizing your data (e.g., after viewing the size of the neurons). 
 
-Note that our API is like that used by the `scikit-learn <https://scikit-learn.org/stable/>`_ machine learning library. 
-From their `manuscript on api design <https://arxiv.org/abs/1309.0238/>_``:
+Note that our API is like that used by the `scikit-learn <https://scikit-learn.org/stable>`_ machine learning library. 
+From their `manuscript on api design <https://arxiv.org/abs/1309.0238>`_ :
+
 ::
 
     Estimator initialization and actual learning are strictly separated...
@@ -286,13 +289,15 @@ From their `manuscript on api design <https://arxiv.org/abs/1309.0238/>_``:
     it perform any actual learning. All it does is attach the given parameters 
     to the object....Actual learning is performed by the `fit` method. p 4-5
 
-Thanks to Kushal Kolar for pointing out this document.
+If you *do* want to initialize and run in one line of code, you can chain methods. 
+For instance for CNMF you could do ``cnmf.CNMF().fit()`` (adding appropriate parameters).
 
-On cluster setup and shutdown
--------------------------------
+
+Cluster setup and shutdown
+---------------------------
 
 Caiman is optimized for parallelization and works well at HPC centers as well as laptops with multiple CPU cores. 
-The cluster is set up with the ``setup_cluster()`` function, which takes in multiple parameters:
+The cluster is set up with Caiman's ``setup_cluster()`` function, which takes in multiple parameters:
 
 ::
 
@@ -302,19 +307,19 @@ The cluster is set up with the ``setup_cluster()`` function, which takes in mult
 
 The ``backend`` parameter determines the type of cluster used. The default value, ``'multiprocessing'``, uses the 
 multiprocessing package, but ``ipyparallel`` is also available. More information on these choices can be 
-found [here](https://github.com/flatironinstitute/CaImAn/blob/master/docs/CLUSTER.md). You can set the number of 
+found `here <https://github.com/flatironinstitute/CaImAn/blob/master/docs/CLUSTER.md>`_. You can set the number of 
 processes (cpu cores) to use with the ``n_processes`` parameter: the default value ``None`` will lead to the function 
 selecting one *less* than the total number of logical cores available.  
 
 The parameter ``ignore_preexisting``, which defaults to ``False``, is a failsafe used to avoid overwhelming your resources. 
 If you try to start another cluster when Caiman already has one running, you will get an error. However, sometimes 
 on more powerful machines you may want to spin up multiple Caiman environments. In that case, 
-set ``ignore_preexisting`` to ``True`` and you will not get an error.
+set ``ignore_preexisting`` to ``True``.
 
-The output variable ``cluster`` is the multicore processing object that will be used in subsequent processing steps. It is 
-the multicore processing object that will be passed around in subsequent stages and is the fulcrum for parallelization. The 
-other output that can be useful to check is ``n_processes``, as it will tell you how many processes you 
-successfully spawned. 
+The output variable ``cluster`` is the multicore processing object that will be used in subsequent processing steps. It will 
+be passed as a parameter in subsequent stages and is the fulcrum for parallelization. The 
+other output that can be useful to check is ``n_processes``, as it will tell you how many CPU cores you have set up 
+in your cluster.
 
 Once you are done running computations that will use the cluster (typically: motion correction, CNMF, and component 
 evaluation), then it can be a useful to save CPU resources by shutting it down: 
@@ -323,7 +328,8 @@ evaluation), then it can be a useful to save CPU resources by shutting it down:
 
     cm.stop_server(dview=cluster)
     
-You may also have noticed that we use this method to shut down pre-existing clusters before starting a new one.
+We typically use this method to shut down pre-existing clusters before starting a new one, just in case we run the same 
+piece of code multiple times.
 
 
 Memory Mapping

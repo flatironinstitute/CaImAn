@@ -998,7 +998,7 @@ def load_CNMF(filename, n_processes=1, dview=None):
         n_processes: int
             number of processes to use, default 1
         dview: multiprocessing or ipyparallel object
-            useful to set up parllelization in the objects, default None
+            used to set up parallelization, default None
     '''
     new_obj = CNMF(n_processes)
     if os.path.splitext(filename)[1].lower() in ('.hdf5', '.h5'):
