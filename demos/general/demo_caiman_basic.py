@@ -6,9 +6,10 @@ Basic stripped-down demo for running the CNMF source extraction algorithm with
 CaImAn and evaluation the components. The analysis can be run either in the
 whole FOV or in patches. For a complete pipeline (including motion correction)
 check demo_pipeline.py
+
 Data courtesy of W. Yang, D. Peterka and R. Yuste (Columbia University)
 
-This demo is designed to be run under spyder or jupyter; its plotting functions
+This demo is designed to be run in an IDE or from a CLI; its plotting functions
 are tailored for that environment.
 
 @authors: @agiovann and @epnev
@@ -17,6 +18,7 @@ are tailored for that environment.
 
 import cv2
 import glob
+from IPython import get_ipython
 import logging
 import numpy as np
 import os
@@ -28,8 +30,10 @@ except:
 
 try:
     if __IPYTHON__:
-        get_ipython().magic('load_ext autoreload')
-        get_ipython().magic('autoreload 2')
+        print("Detected iPython")
+        ipython = get_ipython()
+        ipython.run_line_magic('load_ext', 'autoreload')
+        ipython.run_line_magic('autoreload', '2')
 except NameError:
     pass
 
@@ -53,15 +57,15 @@ logging.basicConfig(format=
 
 #%%
 def main():
-    pass # For compatibility between running under Spyder and the CLI
+    pass # For compatibility between running under an IDE or a CLI
 
-# %% start a cluster
+    # %% start a cluster
 
     c, dview, n_processes =\
         cm.cluster.setup_cluster(backend='multiprocessing', n_processes=None,
                                  single_thread=False)
 
-# %% set up some parameters
+    # %% set up some parameters
     fnames = [os.path.join(caiman_datadir(), 'example_movies', 'demoMovie.tif')]
                             # file(s) to be analyzed
     is_patches = True       # flag for processing in patches or not
@@ -94,11 +98,12 @@ def main():
                    'nb': gnb}
 
     opts = params.CNMFParams(params_dict=params_dict)
-# %% Now RUN CaImAn Batch (CNMF)
+
+    # %% Now RUN CaImAn Batch (CNMF)
     cnm = cnmf.CNMF(n_processes, params=opts, dview=dview)
     cnm = cnm.fit_file()
 
-# %% plot contour plots of components
+    # %% plot contour plots of components
     Cns = local_correlations_movie_offline(fnames[0],
                                            remove_baseline=True,
                                            swap_dim=False, window=1000, stride=1000,
@@ -107,14 +112,14 @@ def main():
     Cn = Cns.max(axis=0)
     cnm.estimates.plot_contours(img=Cn)
 
-# %% load memory mapped file
+    # %% load memory mapped file
     Yr, dims, T = cm.load_memmap(cnm.mmap_file)
     images = np.reshape(Yr.T, [T] + list(dims), order='F')
 
-# %% refit
+    # %% refit
     cnm2 = cnm.refit(images, dview=dview)
 
-# %% COMPONENT EVALUATION
+    # %% COMPONENT EVALUATION
     # the components are evaluated in three ways:
     #   a) the shape of each component must be correlated with the data
     #   b) a minimum peak SNR is required over the length of a transient
@@ -137,19 +142,22 @@ def main():
 
     # %% visualize selected and rejected components
     cnm2.estimates.plot_contours(img=Cn, idx=cnm2.estimates.idx_components)
+
     # %% visualize selected components
     cnm2.estimates.view_components(images, idx=cnm2.estimates.idx_components, img=Cn)
+   
     #%% only select high quality components (destructive)
     # cnm2.estimates.select_components(use_object=True)
     # cnm2.estimates.plot_contours(img=Cn)
+
     #%% save results
     cnm2.estimates.Cn = Cn
     cnm2.save(cnm2.mmap_file[:-4]+'hdf5')
 
-# %% play movie with results (original, reconstructed, amplified residual)
-    cnm2.estimates.play_movie(images, magnification=4)
+    # %% play movie with results (original, reconstructed, amplified residual)
+    cnm2.estimates.play_movie(images, magnification=4);
 
-# %% STOP CLUSTER and clean up log files
+    # %% STOP CLUSTER and clean up log files
     cm.stop_server(dview=dview)
 
     log_files = glob.glob('Yr*_LOG_*')
@@ -157,7 +165,7 @@ def main():
         os.remove(log_file)
 
 # %%
-# This is to mask the differences between running this demo in Spyder
+# This is to mask the differences between running this demo in IDE
 # versus from the CLI
 if __name__ == "__main__":
     main()

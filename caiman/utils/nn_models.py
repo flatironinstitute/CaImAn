@@ -1,13 +1,13 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
+#!/usr/bin/env python
+
 """
 This file contains a set of methods for the online analysis of microendoscopic
-one photon data using a "ring-CNN" background model. The code uses tensorflow
-and tensorflow.keras and has been tested with tensorflow 1.13 and tensorflow 2.
-@author: epnevmatikakis
+one photon data using a "ring-CNN" background model.
 """
 
 import numpy as np
+import os
+import tensorflow as tf
 from tensorflow.keras.layers import Input, Dense, Reshape, Layer, Activation
 from tensorflow.keras.models import Model
 from tensorflow.keras.optimizers import Adam
@@ -15,12 +15,10 @@ from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping, LearningR
 from tensorflow.keras import backend as K
 from tensorflow.keras.initializers import Constant, RandomUniform
 from tensorflow.keras.utils import Sequence
-from caiman.source_extraction.cnmf.utilities import get_file_size
-from caiman.base.movies import load
-from caiman.paths import caiman_datadir
-import tensorflow as tf
 import time
-import os
+
+import caiman.base.movies
+from caiman.paths import caiman_datadir
 
 
 class CalciumDataset(Sequence):
@@ -32,7 +30,7 @@ class CalciumDataset(Sequence):
         if isinstance(files, str):
             files = [files]
         self.files = files
-        dims, T = get_file_size(files, var_name_hdf5=var_name_hdf5)
+        dims, T = caiman.base.movies.get_file_size(files, var_name_hdf5=var_name_hdf5)
         if subindices is not None:
             T = len(range(T)[subindices])
         if isinstance(T, int):
@@ -55,8 +53,8 @@ class CalciumDataset(Sequence):
         file_id = int(index / batches_per_npy)
         batch_id = int(index % batches_per_npy)
         lb, ub = batch_id*self.batch_size, (batch_id + 1)*self.batch_size
-        X = load(os.path.join(self.files[file_id]), subindices=slice(lb, ub),
-                 var_name_hdf5=self.var_name_hdf5)
+        X = caiman.base.movies.load(os.path.join(self.files[file_id]), subindices=slice(lb, ub),
+                                    var_name_hdf5=self.var_name_hdf5)
         X = X.astype(np.float32)
         X = np.expand_dims(X, axis=-1)
         return X, X

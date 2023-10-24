@@ -6,34 +6,17 @@ We put arrays on disk as raw bytes, extending along the first dimension.
 Alongside each array x we ensure the value x.dtype which stores the string
 description of the array's dtype.
 
-See Also:
-------------
-
-@url
-.. image::
-@author  epnev
 """
 
-# \package caiman/dource_ectraction/cnmf
-# \version   1.0
-# \copyright GNU General Public License v2.0
-# \date Created on Sat Sep 12 15:52:53 2015
-
 import cv2
-import h5py
 import logging
 import numpy as np
 import os
 import pathlib
-import pims
 import pylab as pl
 import scipy
 from scipy.sparse import spdiags, issparse, csc_matrix, csr_matrix
 import scipy.ndimage as ndi
-import tifffile
-from typing import List
-# https://github.com/constantinpape/z5/issues/146
-#import z5py
 
 from .initialization import greedyROI
 from ...base.rois import com
@@ -1012,7 +995,7 @@ def update_order_greedy(A, flag_AA=True):
         Eftychios A. Pnevmatikakis, Simons Foundation, 2017
     """
     K = np.shape(A)[-1]
-    parllcomp:List = []
+    parllcomp:list = []
     for i in range(K):
         new_list = True
         for ls in parllcomp:
@@ -1115,147 +1098,6 @@ def normalize_AC(A, C, YrA, b, f, neurons_sn):
         neurons_sn *= nA
 
     return csc_matrix(A), C, YrA, b, f, neurons_sn
-
-
-def get_file_size(file_name, var_name_hdf5='mov'):
-    """ Computes the dimensions of a file or a list of files without loading
-    it/them in memory. An exception is thrown if the files have FOVs with
-    different sizes
-        Args:
-            file_name: str/filePath or various list types
-                locations of file(s)
-
-            var_name_hdf5: 'str'
-                if loading from hdf5 name of the dataset to load
-
-        Returns:
-            dims: tuple
-                dimensions of FOV
-
-            T: int or tuple of int
-                number of timesteps in each file
-    """
-    # TODO There is a lot of redundant code between this and caiman.base.movies.load() that should be unified somehow
-    if isinstance(file_name, pathlib.Path):
-        # We want to support these as input, but str has a broader set of operations that we'd like to use, so let's just convert.
-	# (specifically, filePath types don't support subscripting)
-        file_name = str(file_name)
-    if isinstance(file_name, str):
-        if os.path.exists(file_name):
-            _, extension = os.path.splitext(file_name)[:2]
-            extension = extension.lower()
-            if extension == '.mat':
-                byte_stream, file_opened = scipy.io.matlab.mio._open_file(file_name, appendmat=False)
-                mjv, mnv = scipy.io.matlab.mio.get_matfile_version(byte_stream)
-                if mjv == 2:
-                    extension = '.h5'
-            if extension in ['.tif', '.tiff', '.btf']:
-                tffl = tifffile.TiffFile(file_name)
-                siz = tffl.series[0].shape
-                # tiff files written in append mode
-                if len(siz) < 3:
-                    dims = siz
-                    T = len(tffl.pages)
-                else:
-                    T, dims = siz[0], siz[1:]
-            elif extension in ('.avi', '.mkv'):
-                cap = cv2.VideoCapture(file_name)
-                dims = [int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)), int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))]
-                T = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-                if dims[0] <= 0 or dims[1] <= 0 or T <= 0:
-                    # fallback to pims, like load() and load_iter() do
-                    pims_movie = pims.Video(file_name)
-                    T = len(pims_movie)
-                    dims[0], dims[1] = pims_movie.frame_shape[0:2]
-            elif extension == '.mmap':
-                filename = os.path.split(file_name)[-1]
-                Yr, dims, T = load_memmap(os.path.join(
-                        os.path.split(file_name)[0], filename))
-            elif extension in ('.h5', '.hdf5', '.nwb'):
-                # FIXME this doesn't match the logic in movies.py:load()
-                # Consider pulling a lot of the "data source" code out into one place
-                with h5py.File(file_name, "r") as f:
-                    ignore_keys = ['__DATA_TYPES__'] # Known metadata that tools provide, add to this as needed. Sync with movies.my:load() !!
-                    kk = list(filter(lambda x: x not in ignore_keys, f.keys()))
-                    if len(kk) == 1 and 'Dataset' in str(type(f[kk[0]])): # TODO: Consider recursing into a group to find a dataset
-                        siz = f[kk[0]].shape
-                    elif var_name_hdf5 in f:
-                        if extension == '.nwb':
-                            siz = f[var_name_hdf5]['data'].shape
-                        else:
-                            siz = f[var_name_hdf5].shape
-                    elif var_name_hdf5 in f['acquisition']:
-                        siz = f['acquisition'][var_name_hdf5]['data'].shape
-                    else:
-                        logging.error('The file does not contain a variable' +
-                                      'named {0}'.format(var_name_hdf5))
-                        raise Exception('Variable not found. Use one of the above')
-                T, dims = siz[0], siz[1:]
-            elif extension in ('.n5', '.zarr'):
-                try:
-                    import z5py
-                except:
-                    raise Exception("z5py not available; if you need this use the conda-based setup")
-
-                with z5py.File(file_name, "r") as f:
-                    kk = list(f.keys())
-                    if len(kk) == 1:
-                        siz = f[kk[0]].shape
-                    elif var_name_hdf5 in f:
-                        if extension == '.nwb':
-                            siz = f[var_name_hdf5]['data'].shape
-                        else:
-                            siz = f[var_name_hdf5].shape
-                    elif var_name_hdf5 in f['acquisition']:
-                        siz = f['acquisition'][var_name_hdf5]['data'].shape
-                    else:
-                        logging.error('The file does not contain a variable' +
-                                      'named {0}'.format(var_name_hdf5))
-                        raise Exception('Variable not found. Use one of the above')
-                T, dims = siz[0], siz[1:]
-            elif extension in ('.sbx'):
-                from ...base.movies import loadmat_sbx
-                info = loadmat_sbx(file_name[:-4]+ '.mat')['info']
-                dims = tuple((info['sz']).astype(int))
-                # Defining number of channels/size factor
-                if info['channels'] == 1:
-                    info['nChan'] = 2
-                    factor = 1
-                elif info['channels'] == 2:
-                    info['nChan'] = 1
-                    factor = 2
-                elif info['channels'] == 3:
-                    info['nChan'] = 1
-                    factor = 2
-            
-                # Determine number of frames in whole file
-                T = int(os.path.getsize(
-                    file_name[:-4] + '.sbx') / info['recordsPerBuffer'] / info['sz'][1] * factor / 4 - 1)
-                
-            else:
-                raise Exception('Unknown file type')
-            dims = tuple(dims)
-        else:
-            raise Exception('File not found!')
-    elif isinstance(file_name, tuple):
-        from ...base.movies import load
-        dims = load(file_name[0], var_name_hdf5=var_name_hdf5).shape
-        T = len(file_name)
-
-    elif isinstance(file_name, list):
-        if len(file_name) == 1:
-            dims, T = get_file_size(file_name[0], var_name_hdf5=var_name_hdf5)
-        else:
-            dims, T = zip(*[get_file_size(fn, var_name_hdf5=var_name_hdf5)
-                for fn in file_name])
-            if len(set(dims)) > 1:
-                raise Exception('Files have FOVs with different sizes')
-            else:
-                dims = dims[0]
-    else:
-        raise Exception('Unknown input type')
-    return dims, T
-
 
 def fast_graph_Laplacian(mmap_file, dims, max_radius=10, kernel='heat',
                          dview=None, sigma=1, thr=0.05, p=10, normalize=True,

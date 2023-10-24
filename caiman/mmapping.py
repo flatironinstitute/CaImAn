@@ -9,20 +9,20 @@ import os
 import pickle
 import sys
 import tifffile
-from typing import Any, Dict, List, Optional, Tuple, Union
+from typing import Any, Optional, Union
 import pathlib
 
 import caiman as cm
 import caiman.paths
 
-def prepare_shape(mytuple: Tuple) -> Tuple:
+def prepare_shape(mytuple:tuple) -> tuple:
     """ This promotes the elements inside a shape into np.uint64. It is intended to prevent overflows
         with some numpy operations that are sensitive to it, e.g. np.memmap """
     if not isinstance(mytuple, tuple):
         raise Exception("Internal error: prepare_shape() passed a non-tuple")
     return tuple(map(lambda x: np.uint64(x), mytuple))
 
-def load_memmap(filename: str, mode: str = 'r') -> Tuple[Any, Tuple, int]:
+def load_memmap(filename: str, mode: str = 'r') -> tuple[Any, tuple, int]:
     """ Load a memory mapped file created by the function save_memmap
 
     Args:
@@ -69,7 +69,7 @@ def load_memmap(filename: str, mode: str = 'r') -> Tuple[Any, Tuple, int]:
     else:
         return (Yr, (d1, d2, d3), T)
 
-def save_memmap_each(fnames: List[str],
+def save_memmap_each(fnames: list[str],
                      dview=None,
                      base_name: str = None,
                      resize_fact=(1, 1, 1),
@@ -81,7 +81,7 @@ def save_memmap_each(fnames: List[str],
                      add_to_movie: float = 0,
                      border_to_0: int = 0,
                      order: str = 'C',
-                     slices=None) -> List[str]:
+                     slices=None) -> list[str]:
     """
     Create several memory mapped files using parallel processing
 
@@ -158,7 +158,7 @@ def save_memmap_each(fnames: List[str],
 
     return fnames_new
 
-def save_memmap_join(mmap_fnames: List[str], base_name: str = None, n_chunks: int = 20, dview=None,
+def save_memmap_join(mmap_fnames:list[str], base_name: str = None, n_chunks: int = 20, dview=None,
                      add_to_mov=0) -> str:
     """
     Makes a large file memmap from a number of smaller files
@@ -227,7 +227,7 @@ def save_memmap_join(mmap_fnames: List[str], base_name: str = None, n_chunks: in
     return fname_tot
 
 
-def my_map(dv, func, args) -> List:
+def my_map(dv, func, args) -> list:
     v = dv
     rc = v.client
     # scatter 'id', so id=0,1,2 on engines 0,1,2
@@ -236,7 +236,7 @@ def my_map(dv, func, args) -> List:
     amr = v.map(func, args)
 
     pending = set(amr.msg_ids)
-    results_all: Dict = dict()
+    results_all:dict = dict()
     counter = 0
     while pending:
         try:
@@ -311,7 +311,7 @@ def save_portion(pars) -> int:
     logging.debug('done')
     return Ttot
 
-def save_place_holder(pars: List) -> str:
+def save_place_holder(pars:list) -> str:
     """ To use map reduce
     """
     # todo: todocument
@@ -331,14 +331,14 @@ def save_place_holder(pars: List) -> str:
                        border_to_0=border_to_0,
                        slices=slices)
 
-def save_memmap(filenames: List[str],
-                base_name: str = 'Yr',
-                resize_fact: Tuple = (1, 1, 1),
-                remove_init: int = 0,
-                idx_xy: Tuple = None,
+def save_memmap(filenames:list[str],
+                base_name:str = 'Yr',
+                resize_fact:tuple = (1, 1, 1),
+                remove_init:int = 0,
+                idx_xy:tuple = None,
                 order: str = 'F',
                 var_name_hdf5: str = 'mov',
-                xy_shifts: Optional[List] = None,
+                xy_shifts: Optional[list] = None,
                 is_3D: bool = False,
                 add_to_movie: float = 0,
                 border_to_0=0,
@@ -614,7 +614,7 @@ def parallel_dot_product(A: np.ndarray, b, block_size: int = 5000, dview=None, t
 
     return output
 
-def dot_place_holder(par: List) -> Tuple:
+def dot_place_holder(par:list) -> tuple:
     # todo: todocument
 
     A_name, idx_to_pass, b_, transpose = par

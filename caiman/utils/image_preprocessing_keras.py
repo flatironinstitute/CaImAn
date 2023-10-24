@@ -1,8 +1,7 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 """
-From KERAS package
+From Keras package
 Fairly basic set of tools for real-time data augmentation on image data.
 Can easily be extended to include new transformations,
 new preprocessing methods, etc...
@@ -852,11 +851,7 @@ class NumpyArrayIterator(Iterator):
         if self.save_to_dir:
             for i in range(current_batch_size):
                 img = array_to_img(batch_x[i], self.data_format, scale=True)
-                fname = '{prefix}_{index}_{hash}.{format}'.format(prefix=self.save_prefix,
-                                                                  index=current_index + i,
-                                                                  hash=np.random.randint(
-                                                                      1e4),
-                                                                  format=self.save_format)
+                fname = f'{self.save_prefix}_{current_index + i}_{np.random.randint(1e4)}.{self.save_format}'
                 img.save(os.path.join(self.save_to_dir, fname))
         if self.y is None:
             return batch_x
@@ -1079,11 +1074,7 @@ class DirectoryIterator(Iterator):
         if self.save_to_dir:
             for i in range(current_batch_size):
                 img = array_to_img(batch_x[i], self.data_format, scale=True)
-                fname = '{prefix}_{index}_{hash}.{format}'.format(prefix=self.save_prefix,
-                                                                  index=current_index + i,
-                                                                  hash=np.random.randint(
-                                                                      1e4),
-                                                                  format=self.save_format)
+                fname = f'{self.save_prefix}_{current_index + i}_{np.random.randint(1e4)}.{self.save_format}'
                 img.save(os.path.join(self.save_to_dir, fname))
         # build batch of labels
         if self.class_mode == 'input':

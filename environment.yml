@@ -1,7 +1,8 @@
 channels:
 - conda-forge
 dependencies:
-- python >=3.10
+- python <=3.12
+- av
 - bokeh >=3.1.1
 - coverage
 - cython
@@ -11,6 +12,7 @@ dependencies:
 - ipython
 - ipyparallel
 - jupyter
+- jupyter_bokeh
 - matplotlib
 - moviepy
 - mypy

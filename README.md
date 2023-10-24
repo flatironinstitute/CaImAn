@@ -1,5 +1,9 @@
-# CaImAn 
-<img src="docs/LOGOS/Caiman_logo_FI.png" width="400" align="right">
+<a href="https://colab.research.google.com/drive/1vkp-uPV8tKavmX12bcN2L-jYH8_MgmHL?usp=sharing"><img src="https://img.shields.io/badge/-Colab%20Demo-blue" /></a>
+<a href="https://ncsu.qualtrics.com/jfe/form/SV_enuiA15WX8w74qy"><img src="https://img.shields.io/badge/-Caiman%20Survey-green" /></a>
+
+CaImAn
+======
+<img src="https://github.com/flatironinstitute/CaImAn/blob/main/docs/LOGOS/Caiman_logo_FI.png" width="400" align="right">
 
 A Python toolbox for large-scale **Ca**lcium **Im**aging **An**alysis.    
 
@@ -90,7 +94,7 @@ There are many repositories that use Caiman, or help make using Caiman easier.
 
 If you have questions about these related packages please reach out to their maintainers directly. If you would like your software to be in this list, please contact one of the developers or open an issue.
 
-# Citing Caimian and related papers
+# Citing Caiman and related papers
 If you publish a paper that relied on Caiman, we kindly ask that you [cite Giovannucci et al., 2019](https://elifesciences.org/articles/38173):
 ```
 @article{giovannucci2019caiman,
