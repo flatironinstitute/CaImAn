@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 """ functions related to the creation and management of the "cluster",
 meaning the framework for distributed computation.
@@ -369,66 +368,65 @@ def setup_cluster(backend: str = 'multiprocessing',
         n_processes: number of workers in dview. None means single core mode in use. 
     """
 
-    if n_processes is None:
-        if backend == 'SLURM':
-            n_processes = int(os.environ.get('SLURM_NPROCS'))
-        else:
-            # roughly number of cores on your machine minus 1
-            n_processes = np.maximum(int(psutil.cpu_count() - 1), 1)
+    sys.stdout.flush() # XXX Unsure why we do this
+    n_processes = np.maximum(int(psutil.cpu_count() - 1), 1)
 
-    if single_thread:
+    if backend == 'multiprocessing' or backend == 'local':
+        if backend == 'local':
+            logger.warn('The local backend is an alias for the multiprocessing backend, and the alias may be removed in some future version of Caiman')
+        if len(multiprocessing.active_children()) > 0:
+            if ignore_preexisting:
+                logger.warn('Found an existing multiprocessing pool. '
+                            'This is often indicative of an already-running CaImAn cluster. '
+                            'You have configured the cluster setup to not raise an exception.')
+            else:
+                raise Exception(
+                    'A cluster is already runnning. Terminate with dview.terminate() if you want to restart.')
+        if (platform.system() == 'Darwin') and (sys.version_info > (3, 0)):
+            try:
+                if 'kernel' in get_ipython().trait_names():        # type: ignore
+                                                                   # If you're on OSX and you're running under Jupyter or Spyder,
+                                                                   # which already run the code in a forkserver-friendly way, this
+                                                                   # can eliminate some setup and make this a reasonable approach.
+                                                                   # Otherwise, seting VECLIB_MAXIMUM_THREADS=1 or using a different
+                                                                   # blas/lapack is the way to avoid the issues.
+                                                                   # See https://github.com/flatironinstitute/CaImAn/issues/206 for more
+                                                                   # info on why we're doing this (for now).
+                    multiprocessing.set_start_method('forkserver', force=True)
+            except:                                                # If we're not running under ipython, don't do anything.
+                pass
+        c = None
+        dview = Pool(n_processes, maxtasksperchild=maxtasksperchild)
+
+    elif backend == 'ipyparallel':
+        stop_server()
+        start_server(ncpus=n_processes)
+        c = Client()
+        logger.info(f'Started ipyparallel cluster: Using {len(c)} processes')
+        dview = c[:len(c)]
+
+    elif backend == "single" or single_thread:
+        if single_thread:
+            logger.warn('The single_thread flag to setup_cluster() is deprecated and may be removed in the future')
         dview = None
         c = None
-    else:
-        sys.stdout.flush()
 
-        if backend == 'SLURM':
-            try:
-                stop_server()
-            except:
-                logger.debug('Nothing to stop')
-            slurm_script = '/mnt/home/agiovann/SOFTWARE/CaImAn/SLURM/slurmStart.sh' # FIXME: Make this a documented environment variable
-            logger.info([str(n_processes), slurm_script])
-            start_server(slurm_script=slurm_script, ncpus=n_processes)
-            pdir, profile = os.environ['IPPPDIR'], os.environ['IPPPROFILE']
-            logger.info([pdir, profile])
-            c = Client(ipython_dir=pdir, profile=profile)
-            dview = c[:]
-        elif backend == 'ipyparallel':
+    elif backend == 'SLURM':
+        # Override n_processes from above because with slurm you're using cluster resources, not machine-local resources
+        # Warning: This code may no longer work; it has not been tested in a very, very long time
+        n_processes = int(os.environ.get('SLURM_NPROCS'))
+        try:
             stop_server()
-            start_server(ncpus=n_processes)
-            c = Client()
-            logger.info(f'Started ipyparallel cluster: Using {len(c)} processes')
-            dview = c[:len(c)]
-
-        elif (backend == 'multiprocessing') or (backend == 'local'):
-            if backend == 'local':
-                logger.info('The local backend is an alias for the multiprocessing backend, and the alias may be removed in some future version of Caiman')
-            if len(multiprocessing.active_children()) > 0:
-                if ignore_preexisting:
-                    logger.warn('Found an existing multiprocessing pool. '
-                                'This is often indicative of an already-running CaImAn cluster. '
-                                'You have configured the cluster setup to not raise an exception.')
-                else:
-                    raise Exception(
-                        'A cluster is already runnning. Terminate with dview.terminate() if you want to restart.')
-            if (platform.system() == 'Darwin') and (sys.version_info > (3, 0)):
-                try:
-                    if 'kernel' in get_ipython().trait_names():        # type: ignore
-                                                                       # If you're on OSX and you're running under Jupyter or Spyder,
-                                                                       # which already run the code in a forkserver-friendly way, this
-                                                                       # can eliminate some setup and make this a reasonable approach.
-                                                                       # Otherwise, seting VECLIB_MAXIMUM_THREADS=1 or using a different
-                                                                       # blas/lapack is the way to avoid the issues.
-                                                                       # See https://github.com/flatironinstitute/CaImAn/issues/206 for more
-                                                                       # info on why we're doing this (for now).
-                        multiprocessing.set_start_method('forkserver', force=True)
-                except:                                                # If we're not running under ipython, don't do anything.
-                    pass
-            c = None
-
-            dview = Pool(n_processes, maxtasksperchild=maxtasksperchild)
-        else:
-            raise Exception('Unknown Backend')
+        except:
+            logger.debug('Nothing to stop')
+        slurm_script = os.environ.get('SLURMSTART_SCRIPT') # An example of this is in the source repo under 'SLURM/slurmStart.sh'
+        logger.info([str(n_processes), slurm_script])
+        start_server(slurm_script=slurm_script, ncpus=n_processes)
+        pdir, profile = os.environ['IPPPDIR'], os.environ['IPPPROFILE']
+        logger.info([pdir, profile])
+        c = Client(ipython_dir=pdir, profile=profile)
+        dview = c[:]
+    else:
+        raise Exception('Unknown Backend')
 
     return c, dview, n_processes
