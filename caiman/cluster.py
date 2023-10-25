@@ -336,26 +336,31 @@ def stop_server(ipcluster: str = 'ipcluster', pdir: str = None, profile: str = N
 
     logger.info("stop_cluster(): done")
 
-def setup_cluster(backend: str = 'multiprocessing',
-                  n_processes: int = None,
-                  single_thread: bool = False,
-                  ignore_preexisting: bool = False,
-                  maxtasksperchild: int = None) -> tuple[Any, Any, Optional[int]]:
+def setup_cluster(backend:str = 'multiprocessing',
+                  n_processes:int = None,
+                  single_thread:bool = False,
+                  ignore_preexisting:bool = False,
+                  maxtasksperchild:int = None) -> tuple[Any, Any, Optional[int]]:
     """
     Setup and/or restart a parallel cluster.
     Args:
-        backend: str
-            'multiprocessing' [alias 'local'], 'ipyparallel', and 'SLURM'
-            ipyparallel and SLURM backends try to restart if cluster running.
-            backend='multiprocessing' raises an exception if a cluster is running.
-        n_processes: int
+        backend
+            One of:
+                'multiprocessing' - Use multiprocessing library
+                'ipyparallel' - Use ipyparallel instead (better on Windows?)
+                'single' - Don't be parallel (good for debugging, slow)
+                'SLURM' - Try to use SLURM batch system (untested, involved).
+            Most backends will try, by default, to stop a running cluster if
+            it is running before setting up a new one, or throw an error if
+            they find one.
+        n_processes
             Sets number of processes to use. If None, is set automatically. 
-        single_thread: bool
-            If True, dview is set to None, so a single CPU/core is used
-        ignore_preexisting: bool
+        single_thread
+            Deprecated alias for the 'single' backend.
+        ignore_preexisting
             If True, ignores the existence of an already running multiprocessing
             pool (which usually indicates a previously-started CaImAn cluster)
-        maxtasksperchild: int
+        maxtasksperchild
             Only used for multiprocessing, default None (number of tasks a worker process can 
             complete before it will exit and be replaced with a fresh worker process).
             
