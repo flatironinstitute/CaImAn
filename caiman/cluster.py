@@ -387,7 +387,7 @@ def setup_cluster(backend:str = 'multiprocessing',
             else:
                 raise Exception(
                     'A cluster is already runnning. Terminate with dview.terminate() if you want to restart.')
-        if (platform.system() == 'Darwin') and (sys.version_info > (3, 0)):
+        if (platform.system() == 'Darwin'):
             try:
                 if 'kernel' in get_ipython().trait_names():        # type: ignore
                                                                    # If you're on OSX and you're running under Jupyter or Spyder,
