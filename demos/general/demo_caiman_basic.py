@@ -165,7 +165,10 @@ def handle_args():
     parser.add_argument("--keep_logs",  action="store_true", help="Keep temporary logfiles")
     parser.add_argument("--no_patches", action="store_true", help="Do not use patches")
     parser.add_argument("--no_play",    action="store_true", help="Do not display results")
-    parser.add_argument("--cluster_backend", default="multiprocessing", help="Specify multiprocessing, ipyparallel, or local to pick an engine")
+    parser.add_argument("--cluster_backend", default="multiprocessing", help="Specify multiprocessing, ipyparallel, or mono to pick an engine")
+    # TODO: Implement mono as providing single_thread to setup_cluster(),
+    # Or alternatively add a separate named background to setup_cluster()
+    # for that.
     parser.add_argument("--input", action="append", help="File(s) to work on, provide multiple times for more files")
     return parser.parse_args()
 
