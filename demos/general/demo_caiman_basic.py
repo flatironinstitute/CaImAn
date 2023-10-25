@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 """
 Basic stripped-down demo for running the CNMF source extraction algorithm with
@@ -12,13 +11,11 @@ Data courtesy of W. Yang, D. Peterka and R. Yuste (Columbia University)
 This demo is designed to be run in an IDE or from a CLI; its plotting functions
 are tailored for that environment.
 
-@authors: @agiovann and @epnev
-
 """
 
+import argparse
 import cv2
 import glob
-from IPython import get_ipython
 import logging
 import numpy as np
 import os
@@ -28,23 +25,12 @@ try:
 except:
     pass
 
-try:
-    if __IPYTHON__:
-        print("Detected iPython")
-        ipython = get_ipython()
-        ipython.run_line_magic('load_ext', 'autoreload')
-        ipython.run_line_magic('autoreload', '2')
-except NameError:
-    pass
-
-
 import caiman as cm
 from caiman.paths import caiman_datadir
 from caiman.source_extraction.cnmf import cnmf as cnmf
 from caiman.source_extraction.cnmf import params as params
 from caiman.summary_images import local_correlations_movie_offline
 
-# %%
 # Set up the logger; change this if you like.
 # You can log to a file using the filename parameter, or make the output more or less
 # verbose by setting level to logging.DEBUG, logging.INFO, logging.WARNING, or logging.ERROR
@@ -55,20 +41,27 @@ logging.basicConfig(format=
                     level=logging.WARNING)
                     # filename="/tmp/caiman.log",
 
-#%%
 def main():
-    pass # For compatibility between running under an IDE or a CLI
+    cfg = handle_args()
 
-    # %% start a cluster
-
+    # start a cluster
     c, dview, n_processes =\
-        cm.cluster.setup_cluster(backend='multiprocessing', n_processes=None,
+        cm.cluster.setup_cluster(backend=cfg.cluster_backend, n_processes=None,
                                  single_thread=False)
+    # Select input
+    if cfg.input is None:
+        fnames = [os.path.join(caiman_datadir(), 'example_movies', 'demoMovie.tif')] # file(s) to be analyzed
+    else:
+        fnames = cfg.input
+    # If you prefer to hardcode filenames, you could do something like this:
+    # fnames = ["/path/to/myfile1.avi", "/path/to/myfile2.avi"]
 
-    # %% set up some parameters
-    fnames = [os.path.join(caiman_datadir(), 'example_movies', 'demoMovie.tif')]
-                            # file(s) to be analyzed
-    is_patches = True       # flag for processing in patches or not
+    if cfg.no_patches:
+        is_patches = False # flag for processing in patches or not
+    else:
+        is_patches = True
+
+    # set up some parameters
     fr = 10                 # approximate frame rate of data
     decay_time = 5.0        # length of transient
 
@@ -99,27 +92,28 @@ def main():
 
     opts = params.CNMFParams(params_dict=params_dict)
 
-    # %% Now RUN CaImAn Batch (CNMF)
+    # Run CaImAn Batch (CNMF)
     cnm = cnmf.CNMF(n_processes, params=opts, dview=dview)
     cnm = cnm.fit_file()
 
-    # %% plot contour plots of components
+    # plot contour plots of components
     Cns = local_correlations_movie_offline(fnames[0],
                                            remove_baseline=True,
                                            swap_dim=False, window=1000, stride=1000,
                                            winSize_baseline=100, quantil_min_baseline=10,
                                            dview=dview)
     Cn = Cns.max(axis=0)
-    cnm.estimates.plot_contours(img=Cn)
+    if not cfg.no_play:
+        cnm.estimates.plot_contours(img=Cn)
 
-    # %% load memory mapped file
+    # load memory mapped file
     Yr, dims, T = cm.load_memmap(cnm.mmap_file)
     images = np.reshape(Yr.T, [T] + list(dims), order='F')
 
-    # %% refit
+    # refit
     cnm2 = cnm.refit(images, dview=dview)
 
-    # %% COMPONENT EVALUATION
+    # COMPONENT EVALUATION
     # the components are evaluated in three ways:
     #   a) the shape of each component must be correlated with the data
     #   b) a minimum peak SNR is required over the length of a transient
@@ -140,32 +134,40 @@ def main():
 
     cnm2.estimates.evaluate_components(images, cnm2.params, dview=dview)
 
-    # %% visualize selected and rejected components
-    cnm2.estimates.plot_contours(img=Cn, idx=cnm2.estimates.idx_components)
-
-    # %% visualize selected components
-    cnm2.estimates.view_components(images, idx=cnm2.estimates.idx_components, img=Cn)
+    if not cfg.no_play:
+        # visualize selected and rejected components
+        cnm2.estimates.plot_contours(img=Cn, idx=cnm2.estimates.idx_components)
+        # visualize selected components
+        cnm2.estimates.view_components(images, idx=cnm2.estimates.idx_components, img=Cn)
    
-    #%% only select high quality components (destructive)
+    # only select high quality components (destructive)
     # cnm2.estimates.select_components(use_object=True)
     # cnm2.estimates.plot_contours(img=Cn)
 
-    #%% save results
+    # save results
     cnm2.estimates.Cn = Cn
     cnm2.save(cnm2.mmap_file[:-4]+'hdf5')
 
-    # %% play movie with results (original, reconstructed, amplified residual)
-    cnm2.estimates.play_movie(images, magnification=4);
+    # play movie with results (original, reconstructed, amplified residual)
+    if not cfg.no_play:
+        cnm2.estimates.play_movie(images, magnification=4);
 
-    # %% STOP CLUSTER and clean up log files
+    # STOP CLUSTER and clean up log files
     cm.stop_server(dview=dview)
 
-    log_files = glob.glob('Yr*_LOG_*')
-    for log_file in log_files:
-        os.remove(log_file)
+    if not cfg.keep_logs:
+        log_files = glob.glob('Yr*_LOG_*')
+        for log_file in log_files:
+            os.remove(log_file)
 
-# %%
-# This is to mask the differences between running this demo in IDE
-# versus from the CLI
-if __name__ == "__main__":
-    main()
+def handle_args():
+    parser = argparse.ArgumentParser(description="Demonstrate basic Caiman functionality")
+    parser.add_argument("--keep_logs",  action="store_true", help="Keep temporary logfiles")
+    parser.add_argument("--no_patches", action="store_true", help="Do not use patches")
+    parser.add_argument("--no_play",    action="store_true", help="Do not display results")
+    parser.add_argument("--cluster_backend", default="multiprocessing", help="Specify multiprocessing, ipyparallel, or local to pick an engine")
+    parser.add_argument("--input", action="append", help="File(s) to work on, provide multiple times for more files")
+    return parser.parse_args()
+
+########
+main()
