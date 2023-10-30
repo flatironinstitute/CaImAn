@@ -1145,7 +1145,7 @@ def plot_shapes(Ab, dims, num_comps=15, size=(15, 15), comps_per_row=None,
 
 def nb_inspect_correlation_pnr(corr, pnr, cmap='jet', num_bins=100):
     """
-    inspect correlation and pnr images to infer the min_corr, min_pnr
+    inspect correlation and pnr images to infer the min_corr, min_pnr for cnmfe
 
     Args:
         corr: ndarray
@@ -1154,14 +1154,15 @@ def nb_inspect_correlation_pnr(corr, pnr, cmap='jet', num_bins=100):
         pnr: ndarray
             peak-to-noise image created with caiman.summary_images.correlation_pnr
 
-        cmap: str
-            colormap for plotting corr and pnr images
+        cmap: string
+            colormap used for plotting corr and pnr images 
+            For valid colormaps see https://holoviews.org/user_guide/Colormaps.html
 
         num_bins: int
             number of bins to use for plotting histogram of corr/pnr values
 
     Returns:
-        Holoviews plot object (typically just plots in notebook, but can be returned).
+        Holoviews plot layout (typically just plots in notebook)
     """
 
     hv_corr = hv.Image(corr, 
@@ -1184,7 +1185,9 @@ def nb_inspect_correlation_pnr(corr, pnr, cmap='jet', num_bins=100):
     hist_pnr = hv.DynamicMap(
         fct.partial(hist, im=hv_pnr), streams=[str_pnr])
     
-    return (hv_corr << hist_corr) + (hv_pnr << hist_pnr)
+    hv_layout = (hv_corr << hist_corr) + (hv_pnr << hist_pnr)
+
+    return hv_layout
 
 
 def inspect_correlation_pnr(correlation_image_pnr, pnr_image):
