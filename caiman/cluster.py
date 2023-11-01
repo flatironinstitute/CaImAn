@@ -415,6 +415,7 @@ def setup_cluster(backend:str = 'multiprocessing',
             logger.warn('The single_thread flag to setup_cluster() is deprecated and may be removed in the future')
         dview = None
         c = None
+        n_processes = 1
 
     elif backend == 'SLURM':
         # Override n_processes from above because with slurm you're using cluster resources, not machine-local resources
