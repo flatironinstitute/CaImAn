@@ -2,7 +2,7 @@
 
 """
 Basic demo for running the CNMF source extraction algorithm with
-CaImAn and evaluation the components. The analysis can be run either in the
+Caiman and evaluation the components. The analysis can be run either in the
 whole FOV or in patches. For a complete pipeline (including motion correction)
 check demo_pipeline.py
 
@@ -47,8 +47,8 @@ def main():
             "%(relativeCreated)12d [%(filename)s:%(funcName)20s():%(lineno)s][%(process)d] %(message)s",
             level=logging.WARNING)
 
-    # Select input
     if cfg.input is None:
+        # If no input is specified, use sample data, downloading if necessary
         fnames = [os.path.join(caiman_datadir(), 'example_movies', 'demoMovie.tif')] # file(s) to be analyzed
         if fnames[0] in ['Sue_2x_3000_40_-46.tif', 'demoMovie.tif']:
             fnames = [download_demo(fnames[0])]
@@ -94,8 +94,7 @@ def main():
     opts = params.CNMFParams(params_dict=params_dict)
 
     # start a cluster for parallel processing
-    c, dview, n_processes = cm.cluster.setup_cluster(backend=cfg.cluster_backend,
-                                                     n_processes=None)
+    c, dview, n_processes = cm.cluster.setup_cluster(backend=cfg.cluster_backend)
 
 
     # Run CaImAn Batch (CNMF)
@@ -109,6 +108,7 @@ def main():
                                            winSize_baseline=100, quantil_min_baseline=10,
                                            dview=dview)
     Cn = Cns.max(axis=0)
+    Cn[np.isnan(Cn)] = 0
     if not cfg.no_play:
         cnm.estimates.plot_contours(img=Cn)
 

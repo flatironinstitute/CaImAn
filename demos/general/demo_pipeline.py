@@ -2,7 +2,7 @@
 
 """
 Complete demo pipeline for processing two photon calcium imaging data using the
-CaImAn batch algorithm. The processing pipeline included motion correction,
+Caiman batch algorithm. The processing pipeline included motion correction,
 source extraction and deconvolution. The demo shows how to construct the
 params, MotionCorrect and cnmf objects and call the relevant functions. You
 can also run a large part of the pipeline with a single method (cnmf.fit_file)
@@ -15,10 +15,10 @@ This demo pertains to two photon data. For a complete analysis pipeline for
 one photon microendoscopic data see demo_pipeline_cnmfE.py
 """
 
+import argparse
 import cv2
 import glob
 import logging
-import matplotlib.pyplot as plt
 import numpy as np
 import os
 
@@ -49,8 +49,8 @@ def main():
             "%(relativeCreated)12d [%(filename)s:%(funcName)20s():%(lineno)s][%(process)d] %(message)s",
             level=logging.WARNING)
 
-    # Select file(s) to be processed (download if not present)
     if cfg.input is None:
+        # If no input is specified, use sample data, downloading if necessary
         fnames = ['Sue_2x_3000_40_-46.tif']  # filename to be processed
         if fnames[0] in ['Sue_2x_3000_40_-46.tif', 'demoMovie.tif']:
             fnames = [download_demo(fnames[0])]
@@ -100,9 +100,8 @@ def main():
     # play the movie (optional)
     # playing the movie using opencv. It requires loading the movie in memory.
     # To close the video press q
-    display_images = False
 
-    if display_images:
+    if not cfg.no_play:
         m_orig = cm.load_movie_chain(fnames)
         ds_ratio = 0.2
         moviehandle = m_orig.resize(1, 1, ds_ratio)
@@ -118,7 +117,7 @@ def main():
     mc.motion_correct(save_movie=True)
 
     # compare with original movie
-    if display_images:
+    if not cfg.no_play:
         m_orig = cm.load_movie_chain(fnames)
         m_els = cm.load(mc.mmap_file)
         ds_ratio = 0.2
@@ -189,21 +188,16 @@ def main():
     cnm = cnmf.CNMF(n_processes, params=opts, dview=dview)
     cnm = cnm.fit(images)
 
-    # Alternate way to run above pipeline using a single method (optional)
-    #   you can also perform the motion correction plus cnmf fitting steps
-    #   simultaneously after defining your parameters object using
-    #  cnm1 = cnmf.CNMF(n_processes, params=opts, dview=dview)
-    #  cnm1.fit_file(motion_correct=True)
-
     # plot contours of found components
     Cns = local_correlations_movie_offline(mc.mmap_file[0],
-                                           remove_baseline=True, window=1000, stride=1000,
+                                           remove_baseline=True,
+                                           window=1000, stride=1000,
                                            winSize_baseline=100, quantil_min_baseline=10,
                                            dview=dview)
     Cn = Cns.max(axis=0)
     Cn[np.isnan(Cn)] = 0
-    cnm.estimates.plot_contours(img=Cn)
-    plt.title('Contour plots of found components');
+    if not cfg.no_play:
+        cnm.estimates.plot_contours(img=Cn)
 
     # save results
     cnm.estimates.Cn = Cn
@@ -232,11 +226,11 @@ def main():
                                'cnn_lowest': cnn_lowest})
     cnm2.estimates.evaluate_components(images, cnm2.params, dview=dview)
 
-    # Plot Components
-    cnm2.estimates.plot_contours(img=Cn, idx=cnm2.estimates.idx_components)
+    if not cfg.no_play:
+        # Plot Components
+        cnm2.estimates.plot_contours(img=Cn, idx=cnm2.estimates.idx_components)
 
-    # View Traces (accepted and rejected)
-    if display_images:
+        # View Traces (accepted and rejected)
         cnm2.estimates.view_components(images, img=Cn,
                                       idx=cnm2.estimates.idx_components)
         cnm2.estimates.view_components(images, img=Cn,
@@ -249,31 +243,35 @@ def main():
     cnm2.estimates.detrend_df_f(quantileMin=8, frames_window=250)
 
     # Show final traces
-    cnm2.estimates.view_components(img=Cn)
+    if not cfg.no_play:
+        cnm2.estimates.view_components(img=Cn)
 
     cnm2.estimates.Cn = Cn
     cnm2.save(cnm2.mmap_file[:-4] + 'hdf5')
 
     # reconstruct denoised movie (press q to exit)
-    if display_images:
+    if not cfg.no_play:
         cnm2.estimates.play_movie(images, q_max=99.9, gain_res=2,
                                   magnification=2,
                                   bpx=border_to_0,
                                   include_bck=False)  # background not shown
 
-    # Stop cluster and clean up log files
+    # Stop the cluster and clean up log files
     cm.stop_server(dview=dview)
-    log_files = glob.glob('*_LOG_*')
-    for log_file in log_files:
-        os.remove(log_file)
+
+    if not cfg.keep_logs:
+        log_files = glob.glob('*_LOG_*')
+        for log_file in log_files:
+            os.remove(log_file)
 
 def handle_args():
     parser = argparse.ArgumentParser(description="Demonstrate 2P Pipeline using batch algorithm")
+    parser.add_argument("--keep_logs",  action="store_true", help="Keep temporary logfiles")
+    parser.add_argument("--no_play",    action="store_true", help="Do not display results")
     parser.add_argument("--cluster_backend", default="multiprocessing", help="Specify multiprocessing, ipyparallel, or single to pick an engine")
     parser.add_argument("--input", action="append", help="File(s) to work on, provide multiple times for more files")
     parser.add_argument("--logfile",    help="If specified, log to the named file")
     return parser.parse_args()
-
 
 ########
 main()
