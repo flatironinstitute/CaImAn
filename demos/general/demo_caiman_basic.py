@@ -30,6 +30,7 @@ from caiman.paths import caiman_datadir
 from caiman.source_extraction.cnmf import cnmf as cnmf
 from caiman.source_extraction.cnmf import params as params
 from caiman.summary_images import local_correlations_movie_offline
+from caiman.utils.utils import download_demo
 
 
 def main():
@@ -46,13 +47,11 @@ def main():
             "%(relativeCreated)12d [%(filename)s:%(funcName)20s():%(lineno)s][%(process)d] %(message)s",
             level=logging.WARNING)
 
-    # start a cluster
-    c, dview, n_processes =\
-        cm.cluster.setup_cluster(backend=cfg.cluster_backend, n_processes=None,
-                                 single_thread=False)
     # Select input
     if cfg.input is None:
         fnames = [os.path.join(caiman_datadir(), 'example_movies', 'demoMovie.tif')] # file(s) to be analyzed
+        if fnames[0] in ['Sue_2x_3000_40_-46.tif', 'demoMovie.tif']:
+            fnames = [download_demo(fnames[0])]
     else:
         fnames = cfg.input
     # If you prefer to hardcode filenames, you could do something like this:
@@ -93,6 +92,11 @@ def main():
                    'nb': gnb}
 
     opts = params.CNMFParams(params_dict=params_dict)
+
+    # start a cluster for parallel processing
+    c, dview, n_processes = cm.cluster.setup_cluster(backend=cfg.cluster_backend,
+                                                     n_processes=None)
+
 
     # Run CaImAn Batch (CNMF)
     cnm = cnmf.CNMF(n_processes, params=opts, dview=dview)
