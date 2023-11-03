@@ -39,16 +39,11 @@ Support for this format was removed in an earlier version of Caiman.
 ### Zipfile full of images (\*.zip)
 The default functions don't support this. Read the docs for movies.py:from\_zip\_file\_to\_movie() to use this support
 
-## Functions
-load() supports a broader range of file formats than load\_iter().
-(TODO fill in this section)
-
-On bit-depth for the formats
-(TODO fill in this section)
-
 ## Conversion tools
-ImageJ
-(tiff file converters)
+- ImageJ - A powerful (but high learning curve) tool that can visualise and convert a number of formats
+- TiffIt - https://github.com/EricThomson/tiffit - Can convert incompatible tiff files into compatible tiff files
+- GIMP - A general-purpose image editor that can (clumsily) work with video files. Scriptable with a number of useful filters
+- ImageMagick - A suite of commandline tools for image manipulation
 
 ## Adding new types
 Qualifiers for other formats we might consider adding on request:
