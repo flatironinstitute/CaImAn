@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 """
 Complete pipeline for online processing using CaImAn Online (OnACID).
@@ -11,27 +10,20 @@ objects required for the analysis, and presents the various parameters that
 can be passed as options. A plot of the processing time for the various steps
 of the algorithm is also included.
 
-@author: Eftychios Pnevmatikakis @epnev
-
-Special thanks to Andreas Tolias and his lab at Baylor College of Medicine
+Thanks to Andreas Tolias and his lab at Baylor College of Medicine
 for sharing the data used in this demo.
 """
 
+import argparse
 import glob
-from IPython import get_ipython
 import numpy as np
 import os
 import logging
 import matplotlib.pyplot as plt
 
 try:
-    if __IPYTHON__:
-        print("Detected iPython")
-        ipython = get_ipython()
-        ipython.run_line_magic('load_ext', 'autoreload')
-        ipython.run_line_magic('autoreload', '2')
-        ipython.run_line_magic('matplotlib', 'qt')
-except NameError:
+    cv2.setNumThreads(0)
+except:
     pass
 
 import caiman as cm
@@ -40,28 +32,28 @@ from caiman.source_extraction import cnmf as cnmf
 from caiman.utils.utils import download_demo
 
 
-logging.basicConfig(format=
-                    "%(relativeCreated)12d [%(filename)s:%(funcName)20s():%(lineno)s]"\
-                    "[%(process)d] %(message)s",
-                    level=logging.INFO)
-
-# %%
 def main():
-    pass # For compatibility between running under IDE and the CLI
+    cfg = handle_args()
 
-    # %%  download and list all files to be processed
+    if cfg.logfile:
+        logging.basicConfig(format=
+            "%(relativeCreated)12d [%(filename)s:%(funcName)20s():%(lineno)s][%(process)d] %(message)s",
+            level=logging.WARNING,
+            filename=cfg.logfile)
+        # You can make the output more or less verbose by setting level to logging.DEBUG, logging.INFO, logging.WARNING, or logging.ERROR
+    else:
+        logging.basicConfig(format=
+            "%(relativeCreated)12d [%(filename)s:%(funcName)20s():%(lineno)s][%(process)d] %(message)s",
+            level=logging.WARNING)
 
-    # folder inside ./example_movies where files will be saved
-    fld_name = 'Mesoscope'
-    fnames = []
-    fnames.append(download_demo('Tolias_mesoscope_1.hdf5', fld_name))
-    fnames.append(download_demo('Tolias_mesoscope_2.hdf5', fld_name))
-    fnames.append(download_demo('Tolias_mesoscope_3.hdf5', fld_name))
+    if cfg.input is None:
+        fnames = []
+        for tolias_file in ['Tolias_mesoscope_1.hdf5', 'Tolias_mesoscope_2.hdf5', 'Tolias_mesoscope_3.hdf5']:
+            fnames.append(download_demo(tolias_file))
+    else:
+        fnames = cfg.input
 
-    # your list of files should look something like this
-    logging.info(fnames)
-
-    # %%   Set up some parameters
+    # Set up some parameters
 
     fr = 15  # frame rate (Hz)
     decay_time = 0.5  # approximate length of transient event in seconds
@@ -81,7 +73,7 @@ def main():
     init_batch = 200  # number of frames for initialization (presumably from the first file)
     K = 2  # initial number of components
     epochs = 1  # number of passes over the data
-    show_movie = False # show the movie as the data gets processed
+    show_movie = not cfg.no_play # show the movie as the data gets processed
 
     params_dict = {'fnames': fnames,
                    'fr': fr,
@@ -106,20 +98,20 @@ def main():
                    'show_movie': show_movie}
     opts = cnmf.params.CNMFParams(params_dict=params_dict)
 
-    # %% fit online
+    # fit online
     cnm = cnmf.online_cnmf.OnACID(params=opts)
     cnm.fit_online()
 
-    # %% plot contours (this may take time)
-    logging.info('Number of components: ' + str(cnm.estimates.A.shape[-1]))
+    # plot contours (this may take time)
+    logging.info(f"Number of components: {cnm.estimates.A.shape[-1]}")
     images = cm.load(fnames)
     Cn = images.local_correlations(swap_dim=False, frames_per_chunk=500)
     cnm.estimates.plot_contours(img=Cn, display_numbers=False)
 
-    # %% view components
+    # view components
     cnm.estimates.view_components(img=Cn)
 
-    # %% plot timing performance (if a movie is generated during processing, timing
+    # plot timing performance (if a movie is generated during processing, timing
     # will be severely over-estimated)
 
     T_motion = 1e3*np.array(cnm.t_motion)
@@ -133,9 +125,9 @@ def main():
     plt.xlabel('Frame #')
     plt.ylabel('Processing time [ms]')
 
-    #%% RUN IF YOU WANT TO VISUALIZE THE RESULTS (might take time)
+    # Prepare result visualisations (might take time)
     c, dview, n_processes = \
-        cm.cluster.setup_cluster(backend='multiprocessing', n_processes=None,
+        cm.cluster.setup_cluster(backend=cfg.cluster_backend, n_processes=None,
                                  single_thread=False)
     if opts.online['motion_correct']:
         shifts = cnm.estimates.shifts[-cnm.estimates.C.shape[-1]:]
@@ -171,12 +163,17 @@ def main():
 
     cnm.estimates.evaluate_components(images, cnm.params, dview=dview)
     cnm.estimates.Cn = Cn
-    cnm.save(os.path.splitext(fnames[0])[0]+'_results.hdf5')
+    cnm.save(os.path.splitext(fnames[0])[0] + '_results.hdf5')
 
     dview.terminate()
 
-#%%
-# This is to mask the differences between running this demo in IDE
-# versus from the CLI
-if __name__ == "__main__":
-    main()
+def handle_args():
+    parser = argparse.ArgumentParser(description="Full OnACID Caiman demo")
+    parser.add_argument("--no_play",    action="store_true", help="Do not display results")
+    parser.add_argument("--cluster_backend", default="multiprocessing", help="Specify multiprocessing, ipyparallel, or single to pick an engine")
+    parser.add_argument("--input", action="append", help="File(s) to work on, provide multiple times for more files")
+    parser.add_argument("--logfile",    help="If specified, log to the named file")
+    return parser.parse_args()
+
+########
+main()
