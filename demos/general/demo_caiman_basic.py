@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 """
-Basic stripped-down demo for running the CNMF source extraction algorithm with
+Basic demo for running the CNMF source extraction algorithm with
 CaImAn and evaluation the components. The analysis can be run either in the
 whole FOV or in patches. For a complete pipeline (including motion correction)
 check demo_pipeline.py
@@ -31,18 +31,20 @@ from caiman.source_extraction.cnmf import cnmf as cnmf
 from caiman.source_extraction.cnmf import params as params
 from caiman.summary_images import local_correlations_movie_offline
 
-# Set up the logger; change this if you like.
-# You can log to a file using the filename parameter, or make the output more or less
-# verbose by setting level to logging.DEBUG, logging.INFO, logging.WARNING, or logging.ERROR
-
-logging.basicConfig(format=
-                    "%(relativeCreated)12d [%(filename)s:%(funcName)20s():%(lineno)s]"\
-                    "[%(process)d] %(message)s",
-                    level=logging.WARNING)
-                    # filename="/tmp/caiman.log",
 
 def main():
     cfg = handle_args()
+
+    if cfg.logfile:
+        logging.basicConfig(format=
+            "%(relativeCreated)12d [%(filename)s:%(funcName)20s():%(lineno)s][%(process)d] %(message)s",
+            level=logging.WARNING,
+            filename=cfg.logfile)
+        # You can make the output more or less verbose by setting level to logging.DEBUG, logging.INFO, logging.WARNING, or logging.ERROR
+    else:
+        logging.basicConfig(format=
+            "%(relativeCreated)12d [%(filename)s:%(funcName)20s():%(lineno)s][%(process)d] %(message)s",
+            level=logging.WARNING)
 
     # start a cluster
     c, dview, n_processes =\
@@ -113,8 +115,8 @@ def main():
     # refit
     cnm2 = cnm.refit(images, dview=dview)
 
-    # COMPONENT EVALUATION
-    # the components are evaluated in three ways:
+    # Component Evaluation
+    #   Components are evaluated in three ways:
     #   a) the shape of each component must be correlated with the data
     #   b) a minimum peak SNR is required over the length of a transient
     #   c) each shape passes a CNN based classifier (this will pick up only neurons
@@ -152,7 +154,7 @@ def main():
     if not cfg.no_play:
         cnm2.estimates.play_movie(images, magnification=4);
 
-    # STOP CLUSTER and clean up log files
+    # Stop the cluster and clean up log files
     cm.stop_server(dview=dview)
 
     if not cfg.keep_logs:
@@ -165,11 +167,9 @@ def handle_args():
     parser.add_argument("--keep_logs",  action="store_true", help="Keep temporary logfiles")
     parser.add_argument("--no_patches", action="store_true", help="Do not use patches")
     parser.add_argument("--no_play",    action="store_true", help="Do not display results")
-    parser.add_argument("--cluster_backend", default="multiprocessing", help="Specify multiprocessing, ipyparallel, or mono to pick an engine")
-    # TODO: Implement mono as providing single_thread to setup_cluster(),
-    # Or alternatively add a separate named background to setup_cluster()
-    # for that.
+    parser.add_argument("--cluster_backend", default="multiprocessing", help="Specify multiprocessing, ipyparallel, or single to pick an engine")
     parser.add_argument("--input", action="append", help="File(s) to work on, provide multiple times for more files")
+    parser.add_argument("--logfile",    help="If specified, log to the named file")
     return parser.parse_args()
 
 ########
