@@ -1304,7 +1304,8 @@ def view_quilt(template_image: np.ndarray,
                alpha: Optional[float]=0.2, 
                vmin: Optional[float]=None, 
                vmax: Optional[float]=None, 
-               figsize: Optional[tuple[float,float]]=(6.,6.)) -> Any:
+               figsize: Optional[tuple[float,float]]=(6.,6.),
+               ax: Optional[Any]=None) -> Any:
     """
     Plot patches on template image given stride and overlap parameters on template image.
     This can be useful for checking motion correction and cnmf spatial parameters. 
@@ -1320,7 +1321,8 @@ def view_quilt(template_image: np.ndarray,
         alpha (float) : patch transparency (0. to 1.: higher is more opaque), default 0.2
         vmin (float) : vmin for plotting underlying template image, default None
         vmax (float) : vmax for plotting underlying template image, default None
-        figsize (tuple) : fig size in inches (width, height), default (6.,6.)
+        figsize (tuple) : fig size in inches (width, height). Only used if ax is None, default (6.,6.)
+        ax (pyplot.Axes object): axes object in case user wants to plot quilt on pre-existing axes, default None
     
     Returns:
         ax: pyplot.Axes object
@@ -1330,7 +1332,7 @@ def view_quilt(template_image: np.ndarray,
         patch_width = 2*cnm.params.patch['rf'] + 1
         patch_overlap = cnm.params.patch['stride'] + 1
         patch_stride = patch_width - patch_overlap
-        ax = plot_patches(corr_image, patch_stride, patch_overlap, vmin=0.0, vmax=0.6);
+        ax = view_quilt(corr_image, patch_stride, patch_overlap, vmin=0.0, vmax=0.6);
         
     Note: 
         Currently assumes square patches so takes in a single number for stride/overlap.
@@ -1338,8 +1340,10 @@ def view_quilt(template_image: np.ndarray,
     """
     im_dims = template_image.shape
     patch_rows, patch_cols = get_rectangle_coords(im_dims, stride, overlap)
-    
-    f, ax = pl.subplots(figsize=figsize)
+
+    if ax is None:             
+        f, ax = pl.subplots(figsize=figsize)
+        
     ax.imshow(template_image, cmap='gray', vmin=vmin, vmax=vmax)
     for patch_row in patch_rows:
         for patch_col in patch_cols:
