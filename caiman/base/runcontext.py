@@ -18,15 +18,19 @@ import caiman
 
 class RunContext():
     """
-    Class representing a RunContext. This significantly replaces setup_cluster() in
-    earlier versions of the codebase
+    Class representing a RunContext.
+    This encapsulates:
+        1) If and how parallelism should happen for this run
+        2) The filesystem location of temporary and output files (and policy related to that)
 
+    If the caller doesn't provide overrides, this will create a unique directory for a given run to
+    happen, so that different runs don't step on each others feet or overwrite each others data.
     """
 
     def __init__(self,
                  temp_path:Optional[str],                  # Consulted by other functions to figure out where to store temporary files
                  output_path:Optional[str],                # Consulted by other functions to decide where to construct outputs of a Caiman run
-                 name:Optional[str],                       # Entirely optional name to give a Caiman run
+                 name:Optional[str],                       # Entirely optional name to give a Caiman run.
                  parallel_engine:str = 'multiprocessing',  # What kind of parallelisation engine we want to use for the run.
                                                            #   One of:
                                                            #     'multiprocessing' - Use multiprocessing library
@@ -46,18 +50,31 @@ class RunContext():
         self._pe_extra          = pe_extra
         self._temp_post_cleanup = temp_post_cleanup
         self._log_to_temp       = self.log_to_temp
-        self._steps             = None # Fill in as a dict noting when we've done MotionCorrection, Fit, Refit, ...
 
         # TODO: Actually setup the chosen PE, saving the handle to the PE inside the object.
         # TODO: Handle if the paths don't exist
 
-    def pe_reset(self) -> None:
-        # Closes and reopens the chosen parallelisation engine (if applicable). 
+    def parallel_start(self) -> None:
+        # This brings up the parallelism engine (whatever is selected), or connects to it if it's not the sort to be brought up or down
+        pass
+
+    def parallel_stop(self) -> None:
+        # This brings down the parallelism engine (whatever is selected), or disconnects from it if it's not the sort to be brought up or down
+        pass
+
+    def parallel_retart(self) -> None:
+        # Efficiently restarts the chosen parallelisation engine (if applicable). Often used to save memory
         pass # TODO
 
-    def pe_mode(self) -> str:
+    def parallel_mode(self) -> str:
         # Returns the parallelisation engine that's active
         return self._parallel_engine
+
+    def parallel_dview(self):
+        # Returns the dview associated with the current context (meaning and type of this may differ depending on what engine is being used)
+        # We should prefer to eventually rewrite code not to use this, but it will initially be a compatibility measure as we convert code over
+        # to be RunContext aware (when it is, it will take a RunContext rather than a dview as an argument)
+        pass
 
     def tempdir_purge(self) -> None:
         # Remove all files from the temporary path
