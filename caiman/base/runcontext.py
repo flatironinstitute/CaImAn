@@ -138,7 +138,11 @@ class RunContext():
         # Returns the dview associated with the current context (meaning and type of this may differ depending on what engine is being used)
         # We should prefer to eventually rewrite code not to use this, but it will initially be a compatibility measure as we convert code over
         # to be RunContext aware (when it is, it will take a RunContext rather than a dview as an argument)
-        pass
+        if 'dview' in self._pe_state:
+            return self._pe_state['dview']
+        else:
+            logger.info("Was asked for the dview of a RunContext without one, returning None")
+            return None
 
     def tempdir_purge(self) -> None:
         # Remove all files from the temporary path
