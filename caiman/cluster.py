@@ -49,6 +49,7 @@ def extract_patch_coordinates(dims: tuple,
             degree of overlap of the patches
     """
 
+    # TODO: Find a new home for this function
     sl_start = [0 if sl.start is None else sl.start for sl in indices]
     sl_stop = [dim if sl.stop is None else sl.stop for (sl, dim) in zip(indices, dims)]
     sl_step = [1 for sl in indices]    # not used
@@ -98,100 +99,6 @@ def extract_patch_coordinates(dims: tuple,
         assert len(c) == np.prod(shapes[i])
 
     return list(map(np.sort, coords_flat)), shapes
-
-def apply_to_patch(mmap_file, shape: tuple[Any, Any, Any], dview, rf, stride, function, *args,
-                   **kwargs) -> tuple[list, Any, tuple]:
-    """
-    apply function to patches in parallel or not
-
-    Args:
-        mmap_file: Memory-mapped variable
-            Variable handle, first thing returned by load_memmap()
-
-        shape: tuple of three elements
-            dimensions of the original movie across y, x, and time
-
-        dview: ipyparallel view on client
-            if None
-
-        rf: int
-            half-size of the square patch in pixel
-
-        stride: int
-            amount of overlap between patches
-
-    Returns:
-        results
-
-    Raises:
-        Exception 'Something went wrong'
-
-    """
-    # This function is (currently) only used in some demos and use_cases code. Unclear if it's still necessary,
-    # and it's been broken for awhile.
-    (_, d1, d2) = shape
-
-    if not np.isscalar(rf):
-        rf1, rf2 = rf
-    else:
-        rf1 = rf
-        rf2 = rf
-
-    if not np.isscalar(stride):
-        stride1, stride2 = stride
-    else:
-        stride1 = stride
-        stride2 = stride
-
-    idx_flat, idx_2d = extract_patch_coordinates((d1, d2), rf=(rf1, rf2), stride=(stride1, stride2))
-
-    shape_grid = tuple(np.ceil((d1 * 1. / (rf1 * 2 - stride1), d2 * 1. / (rf2 * 2 - stride2))).astype(int))
-    if d1 <= rf1 * 2:
-        shape_grid = (1, shape_grid[1])
-    if d2 <= rf2 * 2:
-        shape_grid = (shape_grid[0], 1)
-
-    logger.debug(f"Shape of grid is {shape_grid}")
-
-    args_in = []
-
-    for id_f, id_2d in zip(idx_flat[:], idx_2d[:]):
-        args_in.append((mmap_file.filename, id_f, id_2d, function, args, kwargs))
-
-    logger.debug("Flat index is of length " + str(len(idx_flat)))
-    if dview is not None:
-        try:
-            file_res = dview.map_sync(function_place_holder, args_in)
-            dview.results.clear()
-
-        except:
-            raise Exception('Something went wrong')
-        finally:
-            logger.warn('You may think that it went well but reality is harsh') # TODO Figure out a better message
-    else:
-
-        file_res = list(map(function_place_holder, args_in))
-    return file_res, idx_flat, shape_grid
-
-def function_place_holder(args_in: tuple) -> np.ndarray:
-    #todo: todocument
-
-    file_name, idx_, shapes, function, args, kwargs = args_in
-    Yr, _, _ = load_memmap(file_name)
-    Yr = Yr[idx_, :]
-    Yr.filename = file_name
-    _, T = Yr.shape
-    Y = np.reshape(Yr, (shapes[1], shapes[0], T), order='F').transpose([2, 0, 1])
-    [T, d1, d2] = Y.shape
-
-    res_fun = function(Y, *args, **kwargs)
-    if not isinstance(res_fun, tuple):
-
-        if res_fun.shape == (d1, d2):
-            logger.debug('** reshaping form 2D to 1D')
-            res_fun = np.reshape(res_fun, d1 * d2, order='F')
-
-    return res_fun
 
 def start_server(slurm_script: str = None, ipcluster: str = "ipcluster", ncpus: int = None) -> None:
     """
@@ -337,7 +244,7 @@ def stop_server(ipcluster: str = 'ipcluster', pdir: str = None, profile: str = N
     logger.info("stop_cluster(): done")
 
 def setup_cluster(backend:str = 'multiprocessing',
-                  n_processes:int = None,
+                  n_processes:Optional[int] = None,
                   single_thread:bool = False,
                   ignore_preexisting:bool = False,
                   maxtasksperchild:int = None) -> tuple[Any, Any, Optional[int]]:
@@ -374,7 +281,8 @@ def setup_cluster(backend:str = 'multiprocessing',
     """
 
     sys.stdout.flush() # XXX Unsure why we do this
-    n_processes = np.maximum(int(psutil.cpu_count() - 1), 1)
+    if n_processes is None:
+        n_processes = np.maximum(int(psutil.cpu_count() - 1), 1)
 
     if backend == 'multiprocessing' or backend == 'local':
         if backend == 'local':
