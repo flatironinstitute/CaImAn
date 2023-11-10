@@ -11,6 +11,7 @@ jupyter
 keras
 matplotlib
 mypy
+nose
 numpy
 numpydoc
 opencv-python
