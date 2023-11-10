@@ -53,6 +53,11 @@ class RunContext():
         self._pe_extra          = pe_extra
         self._pe_state          = {running: False}                       # This stores the internal state of the parallelism engine, e.g. dview
 
+        if 'ipcluster_binary' not in self._pe_extra:
+            self._pe_extra['ipcluster_binary'] = 'ipcluster' # ipyparallel binary name, used by the ipyparallel backend, ignored by other backends.
+                                                             #     If you're on windows, requires the path to be escaped as so:
+                                                             #     "C:\\\\Anaconda3\\\\Scripts\\\\ipcluster.exe" (this path is not likely valid)
+
         # TODO: Actually setup the chosen PE, saving the handle to the PE inside the object.
         # TODO: Handle if the paths don't exist
 
@@ -96,9 +101,21 @@ class RunContext():
             #           Either way, they're doing too much, handling both slurm and ipyparallel. That should be split out
             #           Also, it looks like ipyparallel cannot have in the same process space, access to distinct clients because it uses global methods?
             #           Or are there other methods that allow that that our initial implementation didn't use?
-            caiman.cluster.stop_server()
-            caiman.cluster.start_server(ncpus=self._pe_extra['n_processes'])
-            self._pe_state['ipyparallel_c'] = ipyparallel.Client()
+            caiman.cluster.stop_server() # FIXME
+            # This part of the code starts the cluster
+            subprocess.Popen(shlex.split(f"{self._pe_extra['ipcluster_binary']} start -n {self._pe_extra['n_processes']}"), shell=True, close_fds=(os.name != 'nt'))
+            time.sleep(1.5) # XXX
+            client = ipyparallel.Client()
+            time.sleep(1.5) # XXX
+            while(len(client) < ncpus): # Wait for the worker processes to start
+                sys.stdout.write('.') # XXX Reconsider this output format
+                sys.stdout.flush()
+                time.sleep(0.5)
+            logger.debug('ipyparallel backend reports ready, testing')
+            client.direct_view().execute('__a=1', block=True)      # when done on all, we're set to go
+            logger.debug('ipyparallel backend up')
+            # Now that it's up, handle the paperwork
+            self._pe_state['ipyparallel_c'] = client
             self._pe_state['dview'] = self._pe_state['ipyparallel_c'][:len(self._pe_state['ipyparallel_c'])]
             self._pe_state['running'] = True
             logger.info(f"Started ipyparallel parallelism, using {len(self._pe_state['ipyparallel_c'])} processes")
@@ -109,18 +126,27 @@ class RunContext():
             logger.info(f"Started single parallelism (no-op)")
         elif self._parallel_engine == 'SLURM':
             # This backend is very different because it's running on multiple machines under the SLURM scheduler (with a shared filesystem)
-            self._pe_extra['n_processes'] = int(os.environ.get('SLURM_NPROCS')
-            try:
+            self._pe_extra['n_processes'] = int(os.environ.get('SLURM_NPROCS'))
+            try: # FIXME
                 caiman.cluster.stop_server()
             except:
                 pass
+
+            # It's time to attach to the cluster
             slurm_script = os.environ.get('SLURMSTART_SCRIPT')
             logger.info(f"Launching SLURM parallelism, using {len(self._pe_state['n_processes'])} processes, script:{slurm_script}")
-            caiman.cluster.start_server(slurm_script=slurm_script, ncpus=self._pe_extra['n_processes'])
+            logger.warn(f'parallel engine is sourcing the shell script {slurm_script}') # We really need to find a better way to do this
+            # FIXME BEGIN Consider doing this bit during class instantiation
+            caiman.cluster.shell_source(slurm_script) # ick ick ick
             pdir    = os.environment['IPPPDIR']
             profile = os.environment['IPPPROFILE']
-            logger.info(f"Using IPP setup: {pdir=}, {profile=}")
+            logger.info(f"ipyparallel engine using IPP setup: {pdir=}, {profile=}")
+            # FIXME END
             self._pe_state['ipyparallel_c'] = ipyparallel.Client(ipython_dir=pdir, profile=profile)
+            ee = self._pe_state['ipyparallel_c'][:] # Get at the object inside
+            logger.info(f"Running on {len(ee)} engines")
+
+            # Now that it's up, handle the paperwork
             self._pe_state['dview'] = self._pe_state['ipyparallel_c'][:len(self._pe_state['ipyparallel_c'])]
             self._pe_state['running'] = True
             logger.info(f"Started SLURM parallelism")
