@@ -38,10 +38,10 @@ jobs:
       - name: install caiman
         run: |
           mamba env update -n base --file environment.yml
+          mamba install Cython -y
           pip install .
           caimanmanager install
 
-      - name: Test with pytest
+      - name: Test
         run: |
-          mamba install pytest
-          DOWNLOAD_GROUND_TRUTHS=1 pytest -s .
+          caimanmanager test
