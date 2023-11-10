@@ -94,14 +94,10 @@ class RunContext():
             logger.info(f"Started multiprocessing parallelism")
         elif self._parallel_engine == 'ipyparallel':
             # ----- ipyparallel Backend -----
-            # TODO: The stop_server() and start_server() functions need extensive refactoring, and also should follow that allow_reuse policy knob above.
-            #       After that, they should be moved into this file:
-            #           a) Either swallowed by this method, or
-            #           b) They end up as their own methods and the multiprocessing backend should be dispatched to its own method
-            #           Either way, they're doing too much, handling both slurm and ipyparallel. That should be split out
-            #           Also, it looks like ipyparallel cannot have in the same process space, access to distinct clients because it uses global methods?
-            #           Or are there other methods that allow that that our initial implementation didn't use?
-            caiman.cluster.stop_server() # FIXME - we could call self.parallel_stop() but we really should instead adopt the same non-duplication logic that multiprocessing has
+            # It looks like ipyparallel cannot have in the same process space, access to distinct clients because it uses global methods?
+            # Or are there other methods that allow that that our initial implementation didn't use?
+            self.parallel_stop() # FIXME better to use the non-duplication logic that multiprocessing has
+
             # This part of the code starts the cluster
             subprocess.Popen(shlex.split(f"{self._pe_extra['ipcluster_binary']} start -n {self._pe_extra['n_processes']}"), shell=True, close_fds=(os.name != 'nt'))
             time.sleep(1.5) # XXX
@@ -127,10 +123,7 @@ class RunContext():
         elif self._parallel_engine == 'SLURM':
             # This backend is very different because it's running on multiple machines under the SLURM scheduler (with a shared filesystem)
             self._pe_extra['n_processes'] = int(os.environ.get('SLURM_NPROCS'))
-            try: # FIXME
-                caiman.cluster.stop_server()
-            except:
-                pass
+            self.parallel_stop() # FIXME better to use the non-duplication logic that multiprocessing has
 
             # It's time to attach to the cluster
             slurm_script = os.environ.get('SLURMSTART_SCRIPT')
