@@ -189,7 +189,7 @@ class RunContext():
             logger.info("Stopping SLURM parallelism")
             self._pe_state['ipyparallel_c'].close()
             self._pe_state['ipyparallel_c'].shutdown(hub=True)
-            # We have now torn town the cluster-slurm backend
+            # We have now torn down the cluster-slurm backend
             # Now we remove some ipyparallel files, and move some others into a "log" subdirectory
             shutil.rmtree('profile_' + os.environment['IPPPROFILE']) # FIXME This should probably be stashed in the object instead of being reread from env
             try:
