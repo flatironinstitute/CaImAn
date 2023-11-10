@@ -38,7 +38,7 @@ jobs:
       - name: install caiman
         run: |
           mamba env update -n base --file environment.yml
-          mamba install Cython -y
+          python setup.py build_ext --inplace
           pip install .
           caimanmanager install
 
