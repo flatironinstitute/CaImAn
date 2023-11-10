@@ -122,6 +122,10 @@ class RunContext():
             logger.info(f"Started single parallelism (no-op)")
         elif self._parallel_engine == 'SLURM':
             # This backend is very different because it's running on multiple machines under the SLURM scheduler (with a shared filesystem)
+            # This depends on two variables that we only manage with the SLURM backend:
+            #    IPPPDIR is an ipyparallel state directory, passed via ipython_dir= to ipyparallel.Client()
+            #    IPPPROFILE is an ipyparallel profile setup, passed via profile= to ipyparallel.Client()
+            # These will either be pulled in as environment variables, or they can be passed in as fields in pe_extra when the runcontext is initialised.
             self._pe_extra['n_processes'] = int(os.environ.get('SLURM_NPROCS'))
             self.parallel_stop() # FIXME better to use the non-duplication logic that multiprocessing has
 
@@ -129,13 +133,18 @@ class RunContext():
             slurm_script = os.environ.get('SLURMSTART_SCRIPT')
             logger.info(f"Launching SLURM parallelism, using {len(self._pe_state['n_processes'])} processes, script:{slurm_script}")
             logger.warn(f'parallel engine is sourcing the shell script {slurm_script}') # We really need to find a better way to do this
-            # FIXME BEGIN Consider doing this bit during class instantiation
+
             caiman.cluster.shell_source(slurm_script) # ick ick ick
-            pdir    = os.environment['IPPPDIR']
-            profile = os.environment['IPPPROFILE']
-            logger.info(f"ipyparallel engine using IPP setup: {pdir=}, {profile=}")
-            # FIXME END
-            self._pe_state['ipyparallel_c'] = ipyparallel.Client(ipython_dir=pdir, profile=profile)
+            # Next we're going to read the ipyparallel directory and profile, which may have been provided either by that
+            # slurm script we just "sourced", or during object initialisation. The object initialisation takes priority if defined.
+            if 'IPPPDIR' in os.environ and 'IPPPDIR' not in self._pe_extra: # User can pass this in either way
+                self._pe_extra['IPPPDIR'] = os.environ['IPPPDIR']
+            if 'IPPPROFILE' in os.environ and 'IPPPROFILE' not in self._pe_extra:
+                self._pe_extra['IPPPROFILE'] = os.environ['IPPPROFILE']
+
+            logger.info(f"ipyparallel engine using IPP setup: pdir={self._pe_extra['IPPPDIR']}, profile={self._pe_extra['IPPPROFILE']}")
+
+            self._pe_state['ipyparallel_c'] = ipyparallel.Client(ipython_dir=self._pe_extra['IPPPDIR'], profile=self._pe_extra['IPPPROFILE'])
             ee = self._pe_state['ipyparallel_c'][:] # Get at the object inside
             logger.info(f"Running on {len(ee)} engines")
 
@@ -184,7 +193,7 @@ class RunContext():
             self._pe_state['ipyparallel_c'].shutdown(hub=True)
             # We have now torn down the cluster-slurm backend
             # Now we remove some ipyparallel files, and move some others into a "log" subdirectory
-            shutil.rmtree('profile_' + os.environment['IPPPROFILE']) # FIXME This should probably be stashed in the object instead of being reread from env
+            shutil.rmtree('profile_' + self._pe_extra['IPPPROFILE']) # FIXME This should probably be stashed in the object instead of being reread from env
             try:
                 shutil.rmtree('log')
             except:
