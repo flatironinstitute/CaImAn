@@ -51,7 +51,7 @@ class RunContext():
         self._parallel_engine   = parallel_engine
         self._pe_allow_reuse    = pe_allow_reuse
         self._pe_extra          = pe_extra
-        self._pe_state          = {}                       # This stores the internal state of the parallelism engine, e.g. dview
+        self._pe_state          = {running: False}                       # This stores the internal state of the parallelism engine, e.g. dview
 
         # TODO: Actually setup the chosen PE, saving the handle to the PE inside the object.
         # TODO: Handle if the paths don't exist
@@ -85,6 +85,7 @@ class RunContext():
                 except:                                                # If we're not running under ipython, don't do anything.
                     pass
             self._pe_state['dview'] = multiprocessing.Pool(self._pe_extra['n_processes'], self._pe_extra['maxtasksperchild'])
+            self._pe_state['running'] = True
             logger.info(f"Started multiprocessing parallelism")
         elif self._parallel_engine == 'ipyparallel':
             # ----- ipyparallel Backend -----
@@ -99,10 +100,12 @@ class RunContext():
             caiman.cluster.start_server(ncpus=self._pe_extra['n_processes'])
             self._pe_state['ipyparallel_c'] = ipyparallel.Client()
             self._pe_state['dview'] = self._pe_state['ipyparallel_c'][:len(self._pe_state['ipyparallel_c'])]
+            self._pe_state['running'] = True
             logger.info(f"Started ipyparallel parallelism, using {len(self._pe_state['ipyparallel_c'])} processes")
         elif self._parallel_engine == 'single':
             # ----- single Backend -----
             # By design, there is no dview for this; calling code should check to see what kind of parallelism is being used instead
+            self._pe_state['running'] = True
             logger.info(f"Started single parallelism (no-op)")
         elif self._parallel_engine == 'SLURM':
             # This backend is very different because it's running on multiple machines under the SLURM scheduler (with a shared filesystem)
@@ -119,16 +122,37 @@ class RunContext():
             logger.info(f"Using IPP setup: {pdir=}, {profile=}")
             self._pe_state['ipyparallel_c'] = ipyparallel.Client(ipython_dir=pdir, profile=profile)
             self._pe_state['dview'] = self._pe_state['ipyparallel_c'][:len(self._pe_state['ipyparallel_c'])]
+            self._pe_state['running'] = True
+            logger.info(f"Started SLURM parallelism")
         else:
             raise Exception("Unknown parallelism backend") # Ideally we'll catch this in object initialisation though!
 
     def parallel_stop(self) -> None:
         # This brings down the parallelism engine (whatever is selected), or disconnects from it if it's not the sort to be brought up or down
-        pass
+        self._pe_state['running'] = False
+
+        if self._parallel_engine == 'multiprocessing':
+            self._pe_state['dview'].terminate()
+            del self._pe_state['dview'] # Make sure the old handle won't be reused
+
+        elif self._parallel_engine == 'ipyparallel':
+            caiman.cluster.stop_server() # TODO pull that code over here and refactor it
+            del self._pe_state['dview'] # Make sure the old handle won't be reused
+            del self._pe_state['ipyparallel_c']
+
+        elif self._parallel_engine == 'SLURM':
+            caiman.cluster.stop_server() # TODO pull that code over here and refactor it, split from ipyparallel code path
+            del self._pe_state['dview'] # Make sure the old handle won't be reused
+            del self._pe_state['ipyparallel_c']
+
+        else:
+            raise Exception("Unknown parallelism backend") # Ideally we'll catch this in object initialisation though!
 
     def parallel_restart(self) -> None:
         # Efficiently restarts the chosen parallelisation engine (if applicable). Often used to save memory
-        pass # TODO
+        # Initial implementation just does the simple thing, but later on we may adjust this to be more efficient in a backend-specific way
+        self.parallel_stop()
+        self.parallel_start()
 
     def parallel_mode(self) -> str:
         # Returns the parallelisation engine that's active
