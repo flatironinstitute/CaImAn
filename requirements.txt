@@ -28,3 +28,4 @@ tk
 tqdm
 yapf
 zarr
+Cython

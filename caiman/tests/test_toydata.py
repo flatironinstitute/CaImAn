@@ -2,7 +2,7 @@
 
 import numpy.testing as npt
 import numpy as np
-from scipy.ndimage.filters import gaussian_filter
+from scipy.ndimage import gaussian_filter
 
 import caiman.source_extraction.cnmf.params
 from caiman.source_extraction import cnmf as cnmf

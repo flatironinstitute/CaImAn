@@ -32,32 +32,36 @@ with open('VERSION', 'r') as verfile:
 # package that made them, we can switch to using the pkg_resources API.
 
 extra_dirs = ['bin', 'demos', 'docs', 'model']
-data_files = [('share/caiman', ['LICENSE.txt', 'README.md', 'test_demos.sh', 'VERSION']),
-              ('share/caiman/example_movies', ['example_movies/data_endoscope.tif', 'example_movies/demoMovie.tif']),
-              ('share/caiman/testdata', ['testdata/groundtruth.npz', 'testdata/example.npz']),
-             ]
+data_files = [
+    ('share/caiman', ['LICENSE.txt', 'README.md', 'test_demos.sh', 'VERSION']),
+    ('share/caiman/example_movies', ['example_movies/data_endoscope.tif', 'example_movies/demoMovie.tif']),
+    ('share/caiman/testdata', ['testdata/groundtruth.npz', 'testdata/example.npz']),
+]
 for part in extra_dirs:
-	newpart = [("share/caiman/" + d, [os.path.join(d,f) for f in files]) for d, folders, files in os.walk(part)]
-	for newcomponent in newpart:
-		data_files.append(newcomponent)
+    newpart = [("share/caiman/" + d, [os.path.join(d, f) for f in files]) for d, folders, files in os.walk(part)]
+    for newcomponent in newpart:
+        data_files.append(newcomponent)
 
 ############
 
 # compile with:     python setup.py build_ext -i
 # clean up with:    python setup.py clean --all
 if sys.platform == 'darwin':
-        # see https://github.com/pandas-dev/pandas/issues/23424
-	extra_compiler_args = ['-stdlib=libc++']  # not needed #, '-mmacosx-version-min=10.9']
+    # see https://github.com/pandas-dev/pandas/issues/23424
+    extra_compiler_args = ['-stdlib=libc++']  # not needed #, '-mmacosx-version-min=10.9']
 else:
-	extra_compiler_args = []
+    extra_compiler_args = []
 
-ext_modules = [Extension("caiman.source_extraction.cnmf.oasis",
-                         sources=["caiman/source_extraction/cnmf/oasis.pyx"],
-                         include_dirs=[np.get_include()],
-                         language="c++",
-                         extra_compile_args = extra_compiler_args,
-                         extra_link_args = extra_compiler_args,
-                         )]
+ext_modules = [
+    Extension(
+        "caiman.source_extraction.cnmf.oasis",
+        sources=["caiman/source_extraction/cnmf/oasis.pyx"],
+        include_dirs=[np.get_include()],
+        language="c++",
+        extra_compile_args=extra_compiler_args,
+        extra_link_args=extra_compiler_args,
+    )
+]
 
 setup(
     name='caiman',
@@ -89,7 +93,7 @@ setup(
     ],
     keywords='fluorescence calcium ca imaging deconvolution ROI identification',
     packages=find_packages(),
-    entry_points = { 'console_scripts': ['caimanmanager = caiman.caimanmanager:main' ] },
+    entry_points={'console_scripts': ['caimanmanager = caiman.caimanmanager:main']},
     data_files=data_files,
     install_requires=[''],
     ext_modules=cythonize(ext_modules, language_level="3"),
