@@ -101,7 +101,7 @@ class RunContext():
             #           Either way, they're doing too much, handling both slurm and ipyparallel. That should be split out
             #           Also, it looks like ipyparallel cannot have in the same process space, access to distinct clients because it uses global methods?
             #           Or are there other methods that allow that that our initial implementation didn't use?
-            caiman.cluster.stop_server() # FIXME
+            caiman.cluster.stop_server() # FIXME - we could call self.parallel_stop() but we really should instead adopt the same non-duplication logic that multiprocessing has
             # This part of the code starts the cluster
             subprocess.Popen(shlex.split(f"{self._pe_extra['ipcluster_binary']} start -n {self._pe_extra['n_processes']}"), shell=True, close_fds=(os.name != 'nt'))
             time.sleep(1.5) # XXX
@@ -162,15 +162,49 @@ class RunContext():
             del self._pe_state['dview'] # Make sure the old handle won't be reused
 
         elif self._parallel_engine == 'ipyparallel':
-            caiman.cluster.stop_server() # TODO pull that code over here and refactor it
+            logger.info("Stopping ipyparallel parallelism")
+            stophandle = subprocess.Popen(shlex.split(f"{self._pe_extra['ipcluster_binary']} stop"), shell=True, stderr=subprocess.PIPE, close_fds=(os.name != 'nt'))
+            stop_command_output = stophandle.stderr.readline()
+            if 'CRITICAL' in stop_command_output: # FIXME This is not specific enough
+                logger.info("No ipyparallel backend found to stop")
+            elif 'Stopping' in stop_command_output:
+                st = time.time()
+                logger.debug('Waiting for ipyparallel backend to stop...')
+                while (time.time() - st) < 4: # Is there no better way to poll?
+                    sys.stdout.write('.')
+                    sys.stdout.flush()
+                    time.sleep(1)
+            else:
+                logger.error(stop_command_output)
+                logger.error("*** Failed to parse output of ipyparallel stop command in stopping backend, please report this as a bug ***")
+            stophandle.stderr.close()
             del self._pe_state['dview'] # Make sure the old handle won't be reused
             del self._pe_state['ipyparallel_c']
+            logger.info("ipyparallel parallelism stopped")
+
+        elif self._parallel_engine == 'single':
+            print("The single backend is stopped")
 
         elif self._parallel_engine == 'SLURM':
-            caiman.cluster.stop_server() # TODO pull that code over here and refactor it, split from ipyparallel code path
+            logger.info("Stopping SLURM parallelism")
+            self._pe_state['ipyparallel_c'].close()
+            self._pe_state['ipyparallel_c'].shutdown(hub=True)
+            # We have now torn town the cluster-slurm backend
+            # Now we remove some ipyparallel files, and move some others into a "log" subdirectory
+            shutil.rmtree('profile_' + os.environment['IPPPROFILE']) # FIXME This should probably be stashed in the object instead of being reread from env
+            try:
+                shutil.rmtree('log')
+            except:
+                pass
+            logfiles = glob.glob('*.log') # FIXME This logic was better suited to the early days of caiman and needs a revisit
+            for logfile in logfiles:
+                if not os.path.isdir('log'):
+                    os.makedirs('log')
+                shutil.move(logfile, 'log')
+
             del self._pe_state['dview'] # Make sure the old handle won't be reused
             del self._pe_state['ipyparallel_c']
-
+            logger.info("SLURM parallelism stopped")
         else:
             raise Exception("Unknown parallelism backend") # Ideally we'll catch this in object initialisation though!
 
