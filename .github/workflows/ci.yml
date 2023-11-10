@@ -38,8 +38,8 @@ jobs:
       - name: install caiman
         run: |
           mamba env update -n base --file environment.yml
-          caimanmanager install
           pip install .
+          caimanmanager install
 
       - name: Test with pytest
         run: |
