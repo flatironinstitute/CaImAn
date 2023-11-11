@@ -10,7 +10,7 @@ on:
 
 jobs:
   build-linux-conda:
-    runs-on: ubuntu-latest
+    runs-on: macos-latest
     strategy:
       max-parallel: 5
 
@@ -37,7 +37,7 @@ jobs:
 
       - name: install caiman
         run: |
-          mamba env update -n base --file environment.yml python=3.10
+          mamba env update -n base --file environment.yml
           python setup.py build_ext --inplace
           pip install .
           caimanmanager install
