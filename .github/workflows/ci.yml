@@ -10,7 +10,7 @@ on:
 
 jobs:
   build-linux-conda:
-    runs-on: macos-latest
+    runs-on: ubuntu-latest
     strategy:
       max-parallel: 5
 
@@ -19,7 +19,7 @@ jobs:
       - name: Set up Python '3.10'
         uses: actions/setup-python@v3
         with:
-          python-version: '3.10'
+          python-version: '3.11'
       - name: Add conda to system path
         run: |
           # $CONDA is an environment variable pointing to the root of the miniconda directory
@@ -38,6 +38,7 @@ jobs:
       - name: install caiman
         run: |
           mamba env update -n base --file environment.yml
+          mamba update pip setuptools wheel
           python setup.py build_ext --inplace
           pip install .
           caimanmanager install
