@@ -26,4 +26,4 @@ skip = '.git,*.pdf,*.svg,*.ai'
 check-hidden = true
 ignore-regex = '^\s*"image/\S+": ".*'
 # some ad-hoc options/variable names
-ignore-words-list = 'ans,siz,nd,dirct,dircts,fo,comparitor,shfts,mapp,coo'
+ignore-words-list = 'ans,siz,nd,dirct,dircts,fo,comparitor,shfts,mapp,coo,ptd'
