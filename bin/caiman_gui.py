@@ -113,7 +113,7 @@ if not hasattr(estimates, 'Cn'):
 def rotate90(img, right=None, vector=None, sparse=False):
     # rotate the img 90 degrees
     # we first transpose the img then flip axis
-    # If right is ture, then rotate 90 degrees right, otherwise, rotate left
+    # If right is true, then rotate 90 degrees right, otherwise, rotate left
     # If vector is True, then we first reshape the spatial 1D vector to 2D then rotate
     # If vector is False, then we directly rotate the matrix
     global dims

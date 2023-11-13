@@ -90,7 +90,7 @@ def save_memmap_each(fnames: list[str],
             list of path to the filenames
 
         dview: ipyparallel dview
-            used to perform computation in parallel. If none it will be signle thread
+            used to perform computation in parallel. If none it will be single thread
 
         base_name str
             BaseName for the file to be creates. If not given the file itself is used

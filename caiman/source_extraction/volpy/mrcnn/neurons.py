@@ -158,7 +158,7 @@ class NeuronsDataset(utils.Dataset):
             
             # load_mask() needs the image size to convert polygons to masks.
             # Unfortunately, VIA doesn't include it in JSON, so we must read
-            # the image. This is only managable since the dataset is tiny.
+            # the image. This is only manageable since the dataset is tiny.
             image_path = os.path.join(dataset_dir, a)
             image = np.load(image_path)['arr_0']
             height, width = image.shape[:2]

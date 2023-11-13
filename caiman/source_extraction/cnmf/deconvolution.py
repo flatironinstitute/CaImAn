@@ -552,7 +552,7 @@ def onnls(y, g, lam=0, shift=100, window=None, mask=None, tol=1e-9, max_iter=Non
         shift : int, optional, default 100
             Number of frames by which to shift window from on run of NNLS to the next.
     
-        window : int, optional, default None (200 or larger dependend on g)
+        window : int, optional, default None (200 or larger dependent on g)
             Window size.
     
         mask : array of bool, shape (n,), optional, default (True,)*n
@@ -671,7 +671,7 @@ def constrained_oasisAR2(y, g, sn, optimize_b=True, b_nonneg=True, optimize_g=0,
         shift : int, optional, default 100
             Number of frames by which to shift window from on run of NNLS to the next.
     
-        window : int, optional, default None (200 or larger dependend on g)
+        window : int, optional, default None (200 or larger dependent on g)
             Window size.
     
         tol : float, optional, default 1e-9

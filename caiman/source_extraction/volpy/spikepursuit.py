@@ -104,7 +104,7 @@ def volspike(pars):
                         ridge or NMF for weight update
                         
                     do_plot: boolean
-                        if Ture, plot trace of signals and spiketimes, 
+                        if True, plot trace of signals and spiketimes, 
                         peak triggered average, histogram of heights in the last iteration
 
                     do_cross_val: boolean
@@ -431,7 +431,7 @@ def denoise_spikes(data, window_length, fr=400,  hp_freq=1,  clip=100, threshold
             The real threshold is the value multiply estimated noise level
 
         do_plot: boolean
-            if Ture, will plot trace of signals and spiketimes, peak triggered
+            if True, will plot trace of signals and spiketimes, peak triggered
             average, histogram of heights
             
     Returns:

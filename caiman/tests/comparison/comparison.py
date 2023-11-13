@@ -143,7 +143,7 @@ class Comparison(object):
         """save the comparison as well as the images of the precision recall calculations
 
 
-            depending on if we say this file will be ground truth or not, it wil be saved in either the tests or the ground truth folder
+            depending on if we say this file will be ground truth or not, it will be saved in either the tests or the ground truth folder
             if saved in test, a comparison to groundtruth will be added to the object 
             this comparison will be on 
                 data : a normized difference of the normalized value of the arrays
@@ -155,11 +155,11 @@ class Comparison(object):
 
 
             Args:
-                self:  dictionnary
-                   the object of this class tha tcontains every value
+                self:  dictionary
+                   the object of this class that contains every value
 
                 istruth: Boolean
-                    if we want it ot be the ground truth
+                    if we want it to be the ground truth
 
                 params:
                     movie parameters
@@ -250,7 +250,7 @@ class Comparison(object):
                     C_full = dt['C_full'][()]
                     C_patch = dt['C_patch'][()]
                     data = dt['information'][()]
-                                                                                                            # if we cannot manage to open it or it doesnt exist:
+                                                                                                            # if we cannot manage to open it or it doesn't exist:
             except (IOError, OSError):
                                                                                                             # we save but we explain why there were a problem
                 logging.warning('we were not able to read the file ' + str(file_path) + ' to compare it\n')
@@ -364,7 +364,7 @@ def see(filename=None):
 
         Args:
             self:  dictionary
-                the object of this class tha tcontains every value
+                the object of this class that tcontains every value
             filename:
                 ( just give the number or name)
 

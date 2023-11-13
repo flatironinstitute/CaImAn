@@ -392,7 +392,7 @@ class CNMF(object):
 
     def refit(self, images, dview=None):
         """
-        Refits the data using CNMF initialized from a previous interation
+        Refits the data using CNMF initialized from a previous iteration
 
         Args:
             images

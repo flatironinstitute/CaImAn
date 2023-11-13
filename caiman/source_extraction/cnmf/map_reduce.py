@@ -25,7 +25,7 @@ def cnmf_patches(args_in):
             file_name: string
                 full path to an npy file (2D, pixels x time) containing the movie
 
-            shape: tuple of thre elements
+            shape: tuple of three elements
                 dimensions of the original movie across y, x, and time
 
             params:
@@ -48,7 +48,7 @@ def cnmf_patches(args_in):
 
             memory_fact: double
                 unitless number accounting how much memory should be used.
-                It represents the fration of patch processed in a single thread.
+                It represents the fraction of patch processed in a single thread.
                  You will need to try different values to see which one would work
 
             low_rank_background: bool
@@ -150,7 +150,7 @@ def run_CNMF_patches(file_name, shape, params, gnb=1, dview=None,
 
         memory_fact: double
             unitless number accounting how much memory should be used.
-            It represents the fration of patch processed in a single thread.
+            It represents the fraction of patch processed in a single thread.
              You will need to try different values to see which one would work
 
         border_pix: int
