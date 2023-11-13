@@ -20,3 +20,9 @@ py-modules = ["_buildhelper_cython"]
 
 [tool.setuptools.cmdclass]
 build_py = "_buildhelper_cython.build_py"
+
+[tool.codespell]
+skip = '.git,*.pdf,*.svg'
+check-hidden = true
+ignore-regex = '^\s*"image/\S+": ".*'
+# ignore-words-list = ''
