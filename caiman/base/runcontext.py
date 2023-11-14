@@ -7,12 +7,24 @@ computational resources, and (eventually) results. It is unrelated to
 Python's contexts.
 """
 
+import glob
+import ipyparallel
 import logging
-import numpy as np
+import multiprocessing
 import os
-import pathlib
+import platform
+import psutil
+import shlex
+import shutil
+import subprocess
 import sys
+import time
 from typing import Any, Optional, Union
+
+try: # Sigh
+    import IPython
+except:
+    pass
 
 import caiman
 
@@ -63,6 +75,7 @@ class RunContext():
 
     def parallel_start(self) -> None:
         # This brings up the parallelism engine (whatever is selected), or connects to it if it's not the sort to be brought up or down
+        logger = logging.getLogger()
         if 'n_processes' not in self._pe_extra or self._pe_extra['n_processes'] is None:
             self._pe_extra['n_processes'] = max( int(psutil.cpu_count() - 1), 1) # Take all CPUs but 1
 
@@ -78,7 +91,7 @@ class RunContext():
                     raise Exception('An already active multiprocessing pool was found, and you asked to set up a new one. Stop the existing one first or allow reuse')
             if platform.system() == 'Darwin':
                 try:
-                    if 'kernel' in get_ipython().trait_names():        # type: ignore
+                    if 'kernel' in IPython.get_ipython().trait_names():        # type: ignore
                                                                        # If you're on OSX and you're running under Jupyter or Spyder,
                                                                        # which already run the code in a forkserver-friendly way, this
                                                                        # can eliminate some setup and make this a reasonable approach.
@@ -157,6 +170,7 @@ class RunContext():
 
     def parallel_stop(self) -> None:
         # This brings down the parallelism engine (whatever is selected), or disconnects from it if it's not the sort to be brought up or down
+        logger = logging.getLogger()
         self._pe_state['running'] = False
 
         if self._parallel_engine == 'multiprocessing':
@@ -224,6 +238,8 @@ class RunContext():
         # Returns the dview associated with the current context (meaning and type of this may differ depending on what engine is being used)
         # We should prefer to eventually rewrite code not to use this, but it will initially be a compatibility measure as we convert code over
         # to be RunContext aware (when it is, it will take a RunContext rather than a dview as an argument)
+        logger = logging.getLogger()
+
         if 'dview' in self._pe_state:
             return self._pe_state['dview']
         else:
