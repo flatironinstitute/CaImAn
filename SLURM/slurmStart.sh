@@ -5,9 +5,8 @@
 pdir=$(pwd)
 profile="${SLURM_JOBID}_profile"
 clog="ipcontroller_${SLURM_JOBID}.log"
-#/mnt/xfs1/bioinfoCentos7/software/installs/python/2.7.10/bin/ipcontroller --profile=${profile} --ipython-dir=${pdir} --ip='*' > ${clog} 2>&1  &
-#/mnt/xfs1/home/agiovann/anaconda2/envs/CNMF/bin/ipcontroller --profile=${profile} --ipython-dir=${pdir} --ip='*' > ${clog} 2>&1  &
-/mnt/xfs1/home/agiovann/anaconda3/envs/caiman/bin/ipcontroller --location=$(hostname -i) --profile=${profile} --ipython-dir=${pdir} --ip='*' > ${clog} 2>&1  &
+
+ipcontroller --location=$(hostname -i) --profile=${profile} --ipython-dir=${pdir} --ip='*' > ${clog} 2>&1  &
 cpid=$!
 
 started=0
@@ -19,8 +18,7 @@ done
 
 [[ ${started} == 1 ]] || { echo "ipcontroller took too long to start. Exiting." ; exit 1 ; }
 
-srun bash -c '/mnt/xfs1/home/agiovann/anaconda3/envs/caiman/bin/ipengine  --profile='${profile}' --ipython-dir='${pdir}' > ipengine_${SLURM_JOBID}_${SLURM_PROCID}.log 2>&1' &
-#srun bash -c '/mnt/xfs1/bioinfoCentos7/software/installs/python/2.7.10/bin/ipengine  --profile='${profile}' --ipython-dir='${pdir}' > ipengine_${SLURM_JOBID}_${SLURM_PROCID}.log 2>&1 &'
+srun bash -c 'ipengine  --profile='${profile}' --ipython-dir='${pdir}' > ipengine_${SLURM_JOBID}_${SLURM_PROCID}.log 2>&1' &
 
 started=0
 for d in 2 2 4 4 8 8 8
