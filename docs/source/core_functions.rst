@@ -225,7 +225,7 @@ Parallel Processing functions
 
 .. currentmodule:: caiman.cluster
 
-.. autofunction:: apply_to_patch
+.. autofunction:: setup_cluster
 .. autofunction:: start_server
 .. autofunction:: stop_server
 
