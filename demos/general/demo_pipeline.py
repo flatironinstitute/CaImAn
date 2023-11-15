@@ -138,8 +138,7 @@ def main():
 
     # restart cluster to clean up memory
     cm.stop_server(dview=dview)
-    c, dview, n_processes = cm.cluster.setup_cluster(
-        backend=cfg.cluster_backend, n_processes=None, single_thread=False)
+    c, dview, n_processes = cm.cluster.setup_cluster(backend=cfg.cluster_backend)
 
     #  Parameters for source extraction and deconvolution
     p = 1                    # order of the autoregressive system
