@@ -39,7 +39,7 @@ jobs:
         run: |
           mamba env update -n base --file environment.yml
           pip install -e .
-          caimanmanager install
+          caimanmanager install --inplace
 
       - name: Test
         run: |
