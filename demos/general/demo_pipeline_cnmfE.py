@@ -14,57 +14,46 @@ You can also run a large part of the pipeline with a single method
 
 Demo is also available as a jupyter notebook (see demo_pipeline_cnmfE.ipynb)
 """
-#%%
-from IPython import get_ipython
+
+import argparse
+import glob
 import logging
 import matplotlib.pyplot as plt
 import numpy as np
 
-try:
-    if __IPYTHON__:
-        ipython = get_ipython()
-        ipython.run_line_magic('load_ext', 'autoreload')
-        ipython.run_line_magic('autoreload', '2')
-        ipython.run_line_magic('matplotlib', 'qt')
-except NameError:
-    pass
 
 import caiman as cm
+from caiman.motion_correction import MotionCorrect
 from caiman.source_extraction import cnmf
+from caiman.source_extraction.cnmf import params as params
 from caiman.utils.utils import download_demo
 from caiman.utils.visualization import inspect_correlation_pnr
-from caiman.motion_correction import MotionCorrect
-from caiman.source_extraction.cnmf import params as params
 
-#%%
-# Set up the logger; change this if you like.
-# You can log to a file using the filename parameter, or make the output more or less
-# verbose by setting level to logging.DEBUG, logging.INFO, logging.WARNING, or logging.ERROR
-logging.basicConfig(format=
-                    "%(relativeCreated)12d [%(filename)s:%(funcName)20s():%(lineno)s]"\
-                    "[%(process)d] %(message)s",
-                    level=logging.WARNING)
-    # filename="/tmp/caiman.log"
 
-#%%
+
 def main():
-    pass # For compatibility between running under an IDE and the CLI
+    cfg = handle_args()
 
-    #%% start the cluster
-    try:
-        cm.stop_server()  # stop it if it was running
-    except():
-        pass
+    if cfg.logfile:
+        logging.basicConfig(format=
+            "%(relativeCreated)12d [%(filename)s:%(funcName)20s():%(lineno)s][%(process)d] %(message)s",
+            level=logging.WARNING,
+            filename=cfg.logfile)
+        # You can make the output more or less verbose by setting level to logging.DEBUG, logging.INFO, logging.WARNING, or logging.ERROR
+    else:
+        logging.basicConfig(format=
+            "%(relativeCreated)12d [%(filename)s:%(funcName)20s():%(lineno)s][%(process)d] %(message)s",
+            level=logging.WARNING)
 
-    c, dview, n_processes = cm.cluster.setup_cluster(backend='multiprocessing',
-                                                     n_processes=24,  # number of process to use, if you go out of memory try to reduce this one
-                                                     single_thread=False)
+    if cfg.input is None:
+        # If no input is specified, use sample data, downloading if necessary
+        fnames = [download_demo('data_endoscope.tif')]
+    else:
+        fnames = cfg.input
+    filename_reorder = fnames # XXX What is this?
 
-    #%% First setup some parameters for motion correction
+    # First set up some parameters for data and motion correction
     # dataset dependent parameters
-    fnames = ['data_endoscope.tif']  # filename to be processed
-    fnames = [download_demo(fnames[0])]  # download file if not already present
-    filename_reorder = fnames
     fr = 10                          # movie frame rate
     decay_time = 0.4                 # length of a typical transient in seconds
 
@@ -81,22 +70,21 @@ def main():
     max_deviation_rigid = 3
     border_nan = 'copy'
 
-    mc_dict = {
-        'fnames': fnames,
-        'fr': fr,
-        'decay_time': decay_time,
-        'pw_rigid': pw_rigid,
-        'max_shifts': max_shifts,
-        'gSig_filt': gSig_filt,
-        'strides': strides,
-        'overlaps': overlaps,
-        'max_deviation_rigid': max_deviation_rigid,
-        'border_nan': border_nan
-    }
+    params_dict = {'fnames': fnames,
+                   'fr': fr,
+                   'decay_time': decay_time,
+                   'pw_rigid': pw_rigid,
+                   'max_shifts': max_shifts,
+                   'gSig_filt': gSig_filt,
+                   'strides': strides,
+                   'overlaps': overlaps,
+                   'max_deviation_rigid': max_deviation_rigid,
+                   'border_nan': border_nan}
 
-    opts = params.CNMFParams(params_dict=mc_dict)
+    opts = params.CNMFParams(params_dict=params_dict)
 
-    # %% MOTION CORRECTION
+    c, dview, n_processes = cm.cluster.setup_cluster(backend=cfg.cluster_backend)
+    # Motion Correction
     #  The pw_rigid flag set above, determines where to use rigid or pw-rigid
     #  motion correction
     if motion_correct:
@@ -109,8 +97,8 @@ def main():
                                          np.max(np.abs(mc.y_shifts_els)))).astype(int)
         else:
             bord_px = np.ceil(np.max(np.abs(mc.shifts_rig))).astype(int)
-            plt.subplot(1, 2, 1); plt.imshow(mc.total_template_rig)  # % plot template
-            plt.subplot(1, 2, 2); plt.plot(mc.shifts_rig)  # % plot rigid shifts
+            plt.subplot(1, 2, 1); plt.imshow(mc.total_template_rig)  # plot template
+            plt.subplot(1, 2, 2); plt.plot(mc.shifts_rig)  # plot rigid shifts
             plt.legend(['x shifts', 'y shifts'])
             plt.xlabel('frames')
             plt.ylabel('pixels')
@@ -126,7 +114,7 @@ def main():
     Yr, dims, T = cm.load_memmap(fname_new)
     images = Yr.T.reshape((T,) + dims, order='F')
 
-    # %% Parameters for source extraction and deconvolution (CNMF-E algorithm)
+    # Parameters for source extraction and deconvolution (CNMF-E algorithm)
     p = 1               # order of the autoregressive system
     K = None            # upper bound on number of components per patch, in general None for 1p data
     gSig = (3, 3)       # gaussian width of a 2D gaussian kernel, which approximates a neuron
@@ -181,7 +169,7 @@ def main():
                                     'del_duplicates': True,                # whether to remove duplicates from initialization
                                     'border_pix': bord_px})                # number of pixels to not consider in the borders)
 
-    # %% compute some summary images (correlation and peak to noise)
+    # compute some summary images (correlation and peak to noise)
     # change swap dim if output looks weird, it is a problem with tiffile
     cn_filter, pnr = cm.summary_images.correlation_pnr(images[::1], gSig=gSig[0], swap_dim=False)
     # if your images file is too long this computation will take unnecessarily
@@ -191,20 +179,20 @@ def main():
     # inspect the summary images and set the parameters
     inspect_correlation_pnr(cn_filter, pnr)
     # print parameters set above, modify them if necessary based on summary images
-    print(min_corr) # min correlation of peak (from correlation image)
-    print(min_pnr)  # min peak to noise ratio
+    print(f"Minimum correlation: {min_corr}") # min correlation of peak (from correlation image)
+    print(f"Minimum peak to noise ratio: {min_pnr}")  # min peak to noise ratio
 
-    # %% RUN CNMF ON PATCHES
+    # Run CMNF in patches
     cnm = cnmf.CNMF(n_processes=n_processes, dview=dview, Ain=Ain, params=opts)
     cnm.fit(images)
 
-    # %% ALTERNATE WAY TO RUN THE PIPELINE AT ONCE (optional -- commented out)
+    # ALTERNATE WAY TO RUN THE PIPELINE AT ONCE (optional -- commented out)
     #   you can also perform the motion correction plus cnmf fitting steps
     #   simultaneously after defining your parameters object using
     #    cnm1 = cnmf.CNMF(n_processes, params=opts, dview=dview)
     #    cnm1.fit_file(motion_correct=True)
 
-    # %% Quality Control: DISCARD LOW QUALITY COMPONENTS
+    # Quality Control: DISCARD LOW QUALITY COMPONENTS
     min_SNR = 2.5           # adaptive way to set threshold on the transient size
     r_values_min = 0.85    # threshold on space consistency (if you lower more components
     #                        will be accepted, potentially with worst quality)
@@ -217,16 +205,11 @@ def main():
     print('Number of total components: ', len(cnm.estimates.C))
     print('Number of accepted components: ', len(cnm.estimates.idx_components))
 
-    # %% PLOT COMPONENTS
-    cnm.dims = dims
-    display_images = True           # Set to true to show movies and images
-    if display_images:
+    # Play result movies
+    if not cfg.no_play:
+        cnm.dims = dims
         cnm.estimates.plot_contours(img=cn_filter, idx=cnm.estimates.idx_components)
         cnm.estimates.view_components(images, idx=cnm.estimates.idx_components)
-
-    # %% MOVIES
-    display_images = False           # Set to true to show movies and images
-    if display_images:
         # fully reconstructed movie
         cnm.estimates.play_movie(images, q_max=99.5, magnification=2,
                                  include_bck=True, gain_res=10, bpx=bord_px)
@@ -234,11 +217,23 @@ def main():
         cnm.estimates.play_movie(images, q_max=99.9, magnification=2,
                                  include_bck=False, gain_res=4, bpx=bord_px)
 
-    # %% STOP SERVER
+    # Stop the cluster and clean up log files
     cm.stop_server(dview=dview)
 
-# %% This is to mask the differences between running this demo in IDE
-# versus from the CLI
-if __name__ == "__main__":
-    main()
+    if not cfg.keep_logs:
+        log_files = glob.glob('*_LOG_*')
+        for log_file in log_files:
+            os.remove(log_file)
+
+def handle_args():
+    parser = argparse.ArgumentParser(description="Demonstrate CNMFE Pipeline")
+    parser.add_argument("--keep_logs",  action="store_true", help="Keep temporary logfiles")
+    parser.add_argument("--no_play",    action="store_true", help="Do not display results")
+    parser.add_argument("--cluster_backend", default="multiprocessing", help="Specify multiprocessing, ipyparallel, or single to pick an engine")
+    parser.add_argument("--input", action="append", help="File(s) to work on, provide multiple times for more files")
+    parser.add_argument("--logfile",    help="If specified, log to the named file")
+    return parser.parse_args()
+
+########
+main()
 

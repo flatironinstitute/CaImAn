@@ -51,16 +51,11 @@ def main():
 
     if cfg.input is None:
         # If no input is specified, use sample data, downloading if necessary
-        fnames = ['Sue_2x_3000_40_-46.tif']  # filename to be processed
-        if fnames[0] in ['Sue_2x_3000_40_-46.tif', 'demoMovie.tif']:
-            fnames = [download_demo(fnames[0])]
+        fnames = [download_demo('Sue_2x_3000_40_-46.tif')]
     else:
         fnames = cfg.input
-    # If you prefer to hardcode filenames, you could do something like this:
-    # fnames = ["/path/to/myfile1.avi", "/path/to/myfile2.avi"]
 
-
-    # First setup some parameters for data and motion correction
+    # First set up some parameters for data and motion correction
 
     # dataset dependent parameters
     fr = 30             # imaging rate in frames per second
@@ -80,6 +75,7 @@ def main():
     overlaps = (24, 24)
     # maximum deviation allowed for patch with respect to rigid shifts
     max_deviation_rigid = 3
+    border_nan = 'copy'
 
     params_dict = {'fnames': fnames,
                    'fr': fr,
@@ -90,7 +86,7 @@ def main():
                    'strides': strides,
                    'overlaps': overlaps,
                    'max_deviation_rigid': max_deviation_rigid,
-                   'border_nan': 'copy'}
+                   'border_nan': border_nan}
 
     opts = params.CNMFParams(params_dict=params_dict)
 
@@ -145,7 +141,7 @@ def main():
     c, dview, n_processes = cm.cluster.setup_cluster(
         backend=cfg.cluster_backend, n_processes=None, single_thread=False)
 
-    #  parameters for source extraction and deconvolution
+    #  Parameters for source extraction and deconvolution
     p = 1                    # order of the autoregressive system
     gnb = 2                  # number of global background components
     merge_thr = 0.85         # merging threshold, max correlation allowed
