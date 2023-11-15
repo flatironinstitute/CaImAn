@@ -94,21 +94,21 @@ def main():
 
     opts = params.CNMFParams(params_dict=params_dict)
 
-    # start a cluster for parallel processing
-    c, dview, n_processes = cm.cluster.setup_cluster(backend=cfg.cluster_backend)
+    m_orig = cm.load_movie_chain(fnames)
 
     # play the movie (optional)
     # playing the movie using opencv. It requires loading the movie in memory.
     # To close the video press q
 
     if not cfg.no_play:
-        m_orig = cm.load_movie_chain(fnames)
         ds_ratio = 0.2
         moviehandle = m_orig.resize(1, 1, ds_ratio)
         moviehandle.play(q_max=99.5, fr=60, magnification=2)
 
+    # start a cluster for parallel processing
+    c, dview, n_processes = cm.cluster.setup_cluster(backend=cfg.cluster_backend)
 
-    # % MOTION CORRECTION
+    # Motion Correction
     # first we create a motion correction object with the specified parameters
     mc = MotionCorrect(fnames, dview=dview, **opts.get_group('motion'))
     # note that the file is not loaded in memory
@@ -235,7 +235,7 @@ def main():
                                       idx=cnm2.estimates.idx_components)
         cnm2.estimates.view_components(images, img=Cn,
                                       idx=cnm2.estimates.idx_components_bad)
-        
+
     # update object with selected components (optional)
     cnm2.estimates.select_components(use_object=True)
 
