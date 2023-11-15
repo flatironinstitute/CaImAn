@@ -38,9 +38,7 @@ jobs:
       - name: install caiman
         run: |
           mamba env update -n base --file environment.yml
-          mamba update pip setuptools wheel
-          python setup.py build_ext --inplace
-          pip install .
+          pip install -e .
           caimanmanager install
 
       - name: Test
