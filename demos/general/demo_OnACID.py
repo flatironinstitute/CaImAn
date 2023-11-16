@@ -21,15 +21,6 @@ import caiman as cm
 from caiman.source_extraction import cnmf as cnmf
 from caiman.paths import caiman_datadir
 
-# Set up the logger; change this if you like.
-# You can log to a file using the filename parameter, or make the output more or less
-# verbose by setting level to logging.DEBUG, logging.INFO, logging.WARNING, or logging.ERROR
-
-logging.basicConfig(format=
-                    "%(relativeCreated)12d [%(filename)s:%(funcName)20s():%(lineno)s]"\
-                    "[%(process)d] %(message)s",
-                    level=logging.WARNING)
-    # filename="/tmp/caiman.log"
 
 def main():
     cfg = handle_args()
@@ -47,8 +38,6 @@ def main():
 
     if cfg.input is None:
         fnames = [os.path.join(caiman_datadir(), 'example_movies', 'demoMovie.tif')]
-        if fnames[0] in ['Sue_2x_3000_40_-46.tif', 'demoMovie.tif']:
-            fnames = [download_demo(fnames[0])]
     else:
         fnames = cfg.input
 

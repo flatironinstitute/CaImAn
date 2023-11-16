@@ -50,8 +50,6 @@ def main():
     if cfg.input is None:
         # If no input is specified, use sample data, downloading if necessary
         fnames = [os.path.join(caiman_datadir(), 'example_movies', 'demoMovie.tif')] # file(s) to be analyzed
-        if fnames[0] in ['Sue_2x_3000_40_-46.tif', 'demoMovie.tif']:
-            fnames = [download_demo(fnames[0])]
     else:
         fnames = cfg.input
     # If you prefer to hardcode filenames, you could do something like this:

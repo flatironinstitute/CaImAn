@@ -47,9 +47,9 @@ def main():
             level=logging.WARNING)
 
     if cfg.input is None:
-        fnames = []
-        for tolias_file in ['Tolias_mesoscope_1.hdf5', 'Tolias_mesoscope_2.hdf5', 'Tolias_mesoscope_3.hdf5']:
-            fnames.append(download_demo(tolias_file))
+        fnames = [download_demo('Tolias_mesoscope_1.hdf5'),
+                  download_demo('Tolias_mesoscope_2.hdf5'),
+                  download_demo('Tolias_mesoscope_3.hdf5')]
     else:
         fnames = cfg.input
 
