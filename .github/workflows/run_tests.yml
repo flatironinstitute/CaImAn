@@ -34,6 +34,7 @@ jobs:
         run: |
           mamba env create -n caiman --file environment.yml
           conda activate caiman
+          conda install pip
           pip install -e .
           caimanmanager install --inplace
 
