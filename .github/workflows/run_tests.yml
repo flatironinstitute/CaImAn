@@ -1,0 +1,39 @@
+name: Linux Conda test
+
+on:
+  pull_request:
+    branches:
+      - main
+      - dev
+  push:
+    branches:
+      - main
+
+jobs:
+  build-linux-conda:
+    runs-on: ubuntu-latest
+    strategy:
+      max-parallel: 5
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Conda
+        uses: conda-incubator/setup-miniconda@v2
+        with:
+          auto-update-conda: true
+          python-version: '3.11'
+          environment-file: environment.yml
+          activate-environment: caiman
+
+      - name: Install Dependencies
+        shell: bash -l {0}
+        run: |
+          conda install pip
+          pip install -e .
+          caimanmanager install --inplace
+
+      - name: Test
+        shell: bash -l {0}
+        run: |
+          caimanmanager test
