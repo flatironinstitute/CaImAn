@@ -1,4 +1,4 @@
-name: Python Version Test on Ubuntu
+name: Linux Conda test
 
 on:
   pull_request:
@@ -10,7 +10,7 @@ on:
       - main
 
 jobs:
-  build-ubuntu-python:
+  build-linux-conda:
     runs-on: ubuntu-latest
     strategy:
       max-parallel: 5
