@@ -92,7 +92,7 @@ def main():
     opts = params.CNMFParams(params_dict=params_dict)
 
     # start a cluster for parallel processing
-    c, dview, n_processes = cm.cluster.setup_cluster(backend=cfg.cluster_backend)
+    c, dview, n_processes = cm.cluster.setup_cluster(backend=cfg.cluster_backend, n_processes=cfg.cluster_nproc)
 
 
     # Run CaImAn Batch (CNMF)
@@ -170,6 +170,7 @@ def handle_args():
     parser.add_argument("--no_patches", action="store_true", help="Do not use patches")
     parser.add_argument("--no_play",    action="store_true", help="Do not display results")
     parser.add_argument("--cluster_backend", default="multiprocessing", help="Specify multiprocessing, ipyparallel, or single to pick an engine")
+    parser.add_argument("--cluster_nproc", type=int, default=None, help="Override automatic selection of number of workers to use")
     parser.add_argument("--input", action="append", help="File(s) to work on, provide multiple times for more files")
     parser.add_argument("--logfile",    help="If specified, log to the named file")
     return parser.parse_args()
