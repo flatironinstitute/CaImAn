@@ -17,27 +17,23 @@ jobs:
 
     steps:
       - uses: actions/checkout@v3
-      - name: Set up Python '3.11'
-        uses: actions/setup-python@v3
-        with:
-          python-version: '3.11'
-      - name: Add conda to system path
-        run: |
-          # $CONDA is an environment variable pointing to the root of the miniconda directory
-          echo $CONDA/bin >> $GITHUB_PATH
 
-      - name: Install mamba
+      - name: Set up Conda
+        uses: conda-incubator/setup-miniconda@v2
+        with:
+          auto-update-conda: true
+          python-version: '3.11'
+          environment-file: environment.yml
+          activate-environment: caiman
+
+      - name: Install Dependencies
+        shell: bash -l {0}
         run: |
-          conda install -c conda-forge mamba
-          conda clean -a
-      - name: install caiman
-        run: |
-          mamba env create -n caiman --file environment.yml
-          conda activate caiman
           conda install pip
           pip install -e .
           caimanmanager install --inplace
 
       - name: Test
+        shell: bash -l {0}
         run: |
           caimanmanager test
