@@ -1,4 +1,4 @@
-name: Multi-OS and Python Version Test
+name: Python Version Test on Ubuntu
 
 on:
   pull_request:
@@ -10,13 +10,12 @@ on:
       - main
 
 jobs:
-  build:
-    runs-on: ${{ matrix.os }}
+  build-ubuntu-python:
+    runs-on: ubuntu-latest
     strategy:
       max-parallel: 5
       matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-        python-version: ['3.9', '3.10', '3.11']
+        python-version: ['3.9', '3.10', '3.11', '3.12']
       fail-fast: false
 
     steps:
