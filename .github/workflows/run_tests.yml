@@ -3,11 +3,11 @@ name: Linux Conda test
 on:
   pull_request:
     branches:
-      - master
+      - main
       - dev
   push:
     branches:
-      - master
+      - main
 
 jobs:
   build-linux-conda:
