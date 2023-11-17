@@ -176,7 +176,7 @@ def main():
     # initialization method (if analyzing dendritic data using 'sparse_nmf')
     method_init = 'greedy_roi'
     ssub = 2                     # spatial subsampling during initialization
-    tsub = 2                     # temporal subsampling during intialization
+    tsub = 2                     # temporal subsampling during initialization
 
     # parameters for component evaluation
     opts_dict = {'fnames': fnames,

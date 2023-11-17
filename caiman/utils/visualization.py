@@ -483,7 +483,7 @@ def nb_view_patches3d(Y_r, A, C, dims, image_type='mean', Yr=None,
 
         image_type: 'mean', 'max' or 'corr'
             image to be overlaid to neurons
-            (average of shapes, maximum of shapes or nearest neigbor correlation of raw data)
+            (average of shapes, maximum of shapes or nearest neighbor correlation of raw data)
 
         Yr: np.ndarray
             movie, only required if image_type=='corr' to calculate correlation image
@@ -1220,7 +1220,7 @@ def get_rectangle_coords(im_dims: ArrayLike,
     """
     Extract rectangle (patch) coordinates: a helper function used by view_quilt().
     
-    Given dimensions of summary image (rows x colums), stride between patches, and overlap
+    Given dimensions of summary image (rows x columns), stride between patches, and overlap
     between patches, returns row coordinates of the patches in patch_rows, and column 
     coordinates patches in patch_cols. This is meant to be used by view_quilt().
        

@@ -155,7 +155,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
                           SC_kernel='heat', SC_sigma=1, SC_thr=0, SC_normalize=True, SC_use_NN=False,
                           SC_nnn=20, lambda_gnmf=1):
     """
-    Initalize components. This function initializes the spatial footprints, temporal components,
+    Initialize components. This function initializes the spatial footprints, temporal components,
     and background which are then further refined by the CNMF iterations. There are four
     different initialization methods depending on the data you're processing:
         'greedy_roi': GreedyROI method used in standard 2p processing (default)
@@ -274,7 +274,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
             (d1 * d2 [ * d3]) x nb, initialization of spatial background.
 
         fin: np.ndarray
-            nb x T matrix, initalization of temporal background
+            nb x T matrix, initialization of temporal background
 
     Raises:
         Exception "Unsupported method"
@@ -315,11 +315,11 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
 
         if method == 'corr_pnr':
             logging.info("Spatial/Temporal downsampling 1-photon")
-            # this icrements the performance against ground truth and solves border problems
+            # this increments the performance against ground truth and solves border problems
             Y_ds = downscale(Y, tuple([ssub] * len(d) + [tsub]), opencv=False)
         else:
             logging.info("Spatial/Temporal downsampling 2-photon")
-            # this icrements the performance against ground truth and solves border problems
+            # this increments the performance against ground truth and solves border problems
             Y_ds = downscale(Y, tuple([ssub] * len(d) + [tsub]), opencv=True)
 #            mean_val = np.mean(Y)
 #            Y_ds = downscale_local_mean(Y, tuple([ssub] * len(d) + [tsub]), cval=mean_val)
@@ -379,7 +379,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
             raise Exception('You need to define arguments for local NMF')
         else:
             NumCent = options_local_NMF.pop('NumCent', None)
-            # Max number of centers to import from Group Lasso intialization - if 0,
+            # Max number of centers to import from Group Lasso initialization - if 0,
             # we don't run group lasso
             cent = GetCentersData(Y_ds.transpose([2, 0, 1]), NumCent)
             sig = Y_ds.shape[:-1]
@@ -547,7 +547,7 @@ def sparseNMF(Y_ds, nr, max_iter_snmf=200, alpha=0.5, sigma_smooth=(.5, .5, .5),
             smoothing along z,x, and y (.5,.5,.5)
 
         perc_baseline_snmf:
-            percentile to remove frmo movie before NMF
+            percentile to remove from movie before NMF
 
         nb: int
             Number of background components
@@ -821,7 +821,7 @@ def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1,
             # we define a squared size around it
             ijSig = [[np.maximum(ij[c] - gHalf[c], 0), np.minimum(ij[c] + gHalf[c] + 1, d[c])]
                      for c in range(len(ij))]
-            # we create an array of it (fl like) and compute the trace like the pixel ij trough time
+            # we create an array of it (fl like) and compute the trace like the pixel ij through time
             dataTemp = np.array(
                 Y[tuple([slice(*a) for a in ijSig])].copy(), dtype=np.float32)
             traceTemp = np.array(np.squeeze(rho[ij]), dtype=np.float32)
@@ -920,7 +920,7 @@ def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1,
                 # we define a squared size around it
                 ijSig = [[np.maximum(ij[c] - gHalf[c], 0), np.minimum(ij[c] + gHalf[c] + 1, d[c])]
                          for c in range(len(ij))]
-                # we create an array of it (fl like) and compute the trace like the pixel ij trough time
+                # we create an array of it (fl like) and compute the trace like the pixel ij through time
                 dataTemp = np.array(
                     Y[tuple([slice(*a) for a in ijSig])].copy(), dtype=np.float32)
                 traceTemp = np.array(np.squeeze(rho[tuple(ij)]), dtype=np.float32)
@@ -978,7 +978,7 @@ def finetune(Y, cin, nIter=5):
         Y:  D1*d2*T*K patches
 
         c: array T*K
-            the inital calcium traces
+            the initial calcium traces
 
         nIter: int
             True indicates that time is listed in the last axis of Y (matlab format)
@@ -1001,7 +1001,7 @@ def finetune(Y, cin, nIter=5):
     for _ in range(nIter):
         a = np.maximum(np.dot(Y, cin), 0)
         a = a / np.sqrt(np.sum(a**2) + np.finfo(np.float32).eps)  # compute the l2/a
-        # c as the variation of thoses patches
+        # c as the variation of those patches
         cin = np.sum(Y * a[..., np.newaxis], tuple(np.arange(Y.ndim - 1)))
 
     return a, cin
@@ -1451,7 +1451,7 @@ def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
         S: np.ndarray (K*T)
             deconvolved calcium traces of all neurons
         center: np.ndarray
-            center localtions of all neurons
+            center locations of all neurons
     """
 
     if swap_dim:

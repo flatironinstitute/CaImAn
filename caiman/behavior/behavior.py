@@ -178,7 +178,7 @@ def compute_optical_flow(m,
             mask selecting relevant pixels
 
         polar_coord: boolean
-            wheather to return the coordinate in polar coordinates (or cartesian)
+            whether to return the coordinate in polar coordinates (or cartesian)
 
         do_show: bool
             show flow movie

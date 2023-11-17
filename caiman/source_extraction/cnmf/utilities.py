@@ -1027,7 +1027,7 @@ def compute_residuals(Yr_mmap_file, A_, b_, C_, f_, dview=None, block_size=1000,
                 number of pixels processed together
 
             num_blocks_per_run: int
-                nnumber of parallel blocks processes
+                number of parallel blocks processes
 
         Returns:
             YrA: ndarray
@@ -1154,9 +1154,9 @@ def fast_graph_Laplacian(mmap_file, dims, max_radius=10, kernel='heat',
         else:
             res = dview.map(fast_graph_Laplacian_pixel, pars, chunksize=128)
         indptr = np.cumsum(np.array([0] + [len(r[0]) for r in res]))
-        indeces = [item for sublist in res for item in sublist[0]]
+        indices = [item for sublist in res for item in sublist[0]]
         data = [item for sublist in res for item in sublist[1]]
-        W = scipy.sparse.csr_matrix((data, indeces, indptr), shape=[Np, Np])
+        W = scipy.sparse.csr_matrix((data, indices, indptr), shape=[Np, Np])
         D = scipy.sparse.spdiags(W.sum(0), 0, Np, Np)
         L = D - W
     else:
@@ -1215,9 +1215,9 @@ def fast_graph_Laplacian_pixel(pars):
     [XX, YY] = np.meshgrid(xx, yy)
     R = np.sqrt(XX**2 + YY**2)
     R = R.flatten('F')
-    indeces = np.where(R < max_radius)[0]
+    indices = np.where(R < max_radius)[0]
     Y = load_memmap(mmap_file)[0]
-    Yind = np.array(Y[indeces])
+    Yind = np.array(Y[indices])
     y = np.array(Y[i, :])
     if normalize:
         Yind -= Yind.mean(1)[:, np.newaxis]
@@ -1238,4 +1238,4 @@ def fast_graph_Laplacian_pixel(pars):
     else:
         ind = np.where(w>0)[0]
 
-    return indeces[ind].tolist(), w[ind].tolist()
+    return indices[ind].tolist(), w[ind].tolist()

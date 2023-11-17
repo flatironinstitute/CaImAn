@@ -93,7 +93,7 @@ class VOLPY(object):
                 ridge or NMF for weight update
                 
             do_plot: boolean
-                if Ture, plot trace of signals and spiketimes, 
+                if True, plot trace of signals and spiketimes, 
                 peak triggered average, histogram of heights in the last iteration
 
             do_cross_val: boolean

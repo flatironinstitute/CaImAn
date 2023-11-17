@@ -153,7 +153,7 @@ def merge_components(Y, A, b, C, R, f, S, sn_pix, temporal_params,
     for ii in range(nr):
         overlap_indices = A_corr[ii, :].nonzero()[1]
         if len(overlap_indices) > 0:
-            # we chesk the correlation of the calcium traces for eahc overlapping components
+            # we chesk the correlation of the calcium traces for each overlapping components
             corr_values = [scipy.stats.pearsonr(C[ii, :], C[jj, :])[
                 0] for jj in overlap_indices]
             C_corr[ii, overlap_indices] = corr_values

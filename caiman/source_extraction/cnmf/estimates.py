@@ -473,7 +473,7 @@ class Estimates(object):
 
             image_type: 'mean'|'max'|'corr'
                 image to be overlaid to neurons (average of shapes,
-                maximum of shapes or nearest neigbor correlation of raw data)
+                maximum of shapes or nearest neighbor correlation of raw data)
 
             max_projection: bool
                 plot max projection along specified axis if True, o/w plot layers
@@ -981,7 +981,7 @@ class Estimates(object):
         Returns:
             self: Estimates object
                 self.idx_components contains the indeced of components above
-                the required treshold.
+                the required threshold.
         """
         dims = params.get('data', 'dims')
         gSig = params.get('init', 'gSig')
@@ -1415,7 +1415,7 @@ class Estimates(object):
 
         Returns:
             neurons_to_keep: np.array
-                indeces of components with size within the acceptable range
+                indices of components with size within the acceptable range
         '''
         if self.A_thr is None:
             raise Exception('You need to compute thresholded components before calling remove_duplicates: use the threshold_components method')

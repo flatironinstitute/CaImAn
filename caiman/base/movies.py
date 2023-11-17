@@ -129,7 +129,7 @@ class movie(ts.timeseries):
 
 
         Returns:
-            self: motion corected movie, it might change the object itself
+            self: motion corrected movie, it might change the object itself
 
             shifts : tuple, contains x & y shifts and correlation with template
 
@@ -208,7 +208,7 @@ class movie(ts.timeseries):
 
 
         Returns:
-            self: motion corected movie, it might change the object itself
+            self: motion corrected movie, it might change the object itself
 
             shifts : tuple, contains x, y, and z shifts and correlation with template
 
@@ -535,7 +535,7 @@ class movie(ts.timeseries):
                 window size over which to compute the baseline (the larger the faster the algorithm and the less granular
 
             quantilMin: float
-                percentil to be used as baseline value
+                percentile to be used as baseline value
             in_place: bool
                 update movie in place
             returnBL:
@@ -764,7 +764,7 @@ class movie(ts.timeseries):
         frame_size = h * w
         frame_samples = np.reshape(self, (num_frames, frame_size)).T
 
-        # run IPCA to approxiate the SVD
+        # run IPCA to approximate the SVD
         ipca_f = sklearn.decomposition.IncrementalPCA(n_components=components, batch_size=batch)
         ipca_f.fit(frame_samples)
 
@@ -1783,7 +1783,7 @@ def sbxread(filename: str, k: int = 0, n_frames=np.inf) -> np.ndarray:
     # Determine number of frames in whole file
     max_idx = os.path.getsize(filename + '.sbx') / info['recordsPerBuffer'] / info['sz'][1] * factor / 4 - 1
 
-    # Paramters
+    # Parameters
     N = max_idx + 1    # Last frame
     N = np.minimum(N, n_frames)
 
@@ -1834,7 +1834,7 @@ def sbxreadskip(filename: str, subindices: slice) -> np.ndarray:
     # Determine number of frames in whole file
     max_idx = int(os.path.getsize(filename + '.sbx') / info['recordsPerBuffer'] / info['sz'][1] * factor / 4 - 1)
 
-    # Paramters
+    # Parameters
     if isinstance(subindices, slice):
         if subindices.start is None:
             start = 0

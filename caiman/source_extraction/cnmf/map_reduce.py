@@ -25,7 +25,7 @@ def cnmf_patches(args_in):
             file_name: string
                 full path to an npy file (2D, pixels x time) containing the movie
 
-            shape: tuple of thre elements
+            shape: tuple of three elements
                 dimensions of the original movie across y, x, and time
 
             params:
@@ -44,18 +44,18 @@ def cnmf_patches(args_in):
                 'ipyparallel' or 'single_thread' or SLURM
 
             n_processes: int
-                nuber of cores to be used (should be less than the number of cores started with ipyparallel)
+                number of cores to be used (should be less than the number of cores started with ipyparallel)
 
             memory_fact: double
                 unitless number accounting how much memory should be used.
-                It represents the fration of patch processed in a single thread.
+                It represents the fraction of patch processed in a single thread.
                  You will need to try different values to see which one would work
 
             low_rank_background: bool
                 if True the background is approximated with gnb components. If false every patch keeps its background (overlaps are randomly assigned to one spatial component only)
 
         Returns:
-            A_tot: matrix containing all the componenents from all the patches
+            A_tot: matrix containing all the components from all the patches
 
             C_tot: matrix containing the calcium traces corresponding to A_tot
 
@@ -150,7 +150,7 @@ def run_CNMF_patches(file_name, shape, params, gnb=1, dview=None,
 
         memory_fact: double
             unitless number accounting how much memory should be used.
-            It represents the fration of patch processed in a single thread.
+            It represents the fraction of patch processed in a single thread.
              You will need to try different values to see which one would work
 
         border_pix: int

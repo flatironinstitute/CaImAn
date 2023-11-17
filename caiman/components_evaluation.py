@@ -64,7 +64,7 @@ def compute_event_exceptionality(traces: np.ndarray,
             value estimate of the quality of components (the lesser the better)
 
         erfc: ndarray
-            probability at each time step of observing the N consequtive actual trace values given the distribution of noise
+            probability at each time step of observing the N consecutive actual trace values given the distribution of noise
 
         noise_est: ndarray
             the components ordered according to the fitness
@@ -394,10 +394,10 @@ def evaluate_components(Y: np.ndarray,
             value estimate of the quality of components (the lesser the better) on diff(trace)
 
         erfc_raw: ndarray
-            probability at each time step of observing the N consequtive actual trace values given the distribution of noise on the raw trace
+            probability at each time step of observing the N consecutive actual trace values given the distribution of noise on the raw trace
 
         erfc_raw: ndarray
-            probability at each time step of observing the N consequtive actual trace values given the distribution of noise on diff(trace)
+            probability at each time step of observing the N consecutive actual trace values given the distribution of noise on diff(trace)
 
         r_values: list
             float values representing correlation between component and spatial mask obtained by averaging important points
