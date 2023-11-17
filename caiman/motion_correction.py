@@ -123,7 +123,7 @@ class MotionCorrect(object):
                intervals at which patches are laid out for motion correction
 
            overlaps: tuple
-               overlap between pathes (size of patch strides+overlaps)
+               overlap between patches (size of patch strides+overlaps)
 
            pw_rigig: bool, default: False
                flag for performing motion correction when calling motion_correct

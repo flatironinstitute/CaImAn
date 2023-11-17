@@ -86,7 +86,7 @@ params_display = {'downsample_ratio': .2, 'thr_plot': 0.9}
 #                 'splits_rig': 14,  # for parallelization split the movies in  num_splits chuncks across time
 #                 'num_splits_to_process_rig': None,  # if none all the splits are processed and the movie is saved
 #                 'strides': (48, 48),  # intervals at which patches are laid out for motion correction
-#                 'overlaps': (24, 24),  # overlap between pathes (size of patch strides+overlaps)
+#                 'overlaps': (24, 24),  # overlap between patches (size of patch strides+overlaps)
 #                 'splits_els': 14,  # for parallelization split the movies in  num_splits chuncks across time
 #                 'num_splits_to_process_els': [14, None],  # if none all the splits are processed and the movie is saved
 #                 'upsample_factor_grid': 3,  # upsample factor to avoid smearing when merging patches
