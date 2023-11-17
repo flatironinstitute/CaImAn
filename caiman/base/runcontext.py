@@ -243,7 +243,7 @@ class RunContext():
         if 'dview' in self._pe_state:
             return self._pe_state['dview']
         else:
-            logger.info("Was asked for the dview of a RunContext without one, returning None")
+            logger.warn("Was asked for the dview of a RunContext without one, returning None")
             return None
 
     def tempdir_purge(self) -> None:

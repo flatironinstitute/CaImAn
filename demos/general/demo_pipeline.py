@@ -1,21 +1,10 @@
 #!/usr/bin/env python
 
 """
-Complete demo pipeline for processing two photon calcium imaging data using the
-CaImAn batch algorithm. The processing pipeline included motion correction,
-source extraction and deconvolution. The demo shows how to construct the
-params, MotionCorrect and cnmf objects and call the relevant functions. You
-can also run a large part of the pipeline with a single method (cnmf.fit_file)
-See inside for details.
+modified version of demo_pipeline demonstrating what it'd look like to use runcontexts
 
-Demo is also available as a jupyter notebook (see demo_pipeline.ipynb)
-Dataset couresy of Sue Ann Koay and David Tank (Princeton University)
+This is not functional code (currently), just a "code look" example.
 
-This demo pertains to two photon data. For a complete analysis pipeline for
-one photon microendoscopic data see demo_pipeline_cnmfE.py
-
-copyright GNU General Public License v2.0
-authors: @agiovann and @epnev
 """
 #%%
 import cv2
@@ -67,6 +56,13 @@ def main():
     if fnames[0] in ['Sue_2x_3000_40_-46.tif', 'demoMovie.tif']:
         fnames = [download_demo(fnames[0])]
 
+    runc = caiman.base.RunContext(parallel_engine   = 'multiprocessing',
+                                  pe_extra          = {'n_processes': 12}
+                                  temp_path         = '/tmp/big_storage/run_a3500',
+                                  output_path       = '/mnt/share/big_storage/caiman_run_outputs/run_a3500',
+                                  temp_post_cleanup = False, # I want to see the logs
+                                 )
+
     #%% First setup some parameters for data and motion correction
 
     # dataset dependent parameters
@@ -115,12 +111,11 @@ def main():
         moviehandle.play(q_max=99.5, fr=60, magnification=2)
 
     # %% start a cluster for parallel processing
-    c, dview, n_processes = cm.cluster.setup_cluster(
-        backend='multiprocessing', n_processes=None, single_thread=False)
+    runc.parallel_start()
 
     # %%% MOTION CORRECTION
     # first we create a motion correction object with the specified parameters
-    mc = MotionCorrect(fnames, dview=dview, **opts.get_group('motion'))
+    mc = MotionCorrect(runc, fnames, **opts.get_group('motion'))
     # note that the file is not loaded in memory
 
     # %% Run (piecewise-rigid motion) correction using NoRMCorre
@@ -151,9 +146,7 @@ def main():
     # load frames in python format (T x X x Y)
 
     # %% restart cluster to clean up memory
-    cm.stop_server(dview=dview)
-    c, dview, n_processes = cm.cluster.setup_cluster(
-        backend='multiprocessing', n_processes=None, single_thread=False)
+    runc.parallel_restart()
 
     # %%  parameters for source extraction and deconvolution
     p = 1                    # order of the autoregressive system
@@ -181,7 +174,7 @@ def main():
                  'method_init': method_init,
                  'rolling_sum': True,
                  'merge_thr': merge_thr,
-                 'n_processes': n_processes,
+                 #'n_processes': n_processes,
                  'only_init': True,
                  'ssub': ssub,
                  'tsub': tsub}
@@ -195,20 +188,22 @@ def main():
     # nonzero value
 
     #opts.change_params({'p': 0})
-    cnm = cnmf.CNMF(n_processes, params=opts, dview=dview)
-    cnm = cnm.fit(images)
+    #cnm = cnmf.CNMF(runc, n_processes, params=opts)
+    #cnm = cnm.fit(images)
+    cnm = cnmf.CNMF(runc, params=opts)
+    cnm = cnm.fit(runc, images)
 
     # %% Alternate way to run above pipeline using a single method (optional)
     #   you can also perform the motion correction plus cnmf fitting steps
     #   simultaneously after defining your parameters object using
-    #  cnm1 = cnmf.CNMF(n_processes, params=opts, dview=dview)
+    #  cnm1 = cnmf.CNMF(runc, n_processes, params=opts)
     #  cnm1.fit_file(motion_correct=True)
 
     # %% plot contours of found components
-    Cns = local_correlations_movie_offline(mc.mmap_file[0],
+    Cns = local_correlations_movie_offline(runc,
+                                           mc.mmap_file[0],
                                            remove_baseline=True, window=1000, stride=1000,
-                                           winSize_baseline=100, quantil_min_baseline=10,
-                                           dview=dview)
+                                           winSize_baseline=100, quantil_min_baseline=10)
     Cn = Cns.max(axis=0)
     Cn[np.isnan(Cn)] = 0
     cnm.estimates.plot_contours(img=Cn)
@@ -219,7 +214,7 @@ def main():
     cnm.save(fname_new[:-5]+'_init.hdf5')
 
     # %% RE-RUN seeded CNMF on accepted patches to refine and perform deconvolution
-    cnm2 = cnm.refit(images, dview=dview)
+    cnm2 = cnm.refit(runc, images)
 
     # %% COMPONENT EVALUATION
     # the components are evaluated in three ways:
@@ -237,7 +232,7 @@ def main():
                                'use_cnn': True,
                                'min_cnn_thr': cnn_thr,
                                'cnn_lowest': cnn_lowest})
-    cnm2.estimates.evaluate_components(images, cnm2.params, dview=dview)
+    cnm2.estimates.evaluate_components(runc, images, cnm2.params)
 
     # %% PLOT COMPONENTS
     cnm2.estimates.plot_contours(img=Cn, idx=cnm2.estimates.idx_components)
@@ -270,10 +265,8 @@ def main():
                                   include_bck=False)  # background not shown
 
     #%% STOP CLUSTER and clean up log files
-    cm.stop_server(dview=dview)
-    log_files = glob.glob('*_LOG_*')
-    for log_file in log_files:
-        os.remove(log_file)
+    runc.parallel_stop()
+    print(f"Caiman run complete; result data is in {runc.outputdir_path}")
 
 # %%
 # This is to mask the differences between running this demo in an IDE
