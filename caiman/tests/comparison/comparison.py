@@ -3,7 +3,7 @@
 """ compare how the elements behave
 
 We create a folder ground truth that possess the same thing than the other
-in a form of a dictionnary containing nparrays and other info.
+in a form of a dictionary containing nparrays and other info.
 the other files contains every test and the name is the date of the test
 
 """
@@ -41,7 +41,7 @@ class Comparison(object):
 
        Here it has been made for 3 different functions. for it to compare well you need to set your
        ground truth with the same computer with which you are comparing the files
-       class you instanciate to compare the different parts of CaImAn
+       class you instantiate to compare the different parts of CaImAn
 
 
 
@@ -57,7 +57,7 @@ class Comparison(object):
         C_full
         C_patch
         information
-                diffrences
+                differences
                         params_cnm
                         proc
                         param_movie
@@ -87,12 +87,12 @@ class Comparison(object):
                                 diff_timing
                                 isdifferent
                                 diff_data
-            the user to change it manualy
+            the user to change it manually
 
         Methods
         -------
         __init__()
-            Initialize the function be instanciating a comparison object
+            Initialize the function be instantiating a comparison object
 
         save(istruth)
             save the comparison object on a file
@@ -465,7 +465,7 @@ def cnmf(Cn, A_gt, A_test, C_gt, C_test, dims_gt, dims_test, dview=None, sensiti
 
     corrs = np.array(
         [scipy.stats.pearsonr(C_gt_thr[gt, :], C_test_thr[comp, :])[0] for gt, comp in zip(idx_tp_gt, idx_tp_comp)])
-    # todo, change this test when I will have found why I have one additionnal neuron
+    # todo, change this test when I will have found why I have one additional neuron
 
     isdiff = True if ((np.linalg.norm(corrs) < sensitivity) or (performance_off_on['f1_score'] < 0.98)) else False
     info = {

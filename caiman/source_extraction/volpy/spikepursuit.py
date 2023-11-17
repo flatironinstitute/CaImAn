@@ -183,7 +183,7 @@ def volspike(pars):
     output['rawROI'] = {}
     print(f'Now processing cell number {cell_n}')
     
-    # load the movie in C-order mermory mapping file
+    # load the movie in C-order memory mapping file
     Yr, dims, T = cm.load_memmap(fnames)
     if bw.shape == dims:
         images = np.reshape(Yr.T, [T] + list(dims), order='F')
@@ -276,7 +276,7 @@ def volspike(pars):
     if args['do_cross_val']:
         # need to add
         logging.warning('doing cross validation')
-        raise Exception('cross validation option is not availble yet')
+        raise Exception('cross validation option is not available yet')
     else:
         s_max = 1
         l_max = 2

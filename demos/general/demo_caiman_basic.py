@@ -126,7 +126,7 @@ def main():
     #   c) each shape passes a CNN based classifier (this will pick up only neurons
     #           and filter out active processes)
 
-    min_SNR = 2      # peak SNR for accepted components (if above this, acept)
+    min_SNR = 2      # peak SNR for accepted components (if above this, accept)
     rval_thr = 0.85     # space correlation threshold (if above this, accept)
     use_cnn = True      # use the CNN classifier
     min_cnn_thr = 0.99  # if cnn classifier predicts below this value, reject

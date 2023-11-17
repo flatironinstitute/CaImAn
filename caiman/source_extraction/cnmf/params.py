@@ -45,7 +45,7 @@ class CNMFParams(object):
                  ):
         """Class for setting the processing parameters. All parameters for CNMF, online-CNMF, quality testing,
         and motion correction can be set here and then used in the various processing pipeline steps.
-        The prefered way to set parameters is by using the set function, where a subclass is determined and a
+        The preferred way to set parameters is by using the set function, where a subclass is determined and a
         dictionary is passed. The whole dictionary can also be initialized at once by passing a dictionary params_dict
         when initializing the CNMFParams object. Direct setting of the positional arguments in CNMFParams is only
         present for backwards compatibility reasons and should not be used if possible.
@@ -106,7 +106,7 @@ class CNMFParams(object):
                 (to be used with one background per patch)
 
             del_duplicates: bool, default: False
-                Delete duplicate components in the overlaping regions between neighboring patches. If False,
+                Delete duplicate components in the overlapping regions between neighboring patches. If False,
                 then merging is used.
 
             only_init: bool, default: True
@@ -712,7 +712,7 @@ class CNMFParams(object):
             'nb': gnb,                # number of global background components
             # whether to pixelwise equalize the movies during initialization
             'normalize_init': normalize_init,
-            # dictionary with parameters to pass to local_NMF initializaer
+            # dictionary with parameters to pass to local_NMF initializer
             'options_local_NMF': options_local_NMF,
             'perc_baseline_snmf': 20,
             'ring_size_factor': ring_size_factor,
@@ -1031,7 +1031,7 @@ class CNMFParams(object):
 
     def to_dict(self):
         """Returns the params class as a dictionary with subdictionaries for each
-        catergory."""
+        category."""
         return {'data': self.data, 'spatial_params': self.spatial, 'temporal_params': self.temporal,
                 'init_params': self.init, 'preprocess_params': self.preprocess,
                 'patch_params': self.patch, 'online': self.online, 'quality': self.quality,

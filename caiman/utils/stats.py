@@ -168,7 +168,7 @@ def df_percentile(inputData, axis=None):
     """
     Extracting the percentile of the data where the mode occurs and its value.
     Used to determine the filtering level for DF/F extraction. Note that
-    computation can be innacurate for short traces.
+    computation can be inaccurate for short traces.
     """
     if axis is not None:
 

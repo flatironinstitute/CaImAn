@@ -50,7 +50,7 @@ params_movie = {
     'fname': ['Sue_2x_3000_40_-46.tif'],
     'niter_rig': 1,
     'max_shifts': (3, 3),                      # maximum allow rigid shift
-    'splits_rig': 20,                          # for parallelization split the movies in  num_splits chuncks across time
+    'splits_rig': 20,                          # for parallelization split the movies in  num_splits chunks across time
                                                # if none all the splits are processed and the movie is saved
     'num_splits_to_process_rig': None,
     'p': 1,                                    # order of the autoregressive system
@@ -83,11 +83,11 @@ params_display = {'downsample_ratio': .2, 'thr_plot': 0.9}
 # params_movie = {'fname': [u'./example_movies/demoMovieJ.tif'],
 #                 'max_shifts': (2, 2),  # maximum allow rigid shift (2,2)
 #                 'niter_rig': 1,
-#                 'splits_rig': 14,  # for parallelization split the movies in  num_splits chuncks across time
+#                 'splits_rig': 14,  # for parallelization split the movies in  num_splits chunks across time
 #                 'num_splits_to_process_rig': None,  # if none all the splits are processed and the movie is saved
 #                 'strides': (48, 48),  # intervals at which patches are laid out for motion correction
 #                 'overlaps': (24, 24),  # overlap between patches (size of patch strides+overlaps)
-#                 'splits_els': 14,  # for parallelization split the movies in  num_splits chuncks across time
+#                 'splits_els': 14,  # for parallelization split the movies in  num_splits chunks across time
 #                 'num_splits_to_process_els': [14, None],  # if none all the splits are processed and the movie is saved
 #                 'upsample_factor_grid': 3,  # upsample factor to avoid smearing when merging patches
 #                 'max_deviation_rigid': 1,  # maximum deviation allowed for patch with respect to rigid shift

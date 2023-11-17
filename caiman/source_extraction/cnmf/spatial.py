@@ -498,7 +498,7 @@ def threshold_components(A, dims, medw=None, thr_method='max', maxthr=0.1, nrgth
         ss = np.ones((3,) * len(dims), dtype='uint8')
     # dims and nm of neurones
     d, nr = np.shape(A)
-    # instanciation of A thresh.
+    # instantiation of A thresh.
     #Ath = np.zeros((d, nr))
     pars = []
     # for each neurons

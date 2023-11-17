@@ -3,7 +3,7 @@
 
 """
 Complete pipeline for online processing using CaImAn Online (OnACID).
-The demo demonstates the analysis of a sequence of files using the CaImAn online
+The demo demonstrates the analysis of a sequence of files using the CaImAn online
 algorithm. The steps include i) motion correction, ii) tracking current 
 components, iii) detecting new components, iv) updating of spatial footprints.
 The script demonstrates how to construct and use the params and online_cnmf
@@ -157,7 +157,7 @@ def main():
     Yr, dims, T = cm.load_memmap(memmap_file)
 
     images = np.reshape(Yr.T, [T] + list(dims), order='F')
-    min_SNR = 2  # peak SNR for accepted components (if above this, acept)
+    min_SNR = 2  # peak SNR for accepted components (if above this, accept)
     rval_thr = 0.85  # space correlation threshold (if above this, accept)
     use_cnn = True  # use the CNN classifier
     min_cnn_thr = 0.99  # if cnn classifier predicts below this value, reject

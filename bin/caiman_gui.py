@@ -109,7 +109,7 @@ if not hasattr(estimates, 'Cn'):
     estimates.Cn = cm.local_correlations(mov, swap_dim=False)
 #Cn = estimates.Cn
 
-# We rotate our components 90 degrees right because of incompatiability of pyqtgraph and pyplot
+# We rotate our components 90 degrees right because of incompatibility of pyqtgraph and pyplot
 def rotate90(img, right=None, vector=None, sparse=False):
     # rotate the img 90 degrees
     # we first transpose the img then flip axis

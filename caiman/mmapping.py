@@ -358,7 +358,7 @@ def save_memmap(filenames:list[str],
             x,y, and z downsampling factors (0.5 means downsampled by a factor 2)
 
         remove_init: int
-            number of frames to remove at the begining of each tif file
+            number of frames to remove at the beginning of each tif file
             (used for resonant scanning images if laser in rutned on trial by trial)
 
         idx_xy: tuple size 2 [or 3 for 3D data]
@@ -449,11 +449,11 @@ def save_memmap(filenames:list[str],
                 if slices is not None:
                     Yr = Yr[tuple(slices)]
                 else:
-                    if idx_xy is None:         #todo remove if not used, superceded by the slices parameter
+                    if idx_xy is None:         #todo remove if not used, superseded by the slices parameter
                         Yr = Yr[remove_init:]
-                    elif len(idx_xy) == 2:     #todo remove if not used, superceded by the slices parameter
+                    elif len(idx_xy) == 2:     #todo remove if not used, superseded by the slices parameter
                         Yr = Yr[remove_init:, idx_xy[0], idx_xy[1]]
-                    else:                      #todo remove if not used, superceded by the slices parameter
+                    else:                      #todo remove if not used, superseded by the slices parameter
                         Yr = Yr[remove_init:, idx_xy[0], idx_xy[1], idx_xy[2]]
 
             else:

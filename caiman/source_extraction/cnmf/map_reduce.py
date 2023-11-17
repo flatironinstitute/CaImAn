@@ -44,7 +44,7 @@ def cnmf_patches(args_in):
                 'ipyparallel' or 'single_thread' or SLURM
 
             n_processes: int
-                nuber of cores to be used (should be less than the number of cores started with ipyparallel)
+                number of cores to be used (should be less than the number of cores started with ipyparallel)
 
             memory_fact: double
                 unitless number accounting how much memory should be used.
@@ -55,7 +55,7 @@ def cnmf_patches(args_in):
                 if True the background is approximated with gnb components. If false every patch keeps its background (overlaps are randomly assigned to one spatial component only)
 
         Returns:
-            A_tot: matrix containing all the componenents from all the patches
+            A_tot: matrix containing all the components from all the patches
 
             C_tot: matrix containing the calcium traces corresponding to A_tot
 

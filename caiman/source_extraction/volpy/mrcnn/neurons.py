@@ -69,7 +69,7 @@ class NeuronsConfig(Config):
     # Length of square anchor side in pixels
     RPN_ANCHOR_SCALES = (16, 32, 64, 128, 256)   #(8, 16, 32, 64, 128) 
 
-    # ROIs kept after non-maximum supression (training and inference)
+    # ROIs kept after non-maximum suppression (training and inference)
     POST_NMS_ROIS_TRAINING = 1000
     POST_NMS_ROIS_INFERENCE = 2000
 

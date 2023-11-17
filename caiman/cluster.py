@@ -386,14 +386,14 @@ def setup_cluster(backend:str = 'multiprocessing',
                             'You have configured the cluster setup to not raise an exception.')
             else:
                 raise Exception(
-                    'A cluster is already runnning. Terminate with dview.terminate() if you want to restart.')
+                    'A cluster is already running. Terminate with dview.terminate() if you want to restart.')
         if platform.system() == 'Darwin':
             try:
                 if 'kernel' in get_ipython().trait_names():        # type: ignore
                                                                    # If you're on OSX and you're running under Jupyter or Spyder,
                                                                    # which already run the code in a forkserver-friendly way, this
                                                                    # can eliminate some setup and make this a reasonable approach.
-                                                                   # Otherwise, seting VECLIB_MAXIMUM_THREADS=1 or using a different
+                                                                   # Otherwise, setting VECLIB_MAXIMUM_THREADS=1 or using a different
                                                                    # blas/lapack is the way to avoid the issues.
                                                                    # See https://github.com/flatironinstitute/CaImAn/issues/206 for more
                                                                    # info on why we're doing this (for now).
