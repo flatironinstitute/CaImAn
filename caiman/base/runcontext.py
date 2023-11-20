@@ -48,7 +48,6 @@ class RunContext():
                                                            #     'multiprocessing' - Use multiprocessing library
                                                            #     'ipyparallel' - Use ipyparallel instead (better on Windows?)
                                                            #     'single' - Don't be parallel (good for debugging, slow)
-                                                           #     'SLURM' - Try to use SLURM batch system (untested, involved).
                  pe_allow_reuse:bool = False,              # Whether we should attempt to stop any existing Caiman parallel engine before starting one
                  pe_extra:Optional[Dict] = None,           # Any extra engine-specific options
                  temp_post_cleanup:bool = False,           # Whether to cleanup temporary files when they're no longer needed
