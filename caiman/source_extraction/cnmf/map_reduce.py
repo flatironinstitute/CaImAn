@@ -41,7 +41,7 @@ def cnmf_patches(args_in):
                 number of global background components
 
             backend: string
-                'ipyparallel' or 'single_thread' or SLURM
+                'ipyparallel' or 'single_thread'
 
             n_processes: int
                 number of cores to be used (should be less than the number of cores started with ipyparallel)
