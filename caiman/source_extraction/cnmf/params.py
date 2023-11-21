@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import json
 import logging
 import numpy as np
 import os
@@ -1029,7 +1030,7 @@ class CNMFParams(object):
 
         return True
 
-    def to_dict(self):
+    def to_dict(self) -> dict:
         """Returns the params class as a dictionary with subdictionaries for each
         category."""
         return {'data': self.data, 'spatial_params': self.spatial, 'temporal_params': self.temporal,
@@ -1038,8 +1039,28 @@ class CNMFParams(object):
                 'merging': self.merging, 'motion': self.motion, 'ring_CNN': self.ring_CNN
                 }
 
-    def __repr__(self):
+    def to_json(self) -> str:
+        """ Reversibly serialise CNMFParams to json """
+        dictdata = self.to_dict()
+        # now we need to tweak dictdata to convert ndarrays to something json can represent
+        class NumpyEncoder(json.JSONEncoder): # Custom json encoder that handles ndarrays better
+            def default(self, obj):
+                if isinstance(obj, np.ndarray):
+                    return obj.tolist()
+                elif isinstance(obj, np.integer):
+                    return int(obj)
+                elif isinstance(obj, slice):
+                    return list([obj.start, obj.stop, obj.step])
+                return json.JSONEncoder.default(self, obj)
+        return json.dumps(dictdata, cls=NumpyEncoder)
 
+
+    def to_jsonfile(self, targfn:str) -> None:
+        """ Reversibly serialise CNMFParams to a json file """
+        with open(targfn, 'w') as targfh:
+            targfh.write(self.to_json())
+
+    def __repr__(self) -> str:
         formatted_outputs = [
             f'{group_name}:\n\n{pformat(group_dict)}'
             for group_name, group_dict in self.to_dict().items()
@@ -1064,7 +1085,7 @@ class CNMFParams(object):
                 d = getattr(self, gr)
                 if k in d:
                     flag = False
-            if flag:
+            if flag and verbose:
                 logging.warning(f'No parameter {k} found!')
         self.check_consistency()
         return self
