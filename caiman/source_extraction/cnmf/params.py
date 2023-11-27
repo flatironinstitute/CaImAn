@@ -1076,24 +1076,18 @@ class CNMFParams(object):
 
         return 'CNMFParams:\n\n' + '\n\n'.join(formatted_outputs)
 
-    def change_params(self, params_dict, verbose=False):
+    def change_params(self, params_dict, verbose=False) -> None:
         """ Method for updating the params object by providing a single dictionary.
-        For each key in the provided dictionary the method will search in all
-        subdictionaries and will update the value if it finds a match.
 
         Args:
-            params_dict: dictionary with parameters to be changed and new values
-            verbose: bool (False). Print message for all keys
+            params_dict: dictionary with parameters to be changed
+            verbose: bool (False). If true, will complain if the params dictionary is not complete
         """
         for gr in list(self.__dict__.keys()):
-            self.set(gr, params_dict, verbose=verbose)
-        for k, v in params_dict.items():
-            flag = True
-            for gr in list(self.__dict__.keys()):
-                d = getattr(self, gr)
-                if k in d:
-                    flag = False
-            if flag and verbose:
-                logging.warning(f'No parameter {k} found!')
+            if gr in params_dict:
+                self.set(gr, params_dict[gr], verbose=verbose)
+            else:
+                if verbose:
+                    logging.warning(f"No subobject {gr} in parameter dict")
         self.check_consistency()
-        return self
+
