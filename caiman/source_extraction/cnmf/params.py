@@ -1091,3 +1091,14 @@ class CNMFParams(object):
                     logging.warning(f"No subobject {gr} in parameter dict")
         self.check_consistency()
 
+    def change_params_from_json(self, jsonstring:str, verbose:bool=False) -> None:
+        """ Same as change_params, except it takes json as input """
+        to_load = json.loads(jsonstring)
+        self.change_params(to_load, verbose=verbose)
+
+    def change_params_from_jsonfile(self, json_fn:str, verbose:bool=False) -> None:
+        """ Same as change_params, except it takes a json file as input; pass the filename """
+        with open(json_fn, 'r') as json_fh:
+            to_load = json.load(json_fh)
+        self.change_params(to_load, verbose=verbose)
+
