@@ -1033,11 +1033,19 @@ class CNMFParams(object):
     def to_dict(self) -> dict:
         """Returns the params class as a dictionary with subdictionaries for each
         category."""
-        return {'data': self.data, 'spatial_params': self.spatial, 'temporal_params': self.temporal,
-                'init_params': self.init, 'preprocess_params': self.preprocess,
-                'patch_params': self.patch, 'online': self.online, 'quality': self.quality,
-                'merging': self.merging, 'motion': self.motion, 'ring_CNN': self.ring_CNN
-                }
+        return {
+               'data': self.data,
+               'init': self.init,
+               'merging': self.merging,
+               'motion': self.motion,
+               'online': self.online,
+               'patch': self.patch,
+               'preprocess': self.preprocess,
+               'ring_CNN': self.ring_CNN,
+               'quality': self.quality,
+               'spatial': self.spatial,
+               'temporal': self.temporal
+               }
 
     def to_json(self) -> str:
         """ Reversibly serialise CNMFParams to json """
