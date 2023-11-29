@@ -1076,19 +1076,41 @@ class CNMFParams(object):
 
         return 'CNMFParams:\n\n' + '\n\n'.join(formatted_outputs)
 
-    def change_params(self, params_dict, verbose=False) -> None:
-        """ Method for updating the params object by providing a single dictionary.
+    def change_params(self, params_dict, allow_legacy=True, warn_unused=True, verbose=False) -> None:
+        """ Method for updating the params object by providing a dictionary.
 
         Args:
             params_dict: dictionary with parameters to be changed
-            verbose: bool (False). If true, will complain if the params dictionary is not complete
+            verbose: If true, will complain if the params dictionary is not complete
+            allow_legacy: If True, throw a deprecation warning and then attempt to
+                          handle unconsumed keys using the older copy-it-everywhere logic.
+                          We will eventually remove this option and the corresponding code.
+            warn_unused: If True, emit warnings when the params dict has fields in it that
+                         were never used in populating the Params object. You really should not
+                         set this to False. Fix your code.
         """
-        for gr in list(self.__dict__.keys()):
-            if gr in params_dict:
-                self.set(gr, params_dict[gr], verbose=verbose)
-            else:
-                if verbose:
-                    logging.warning(f"No subobject {gr} in parameter dict")
+        consumed = {} # Keep track of what parameters in params_dict were used to set something in params
+        for paramkey in params_dict:
+            if paramkey in list(self.__dict__.keys()):
+                self.set(paramkey, params_dict[paramkey], verbose=verbose)
+                consumed[paramkey] = True
+        # BEGIN code that we will remove in some future version of caiman
+        if allow_legacy:
+            legacy_used = False
+            for remaining_k in params_dict: # This used to be handled by self.set()
+                for category in list(self.__dict__.keys()):
+                    cat_handle = getattr(self, category) # Thankfully a read-write handle
+                    if remaining_k in cat_handle: # Is it known?
+                        legacy_used = True
+                        consumed[remaining_k] = True
+                        cat_handle[remaining_k] = params_dict[remaining_k] # Do the update
+            if legacy_used:
+                logging.warning(f"In setting CNMFParams, non-pathed parameters were used; this is deprecated. allow_legacy will default to False, and then will be removed in future versions of Caiman")
+        # END
+        if warn_unused:
+            for toplevel_k in params_dict:
+                if toplevel_k not in consumed:
+                    logging.warning(f"In setting CNMFParams, provided toplevel key {toplevel_k} was unused. This is a bug!")
         self.check_consistency()
 
     def change_params_from_json(self, jsonstring:str, verbose:bool=False) -> None:
