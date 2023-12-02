@@ -8,6 +8,7 @@ import pkg_resources
 from pprint import pformat
 import scipy
 from scipy.ndimage import generate_binary_structure, iterate_structure
+from typing import Optional
 
 import caiman.utils.utils
 import caiman.base.movies
