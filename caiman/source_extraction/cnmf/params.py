@@ -1123,21 +1123,24 @@ class CNMFParams(object):
         """
         consumed = {} # Keep track of what parameters in params_dict were used to set something in params
         for paramkey in params_dict:
-            if paramkey in list(self.__dict__.keys()):
-                self.set(paramkey, params_dict[paramkey], verbose=verbose)
-                consumed[paramkey] = True
-        # BEGIN code that we will remove in some future version of caiman
-        if allow_legacy:
-            legacy_used = False
-            for remaining_k in params_dict: # This used to be handled by self.set()
+            if paramkey in list(self.__dict__.keys()): # Proper pathed part
+                cat_handle = getattr(self, paramkey)
+                for k, v in params_dict[paramkey].items():
+                    if k not in cat_handle and warn_unused:
+                        logging.warning(f"In setting CNMFParams, provided key {paramkey}/{k} was not consumed. This is a bug!")
+                    else:
+                        cat_handle[k] = v 
+            # BEGIN code that we will remove in some future version of caiman
+            elif allow_legacy:
                 for category in list(self.__dict__.keys()):
                     cat_handle = getattr(self, category) # Thankfully a read-write handle
-                    if remaining_k in cat_handle: # Is it known?
+                    if paramkey in cat_handle: # Is it known?
                         legacy_used = True
-                        consumed[remaining_k] = True
-                        cat_handle[remaining_k] = params_dict[remaining_k] # Do the update
-            if legacy_used:
-                logging.warning(f"In setting CNMFParams, non-pathed parameters were used; this is deprecated. allow_legacy will default to False, and then will be removed in future versions of Caiman")
+                        consumed[paramkey] = True
+                        cat_handle[paramkey] = params_dict[paramkey] # Do the update
+                if legacy_used:
+                    logging.warning(f"In setting CNMFParams, non-pathed parameters were used; this is deprecated. allow_legacy will default to False, and then will be removed in future versions of Caiman")
+                
         # END
         if warn_unused:
             for toplevel_k in params_dict:
