@@ -1140,11 +1140,10 @@ class CNMFParams(object):
                         cat_handle[paramkey] = params_dict[paramkey] # Do the update
                 if legacy_used:
                     logging.warning(f"In setting CNMFParams, non-pathed parameters were used; this is deprecated. allow_legacy will default to False, and then will be removed in future versions of Caiman")
-                
         # END
         if warn_unused:
             for toplevel_k in params_dict:
-                if toplevel_k not in consumed:
+                if toplevel_k not in consumed and toplevel_k not in list(self.__dict__.keys()):
                     logging.warning(f"In setting CNMFParams, provided toplevel key {toplevel_k} was unused. This is a bug!")
         self.check_consistency()
 
