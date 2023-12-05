@@ -984,15 +984,22 @@ class CNMFParams(object):
                 logging.warning(key + "=0, hence setting key update_num_comps " +
                                 "in group online automatically to False.")
 
-    def set(self, group, val_dict, set_if_not_exists=False, verbose=False):
+    def set(self, group:str, val_dict:dict, set_if_not_exists:bool=False, verbose=False) -> None:
         """ Add key-value pairs to a group. Existing key-value pairs will be overwritten
             if specified in val_dict, but not deleted.
 
         Args:
-            group: The name of the group.
-            val_dict: A dictionary with key-value pairs to be set for the group.
-            set_if_not_exists: Whether to set a key-value pair in a group if the key does not currently exist in the group.
+            group: The name of the group
+            val_dict: A dictionary with key-value pairs to be set for the group
+            warn_unused: 
+            set_if_not_exists: Whether to set a key-value pair in a group if the key does not currently exist in the group. (DEPRECATED)
         """
+
+        if set_if_not_exists:
+            logging.warning("The set_if_not_exists flag for CNMFParams.set() is deprecated and will be removed in a future version of Caiman")
+            # can't easily catch if it's passed but set to False, but that wouldn't do anything because of the default,
+            # and if they get that error it's at least really easy to fix - just remove the flag
+            # we don't want to support this because it makes the structure of the object unpredictable except at runtime
 
         if not hasattr(self, group):
             raise KeyError(f'No group in CNMFParams named {group}')
@@ -1002,7 +1009,7 @@ class CNMFParams(object):
             if k not in d and not set_if_not_exists:
                 if verbose:
                     logging.warning(
-                        f"NOT setting value of key {k} in group {group}, because no prior key existed...")
+                        f"{group}/{k} not set: invalid target in CNMFParams object")
             else:
                 try:
                     if np.any(d[k] != v):
@@ -1108,7 +1115,7 @@ class CNMFParams(object):
 
         return 'CNMFParams:\n\n' + '\n\n'.join(formatted_outputs)
 
-    def change_params(self, params_dict, allow_legacy=True, warn_unused=True, verbose=False) -> None:
+    def change_params(self, params_dict, allow_legacy:bool=True, warn_unused:bool=True, verbose:bool=False) -> None:
         """ Method for updating the params object by providing a dictionary.
 
         Args:
@@ -1121,12 +1128,15 @@ class CNMFParams(object):
                          were never used in populating the Params object. You really should not
                          set this to False. Fix your code.
         """
-        consumed = {} # Keep track of what parameters in params_dict were used to set something in params
+        # When we're ready to remove allow_legacy, this code will get a lot simpler
+
+        consumed = {} # Keep track of what parameters in params_dict were used to set something in params (just for legacy API)
         for paramkey in params_dict:
             if paramkey in list(self.__dict__.keys()): # Proper pathed part
                 cat_handle = getattr(self, paramkey)
                 for k, v in params_dict[paramkey].items():
                     if k not in cat_handle and warn_unused:
+                        # For regular/pathed API, we can notice right away if the user gave us something that won't update the object
                         logging.warning(f"In setting CNMFParams, provided key {paramkey}/{k} was not consumed. This is a bug!")
                     else:
                         cat_handle[k] = v 
@@ -1143,7 +1153,7 @@ class CNMFParams(object):
         # END
         if warn_unused:
             for toplevel_k in params_dict:
-                if toplevel_k not in consumed and toplevel_k not in list(self.__dict__.keys()):
+                if toplevel_k not in consumed and toplevel_k not in list(self.__dict__.keys()): # When we remove legacy behaviour, this logic will simplify and fold into above
                     logging.warning(f"In setting CNMFParams, provided toplevel key {toplevel_k} was unused. This is a bug!")
         self.check_consistency()
 
