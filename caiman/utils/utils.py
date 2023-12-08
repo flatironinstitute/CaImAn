@@ -675,7 +675,7 @@ def get_caiman_version() -> tuple[str, str]:
             for line in sfh:
                 if ':' in line: # expect a line like "Version:1.3"
                     _, version = line.rstrip().split(':')
-                    return 'RELF', version 
+                    return 'RELEASE', version 
 
     # Attempt: 'FILE'
     # Right now this samples the utils directory
