@@ -2553,7 +2553,7 @@ def play_movie(movie,
                     if save_movie:
                         if frame.ndim < 3:
                             frame = np.repeat(frame[:, :, None], 3, axis=-1)
-                        frame = np.minimum((frame * 255.), 255).astype('u1')
+                        frame = frame.astype('u1') 
                         out.write(frame)
                     if backend == 'opencv' and (cv2.waitKey(int(1. / fr * 1000)) & 0xFF == ord('q')):
                         looping = False
