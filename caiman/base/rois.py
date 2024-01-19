@@ -720,7 +720,7 @@ def distance_masks(M_s:list, cm_s: list[list], max_dist: float, enclosed_thr: Op
     for gt_comp, test_comp, cmgt_comp, cmtest_comp in zip(M_s[:-1], M_s[1:], cm_s[:-1], cm_s[1:]):
 
         # todo : better with a function that calls itself
-        # not to interfer with M_s
+        # not to interfere with M_s
         gt_comp = gt_comp.copy()[:, :]
         test_comp = test_comp.copy()[:, :]
 
@@ -753,8 +753,8 @@ def distance_masks(M_s:list, cm_s: list[list], max_dist: float, enclosed_thr: Op
                     # if we don't have even a union this is pointless
                     if union > 0:
 
-                        # intersection is removed from union since union contains twice the overlaping area
-                        # having the values in this format 0-1 is helpfull for the hungarian algorithm that follows
+                        # intersection is removed from union since union contains twice the overlapping area
+                        # having the values in this format 0-1 is helpful for the hungarian algorithm that follows
                         D[i, j] = 1 - 1. * intersection / \
                             (union - intersection)
                         if enclosed_thr is not None:
@@ -791,7 +791,7 @@ def find_matches(D_s, print_assignment: bool = False) -> tuple[list, list]:
         matches.append(indexes)
         DD = D.copy()
         total = []
-        # we want to extract those informations from the hungarian algo
+        # we want to extract those information from the hungarian algo
         for row, column in indexes2:
             value = DD[row, column]
             if print_assignment:
@@ -1095,7 +1095,7 @@ def extract_binary_masks_blob(A,
 
     Args:
         A: scipy.sparse matrix
-            contains the components as outputed from the CNMF algorithm
+            contains the components as outputted from the CNMF algorithm
 
         neuron_radius: float
             neuronal radius employed in the CNMF settings (gSiz)

@@ -76,7 +76,7 @@ def main():
     #                      change this one if algorithm does not work
     max_shifts = (5, 5)  # maximum allowed rigid shift
     strides = (48, 48)   # start a new patch for pw-rigid motion correction every x pixels
-    overlaps = (24, 24)  # overlap between pathes (size of patch strides+overlaps)
+    overlaps = (24, 24)  # overlap between patches (size of patch strides+overlaps)
     # maximum deviation allowed for patch with respect to rigid shifts
     max_deviation_rigid = 3
     border_nan = 'copy'

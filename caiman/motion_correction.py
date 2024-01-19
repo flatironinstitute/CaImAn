@@ -113,7 +113,7 @@ class MotionCorrect(object):
                will quickly initialize a template with the first frames
 
            splits_rig': int
-            for parallelization split the movies in  num_splits chuncks across time
+            for parallelization split the movies in  num_splits chunks across time
 
            num_splits_to_process_rig: list,
                if none all the splits are processed and the movie is saved, otherwise at each iteration
@@ -123,13 +123,13 @@ class MotionCorrect(object):
                intervals at which patches are laid out for motion correction
 
            overlaps: tuple
-               overlap between pathes (size of patch strides+overlaps)
+               overlap between patches (size of patch strides+overlaps)
 
            pw_rigig: bool, default: False
                flag for performing motion correction when calling motion_correct
 
            splits_els':list
-               for parallelization split the movies in  num_splits chuncks across time
+               for parallelization split the movies in  num_splits chunks across time
 
            num_splits_to_process_els: list,
                if none all the splits are processed and the movie is saved  otherwise at each iteration
@@ -404,7 +404,7 @@ class MotionCorrect(object):
 
             rigid_shifts: bool (True)
                 apply rigid or pw-rigid shifts (must exist in the mc object)
-                deprectated (read directly from mc.pw_rigid)
+                deprecated (read directly from mc.pw_rigid)
 
             save_memmap: bool (False)
                 flag for saving the resulting file in memory mapped form
@@ -2118,7 +2118,7 @@ def tile_and_correct(img, template, strides, overlaps, max_shifts, newoverlaps=N
             strides of the patches in which the FOV is subdivided
 
         overlaps: tuple
-            amount of pixel overlaping between patches along each dimension
+            amount of pixel overlapping between patches along each dimension
 
         max_shifts: tuple
             max shifts in x and y
@@ -2127,7 +2127,7 @@ def tile_and_correct(img, template, strides, overlaps, max_shifts, newoverlaps=N
             strides between patches along each dimension when upsampling the vector fields
 
         newoverlaps:tuple
-            amount of pixel overlaping between patches along each dimension when upsampling the vector fields
+            amount of pixel overlapping between patches along each dimension when upsampling the vector fields
 
         upsample_factor_grid: int
             if newshapes or newstrides are not specified this is inferred upsampling by a constant factor the cvector field
@@ -2308,7 +2308,7 @@ def tile_and_correct(img, template, strides, overlaps, max_shifts, newoverlaps=N
 
             new_img = new_img / normalizer
 
-        else:  # in case the difference in shift between neighboring patches is larger than 0.5 pixels we do not interpolate in the overlaping area
+        else:  # in case the difference in shift between neighboring patches is larger than 0.5 pixels we do not interpolate in the overlapping area
             half_overlap_x = int(newoverlaps[0] / 2)
             half_overlap_y = int(newoverlaps[1] / 2)
             for (x, y), (idx_0, idx_1), im, (_, _), weight_mat in zip(start_step, xy_grid, imgs, total_shifts, weight_matrix):
@@ -2366,7 +2366,7 @@ def tile_and_correct_3d(img:np.ndarray, template:np.ndarray, strides:tuple, over
             strides of the patches in which the FOV is subdivided
 
         overlaps: tuple
-            amount of pixel overlaping between patches along each dimension
+            amount of pixel overlapping between patches along each dimension
 
         max_shifts: tuple
             max shifts in x, y, and z
@@ -2375,7 +2375,7 @@ def tile_and_correct_3d(img:np.ndarray, template:np.ndarray, strides:tuple, over
             strides between patches along each dimension when upsampling the vector fields
 
         newoverlaps:tuple
-            amount of pixel overlaping between patches along each dimension when upsampling the vector fields
+            amount of pixel overlapping between patches along each dimension when upsampling the vector fields
 
         upsample_factor_grid: int
             if newshapes or newstrides are not specified this is inferred upsampling by a constant factor the cvector field
@@ -2572,7 +2572,7 @@ def tile_and_correct_3d(img:np.ndarray, template:np.ndarray, strides:tuple, over
 
             new_img = new_img / normalizer
 
-        else:  # in case the difference in shift between neighboring patches is larger than 0.5 pixels we do not interpolate in the overlaping area
+        else:  # in case the difference in shift between neighboring patches is larger than 0.5 pixels we do not interpolate in the overlapping area
             half_overlap_x = int(newoverlaps[0] / 2)
             half_overlap_y = int(newoverlaps[1] / 2)
             half_overlap_z = int(newoverlaps[2] / 2)
@@ -2966,7 +2966,7 @@ def motion_correct_batch_pwrigid(fname, max_shifts, strides, overlaps, add_to_mo
             list of produced templates, one per batch
 
         shifts: list
-            inferred rigid shifts to corrrect the movie
+            inferred rigid shifts to correct the movie
 
     Raises:
         Exception 'You need to initialize the template with a good estimate. See the motion'

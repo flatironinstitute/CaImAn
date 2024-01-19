@@ -92,7 +92,6 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
             'ipyparallel', 'single_thread'
             single_thread:no parallelization. It can be used with small datasets.
             ipyparallel: uses ipython clusters and then send jobs to each of them
-            SLURM: use the slurm scheduler
 
         n_pixels_per_process: [optional] int
             number of pixels to be processed by each thread
@@ -160,6 +159,7 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
 
         Exception "Failed to delete: " + folder
     """
+    # TODO fix documentation on backend
     #logging.info('Initializing update of Spatial Components')
 
     if expandCore is None:
@@ -498,7 +498,7 @@ def threshold_components(A, dims, medw=None, thr_method='max', maxthr=0.1, nrgth
         ss = np.ones((3,) * len(dims), dtype='uint8')
     # dims and nm of neurones
     d, nr = np.shape(A)
-    # instanciation of A thresh.
+    # instantiation of A thresh.
     #Ath = np.zeros((d, nr))
     pars = []
     # for each neurons

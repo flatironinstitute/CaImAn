@@ -157,7 +157,7 @@ def get_mask(gSig=5, r_factor=1.5, width=5):
             radius of average neuron
 
         r_factor: float, default: 1.5
-            expansion factor to deteremine inner radius
+            expansion factor to determine inner radius
 
         width: int, default: 5
             width of ring kernel
@@ -203,7 +203,7 @@ class Hadamard(Layer):
     pointwise multiplication with a set of learnable weights.
 
     Args:
-        initializer: keras initializer, deafult: Constant(0.1)
+        initializer: keras initializer, default: Constant(0.1)
     """
     def __init__(self, initializer=Constant(0.1), **kwargs): #, output_dim):
         self.initializer = initializer
@@ -230,7 +230,7 @@ class Additive(Layer):
     pointwise addition with a set of learnable weights.
 
     Args:
-        initializer: keras initializer, deafult: Constant(0)
+        initializer: keras initializer, default: Constant(0)
     """
     def __init__(self, data=None, initializer=Constant(0), pct=1, **kwargs):
         self.data = data
@@ -309,7 +309,7 @@ def total_variation_loss():
     return my_total_variation_loss
 
 def b0_initializer(Y, pct=10):
-    """ Returns a pecentile based initializer for the additive layer (not used)
+    """ Returns a percentile based initializer for the additive layer (not used)
 
     Args:
         Y: np.array
@@ -365,7 +365,7 @@ def create_LN_model(Y=None, shape=(None, None, 1), n_channels=2, gSig=5, r_facto
             radius of average neuron
 
         r_factor: float, default: 1.5
-            expansion factor to deteremine inner radius
+            expansion factor to determine inner radius
 
         width: int, default: 5
             width of ring kernel
@@ -434,7 +434,7 @@ def create_NL_model(Y=None, shape=(None, None, 1), n_channels=8, gSig=5, r_facto
             radius of average neuron
 
         r_factor: float, default: 1.5
-            expansion factor to deteremine inner radius
+            expansion factor to determine inner radius
 
         width: int, default: 5
             width of ring kernel

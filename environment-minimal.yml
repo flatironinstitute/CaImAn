@@ -22,4 +22,4 @@ dependencies:
 - tensorflow >=2.4.0
 - tifffile
 - tqdm
-- z5py >=2.0.15
+- zarr

@@ -11,6 +11,7 @@ https://docs.python.org/3/library/urllib.request.htm
 """
 
 import certifi
+import contextlib
 import cv2
 import h5py
 import multiprocessing
@@ -24,6 +25,7 @@ import scipy
 import ssl
 import subprocess
 import tensorflow as tf
+import time
 from scipy.ndimage import gaussian_filter
 from tifffile import TiffFile
 from typing import Any, Union, Iterable
@@ -673,7 +675,7 @@ def get_caiman_version() -> tuple[str, str]:
             for line in sfh:
                 if ':' in line: # expect a line like "Version:1.3"
                     _, version = line.rstrip().split(':')
-                    return 'RELF', version 
+                    return 'RELEASE', version 
 
     # Attempt: 'FILE'
     # Right now this samples the utils directory
@@ -684,4 +686,19 @@ def get_caiman_version() -> tuple[str, str]:
         if last_modified > newest:
             newest = last_modified
     return 'FILE', str(int(newest))
+
+class caitimer(contextlib.ContextDecorator):
+    """ This is a simple context manager that you can use like this to get timing information on functions you call:
+        with caiman.utils.utils.caitimer("CNMF fit"):
+            cnm = cnm.fit(images)
+
+        When the context exits it will say how long it was open. Useful for easy function benchmarking """
+
+    def __init__(self, msg):
+        self.message = msg
+    def __enter__(self):
+        self.start = time.time()
+        return self
+    def __exit__(self, type, value, traceback):
+        print(f"{self.message}: {time.time() - self.start}")
 

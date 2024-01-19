@@ -411,7 +411,7 @@ def get_spiketimes(trace1, thresh1, trace2, thresh2, tlimit):
     times = np.where((trace1[:tlimit] > thresh1[:tlimit]) &
                      (trace2[:tlimit] > thresh2[:tlimit]))[0]
 
-    # group neigbours together
+    # group neighbours together
     if (times.size > 0):
         ls = [[times[0]]]
         for t in times[1:]:
