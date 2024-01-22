@@ -151,7 +151,7 @@ def constrained_foopsi(fluor, bl=None,  c1=None, g=None,  sn=None, p=None, metho
 
                 c1 = c[0]
 
-                # remove intial calcium to align with the other foopsi methods
+                # remove initial calcium to align with the other foopsi methods
                 # it is added back in function constrained_foopsi_parallel of temporal.py
                 c -= c1 * g**np.arange(len(fluor))
             elif p == 2:
@@ -323,7 +323,7 @@ def cvxpy_foopsi(fluor, g, sn, b=None, c1=None, bas_nonneg=True, solvers=None):
             should the baseline be estimated
 
         solvers: tuple of two strings
-            primary and secondary solvers to be used. Can be choosen between ECOS, SCS, CVXOPT
+            primary and secondary solvers to be used. Can be chosen between ECOS, SCS, CVXOPT
 
     Returns:
         c: estimated calcium trace
@@ -332,7 +332,7 @@ def cvxpy_foopsi(fluor, g, sn, b=None, c1=None, bas_nonneg=True, solvers=None):
 
         c1: esimtated initial calcium value
 
-        g: esitmated parameters of the autoregressive model
+        g: estimated parameters of the autoregressive model
 
         sn: estimated noise level
 
@@ -501,7 +501,7 @@ def _nnls(KK, Ky, s=None, mask=None, tol=1e-9, max_iter=None):
         w = np.argmax(l)
         P[w] = True
 
-        try:  # likely unnnecessary try-except-clause for robustness sake
+        try:  # likely unnecessary try-except-clause for robustness sake
             #mu = np.linalg.inv(KK[P][:, P]).dot(Ky[P])
             mu = np.linalg.solve(KK[P][:, P], Ky[P])
         except:
@@ -552,7 +552,7 @@ def onnls(y, g, lam=0, shift=100, window=None, mask=None, tol=1e-9, max_iter=Non
         shift : int, optional, default 100
             Number of frames by which to shift window from on run of NNLS to the next.
     
-        window : int, optional, default None (200 or larger dependend on g)
+        window : int, optional, default None (200 or larger dependent on g)
             Window size.
     
         mask : array of bool, shape (n,), optional, default (True,)*n
@@ -671,7 +671,7 @@ def constrained_oasisAR2(y, g, sn, optimize_b=True, b_nonneg=True, optimize_g=0,
         shift : int, optional, default 100
             Number of frames by which to shift window from on run of NNLS to the next.
     
-        window : int, optional, default None (200 or larger dependend on g)
+        window : int, optional, default None (200 or larger dependent on g)
             Window size.
     
         tol : float, optional, default 1e-9

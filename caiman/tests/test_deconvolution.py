@@ -19,7 +19,7 @@ logging.basicConfig(
 
 def gen_data(g=[.95], sn=.2, T=1000, framerate=30, firerate=.5, b=10, N=1, seed=0):
     """
-    Generate data from homogenous Poisson Process
+    Generate data from homogeneous Poisson Process
 
     Parameters
     ----------

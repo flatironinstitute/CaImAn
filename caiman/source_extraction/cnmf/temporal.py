@@ -113,7 +113,6 @@ def update_temporal_components(Y, A, b, Cin, fin, bl=None, c1=None, g=None, sn=N
             ipyparallel, parallelization using the ipyparallel cluster.
             You should start the cluster (install ipyparallel and then type
             ipcluster -n 6, where 6 is the number of processes).
-            SLURM: using SLURM scheduler
 
         memory_efficient: Bool
             whether or not to optimize for memory usage (longer running times). necessary with very large datasets
@@ -287,7 +286,6 @@ def update_iteration(parrllcomp, len_parrllcomp, nb, C, S, bl, nr,
             ipyparallel, parallelization using the ipyparallel cluster.
             You should start the cluster (install ipyparallel and then type
             ipcluster -n 6, where 6 is the number of processes).
-            SLURM: using SLURM scheduler
 
         memory_efficient: Bool
             whether or not to optimize for memory usage (longer running times). necessary with very large datasets

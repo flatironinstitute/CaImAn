@@ -64,7 +64,7 @@ In addition to the demos, there are many ways to learn more about Caiman and rec
 - [GitHub Discussions](https://github.com/flatironinstitute/CaImAn/discussions) is our preferred venue to ask for help.
 - The [Gitter forum](https://app.gitter.im/#/room/#agiovann_Constrained_NMF:gitter.im) is our old forum: we sometimes will ask people to join us there when something can best be solved in real time.
 - If you have found a bug, we recommend searching the [issues at github](https://github.com/flatironinstitute/CaImAn/issues) and opening a new issue if you can't find the solution there. 
-- If there is a feature you would like to see implemented, feel free to come chat at the above forumns or open an issue at Github.
+- If there is a feature you would like to see implemented, feel free to come chat at the above forums or open an issue at Github.
 
 # How to contribute :hammer:
  Caiman is an open-source project and improves because of contributions from users all over the world. If there is something about Caiman that you would like to work on, then please reach out. We are always looking for more contributors, so please come read the [contributors page](./CONTRIBUTING.md) for more details about how. 

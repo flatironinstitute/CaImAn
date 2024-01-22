@@ -26,3 +26,4 @@ tifffile
 tk
 tqdm
 yapf
+zarr

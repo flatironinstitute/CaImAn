@@ -181,9 +181,9 @@ place demos and data in a ``caiman_data`` folder in your home directory. Install
 
 if you used the conda-forge package or the ``pip install .`` option.
 
-If you installed using the developer-mode option (``installing with ``pip install -e .``) then run caimanmanager with:
+If you installed using the developer-mode option (installing with ``pip install -e .``) then run caimanmanager with:
 
-``python caimanmanager install --inplace`` 
+``caimanmanager install --inplace`` 
 
 If you prefer to manage this information somewhere other than your home directory, the
 ``CAIMAN_DATA`` environment variable can be set to customise it. The caimanmanager tool 

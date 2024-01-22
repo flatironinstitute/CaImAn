@@ -12,7 +12,7 @@ class volparams(object):
                  sigmas=np.array([1, 1.5, 2]), n_iter=2, weight_update='ridge', do_plot=False,  
                  do_cross_val=False, sub_freq=20, method='spikepursuit', superfactor=10, params_dict={}):
         """Class for setting parameters for voltage imaging. Including parameters for the data, motion correction and
-        spike detection. The prefered way to set parameters is by using the set function, where a subclass is determined
+        spike detection. The preferred way to set parameters is by using the set function, where a subclass is determined
         and a dictionary is passed. The whole dictionary can also be initialized at once by passing a dictionary
         params_dict when initializing the CNMFParams object.
         """

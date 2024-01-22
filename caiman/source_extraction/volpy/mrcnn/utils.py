@@ -136,7 +136,7 @@ def non_max_suppression(boxes, scores, threshold):
     x2 = boxes[:, 3]
     area = (y2 - y1) * (x2 - x1)
 
-    # Get indicies of boxes sorted by scores (highest first)
+    # Get indices of boxes sorted by scores (highest first)
     ixs = scores.argsort()[::-1]
 
     pick = []

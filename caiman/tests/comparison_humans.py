@@ -422,7 +422,7 @@ for params_movie in np.array(params_movies)[ID]:
                                       thresh_subset=0.6)
     gt_estimate.select_components(use_object=True)
     print(gt_estimate.A_thr.shape)
-    # %% prepare CNMF maks
+    # %% prepare CNMF mask
     cnm2.estimates.threshold_spatial_components(maxthr=0.2, dview=dview)
     cnm2.estimates.remove_small_large_neurons(min_size_neuro, max_size_neuro)
     cnm2.estimates.remove_duplicates(r_values=None, dist_thr=0.1, min_dist=10, thresh_subset=0.6)

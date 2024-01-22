@@ -72,6 +72,9 @@ def do_install_to(targdir: str, inplace: bool = False, force: bool = False) -> N
             shutil.copy(stdmovie, os.path.join(targdir, 'example_movies'))
         for extrafile in extra_files:
             shutil.copy(extrafile, targdir)
+    if 'CAIMAN_RELEASE' in os.environ:
+        with open(os.path.join(targdir, 'RELEASE'), 'w') as verfile_fh:
+            print(f"Version:{caiman.__version__}", file=verfile_fh)
     print("Installed " + targdir)
 
 

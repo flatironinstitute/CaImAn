@@ -686,7 +686,7 @@ class OnACID(object):
                             self.estimates.downscale_matrix.dot(
                                 self.estimates.b0)) - Ab_.T.dot(self.estimates.b0)
 
-                # set the update counter to 0 for components that are overlaping the newly added
+                # set the update counter to 0 for components that are overlapping the newly added
                 idx_overlap = self.estimates.AtA[nb_:-num_added, -num_added:].nonzero()[0]
                 self.update_counter[idx_overlap] = 0
             self.t_detect.append(time() - t_new)
@@ -1281,7 +1281,7 @@ class OnACID(object):
                                             ' contains NaN')
                         if t % 500 == 0:
                             logging.info('Epoch: ' + str(iter + 1) + '. ' + str(t) +
-                                         ' frames have beeen processed in total. ' +
+                                         ' frames have been processed in total. ' +
                                          str(self.N - old_comps) +
                                          ' new components were added. Total # of components is '
                                          + str(self.estimates.Ab.shape[-1] - self.params.get('init', 'nb')))
@@ -1556,7 +1556,7 @@ def seeded_initialization(Y, Ain, dims=None, init_batch=1000, order_init=None, g
                         number of background components
 
         order_init:     list
-                        order of elements to be initalized using rank1 nmf restricted to the support of
+                        order of elements to be initialized using rank1 nmf restricted to the support of
                         each component
 
     Output:
@@ -1867,7 +1867,7 @@ def init_shapes_and_sufficient_stats(Y, A, C, b, f, W=None, b0=None, ssub_B=1, b
     A_smooth = np.transpose([gaussian_filter(np.array(a).reshape(
         dims, order='F'), 0).ravel(order='F') for a in Ab.T])
     A_smooth[A_smooth < 1e-2] = 0
-    # set explicity zeros of Ab to small value, s.t. ind_A and Ab.indptr match
+    # set explicitly zeros of Ab to small value, s.t. ind_A and Ab.indptr match
     Ab += 1e-6 * A_smooth
     Ab = csc_matrix(Ab)
     ind_A = [Ab.indices[Ab.indptr[m]:Ab.indptr[m + 1]]
@@ -2251,7 +2251,7 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
 
     # number of total components (including background)
     M = np.shape(Ab)[-1]
-    N = M - gnb                 # number of coponents (without background)
+    N = M - gnb                 # number of components (without background)
 
     if corr_img is None:
         sv -= rho_buf.get_first()
