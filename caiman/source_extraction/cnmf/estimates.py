@@ -651,13 +651,15 @@ class Estimates(object):
 
         Y_res = imgs - Y_rec - B
         if use_color:
+            print("using color: concat time")
             if bpx > 0:
                 Y_rec_color = Y_rec_color[:, bpx:-bpx, bpx:-bpx]
             mov = caiman.concatenate((np.repeat(np.expand_dims(imgs - (not include_bck) * B, -1), 3, 3),
                                       Y_rec_color + include_bck * np.expand_dims(B*gain_bck, -1),
                                       np.repeat(np.expand_dims(Y_res * gain_res, -1), 3, 3)), axis=2)
         else:
-            mov = caiman.concatenate((imgs[frame_range] - (not include_bck) * B,
+            print("no color: concat time")
+            mov = caiman.concatenate((imgs - (not include_bck) * B,
                                       Y_rec + include_bck * B, Y_res * gain_res), axis=2)
         if not display:
             return mov
