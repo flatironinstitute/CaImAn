@@ -208,7 +208,6 @@ def setup_cluster(backend:str = 'multiprocessing',
             Only used for multiprocessing, default None (number of tasks a worker process can 
             complete before it will exit and be replaced with a fresh worker process).
             
-
     Returns:
         c: ipyparallel.Client object; only used for ipyparallel backends, else None
         dview: multicore processing engine that is used for parallel processing. 

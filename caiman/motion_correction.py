@@ -2157,7 +2157,7 @@ def tile_and_correct(img, template, strides, overlaps, max_shifts, newoverlaps=N
 
 
     """
-
+    logging.debug("Starting tile and correct")
     img = img.astype(np.float64).copy()
     template = template.astype(np.float64).copy()
 
@@ -2194,6 +2194,7 @@ def tile_and_correct(img, template, strides, overlaps, max_shifts, newoverlaps=N
         return new_img - add_to_movie, (-rigid_shts[0], -rigid_shts[1]), None, None
     else:
         # extract patches
+        logging.info("Extracting patches")
         templates = [
             it[-1] for it in sliding_window(template, overlaps=overlaps, strides=strides)]
         xy_grid = [(it[0], it[1]) for it in sliding_window(
@@ -2216,6 +2217,7 @@ def tile_and_correct(img, template, strides, overlaps, max_shifts, newoverlaps=N
             ub_shifts = None
 
         # extract shifts for each patch
+        logging.info("extracting shifts for each patch")
         shfts_et_all = [register_translation(
             a, b, c, shifts_lb=lb_shifts, shifts_ub=ub_shifts, max_shifts=max_shifts, use_cuda=use_cuda) for a, b, c in zip(
             imgs, templates, [upsample_factor_fft] * num_tiles)]
@@ -3178,7 +3180,7 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
 
     pars = []
     for idx in idxs:
-        logging.debug(f'Processing: frames: {idx}')
+        logging.debug(f'Extracting parameters for frames: {idx}')
         pars.append([fname, fname_tot, idx, shape_mov, template, strides, overlaps, max_shifts, np.array(
             add_to_movie, dtype=np.float32), max_deviation_rigid, upsample_factor_grid,
             newoverlaps, newstrides, shifts_opencv, nonneg_movie, gSig_filt, is_fiji,
@@ -3190,6 +3192,7 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
             res = dview.map(tile_and_correct_wrapper,pars)
             dview.map(close_cuda_process, range(len(pars)))
         elif 'multiprocessing' in str(type(dview)):
+            logging.debug("entering multiprocessing tile_and_correct_wrapper")
             res = dview.map_async(tile_and_correct_wrapper, pars).get(4294967)
         else:
             res = dview.map_sync(tile_and_correct_wrapper, pars)
