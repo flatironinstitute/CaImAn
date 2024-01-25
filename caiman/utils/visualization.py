@@ -1143,9 +1143,9 @@ def plot_shapes(Ab, dims, num_comps=15, size=(15, 15), comps_per_row=None,
     pl.subplots_adjust(0, 0, 1, 1, .06, .06)
 
 
-def nb_inspect_correlation_pnr(corr, pnr):
+def nb_inspect_correlation_pnr(corr, pnr, cmap='jet', num_bins=100):
     """
-    inspect correlation and pnr images to infer the min_corr, min_pnr
+    inspect correlation and pnr images to infer the min_corr, min_pnr for cnmfe
 
     Args:
         corr: ndarray
@@ -1153,23 +1153,41 @@ def nb_inspect_correlation_pnr(corr, pnr):
 
         pnr: ndarray
             peak-to-noise image created with caiman.summary_images.correlation_pnr
+
+        cmap: string
+            colormap used for plotting corr and pnr images 
+            For valid colormaps see https://holoviews.org/user_guide/Colormaps.html
+
+        num_bins: int
+            number of bins to use for plotting histogram of corr/pnr values
+
+    Returns:
+        Holoviews plot layout (typically just plots in notebook)
     """
-    hv_corr = hv.Image(corr, vdims='corr', label='correlation')
-    hv_pnr = hv.Image(pnr, vdims='pnr', label='pnr')
 
-    def hist(im, rx, ry):
+    hv_corr = hv.Image(corr, 
+                       vdims='corr', 
+                       label='correlation').opts(cmap=cmap)
+    hv_pnr = hv.Image(pnr, 
+                      vdims='pnr', 
+                      label='pnr').opts(cmap=cmap)
+
+    def hist(im, rx, ry, num_bins=num_bins):
         obj = im.select(x=rx, y=ry) if rx and ry else im
-        return hv.operation.histogram(obj)
+        return hv.operation.histogram(obj, num_bins=num_bins)
 
-    str_corr = (hv.streams.RangeXY(source=hv_corr)
-                .rename(x_range='rx', y_range='ry'))
-    str_pnr = (hv.streams.RangeXY(source=hv_pnr)
-               .rename(x_range='rx', y_range='ry'))
+    str_corr = (hv.streams.RangeXY(source=hv_corr).rename(x_range='rx', y_range='ry'))
+    str_pnr = (hv.streams.RangeXY(source=hv_pnr).rename(x_range='rx', y_range='ry'))
+    
     hist_corr = hv.DynamicMap(
         fct.partial(hist, im=hv_corr), streams=[str_corr])
+    
     hist_pnr = hv.DynamicMap(
         fct.partial(hist, im=hv_pnr), streams=[str_pnr])
-    return (hv_corr << hist_corr) + (hv_pnr << hist_pnr)
+    
+    hv_layout = (hv_corr << hist_corr) + (hv_pnr << hist_pnr)
+
+    return hv_layout
 
 
 def inspect_correlation_pnr(correlation_image_pnr, pnr_image):
