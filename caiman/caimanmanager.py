@@ -12,6 +12,7 @@ import string
 import subprocess
 import sys     # for sys.prefix
 
+import caiman
 from caiman.paths import caiman_datadir
 
 sourcedir_base = os.path.join(sys.prefix, "share", "caiman")   # Setuptools will drop our datadir off here
