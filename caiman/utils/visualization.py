@@ -3,14 +3,10 @@
 
 """ List of plotting functions to visualize what's happening in the code """
 
-#\package Caiman/utils
-#\version   1.0
-#\copyright GNU General Public License v2.0
-#\date Created on Tue Jun 30 21:01:17 2016
-#\author: andrea giovannucci
-
 import base64
 import cv2
+import functools as fct
+import holoviews as hv
 from IPython.display import HTML
 from math import sqrt, ceil
 import matplotlib as mpl
@@ -20,16 +16,13 @@ from matplotlib.widgets import Slider
 import numpy as np
 from numpy.typing import ArrayLike
 import pylab as pl
-from scipy.ndimage.measurements import center_of_mass
-from scipy.ndimage.filters import median_filter
+from scipy.ndimage import center_of_mass, median_filter
 from scipy.sparse import issparse, spdiags, coo_matrix, csc_matrix
 from skimage.measure import find_contours
 import sys
 from tempfile import NamedTemporaryFile
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Optional
 from warnings import warn
-import holoviews as hv
-import functools as fct
 
 from ..base.rois import com
 from ..summary_images import local_correlations
@@ -39,6 +32,7 @@ try:
 except:
     pass
 
+#FIXME Look into converting this into a standard import
 try:
     import bokeh
     import bokeh.plotting as bpl
@@ -415,7 +409,7 @@ def get_contours(A, dims, thr=0.9, thr_method='nrg', swap_dim=False):
 
     # for each patches
     for i in range(nr):
-        pars:Dict = dict()
+        pars:dict = dict()
         # we compute the cumulative sum of the energy of the Ath component that has been ordered from least to highest
         patch_data = A.data[A.indptr[i]:A.indptr[i + 1]]
         indx = np.argsort(patch_data)[::-1]
@@ -489,7 +483,7 @@ def nb_view_patches3d(Y_r, A, C, dims, image_type='mean', Yr=None,
 
         image_type: 'mean', 'max' or 'corr'
             image to be overlaid to neurons
-            (average of shapes, maximum of shapes or nearest neigbor correlation of raw data)
+            (average of shapes, maximum of shapes or nearest neighbor correlation of raw data)
 
         Yr: np.ndarray
             movie, only required if image_type=='corr' to calculate correlation image
@@ -1149,9 +1143,9 @@ def plot_shapes(Ab, dims, num_comps=15, size=(15, 15), comps_per_row=None,
     pl.subplots_adjust(0, 0, 1, 1, .06, .06)
 
 
-def nb_inspect_correlation_pnr(corr, pnr):
+def nb_inspect_correlation_pnr(corr, pnr, cmap='jet', num_bins=100):
     """
-    inspect correlation and pnr images to infer the min_corr, min_pnr
+    inspect correlation and pnr images to infer the min_corr, min_pnr for cnmfe
 
     Args:
         corr: ndarray
@@ -1159,23 +1153,41 @@ def nb_inspect_correlation_pnr(corr, pnr):
 
         pnr: ndarray
             peak-to-noise image created with caiman.summary_images.correlation_pnr
+
+        cmap: string
+            colormap used for plotting corr and pnr images 
+            For valid colormaps see https://holoviews.org/user_guide/Colormaps.html
+
+        num_bins: int
+            number of bins to use for plotting histogram of corr/pnr values
+
+    Returns:
+        Holoviews plot layout (typically just plots in notebook)
     """
-    hv_corr = hv.Image(corr, vdims='corr', label='correlation')
-    hv_pnr = hv.Image(pnr, vdims='pnr', label='pnr')
 
-    def hist(im, rx, ry):
+    hv_corr = hv.Image(corr, 
+                       vdims='corr', 
+                       label='correlation').opts(cmap=cmap)
+    hv_pnr = hv.Image(pnr, 
+                      vdims='pnr', 
+                      label='pnr').opts(cmap=cmap)
+
+    def hist(im, rx, ry, num_bins=num_bins):
         obj = im.select(x=rx, y=ry) if rx and ry else im
-        return hv.operation.histogram(obj)
+        return hv.operation.histogram(obj, num_bins=num_bins)
 
-    str_corr = (hv.streams.RangeXY(source=hv_corr)
-                .rename(x_range='rx', y_range='ry'))
-    str_pnr = (hv.streams.RangeXY(source=hv_pnr)
-               .rename(x_range='rx', y_range='ry'))
+    str_corr = (hv.streams.RangeXY(source=hv_corr).rename(x_range='rx', y_range='ry'))
+    str_pnr = (hv.streams.RangeXY(source=hv_pnr).rename(x_range='rx', y_range='ry'))
+    
     hist_corr = hv.DynamicMap(
         fct.partial(hist, im=hv_corr), streams=[str_corr])
+    
     hist_pnr = hv.DynamicMap(
         fct.partial(hist, im=hv_pnr), streams=[str_pnr])
-    return (hv_corr << hist_corr) + (hv_pnr << hist_pnr)
+    
+    hv_layout = (hv_corr << hist_corr) + (hv_pnr << hist_pnr)
+
+    return hv_layout
 
 
 def inspect_correlation_pnr(correlation_image_pnr, pnr_image):
@@ -1222,11 +1234,11 @@ def inspect_correlation_pnr(correlation_image_pnr, pnr_image):
 
 def get_rectangle_coords(im_dims: ArrayLike, 
                          stride: int, 
-                         overlap: int) -> Tuple[np.ndarray, np.ndarray]:
+                         overlap: int) -> tuple[np.ndarray, np.ndarray]:
     """
     Extract rectangle (patch) coordinates: a helper function used by view_quilt().
     
-    Given dimensions of summary image (rows x colums), stride between patches, and overlap
+    Given dimensions of summary image (rows x columns), stride between patches, and overlap
     between patches, returns row coordinates of the patches in patch_rows, and column 
     coordinates patches in patch_cols. This is meant to be used by view_quilt().
        
@@ -1266,7 +1278,7 @@ def rect_draw(row_minmax: ArrayLike,
               col_minmax: ArrayLike, 
               color: Optional[str]='white', 
               alpha: Optional[float]=0.2, 
-              ax: Optional[Any]=None) -> Tuple[Any, Any]:
+              ax: Optional[Any]=None) -> tuple[Any, Any]:
     """
     Draw a single rectangle on given axes object.
     
@@ -1310,7 +1322,8 @@ def view_quilt(template_image: np.ndarray,
                alpha: Optional[float]=0.2, 
                vmin: Optional[float]=None, 
                vmax: Optional[float]=None, 
-               figsize: Optional[Tuple[float,float]]=(6.,6.)) -> Any:
+               figsize: Optional[tuple[float,float]]=(6.,6.),
+               ax: Optional[Any]=None) -> Any:
     """
     Plot patches on template image given stride and overlap parameters on template image.
     This can be useful for checking motion correction and cnmf spatial parameters. 
@@ -1326,7 +1339,8 @@ def view_quilt(template_image: np.ndarray,
         alpha (float) : patch transparency (0. to 1.: higher is more opaque), default 0.2
         vmin (float) : vmin for plotting underlying template image, default None
         vmax (float) : vmax for plotting underlying template image, default None
-        figsize (tuple) : fig size in inches (width, height), default (6.,6.)
+        figsize (tuple) : fig size in inches (width, height). Only used if ax is None, default (6.,6.)
+        ax (pyplot.Axes object): axes object in case user wants to plot quilt on pre-existing axes, default None
     
     Returns:
         ax: pyplot.Axes object
@@ -1336,7 +1350,7 @@ def view_quilt(template_image: np.ndarray,
         patch_width = 2*cnm.params.patch['rf'] + 1
         patch_overlap = cnm.params.patch['stride'] + 1
         patch_stride = patch_width - patch_overlap
-        ax = plot_patches(corr_image, patch_stride, patch_overlap, vmin=0.0, vmax=0.6);
+        ax = view_quilt(corr_image, patch_stride, patch_overlap, vmin=0.0, vmax=0.6);
         
     Note: 
         Currently assumes square patches so takes in a single number for stride/overlap.
@@ -1344,8 +1358,10 @@ def view_quilt(template_image: np.ndarray,
     """
     im_dims = template_image.shape
     patch_rows, patch_cols = get_rectangle_coords(im_dims, stride, overlap)
-    
-    f, ax = pl.subplots(figsize=figsize)
+
+    if ax is None:             
+        f, ax = pl.subplots(figsize=figsize)
+        
     ax.imshow(template_image, cmap='gray', vmin=vmin, vmax=vmax)
     for patch_row in patch_rows:
         for patch_col in patch_cols:

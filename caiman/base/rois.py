@@ -1,33 +1,24 @@
 #!/usr/bin/env python
 # -*- coding: utf-8 -*-
-"""
-Created on Thu Oct 22 13:22:26 2015
-
-@author: agiovann
-"""
 
 import cv2
 import json
 import logging
+import matplotlib
 import matplotlib.pyplot as pl
-import matplotlib.patches as mpatches
 import numpy as np
 import os
-
 import scipy
 from scipy.ndimage import label, gaussian_filter
 from scipy.optimize import linear_sum_assignment
-
 import shutil
-
 from skimage.draw import polygon
 from skimage.filters import sobel
 from skimage.morphology import remove_small_objects, remove_small_holes, dilation, closing
 from skimage.segmentation import watershed
-
 import tempfile
 import time
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Optional
 import zipfile
 
 from ..motion_correction import tile_and_correct
@@ -86,7 +77,7 @@ def extract_binary_masks_from_structural_channel(Y,
                                                  min_hole_size: int = 15,
                                                  gSig: int = 5,
                                                  expand_method: str = 'closing',
-                                                 selem: np.array = np.ones((3, 3))) -> Tuple[np.ndarray, np.array]:
+                                                 selem: np.array = np.ones((3, 3))) -> tuple[np.ndarray, np.array]:
     """Extract binary masks by using adaptive thresholding on a structural channel
 
     Args:
@@ -157,7 +148,7 @@ def mask_to_2d(mask):
         ), order='F'))
 
 
-def get_distance_from_A(masks_gt, masks_comp, min_dist=10) -> List:
+def get_distance_from_A(masks_gt, masks_comp, min_dist=10) -> list:
     # todo todocument
 
     _, d1, d2 = np.shape(masks_gt)
@@ -292,8 +283,8 @@ def nf_match_neurons_in_binary_masks(masks_gt,
             font = {'family': 'Myriad Pro', 'weight': 'regular', 'size': 10}
             pl.rc('font', **font)
             lp, hp = np.nanpercentile(Cn, [5, 95])
-            ses_1 = mpatches.Patch(color=colors[0], label=labels[0])
-            ses_2 = mpatches.Patch(color=colors[1], label=labels[1])
+            ses_1 = matplotlib.patches.Patch(color=colors[0], label=labels[0])
+            ses_2 = matplotlib.patches.Patch(color=colors[1], label=labels[1])
             pl.subplot(1, 2, 1)
             pl.imshow(Cn, vmin=lp, vmax=hp, cmap=cmap)
             [pl.contour(norm_nrg(mm), levels=[level], colors=colors[1], linewidths=1) for mm in masks_comp[idx_tp_comp]]
@@ -698,7 +689,7 @@ def norm_nrg(a_):
     return a.reshape(dims, order='F')
 
 
-def distance_masks(M_s: List, cm_s: List[List], max_dist: float, enclosed_thr: Optional[float] = None) -> List:
+def distance_masks(M_s:list, cm_s: list[list], max_dist: float, enclosed_thr: Optional[float] = None) -> list:
     """
     Compute distance matrix based on an intersection over union metric. Matrix are compared in order,
     with matrix i compared with matrix i+1
@@ -729,7 +720,7 @@ def distance_masks(M_s: List, cm_s: List[List], max_dist: float, enclosed_thr: O
     for gt_comp, test_comp, cmgt_comp, cmtest_comp in zip(M_s[:-1], M_s[1:], cm_s[:-1], cm_s[1:]):
 
         # todo : better with a function that calls itself
-        # not to interfer with M_s
+        # not to interfere with M_s
         gt_comp = gt_comp.copy()[:, :]
         test_comp = test_comp.copy()[:, :]
 
@@ -762,8 +753,8 @@ def distance_masks(M_s: List, cm_s: List[List], max_dist: float, enclosed_thr: O
                     # if we don't have even a union this is pointless
                     if union > 0:
 
-                        # intersection is removed from union since union contains twice the overlaping area
-                        # having the values in this format 0-1 is helpfull for the hungarian algorithm that follows
+                        # intersection is removed from union since union contains twice the overlapping area
+                        # having the values in this format 0-1 is helpful for the hungarian algorithm that follows
                         D[i, j] = 1 - 1. * intersection / \
                             (union - intersection)
                         if enclosed_thr is not None:
@@ -781,7 +772,7 @@ def distance_masks(M_s: List, cm_s: List[List], max_dist: float, enclosed_thr: O
     return D_s
 
 
-def find_matches(D_s, print_assignment: bool = False) -> Tuple[List, List]:
+def find_matches(D_s, print_assignment: bool = False) -> tuple[list, list]:
     # todo todocument
 
     matches = []
@@ -800,7 +791,7 @@ def find_matches(D_s, print_assignment: bool = False) -> Tuple[List, List]:
         matches.append(indexes)
         DD = D.copy()
         total = []
-        # we want to extract those informations from the hungarian algo
+        # we want to extract those information from the hungarian algo
         for row, column in indexes2:
             value = DD[row, column]
             if print_assignment:
@@ -813,8 +804,8 @@ def find_matches(D_s, print_assignment: bool = False) -> Tuple[List, List]:
     return matches, costs
 
 
-def link_neurons(matches: List[List[Tuple]],
-                 costs: List[List],
+def link_neurons(matches: list[list[tuple]],
+                 costs: list[list],
                  max_cost: float = 0.6,
                  min_FOV_present: Optional[int] = None):
     """
@@ -866,7 +857,7 @@ def link_neurons(matches: List[List[Tuple]],
     return neurons
 
 
-def nf_load_masks(file_name: str, dims: Tuple[int, ...]) -> np.array:
+def nf_load_masks(file_name: str, dims: tuple[int, ...]) -> np.array:
     # todo todocument
 
     # load the regions (training data only)
@@ -882,7 +873,7 @@ def nf_load_masks(file_name: str, dims: Tuple[int, ...]) -> np.array:
     return masks
 
 
-def nf_masks_to_json(binary_masks: np.ndarray, json_filename: str) -> List[Dict]:
+def nf_masks_to_json(binary_masks: np.ndarray, json_filename: str) -> list[dict]:
     """
     Take as input a tensor of binary mask and produces json format for neurofinder
 
@@ -907,7 +898,7 @@ def nf_masks_to_json(binary_masks: np.ndarray, json_filename: str) -> List[Dict]
     return regions
 
 
-def nf_masks_to_neurof_dict(binary_masks: np.ndarray, dataset_name: str) -> Dict[str, Any]:
+def nf_masks_to_neurof_dict(binary_masks: np.ndarray, dataset_name: str) -> dict[str, Any]:
     """
     Take as input a tensor of binary mask and produces dict format for neurofinder
 
@@ -1033,7 +1024,7 @@ def nf_read_roi(fileobj) -> np.ndarray:
     return points
 
 
-def nf_read_roi_zip(fname: str, dims: Tuple[int, ...], return_names=False) -> np.array:
+def nf_read_roi_zip(fname: str, dims: tuple[int, ...], return_names=False) -> np.array:
     # todo todocument
 
     with zipfile.ZipFile(fname) as zf:
@@ -1055,7 +1046,7 @@ def nf_read_roi_zip(fname: str, dims: Tuple[int, ...], return_names=False) -> np
         return masks
 
 
-def nf_merge_roi_zip(fnames: List[str], idx_to_keep: List[List], new_fold: str):
+def nf_merge_roi_zip(fnames: list[str], idx_to_keep: list[list], new_fold: str):
     """
     Create a zip file containing ROIs for ImageJ by combining elements from a list of ROI zip files
 
@@ -1093,18 +1084,18 @@ def nf_merge_roi_zip(fnames: List[str], idx_to_keep: List[List], new_fold: str):
 
 
 def extract_binary_masks_blob(A,
-                              neuron_radius: float,
-                              dims: Tuple[int, ...],
-                              num_std_threshold: int = 1,
-                              minCircularity: float = 0.5,
-                              minInertiaRatio: float = 0.2,
-                              minConvexity: float = .8) -> Tuple[np.array, np.array, np.array]:
+                              neuron_radius:float,
+                              dims:tuple[int, ...],
+                              num_std_threshold:int = 1,
+                              minCircularity:float = 0.5,
+                              minInertiaRatio:float = 0.2,
+                              minConvexity:float = .8) -> tuple[np.array, np.array, np.array]:
     """
     Function to extract masks from data. It will also perform a preliminary selectino of good masks based on criteria like shape and size
 
     Args:
         A: scipy.sparse matrix
-            contains the components as outputed from the CNMF algorithm
+            contains the components as outputted from the CNMF algorithm
 
         neuron_radius: float
             neuronal radius employed in the CNMF settings (gSiz)
@@ -1202,7 +1193,7 @@ def extract_binary_masks_blob_parallel(A,
                                        minCircularity=0.5,
                                        minInertiaRatio=0.2,
                                        minConvexity=.8,
-                                       dview=None) -> Tuple[List, List, List]:
+                                       dview=None) -> tuple[list, list, list]:
     # todo todocument
 
     pars = []
@@ -1225,7 +1216,7 @@ def extract_binary_masks_blob_parallel(A,
     return masks, is_pos, is_neg
 
 
-def extract_binary_masks_blob_parallel_place_holder(pars: Tuple) -> Tuple[Any, Any, Any]:
+def extract_binary_masks_blob_parallel_place_holder(pars:tuple) -> tuple[Any, Any, Any]:
     A, neuron_radius, dims, num_std_threshold, _, minInertiaRatio, minConvexity = pars
     masks_ws, pos_examples, neg_examples = extract_binary_masks_blob(A,
                                                                      neuron_radius,
@@ -1238,7 +1229,7 @@ def extract_binary_masks_blob_parallel_place_holder(pars: Tuple) -> Tuple[Any, A
 
 
 def extractROIsFromPCAICA(spcomps, numSTD=4, gaussiansigmax=2, gaussiansigmay=2,
-                          thresh=None) -> Tuple[List[np.array], List]:
+                          thresh=None) -> tuple[list[np.array], list]:
     """
     Given the spatial components output of the IPCA_stICA function extract possible regions of interest
 
@@ -1316,7 +1307,7 @@ def detect_duplicates_and_subsets(binary_masks,
     one, two = np.unravel_index(max_idx, overlap_tmp.shape)
     max_val = overlap_tmp[one, two]
 
-    indices_to_keep: List = []
+    indices_to_keep:list = []
     indices_to_remove = []
     while max_val > 0:
         one, two = np.unravel_index(max_idx, overlap_tmp.shape)
@@ -1374,7 +1365,7 @@ def detect_duplicates_and_subsets(binary_masks,
     return indices_orig, indices_to_keep, indices_to_remove, D, overlap
 
 
-def detect_duplicates(file_name: str, dist_thr: float = 0.1, FOV: Tuple[int, ...] = (512, 512)) -> Tuple[List, List]:
+def detect_duplicates(file_name:str, dist_thr:float = 0.1, FOV:tuple[int, ...] = (512, 512)) -> tuple[list, list]:
     """
     Removes duplicate ROIs from file file_name
 

@@ -1,16 +1,10 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Thu Jul 12 11:11:45 2018
+#!/usr/bin/env python
 
-@author: epnevmatikakis
-"""
 import bokeh
 import logging
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy.sparse
-from typing import List
 import time
 
 import caiman
@@ -163,7 +157,7 @@ class Estimates(object):
         self.groups = None
 
         self.dims = dims
-        self.shifts:List = []
+        self.shifts:list = []
 
         self.A_thr = None
         self.discarded_components = None
@@ -479,7 +473,7 @@ class Estimates(object):
 
             image_type: 'mean'|'max'|'corr'
                 image to be overlaid to neurons (average of shapes,
-                maximum of shapes or nearest neigbor correlation of raw data)
+                maximum of shapes or nearest neighbor correlation of raw data)
 
             max_projection: bool
                 plot max projection along specified axis if True, o/w plot layers
@@ -663,7 +657,7 @@ class Estimates(object):
                                       Y_rec_color + include_bck * np.expand_dims(B*gain_bck, -1),
                                       np.repeat(np.expand_dims(Y_res * gain_res, -1), 3, 3)), axis=2)
         else:
-            mov = caiman.concatenate((imgs[frame_range] - (not include_bck) * B,
+            mov = caiman.concatenate((imgs - (not include_bck) * B,
                                       Y_rec + include_bck * B, Y_res * gain_res), axis=2)
         if not display:
             return mov
@@ -822,7 +816,7 @@ class Estimates(object):
         else:
             R = None
 
-        self.F_dff = detrend_df_f(self.A, self.b, self.C, self.f, self.YrA,
+        self.F_dff = detrend_df_f(self.A, self.b, self.C, self.f, R,
                                   quantileMin=quantileMin,
                                   frames_window=frames_window,
                                   flag_auto=flag_auto, use_fast=use_fast,
@@ -987,7 +981,7 @@ class Estimates(object):
         Returns:
             self: Estimates object
                 self.idx_components contains the indeced of components above
-                the required treshold.
+                the required threshold.
         """
         dims = params.get('data', 'dims')
         gSig = params.get('init', 'gSig')
@@ -1305,7 +1299,7 @@ class Estimates(object):
 
         for i in range(nbmrg):
             merged_ROI = list(set(components[i]))
-            logging.info('Merging components {}'.format(merged_ROI))
+            logging.info(f'Merging components {merged_ROI}')
             merged_ROIs.append(merged_ROI)
 
             Acsc = self.A.tocsc()[:, merged_ROI]
@@ -1421,7 +1415,7 @@ class Estimates(object):
 
         Returns:
             neurons_to_keep: np.array
-                indeces of components with size within the acceptable range
+                indices of components with size within the acceptable range
         '''
         if self.A_thr is None:
             raise Exception('You need to compute thresholded components before calling remove_duplicates: use the threshold_components method')
@@ -1461,7 +1455,7 @@ class Estimates(object):
         duplicates_gt, indices_keep_gt, indices_remove_gt, D_gt, overlap_gt = detect_duplicates_and_subsets(
             A_gt_thr_bin,predictions=predictions, r_values=r_values, dist_thr=dist_thr, min_dist=min_dist,
             thresh_subset=thresh_subset)
-        logging.info('Number of duplicates: {}'.format(len(duplicates_gt)))
+        logging.info(f'Number of duplicates: {len(duplicates_gt)}')
         if len(duplicates_gt) > 0:
             if plot_duplicates:
                 plt.figure()

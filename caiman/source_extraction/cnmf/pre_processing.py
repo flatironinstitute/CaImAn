@@ -4,7 +4,7 @@
 """ A set of pre-processing operations in the input dataset:
 
 1. Interpolation of missing data
-2. Indentification of saturated pixels
+2. Identification of saturated pixels
 3. Estimation of noise level for each imaged voxel
 4. Estimation of global time constants
 
@@ -306,7 +306,7 @@ def fft_psd_parallel(Y, sn_s, i, num_pixels, **kwargs):
         res: ndarray(double)
             noise associated to each pixel
         psx: ndarray
-            position of thoses pixels
+            position of those pixels
     """
     idxs = list(range(i, i + num_pixels))
     res = get_noise_fft(Y[idxs], **kwargs)
@@ -335,7 +335,7 @@ def fft_psd_multithreading(args):
         res: ndarray(double)
             noise associated to each pixel
         psx: ndarray
-            position of thoses pixels
+            position of those pixels
     """
 
     (Y, i, num_pixels, kwargs) = args
@@ -528,7 +528,7 @@ def preprocess_data(Y, sn=None, dview=None, n_pixels_per_process=100,
         g:  np.ndarray (p x 1)
             Discrete time constants
         psx: ndarray
-            position of thoses pixels
+            position of those pixels
         sn_s: ndarray (memory mapped)
             file where to store the results of computation.
     """

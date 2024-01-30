@@ -83,7 +83,7 @@ def main():
     max_shifts = [int(a/b) for a, b in zip(max_shift_um, dxy)]
     # start a new patch for pw-rigid motion correction every x pixels
     strides = tuple([int(a/b) for a, b in zip(patch_motion_um, dxy)])
-    # overlap between pathes (size of patch in pixels: strides+overlaps)
+    # overlap between patches (size of patch in pixels: strides+overlaps)
     overlaps = (24, 24)
     # maximum deviation allowed for patch with respect to rigid shifts
     max_deviation_rigid = 3
@@ -167,7 +167,7 @@ def main():
     # initialization method (if analyzing dendritic data using 'sparse_nmf')
     method_init = 'greedy_roi'
     ssub = 2                     # spatial subsampling during initialization
-    tsub = 2                     # temporal subsampling during intialization
+    tsub = 2                     # temporal subsampling during initialization
 
     # parameters for component evaluation
     opts_dict = {'fnames': fnames,

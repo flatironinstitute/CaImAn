@@ -1,5 +1,5 @@
 <a href="https://colab.research.google.com/drive/1vkp-uPV8tKavmX12bcN2L-jYH8_MgmHL?usp=sharing"><img src="https://img.shields.io/badge/-Colab%20Demo-blue" /></a>
-<a href="https://ncsu.qualtrics.com/jfe/form/SV_enuiA15WX8w74qy"><img src="https://img.shields.io/badge/-Caiman%20Survey-green" /></a>
+
 
 CaImAn
 ======
@@ -10,7 +10,7 @@ A Python toolbox for large-scale **Ca**lcium **Im**aging **An**alysis.
 CaImAn implements a set of essential methods required to analyze calcium and voltage imaging data. It provides fast and scalable algorithms for motion correction, source extraction, spike deconvolution, and registering neurons across multiple sessions. It is suitable for both two-photon and one-photon fluorescence microscopy data, and can be run in both offline and online modes. Documentation is [here](https://caiman.readthedocs.io/en/latest/). 
 
 # Quick start :rocket:
-Follow these three steps to get started quickly, from installation to working through a demo notebook. If you do not already have conda installed, [you can find it here](https://docs.conda.io/en/latest/miniconda.html).
+Follow these three steps to get started quickly, from installation to working through a demo notebook. If you do not already have conda installed, [you can find it here](https://docs.conda.io/en/latest/miniconda.html). There is a video walkthrough of the following steps [here](https://youtu.be/b63zAmKihIY?si=m7WleTwdU0rJup_2).
 
 ### Step 1: Install caiman
 The following is all done in your anaconda prompt, starting in your base environment:
@@ -35,10 +35,10 @@ Jupyter will open. Click on `demo_pipeline.ipynb` to get started with a demo!
 > Note that what counts as `<your home>` in the first line depends on your OS/computer. Be sure to fill in your actual home directory. On Linux/Mac it is `~` while on Windows it will be something like `C:\Users\your_user_name\` 
 
 ## For installation help
-Caiman should install easily on Linux, Mac, and Windows. If you run into problems, we have a dedicated [installation page](./docs/source/Installation.rst): the details there should help you troubleshoot. If you don't find what you need there, *please* send us a [message on Gitter](https://app.gitter.im/#/room/#agiovann_Constrained_NMF:gitter.im), and we will help you get it sorted out. 
+Caiman should install easily on Linux, Mac, and Windows. If you run into problems, we have a dedicated [installation page](./docs/source/Installation.rst): the details there should help you troubleshoot. If you don't find what you need there, *please* [create an issue](https://github.com/flatironinstitute/CaImAn/issues) at GitHub, and we will help you get it sorted out. 
 
 # Demo notebooks :page_with_curl:
-Caiman provides demo notebooks to present each of our main pipelines, from motion correction to online CNMF. Once you've gotten things set up, the best way to get started is to work through the demo notebook that most closely matches your use case; you can adapt it for your particular needs. The notebooks covering the CNMF and CNMFE algorithms have the most details, covering many concepts used in the other notebooks.
+Caiman provides demo notebooks to showcase each of our main features, from motion correction to online CNMF. We recommend starting with the CNMF notebook (`demo_pipeline.ipynb`), which contains more explanation and details than the other notebooks: it covers many concepts that will be used without explanation in the other notebooks. The CNMFE notebook (`demo_pipeline_cnmfE.ipynb`), is also more detailed. Once you've gotten things set up and worked through those "anchor" notebooks, the best way to get started is to work through the demo notebook that most closely matches your use case; you should be able to adapt it for your particular needs.
 
 The main use cases and notebooks are listed in the following table:
 
@@ -48,23 +48,25 @@ The main use cases and notebooks are listed in the following table:
 | CNMFE for 1p data  | [demo_pipeline_cnmfE.ipynb](./demos/notebooks/demo_pipeline_cnmfE.ipynb) |  [Zhou et al., 2018](https://pubmed.ncbi.nlm.nih.gov/29469809/) | 
 | Volpy for voltage data | [demo_pipeline_voltage_imaging.ipynb](./demos/notebooks/demo_pipeline_voltage_imaging.ipynb) |  [Cai et al., 2021](https://pubmed.ncbi.nlm.nih.gov/33852574/) | 
 | Volumetric (3D) CNMF | [demo_caiman_cnmf_3D.ipynb](./demos/notebooks/demo_caiman_cnmf_3D.ipynb) | [Mentioned in Giovannucci et al., 2019](https://pubmed.ncbi.nlm.nih.gov/30652683/) | 
-| CNMF for dendrites | [demo_dendritic.ipynb](./demos/notebooks/demo_dendritic.ipynb) | Developed by Eftychios Pnevmatikakis | 
+| CNMF for dendrites | [demo_dendritic.ipynb](./demos/notebooks/demo_dendritic.ipynb) |  [Pnevmatikakis et al., 2016](https://pubmed.ncbi.nlm.nih.gov/26774160/) | 
 | Online CNMF (OnACID) | [demo_OnACID_mesoscope.ipynb](./demos/notebooks/demo_OnACID_mesoscope.ipynb) |[Giovannucci et al., 2017](https://proceedings.neurips.cc/paper_files/paper/2017/hash/4edaa105d5f53590338791951e38c3ad-Abstract.html) | 
 | Online volumetric CNMF | [demo_online_3D.ipynb](./demos/notebooks/demo_online_3D.ipynb) | Developed by Johannes Friedrich | 
 | Online CNMFE (OnACID-E) | [demo_realtime_cnmfE.ipynb](./demos/notebooks/demo_realtime_cnmfE.ipynb) |[Friedrich et al. 2020](https://pubmed.ncbi.nlm.nih.gov/33507937/) | 
 | Motion correction | [demo_motion_correction.ipynb](./demos/notebooks/demo_motion_correction.ipynb) | [Pnevmatikakis et al., 2017](https://pubmed.ncbi.nlm.nih.gov/28782629/) | 
+| Seed CNMF with external masks | [demo_seeded_CNMF.ipynb](./demos/notebooks/demo_seeded_CNMF.ipynb) |  [Mentioned in Giovannucci et al., 2019](https://pubmed.ncbi.nlm.nih.gov/30652683/) | 
 | Register cells across sessions | [demo_multisession_registration.ipynb](./demos/notebooks/demo_multisession_registration.ipynb) | [Pnevmatikakis et al., 2016](https://pubmed.ncbi.nlm.nih.gov/26774160/) | 
 
 A comprehensive list of references, where you can find detailed discussion of the methods and their development, can be found [here](https://caiman.readthedocs.io/en/master/CaImAn_features_and_references.html#references). 
 
 
-# Questions, help, and next steps 
+# Questions, help, news
 In addition to the demos, there are many ways to learn more about Caiman and receive help:
-- [The online documentation](https://caiman.readthedocs.io/en/latest/) contains a lot of general information about Caiman, the parameters, how to interpret its outputs, and more.
-- [GitHub Discussions](https://github.com/flatironinstitute/CaImAn/discussions) is our preferred venue to ask for help.
-- The [Gitter forum](https://app.gitter.im/#/room/#agiovann_Constrained_NMF:gitter.im) is our old forum: we sometimes will ask people to join us there when something can best be solved in real time.
+- [Online documentation](https://caiman.readthedocs.io/en/latest/) contains a lot of general information about Caiman, the parameters, how to interpret its outputs, and more.
+- [GitHub Discussions](https://github.com/flatironinstitute/CaImAn/discussions) is our preferred venue for users to ask for help.
+- [Caiman Central](https://github.com/flatironinstitute/caiman_central) is our central hub for sharing information about CaImAn. Tune in there for updates about quarterly community meetings, workshops, etc. 
+- The [Gitter forum](https://app.gitter.im/#/room/#agiovann_Constrained_NMF:gitter.im) is our old forum: we sometimes will ask people to join us there when something can best be solved in real time (e.g., installation problems).
 - If you have found a bug, we recommend searching the [issues at github](https://github.com/flatironinstitute/CaImAn/issues) and opening a new issue if you can't find the solution there. 
-- If there is a feature you would like to see implemented, feel free to come chat at the above forumns or open an issue at Github.
+- If there is a feature you would like to see implemented, feel free to come chat at the above forums or open an issue at Github.
 
 # How to contribute :hammer:
  Caiman is an open-source project and improves because of contributions from users all over the world. If there is something about Caiman that you would like to work on, then please reach out. We are always looking for more contributors, so please come read the [contributors page](./CONTRIBUTING.md) for more details about how. 
@@ -94,7 +96,7 @@ There are many repositories that use Caiman, or help make using Caiman easier.
 
 If you have questions about these related packages please reach out to their maintainers directly. If you would like your software to be in this list, please contact one of the developers or open an issue.
 
-# Citing Caimian and related papers
+# Citing Caiman and related papers
 If you publish a paper that relied on Caiman, we kindly ask that you [cite Giovannucci et al., 2019](https://elifesciences.org/articles/38173):
 ```
 @article{giovannucci2019caiman,
@@ -125,6 +127,7 @@ A complete list of contributors can be found [here](https://github.com/flatironi
 Special thanks to the following people for letting us use their datasets in demo files:
 
 * Weijian Yang, Darcy Peterka, Rafael Yuste, Columbia University
+* Bernardo Sabatini, Harvard University
 * Sue Ann Koay, David Tank, Princeton University
 * Manolis Froudarakis, Jake Reimers, Andreas Tolias, Baylor College of Medicine
 * Clay Lacefield, Randy Bruno, Columbia University

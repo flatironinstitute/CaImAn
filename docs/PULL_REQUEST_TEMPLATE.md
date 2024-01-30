@@ -14,18 +14,18 @@ Please delete options that are not relevant.
 - [ ] Changes in documentation or new examples for demos and/or use cases.
 
 # Branching
-- All PRs should be made against the **dev** branch. The master branch is not often merged back to dev.
+- All PRs should be made against the **dev** branch. The main branch is not often merged back to dev.
 - If you want to get your PR out to the world faster (urgent bugfix), poke pgunn to cut a release; this will get it onto github and into conda faster
 
 # Has your PR been tested?
 
 If you're fixing a bug or introducing a new feature it is recommended you run the tests by typing
 
-```python caimanmanager.py test```
+```caimanmanager test```
 
 and
 
-```python caimanmanager.py demotest```
+```caimanmanager demotest```
 
 prior to submitting your pull request. 
 

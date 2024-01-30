@@ -1,19 +1,19 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 """A set of routines for estimating the temporal components, given the spatial
 components and temporal components
 """
 
 import logging
-from scipy.sparse import spdiags, diags, coo_matrix, csc_matrix
-import scipy
 import numpy as np
 import platform
 import psutil
+import scipy
+from scipy.sparse import spdiags, diags, coo_matrix, csc_matrix
+import sys
+
 from .deconvolution import constrained_foopsi
 from .utilities import update_order_greedy
-import sys
 from ...mmapping import parallel_dot_product
 
 def make_G_matrix(T, g):
@@ -113,7 +113,6 @@ def update_temporal_components(Y, A, b, Cin, fin, bl=None, c1=None, g=None, sn=N
             ipyparallel, parallelization using the ipyparallel cluster.
             You should start the cluster (install ipyparallel and then type
             ipcluster -n 6, where 6 is the number of processes).
-            SLURM: using SLURM scheduler
 
         memory_efficient: Bool
             whether or not to optimize for memory usage (longer running times). necessary with very large datasets
@@ -221,7 +220,7 @@ def update_temporal_components(Y, A, b, Cin, fin, bl=None, c1=None, g=None, sn=N
     ff = np.where(np.sum(C, axis=1) == 0)  # remove empty components
     if np.size(ff) > 0:  # Eliminating empty temporal components
         ff = ff[0]
-        logging.info('removing {0} empty spatial component(s)'.format(len(ff)))
+        logging.info(f'removing {len(ff)} empty spatial component(s)')
         keep = list(range(A.shape[1]))
         for i in ff:
             keep.remove(i)
@@ -287,7 +286,6 @@ def update_iteration(parrllcomp, len_parrllcomp, nb, C, S, bl, nr,
             ipyparallel, parallelization using the ipyparallel cluster.
             You should start the cluster (install ipyparallel and then type
             ipcluster -n 6, where 6 is the number of processes).
-            SLURM: using SLURM scheduler
 
         memory_efficient: Bool
             whether or not to optimize for memory usage (longer running times). necessary with very large datasets
@@ -383,9 +381,8 @@ def update_iteration(parrllcomp, len_parrllcomp, nb, C, S, bl, nr,
             YrA -= AA[jo, :].T.dot(Ctemp - C[jo, :]).T
             C[jo, :] = Ctemp.copy()
             S[jo, :] = Stemp
-            logging.info("{0} ".format(np.sum(len_parrllcomp[:count + 1])) +
-                         "out of total {0} temporal components ".format(nr) +
-                         "updated")
+            logging.info(str(np.sum(len_parrllcomp[:count + 1])) +
+                         f" out of total {nr} temporal components updated")
 
         for ii in np.arange(nr, nr + nb):
             cc = np.maximum(YrA[:, ii] + Cin[ii], -np.Inf)

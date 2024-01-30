@@ -1,15 +1,13 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
-"""
-Created on Fri May  3 15:48:55 2019
+#!/usr/bin/env python
 
-@author: epnevmatikakis
-"""
+import numpy as np
+import os
 
 from caiman.paths import caiman_datadir
 from caiman.utils.utils import load_graph
-import os
-import numpy as np
+
+#FIXME A lot of what this did is no longer relevant
+
 try:
     os.environ["KERAS_BACKEND"] = "tensorflow"
     from tensorflow.keras.models import model_from_json
@@ -36,7 +34,7 @@ def test_tf():
             model_file = model_name + ".h5.pb"
             loaded_model = load_graph(model_file)
     except:
-        raise Exception('NN model could not be loaded. use_keras = ' + str(use_keras))
+        raise Exception(f'NN model could not be loaded. use_keras = {use_keras}')
 
     A = np.random.randn(10, 50, 50, 1)
     try:

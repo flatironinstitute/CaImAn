@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+
 """ Online Constrained Nonnegative Matrix Factorization
 
 The general file class which is used to analyze calcium imaging data in an
@@ -26,9 +27,9 @@ from sklearn.decomposition import NMF
 from sklearn.preprocessing import normalize
 import tensorflow as tf
 from time import time
-from typing import List, Tuple
 
 import caiman
+import caiman.base.movies
 import caiman.paths
 from .cnmf import CNMF
 from .estimates import Estimates
@@ -36,7 +37,7 @@ from .initialization import imblur, initialize_components, hals, downscale
 from .oasis import OASIS
 from .params import CNMFParams
 from .pre_processing import get_noise_fft
-from .utilities import (update_order, get_file_size, peak_local_max, decimation_matrix,
+from .utilities import (update_order, peak_local_max, decimation_matrix,
                         gaussian_filter, uniform_filter)
 from ... import mmapping
 from ...components_evaluation import compute_event_exceptionality
@@ -53,6 +54,7 @@ try:
 except():
     pass
 
+#FIXME ???
 try:
     profile
 except:
@@ -247,7 +249,7 @@ class OnACID(object):
         self.estimates.CY = self.estimates.CY * 1. / self.params.get('online', 'init_batch')
         self.estimates.CC = 1 * self.estimates.CC / self.params.get('online', 'init_batch')
 
-        logging.info('Expecting {0} components'.format(str(expected_comps)))
+        logging.info(f'Expecting {expected_comps} components')
         self.estimates.CY.resize([expected_comps + self.params.get('init', 'nb'), self.estimates.CY.shape[-1]], refcheck=False)
         if self.params.get('online', 'use_dense'):
             self.estimates.Ab_dense = np.zeros((self.estimates.CY.shape[-1], expected_comps + self.params.get('init', 'nb')),
@@ -308,12 +310,12 @@ class OnACID(object):
         self.update_counter = 2**np.linspace(0, 1, self.N, dtype=np.float32)
         self.estimates.CC = np.ascontiguousarray(self.estimates.CC)
         self.estimates.CY = np.ascontiguousarray(self.estimates.CY)
-        self.time_neuron_added:List = []
+        self.time_neuron_added:list = []
         for nneeuu in range(self.N):
             self.time_neuron_added.append((nneeuu, self.params.get('online', 'init_batch')))
         if self.params.get('online', 'dist_shape_update'):
             self.time_spend = 0
-            self.comp_upd:List = []
+            self.comp_upd:list = []
         # setup per patch classifier
 
         if self.params.get('online', 'path_to_model') is None or self.params.get('online', 'sniper_mode') is False:
@@ -399,10 +401,10 @@ class OnACID(object):
             self.estimates.max_img = Yres.max(-1)
 
         self.comp_upd = []
-        self.t_shapes:List = []
-        self.t_detect:List = []
-        self.t_motion:List = []
-        self.t_stat:List = []
+        self.t_shapes:list = []
+        self.t_detect:list = []
+        self.t_motion:list = []
+        self.t_stat:list = []
 
         return self
 
@@ -684,7 +686,7 @@ class OnACID(object):
                             self.estimates.downscale_matrix.dot(
                                 self.estimates.b0)) - Ab_.T.dot(self.estimates.b0)
 
-                # set the update counter to 0 for components that are overlaping the newly added
+                # set the update counter to 0 for components that are overlapping the newly added
                 idx_overlap = self.estimates.AtA[nb_:-num_added, -num_added:].nonzero()[0]
                 self.update_counter[idx_overlap] = 0
             self.t_detect.append(time() - t_new)
@@ -1054,7 +1056,7 @@ class OnACID(object):
             self.estimates.lam = np.zeros(nr)
         else:
             raise Exception('Unknown initialization method!')
-        dims, Ts = get_file_size(fls, var_name_hdf5=self.params.get('data', 'var_name_hdf5'))
+        dims, Ts = caiman.base.movies.get_file_size(fls, var_name_hdf5=self.params.get('data', 'var_name_hdf5'))
         dims = Y.shape[1:]
         self.params.set('data', {'dims': dims})
         T1 = np.array(Ts).sum()*self.params.get('online', 'epochs') if T is None else T
@@ -1206,7 +1208,7 @@ class OnACID(object):
                                        use_add=self.params.get('ring_CNN', 'use_add'),
                                        use_bias=self.params.get('ring_CNN', 'use_bias'))
             if self.params.get('ring_CNN', 'reuse_model'):
-                logging.info('Using existing model from {}'.format(self.params.get('ring_CNN', 'path_to_model')))
+                logging.info('Using existing model from {self.params.get("ring_CNN", "path_to_model")}')
                 model_LN.load_weights(self.params.get('ring_CNN', 'path_to_model'))
             else:
                 logging.info('Estimating model from scratch, starting training.')
@@ -1214,7 +1216,7 @@ class OnACID(object):
                                                                 epochs=self.params.get('ring_CNN', 'max_epochs'),
                                                                 patience=self.params.get('ring_CNN', 'patience'),
                                                                 schedule=sch)
-                logging.info('Training complete. Model saved in {}.'.format(path_to_model))
+                logging.info(f'Training complete. Model saved in {path_to_model}.')
                 self.params.set('ring_CNN', {'path_to_model': path_to_model})
         else:
             model_LN = None
@@ -1224,7 +1226,7 @@ class OnACID(object):
         extra_files = len(fls) - 1
         init_files = 1
         t = init_batch
-        self.Ab_epoch:List = []
+        self.Ab_epoch:list = []
         t_online = []
         if extra_files == 0:     # check whether there are any additional files
             process_files = fls[:init_files]     # end processing at this file
@@ -1249,9 +1251,10 @@ class OnACID(object):
                 process_files = fls[:init_files + extra_files]
                 init_batc_iter = [0] * (extra_files + init_files)
 
-        #     Go through all files
+            # Go through all files
+            # TODO Use better variable names
             for file_count, ffll in enumerate(process_files):
-                logging.warning('Now processing file {}'.format(ffll))
+                logging.warning(f'Now processing file {ffll}')
                 Y_ = caiman.base.movies.load_iter(
                     ffll, var_name_hdf5=self.params.get('data', 'var_name_hdf5'),
                     subindices=slice(init_batc_iter[file_count], None, None))
@@ -1278,7 +1281,7 @@ class OnACID(object):
                                             ' contains NaN')
                         if t % 500 == 0:
                             logging.info('Epoch: ' + str(iter + 1) + '. ' + str(t) +
-                                         ' frames have beeen processed in total. ' +
+                                         ' frames have been processed in total. ' +
                                          str(self.N - old_comps) +
                                          ' new components were added. Total # of components is '
                                          + str(self.estimates.Ab.shape[-1] - self.params.get('init', 'nb')))
@@ -1553,7 +1556,7 @@ def seeded_initialization(Y, Ain, dims=None, init_batch=1000, order_init=None, g
                         number of background components
 
         order_init:     list
-                        order of elements to be initalized using rank1 nmf restricted to the support of
+                        order of elements to be initialized using rank1 nmf restricted to the support of
                         each component
 
     Output:
@@ -1864,7 +1867,7 @@ def init_shapes_and_sufficient_stats(Y, A, C, b, f, W=None, b0=None, ssub_B=1, b
     A_smooth = np.transpose([gaussian_filter(np.array(a).reshape(
         dims, order='F'), 0).ravel(order='F') for a in Ab.T])
     A_smooth[A_smooth < 1e-2] = 0
-    # set explicity zeros of Ab to small value, s.t. ind_A and Ab.indptr match
+    # set explicitly zeros of Ab to small value, s.t. ind_A and Ab.indptr match
     Ab += 1e-6 * A_smooth
     Ab = csc_matrix(Ab)
     ind_A = [Ab.indices[Ab.indptr[m]:Ab.indptr[m + 1]]
@@ -2094,8 +2097,8 @@ def get_candidate_components(sv, dims, Yres_buf, min_num_trial=3, gSig=(5, 5),
     idx = []
     all_indices = []
     ijsig_all = []
-    cnn_pos:List = []
-    local_maxima:List = []
+    cnn_pos:list = []
+    local_maxima:list = []
     Y_patch = []
     ksize = tuple([int(3 * i / 2) * 2 + 1 for i in gSig])
     compute_corr = test_both
@@ -2201,7 +2204,7 @@ def get_candidate_components(sv, dims, Yres_buf, min_num_trial=3, gSig=(5, 5),
             rval = corr(ain.copy(), np.mean(Ypx, -1))
             if rval > rval_thr:
                 keep_corr.append(i)
-        keep_final:List = list(set().union(keep_cnn, keep_corr))
+        keep_final:list = list(set().union(keep_cnn, keep_corr))
         if len(keep_final) > 0:
             Ain = np.stack(Ain)[keep_final]
         else:
@@ -2248,7 +2251,7 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
 
     # number of total components (including background)
     M = np.shape(Ab)[-1]
-    N = M - gnb                 # number of coponents (without background)
+    N = M - gnb                 # number of components (without background)
 
     if corr_img is None:
         sv -= rho_buf.get_first()

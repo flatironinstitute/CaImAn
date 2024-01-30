@@ -104,7 +104,7 @@ def volspike(pars):
                         ridge or NMF for weight update
                         
                     do_plot: boolean
-                        if Ture, plot trace of signals and spiketimes, 
+                        if True, plot trace of signals and spiketimes, 
                         peak triggered average, histogram of heights in the last iteration
 
                     do_cross_val: boolean
@@ -183,7 +183,7 @@ def volspike(pars):
     output['rawROI'] = {}
     print(f'Now processing cell number {cell_n}')
     
-    # load the movie in C-order mermory mapping file
+    # load the movie in C-order memory mapping file
     Yr, dims, T = cm.load_memmap(fnames)
     if bw.shape == dims:
         images = np.reshape(Yr.T, [T] + list(dims), order='F')
@@ -276,7 +276,7 @@ def volspike(pars):
     if args['do_cross_val']:
         # need to add
         logging.warning('doing cross validation')
-        raise Exception('cross validation option is not availble yet')
+        raise Exception('cross validation option is not available yet')
     else:
         s_max = 1
         l_max = 2
@@ -431,7 +431,7 @@ def denoise_spikes(data, window_length, fr=400,  hp_freq=1,  clip=100, threshold
             The real threshold is the value multiply estimated noise level
 
         do_plot: boolean
-            if Ture, will plot trace of signals and spiketimes, peak triggered
+            if True, will plot trace of signals and spiketimes, peak triggered
             average, histogram of heights
             
     Returns:

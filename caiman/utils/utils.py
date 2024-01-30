@@ -11,6 +11,7 @@ https://docs.python.org/3/library/urllib.request.htm
 """
 
 import certifi
+import contextlib
 import cv2
 import h5py
 import multiprocessing
@@ -24,9 +25,10 @@ import scipy
 import ssl
 import subprocess
 import tensorflow as tf
-from scipy.ndimage.filters import gaussian_filter
+import time
+from scipy.ndimage import gaussian_filter
 from tifffile import TiffFile
-from typing import Any, Dict, List, Tuple, Union, Iterable
+from typing import Any, Union, Iterable
 from urllib.request import urlopen
 
 try:
@@ -198,7 +200,7 @@ def val_parse(v):
             return v
 
 
-def si_parse(imd:str) -> Dict:
+def si_parse(imd:str) -> dict:
     """parse image_description field embedded by scanimage from get image description
 
      Args:
@@ -217,7 +219,7 @@ def si_parse(imd:str) -> Dict:
     return imddata
 
 
-def get_image_description_SI(fname:str) -> List:
+def get_image_description_SI(fname:str) -> list:
     """Given a tif file acquired with Scanimage it returns a dictionary containing the information in the image description field
 
      Args:
@@ -241,9 +243,9 @@ def get_image_description_SI(fname:str) -> List:
 
 
 #%% Generate data
-def gen_data(dims:Tuple[int,int]=(48, 48), N:int=10, sig:Tuple[int,int]=(3, 3), tau:float=1., noise:float=.3, T:int=2000,
+def gen_data(dims:tuple[int,int]=(48, 48), N:int=10, sig:tuple[int,int]=(3, 3), tau:float=1., noise:float=.3, T:int=2000,
              framerate:int=30, firerate:float=.5, seed:int=3, cmap:bool=False, truncate:float=np.exp(-2),
-             difference_of_Gaussians:bool=True, fluctuating_bkgrd:List=[50, 300]) -> Tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, Tuple[int, int]]:
+             difference_of_Gaussians:bool=True, fluctuating_bkgrd:list=[50, 300]) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, tuple[int, int]]:
     bkgrd = 10  # fluorescence baseline
     np.random.seed(seed)
     boundary = 4
@@ -422,7 +424,7 @@ def cell_magic_wand_wrapper(params):
 #%% From https://codereview.stackexchange.com/questions/120802/recursively-save-python-dictionaries-to-hdf5-files-using-h5py
 
 
-def save_dict_to_hdf5(dic:Dict, filename:str, subdir:str='/') -> None:
+def save_dict_to_hdf5(dic:dict, filename:str, subdir:str='/') -> None:
     ''' Save dictionary to hdf5 file
     Args:
         dic: dictionary
@@ -434,7 +436,7 @@ def save_dict_to_hdf5(dic:Dict, filename:str, subdir:str='/') -> None:
     with h5py.File(filename, 'w') as h5file:
         recursively_save_dict_contents_to_group(h5file, subdir, dic)
 
-def load_dict_from_hdf5(filename:str) -> Dict:
+def load_dict_from_hdf5(filename:str) -> dict:
     ''' Load dictionary from hdf5 file
 
     Args:
@@ -448,7 +450,7 @@ def load_dict_from_hdf5(filename:str) -> Dict:
         return recursively_load_dict_contents_from_group(h5file, '/')
 
 
-def recursively_save_dict_contents_to_group(h5file:h5py.File, path:str, dic:Dict) -> None:
+def recursively_save_dict_contents_to_group(h5file:h5py.File, path:str, dic:dict) -> None:
     '''
     Args:
         h5file: hdf5 object
@@ -537,7 +539,7 @@ def recursively_save_dict_contents_to_group(h5file:h5py.File, path:str, dic:Dict
             raise ValueError(f"Cannot save {type(item)} type for key '{key}'.")
 
 
-def recursively_load_dict_contents_from_group(h5file:h5py.File, path:str) -> Dict:
+def recursively_load_dict_contents_from_group(h5file:h5py.File, path:str) -> dict:
     ''' load dictionary from hdf5 object
     Args:
         h5file: hdf5 object
@@ -554,7 +556,7 @@ def recursively_load_dict_contents_from_group(h5file:h5py.File, path:str) -> Dic
     so all the fields end up with appropriate data types.
     '''
 
-    ans:Dict = {}
+    ans:dict = {}
     for akey, aitem in h5file[path].attrs.items():
         ans[akey] = aitem
 
@@ -641,7 +643,7 @@ def load_graph(frozen_graph_filename):
         )
     return graph
 
-def get_caiman_version() -> Tuple[str, str]:
+def get_caiman_version() -> tuple[str, str]:
     """ Get the version of CaImAn, as best we can determine"""
     # This does its best to determine the version of CaImAn. This uses the first successful
     # from these methods:
@@ -673,7 +675,7 @@ def get_caiman_version() -> Tuple[str, str]:
             for line in sfh:
                 if ':' in line: # expect a line like "Version:1.3"
                     _, version = line.rstrip().split(':')
-                    return 'RELF', version 
+                    return 'RELEASE', version 
 
     # Attempt: 'FILE'
     # Right now this samples the utils directory
@@ -684,4 +686,19 @@ def get_caiman_version() -> Tuple[str, str]:
         if last_modified > newest:
             newest = last_modified
     return 'FILE', str(int(newest))
+
+class caitimer(contextlib.ContextDecorator):
+    """ This is a simple context manager that you can use like this to get timing information on functions you call:
+        with caiman.utils.utils.caitimer("CNMF fit"):
+            cnm = cnm.fit(images)
+
+        When the context exits it will say how long it was open. Useful for easy function benchmarking """
+
+    def __init__(self, msg):
+        self.message = msg
+    def __enter__(self):
+        self.start = time.time()
+        return self
+    def __exit__(self, type, value, traceback):
+        print(f"{self.message}: {time.time() - self.start}")
 
