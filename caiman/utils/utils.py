@@ -650,7 +650,7 @@ def get_caiman_version() -> tuple[str, str]:
     # 'GITW' ) git rev-parse if caiman is built from "pip install -e ." and we are working
     #    out of the checkout directory (the user may have since updated without reinstall)
     # 'RELF') A release file left in the process to cut a release. Should have a single line
-    #    in it whick looks like "Version:1.4"
+    #    in it which looks like "Version:1.4"
     # 'FILE') The date of some frequently changing files, which act as a very rough
     #    approximation when no other methods are possible
     #
