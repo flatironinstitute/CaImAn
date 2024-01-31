@@ -594,7 +594,6 @@ class CNMFParams(object):
             num_frames_split: int, default: 80
                 split movie every x frames for parallel processing
 
-            num_splits_to_process_els, default: [7, None]
             num_splits_to_process_rig, default: None
                 (Undocumented, changing this likely to break the code - FIXME why is this a parameter then?)
 
@@ -608,10 +607,10 @@ class CNMFParams(object):
                 flag for applying shifts using cubic interpolation (otherwise FFT)
 
             splits_els: int, default: 14
-                number of splits across time for pw-rigid registration
+                number of splits across time for pw-rigid registration.
 
             splits_rig: int, default: 14
-                number of splits across time for rigid registration
+                number of splits across time for rigid registration.
 
             strides: (int, int), default: (96, 96)
                 how often to start a new patch in pw-rigid registration. Size of each patch will be strides + overlaps
@@ -667,7 +666,7 @@ class CNMFParams(object):
                 Flag for reusing an already trained model (saved in path to model)
         """
 
-        if decay_time == 0 or decay_time == 0.0:
+        if int(decay_time) == 0:
             raise Exception("A decay time of 0 is not permitted")
 
         self.data = {
@@ -886,7 +885,7 @@ class CNMFParams(object):
             'niter_rig': 1,                     # number of iterations rigid motion correction
             'nonneg_movie': True,               # flag for producing a non-negative movie
             'num_frames_split': 80,             # split across time every x frames
-            'num_splits_to_process_els': None,  # DO NOT MODIFY
+            'num_splits_to_process_els': None,  # Unused, will be removed in a future version of Caiman
             'num_splits_to_process_rig': None,  # DO NOT MODIFY
             'overlaps': (32, 32),               # overlap between patches in pw-rigid motion correction
             'pw_rigid': False,                  # flag for performing pw-rigid motion correction
