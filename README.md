@@ -27,10 +27,10 @@ Create a working directory called `caiman_data` that includes code samples and r
 ### Step 3: Try out a demo notebook
 Go into the working directory you created in Step 2, and open a Jupyter notebook:
 
-    cd <your home>/caiman_data/demos/notebooks  
+    cd <your home>/caiman_data/
     jupyter notebook 
 
-Jupyter will open. Click on `demo_pipeline.ipynb` to get started with a demo! 
+Jupyter will open. Navigate to demos/notebooks/ and click on `demo_pipeline.ipynb` to get started with a demo.
 
 > Note that what counts as `<your home>` in the first line depends on your OS/computer. Be sure to fill in your actual home directory. On Linux/Mac it is `~` while on Windows it will be something like `C:\Users\your_user_name\` 
 
