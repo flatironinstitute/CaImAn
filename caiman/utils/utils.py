@@ -10,6 +10,7 @@ https://docs.python.org/3/library/urllib.request.htm
 
 """
 
+import caiman
 import certifi
 import contextlib
 import cv2
@@ -37,9 +38,9 @@ except:
     pass
 
 
-from ..external.cell_magic_wand import cell_magic_wand
-from ..source_extraction.cnmf.spatial import threshold_components
-from caiman.paths import caiman_datadir
+import caiman.external.cell_magic_wand
+import caiman.paths
+import caiman.source_extraction.cnmf.spatial
 import caiman.utils
 
 #%%
@@ -89,7 +90,7 @@ def download_demo(name:str='Sue_2x_3000_40_-46.tif', save_folder:str='') -> str:
                 'msCam13.avi': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/msCam13.avi',
                 'online_vs_offline.npz': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/online_vs_offline.npz',
 		}
-                 #          ,['./example_movies/demoMovie.tif','https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/demoMovie.tif']]
+
     base_folder = os.path.join(caiman_datadir(), 'example_movies')
     if os.path.exists(base_folder):
         if not os.path.isdir(os.path.join(base_folder, save_folder)):
@@ -311,9 +312,8 @@ def gen_data(dims:tuple[int,int]=(48, 48), N:int=10, sig:tuple[int,int]=(3, 3), 
         * (np.prod(dims), T)).astype('float32') + trueA.dot(trueC)
 
     if cmap:
-        import caiman as cm
         Y = np.reshape(Yr, dims + (T,), order='F')
-        Cn = cm.local_correlations(Y)
+        Cn = caiman.local_correlations(Y)
         plt.figure(figsize=(20, 3))
         plt.plot(trueC.T)
         plt.figure(figsize=(20, 3))
@@ -385,10 +385,10 @@ def apply_magic_wand(A, gSig, dims, A_thr=None, coms=None, dview=None,
     if (A_thr is None) and (coms is None):
         import pdb
         pdb.set_trace()
-        A_thr = threshold_components(
+        A_thr = caiman.source_extraction.cnmf.spatial.threshold_components(
                         A.tocsc()[:], dims, medw=None, thr_method='max',
                         maxthr=0.2, nrgthr=0.99, extract_cc=True,se=None,
-                        ss=None, dview=dview)>0
+                        ss=None, dview=dview) > 0
 
         coms = [scipy.ndimage.center_of_mass(mm.reshape(dims, order='F')) for
                 mm in A_thr.T]
@@ -418,8 +418,14 @@ def apply_magic_wand(A, gSig, dims, A_thr=None, coms=None, dview=None,
 
 def cell_magic_wand_wrapper(params):
     a, com, min_radius, max_radius, roughness, zoom_factor, center_range = params
-    msk = cell_magic_wand(a, com, min_radius, max_radius, roughness,
-                          zoom_factor, center_range)
+    msk = caiman.external.cell_magic_wand.cell_magic_wand(
+        a,
+        com,
+        min_radius,
+        max_radius,
+        roughness,
+        zoom_factor,
+        center_range)
     return msk
 #%% From https://codereview.stackexchange.com/questions/120802/recursively-save-python-dictionaries-to-hdf5-files-using-h5py
 
@@ -647,7 +653,7 @@ def get_caiman_version() -> tuple[str, str]:
     """ Get the version of CaImAn, as best we can determine"""
     # This does its best to determine the version of CaImAn. This uses the first successful
     # from these methods:
-    # 'GITW' ) git rev-parse if caiman is built from "pip install -e ." and we are working
+    # 'GITW') git rev-parse if caiman is built from "pip install -e ." and we are working
     #    out of the checkout directory (the user may have since updated without reinstall)
     # 'RELF') A release file left in the process to cut a release. Should have a single line
     #    in it whick looks like "Version:1.4"
@@ -669,7 +675,7 @@ def get_caiman_version() -> tuple[str, str]:
         return 'GITW', rev
 
     # Attempt: 'RELF'
-    relfile = os.path.join(caiman_datadir(), 'RELEASE')
+    relfile = os.path.join(caiman.paths.caiman_datadir(), 'RELEASE')
     if os.path.isfile(relfile):
         with open(relfile, 'r') as sfh:
             for line in sfh:

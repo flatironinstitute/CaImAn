@@ -1,4 +1,4 @@
 #!/usr/bin/env python
 
-from .create_gt import create
-from .comparison import Comparison
+from caiman.tests.comparison.create_gt import create
+from caiman.tests.comparison.comparison import Comparison
