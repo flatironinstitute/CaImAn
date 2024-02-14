@@ -24,8 +24,6 @@ import sys
 import time
 from typing import Any, Optional, Union
 
-from .mmapping import load_memmap
-
 logger = logging.getLogger(__name__)
 
 
