@@ -21,7 +21,7 @@ import time
 from typing import Any, Optional
 import zipfile
 
-from ..motion_correction import tile_and_correct
+from caiman.motion_correction import tile_and_correct
 
 try:
     cv2.setNumThreads(0)
