@@ -21,7 +21,7 @@ import scipy.ndimage as ndi
 import caiman.base.rois
 import caiman.cluster
 import caiman.mmapping
-import caiman.source_extraction.cnmf.initialization import greedyROI
+import caiman.source_extraction.cnmf.initialization
 import caiman.utils.stats
 
 
