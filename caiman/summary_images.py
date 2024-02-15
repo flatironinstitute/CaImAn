@@ -13,7 +13,7 @@ from scipy.ndimage import convolve, generate_binary_structure
 from scipy.sparse import coo_matrix
 from typing import Any, Optional
 
-import caiman as cm
+import caiman
 import caiman.base.movies
 from caiman.source_extraction.cnmf.pre_processing import get_noise_fft
 
@@ -433,7 +433,7 @@ def map_corr(scan) -> tuple[Any, Any, Any, int]:
     '''
     # TODO: Tighten prototype above
     if isinstance(scan, str):
-        scan = cm.load(scan)
+        scan = caiman.load(scan)
 
     # h x w x num_frames
     chunk = np.array(scan).transpose([1, 2, 0])
@@ -616,11 +616,11 @@ def local_correlations_movie(file_name,
             Mode of moving average
 
     Returns:
-        corr_movie: cm.movie (3D or 4D).
+        corr_movie: caiman.movie (3D or 4D).
             local correlation movie
 
     """
-    Y = cm.load(file_name) if isinstance(file_name, str) else file_name
+    Y = caiman.load(file_name) if isinstance(file_name, str) else file_name
     Y = Y[..., :tot_frames] if swap_dim else Y[:tot_frames]
     first_moment, second_moment, crosscorr, col_ind, row_ind, num_neigbors, M, cn = \
         prepare_local_correlations(Y[..., :window] if swap_dim else Y[:window],
@@ -646,7 +646,7 @@ def local_correlations_movie(file_name,
                                                            crosscorr, col_ind, row_ind, num_neigbors, M)
     else:
         raise Exception('mode of the moving average must be simple, exponential or cumulative')
-    return cm.movie(corr_movie, fr=fr)
+    return caiman.movie(corr_movie, fr=fr)
 
 
 def local_correlations_movie_offline(file_name,
@@ -707,7 +707,7 @@ def local_correlations_movie_offline(file_name,
             Gaussian smooth the signal
 
     Returns:
-        mm: cm.movie (3D or 4D).
+        mm: caiman.movie (3D or 4D).
             local correlation movie
 
     """
@@ -733,13 +733,13 @@ def local_correlations_movie_offline(file_name,
             parallel_result = dview.map_sync(local_correlations_movie_parallel, params)
             dview.results.clear()
 
-    mm = cm.movie(np.concatenate(parallel_result, axis=0), fr=fr/len(parallel_result))
+    mm = caiman.movie(np.concatenate(parallel_result, axis=0), fr=fr/len(parallel_result))
     return mm
 
 
 def local_correlations_movie_parallel(params:tuple) -> np.ndarray:
     mv_name, idx, eight_neighbours, swap_dim, order_mean, ismulticolor, remove_baseline, winSize_baseline, quantil_min_baseline, gaussian_blur = params
-    mv = cm.load(mv_name, subindices=idx, in_memory=True)
+    mv = caiman.load(mv_name, subindices=idx, in_memory=True)
     if gaussian_blur:
         mv = mv.gaussian_blur_2D()
 
@@ -777,7 +777,7 @@ def mean_image(file_name,
             Use it for parallel computation
     
     Returns:
-        mm: cm.movie (2D).
+        mm: caiman.movie (2D).
             mean image
 
     """
@@ -800,7 +800,7 @@ def mean_image(file_name,
             parallel_result = dview.map_sync(mean_image_parallel, params)
             dview.results.clear()
 
-    mm = cm.movie(np.concatenate(parallel_result, axis=0), fr=fr/len(parallel_result))
+    mm = caiman.movie(np.concatenate(parallel_result, axis=0), fr=fr/len(parallel_result))
     if remain_frames > 0:
         mean_image = (mm[:-1].sum(axis=0) + (remain_frames / window) * mm[-1]) / (len(mm) - 1 + remain_frames / window)  
     else:
@@ -809,5 +809,5 @@ def mean_image(file_name,
 
 def mean_image_parallel(params:tuple) -> np.ndarray:
     mv_name, idx = params
-    mv = cm.load(mv_name, subindices=idx, in_memory=True)
+    mv = caiman.load(mv_name, subindices=idx, in_memory=True)
     return mv.mean(axis=0)[np.newaxis,:,:]

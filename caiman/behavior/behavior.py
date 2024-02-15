@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 """
 Functions related to optical flow
@@ -14,7 +13,7 @@ from scipy.io import loadmat
 from sklearn.decomposition import NMF
 import time
 
-import caiman as cm
+import caiman
 
 try:
     cv2.setNumThreads(0)
@@ -75,14 +74,14 @@ def extract_motor_components_OF(m,
         mask = coo_matrix(np.array(mask).squeeze())
         ms = [get_nonzero_subarray(mask.multiply(fr), mask) for fr in m]
         ms = np.dstack(ms)
-        ms = cm.movie(ms.transpose([2, 0, 1]))
+        ms = caiman.movie(ms.transpose([2, 0, 1]))
 
     else:
         ms = m
     of_or = compute_optical_flow(ms, do_show=False, polar_coord=False)
     of_or = np.concatenate([
-        cm.movie(of_or[0]).resize(resize_fact, resize_fact, 1)[np.newaxis, :, :, :],
-        cm.movie(of_or[1]).resize(resize_fact, resize_fact, 1)[np.newaxis, :, :, :]
+        caiman.movie(of_or[0]).resize(resize_fact, resize_fact, 1)[np.newaxis, :, :, :],
+        caiman.movie(of_or[1]).resize(resize_fact, resize_fact, 1)[np.newaxis, :, :, :]
     ],
                            axis=0)
 
@@ -130,8 +129,8 @@ def extract_magnitude_and_angle_from_OF(spatial_filter_,
             x, y = scipy.signal.medfilt(time_trace, kernel_size=[1, 1]).T
             x = scipy.signal.savgol_filter(x.squeeze(), sav_filter_size, 1)
             y = scipy.signal.savgol_filter(y.squeeze(), sav_filter_size, 1)
-            mag, dirct = to_polar(x - cm.components_evaluation.mode_robust(x),
-                                  y - cm.components_evaluation.mode_robust(y))
+            mag, dirct = to_polar(x - caiman.components_evaluation.mode_robust(x),
+                                  y - caiman.components_evaluation.mode_robust(y))
             dirct = scipy.signal.medfilt(dirct.squeeze(), kernel_size=1).T
 
         # normalize to pixel units
@@ -271,8 +270,8 @@ def compute_optical_flow(m,
 
     return mov_tot
 
+# NMF
 
-#%% NMF
 def extract_components(mov_tot,
                        n_components: int = 6,
                        normalize_std: bool = True,
