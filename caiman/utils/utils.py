@@ -668,7 +668,7 @@ def get_caiman_version() -> tuple[str, str]:
         return 'GITW', rev
 
     # Attempt: 'RELF'
-    relfile = os.path.join(caiman.paths.caiman_datadir(), 'RELEASE')
+    relfile = os.path.join(caiman_datadir(), 'RELEASE')
     if os.path.isfile(relfile):
         with open(relfile, 'r') as sfh:
             for line in sfh:
