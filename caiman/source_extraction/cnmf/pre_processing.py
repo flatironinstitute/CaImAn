@@ -16,7 +16,7 @@ from scipy.linalg import toeplitz
 import shutil
 import tempfile
 
-from caiman.mmapping import load_memmap
+import caiman.mmapping
 
 
 def interpolate_missing_data(Y):
