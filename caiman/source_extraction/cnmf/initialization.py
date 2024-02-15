@@ -36,6 +36,11 @@ try:
 except:
     pass
 
+try:
+    profile
+except:
+    def profile(a): return a
+
 #FIXME review this and find a better way to do it
 warnings.filterwarnings(action='ignore', category=ConvergenceWarning)
 

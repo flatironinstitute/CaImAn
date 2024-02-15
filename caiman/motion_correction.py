@@ -62,8 +62,11 @@ try:
 except:
     pass
 
-from cv2 import dft as fftn
-from cv2 import idft as ifftn
+try:
+    profile
+except:
+    def profile(a): return a
+
 opencv = True
 
 try:
@@ -73,11 +76,6 @@ try:
     HAS_CUDA = True
 except ImportError:
     HAS_CUDA = False
-
-try:
-    profile
-except:
-    def profile(a): return a
 
 class MotionCorrect(object):
     """
@@ -1671,11 +1669,11 @@ def register_translation(src_image, target_image, upsample_factor=1,
             del(image_gpu)
             del(freq_gpu)
         elif opencv:
-            src_freq_1 = fftn(
+            src_freq_1 = cv2.dft(
                 src_image, flags=cv2.DFT_COMPLEX_OUTPUT + cv2.DFT_SCALE)
             src_freq = src_freq_1[:, :, 0] + 1j * src_freq_1[:, :, 1]
             src_freq = np.array(src_freq, dtype=np.complex128, copy=False)
-            target_freq_1 = fftn(
+            target_freq_1 = cv2.dft(
                 target_image, flags=cv2.DFT_COMPLEX_OUTPUT + cv2.DFT_SCALE)
             target_freq = target_freq_1[:, :, 0] + 1j * target_freq_1[:, :, 1]
             target_freq = np.array(
@@ -1706,12 +1704,12 @@ def register_translation(src_image, target_image, upsample_factor=1,
 
         image_product_cv = np.dstack(
             [np.real(image_product), np.imag(image_product)])
-        cross_correlation = fftn(
+        cross_correlation = cv2.dft(
             image_product_cv, flags=cv2.DFT_INVERSE + cv2.DFT_SCALE)
         cross_correlation = cross_correlation[:,
                                               :, 0] + 1j * cross_correlation[:, :, 1]
     else:
-        cross_correlation = ifftn(image_product)
+        cross_correlation = cv2.idft(image_product)
 
     # Locate maximum
     new_cross_corr = np.abs(cross_correlation)
@@ -1839,7 +1837,7 @@ def apply_shifts_dft(src_freq, shifts, diffphase, is_freq=True, border_nan=True)
             src_freq = np.fft.fftn(src_freq)
         else:
             src_freq = np.dstack([np.real(src_freq), np.imag(src_freq)])
-            src_freq = fftn(src_freq, flags=cv2.DFT_COMPLEX_OUTPUT + cv2.DFT_SCALE)
+            src_freq = cv2.dft(src_freq, flags=cv2.DFT_COMPLEX_OUTPUT + cv2.DFT_SCALE)
             src_freq = src_freq[:, :, 0] + 1j * src_freq[:, :, 1]
             src_freq = np.array(src_freq, dtype=np.complex128, copy=False)
 
@@ -1865,7 +1863,7 @@ def apply_shifts_dft(src_freq, shifts, diffphase, is_freq=True, border_nan=True)
         new_img = np.real(np.fft.ifftn(Greg))
     else:
         Greg = np.dstack([np.real(Greg), np.imag(Greg)])
-        new_img = ifftn(Greg)[:, :, 0]
+        new_img = cv2.idft(Greg)[:, :, 0]
 
     if border_nan is not False:
         max_w, max_h, min_w, min_h = 0, 0, 0, 0
