@@ -40,9 +40,9 @@ except:
 import caiman
 import caiman.external.cell_magic_wand
 import caiman.paths
+from caiman.paths import caiman_datadir
 import caiman.source_extraction.cnmf.spatial
 import caiman.utils
-from caiman.utils import caiman_datadir
 
 def download_demo(name:str='Sue_2x_3000_40_-46.tif', save_folder:str='') -> str:
     """download a file from the file list with the url of its location
