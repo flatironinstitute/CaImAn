@@ -1,8 +1,8 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 import logging
 from scipy.ndimage import filters as ft
+
 import caiman
 
 def pre_preprocess_movie_labeling(dview, file_names, median_filter_size=(2, 1, 1),

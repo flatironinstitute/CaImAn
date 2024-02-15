@@ -1,16 +1,9 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 """
 Constrained Nonnegative Matrix Factorization
 
 A similar CNMF class that will output data that are not usually present in the regular CNMF process
-
-Created on Fri Aug 26 15:44:32 2016
-
-@author: agiovann
-
-
 """
 
 import numpy as np

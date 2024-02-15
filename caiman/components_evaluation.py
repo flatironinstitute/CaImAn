@@ -437,7 +437,7 @@ def evaluate_components(Y: np.ndarray,
             padafter = int(np.ceil(elm_missing / 2.))
             tr_tmp = np.pad(traces.T, ((padbefore, padafter), (0, 0)), mode='reflect')
             numFramesNew, num_traces = np.shape(tr_tmp)
-                                                                                             #% compute baseline quickly
+                                                                                             # compute baseline quickly
             logging.debug("binning data ...")
             tr_BL = np.reshape(tr_tmp, (downsampfact, numFramesNew // downsampfact, num_traces), order='F')
             tr_BL = np.percentile(tr_BL, 8, axis=0)

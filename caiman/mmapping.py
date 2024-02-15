@@ -1,16 +1,15 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 import ipyparallel as parallel
 from itertools import chain
 import logging
 import numpy as np
 import os
+import pathlib
 import pickle
 import sys
 import tifffile
 from typing import Any, Optional, Union
-import pathlib
 
 import caiman
 import caiman.paths

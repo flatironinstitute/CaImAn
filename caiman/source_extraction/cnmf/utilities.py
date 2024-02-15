@@ -580,7 +580,7 @@ def fast_prct_filt(input_data, level=8, frames_window=1000):
     padafter = int(np.ceil(elm_missing / 2.))
     tr_tmp = np.pad(data.T, ((padbefore, padafter), (0, 0)), mode='reflect')
     numFramesNew, num_traces = np.shape(tr_tmp)
-    #% compute baseline quickly
+    # compute baseline quickly
 
     tr_BL = np.reshape(tr_tmp, (downsampfact, int(numFramesNew / downsampfact),
                                 num_traces), order='F')
@@ -596,7 +596,7 @@ def fast_prct_filt(input_data, level=8, frames_window=1000):
         data -= tr_BL[padbefore:-padafter].T
 
     return data.squeeze()
-#%%
+
 def detrend_df_f_auto(A, b, C, f, dims=None, YrA=None, use_annulus = True, 
                       dist1 = 7, dist2 = 5, frames_window=1000, 
                       use_fast = False):
@@ -698,9 +698,6 @@ def detrend_df_f_auto(A, b, C, f, dims=None, YrA=None, use_annulus = True,
         F_df = (F - Fd) / (Df + Fd)
 
     return F_df
-
-#%%
-
 
 def manually_refine_components(Y, xxx_todo_changeme, A, C, Cn, thr=0.9, display_numbers=True,
                                max_number=None, cmap=None, **kwargs):
@@ -1014,8 +1011,6 @@ def update_order_greedy(A, flag_AA=True):
             parllcomp.append([i])
     len_parrllcomp = [len(ls) for ls in parllcomp]
     return parllcomp, len_parrllcomp
-#%%
-
 
 def compute_residuals(Yr_mmap_file, A_, b_, C_, f_, dview=None, block_size=1000, num_blocks_per_run=5):
     '''compute residuals from memory mapped file and output of CNMF

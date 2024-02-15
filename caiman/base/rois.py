@@ -1,5 +1,4 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 import cv2
 import json
@@ -242,7 +241,7 @@ def nf_match_neurons_in_binary_masks(masks_gt,
     cm_cnmf = [scipy.ndimage.center_of_mass(mm) for mm in masks_comp]
 
     if D is None:
-        #% find distances and matches
+        # find distances and matches
         # find the distance between each masks
         D = distance_masks([A_ben, A_cnmf], [cm_ben, cm_cnmf], min_dist, enclosed_thr=enclosed_thr)
 
@@ -252,7 +251,7 @@ def nf_match_neurons_in_binary_masks(masks_gt,
     matches = matches[0]
     costs = costs[0]
 
-    #%% compute precision and recall
+    # compute precision and recall
     TP = np.sum(np.array(costs) < thresh_cost) * 1.
     FN = np.shape(masks_gt)[0] - TP
     FP = np.shape(masks_comp)[0] - TP
@@ -264,7 +263,7 @@ def nf_match_neurons_in_binary_masks(masks_gt,
     performance['accuracy'] = (TP + TN) / (TP + FP + FN + TN)
     performance['f1_score'] = 2 * TP / (2 * TP + FP + FN)
     logging.debug(performance)
-    #%%
+
     idx_tp = np.where(np.array(costs) < thresh_cost)[0]
     idx_tp_ben = matches[0][idx_tp]    # ground truth
     idx_tp_cnmf = matches[1][idx_tp]   # algorithm - comp
@@ -471,7 +470,7 @@ def register_ROIs(A1,
     matches = matches[0]
     costs = costs[0]
 
-    #%% store indices
+    # store indices
 
     idx_tp = np.where(np.array(costs) < thresh_cost)[0]
     if len(idx_tp) > 0:
@@ -488,7 +487,7 @@ def register_ROIs(A1,
         non_matched1 = list(range(D[0].shape[0]))
         non_matched2 = list(range(D[0].shape[1]))
 
-    #%% compute precision and recall
+    # compute precision and recall
 
     FN = D[0].shape[0] - TP
     FP = D[0].shape[1] - TP
@@ -1001,7 +1000,7 @@ def nf_read_roi(fileobj) -> np.ndarray:
     fill_color = get32()
     subtype = get16()
     if subtype != 0:
-        raise ValueError('roireader: ROI subtype %s not supported (!= 0)' % subtype)
+        raise ValueError(f'roireader: ROI subtype {subtype} not supported (!= 0)')
     options = get16()
     arrow_style = get8()
     arrow_head_size = get8()

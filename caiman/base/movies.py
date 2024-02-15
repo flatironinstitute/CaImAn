@@ -343,7 +343,7 @@ class movie(caiman.base.timeseries.timeseries):
 
         template = template[ms_h:h_i - ms_h, ms_w:w_i - ms_w].astype(np.float32)
 
-        #% run algorithm, press q to stop it
+        # run algorithm, press q to stop it
         shifts = []    # store the amount of shift in each frame
         xcorrs = []
 
@@ -604,7 +604,7 @@ class movie(caiman.base.timeseries.timeseries):
                         **self.__dict__)
         numFramesNew, linePerFrame, pixPerLine = np.shape(mov_out)
 
-        #% compute baseline quickly
+        # compute baseline quickly
         logging.debug("binning data ...")
         sys.stdout.flush()
         
@@ -627,7 +627,7 @@ class movie(caiman.base.timeseries.timeseries):
                                    cval=0.0,
                                    prefilter=False)
 
-        #% compute DF/F
+        # compute DF/F
         if not in_place:
             if method == 'delta_f_over_sqrt_f':
                 mov_out = (mov_out - movBL) / np.sqrt(movBL)

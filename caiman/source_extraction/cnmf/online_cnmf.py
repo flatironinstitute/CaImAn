@@ -1375,8 +1375,6 @@ class OnACID(object):
             self.dims = self.dims[::-1]
         return vid_frame
 
-
-#%%
 def bare_initialization(Y, init_batch=1000, k=1, method_init='greedy_roi', gnb=1,
                         gSig=[5, 5], motion_flag=False, p=1,
                         return_object=True, **kwargs):
@@ -1456,8 +1454,6 @@ def bare_initialization(Y, init_batch=1000, k=1, method_init='greedy_roi', gnb=1
         except:
             return Ain, np.array(b_in), Cin, f_in, YrA
 
-
-#%%
 def seeded_initialization(Y, Ain, dims=None, init_batch=1000, order_init=None, gnb=1, p=1,
                           return_object=True, **kwargs):
 
@@ -1513,7 +1509,7 @@ def seeded_initialization(Y, Ain, dims=None, init_batch=1000, order_init=None, g
 
         model_comp = NMF(n_components=1, init='nndsvdar', max_iter=50)
         for count, idx_in in enumerate(order_init):
-            if count%10 == 0:
+            if count % 10 == 0:
                 print(count)
             idx_domain = np.where(Ain[:,idx_in])[0]
             Ain[idx_domain,idx_in] = model_comp.fit_transform(\
@@ -1771,7 +1767,7 @@ def demix_and_deconvolve(C, noisyC, AtY, AtA, OASISinstances, iters=3, n_refit=0
     return C, noisyC, OASISinstances
 
 
-#%% Estimate shapes on small initial batch
+# Estimate shapes on small initial batch
 def init_shapes_and_sufficient_stats(Y, A, C, b, f, W=None, b0=None, ssub_B=1, bSiz=3,
                                      downscale_matrix=None, upscale_matrix=None):
     # smooth the components
@@ -1943,8 +1939,6 @@ class RingBuffer(np.ndarray):
         else:
             return np.concatenate([self[(self.cur - num_frames):], self[:self.cur]], axis=0)
 
-
-#%%
 def csc_append(a, b):
     """ Takes in 2 csc_matrices and appends the second one to the right of the first one.
     Much faster than scipy.sparse.hstack but assumes the type to be csc and overwrites
@@ -2000,7 +1994,6 @@ def rank1nmf(Ypx, ain, iters=10):
     cin = np.maximum(cin_res, 0)
     return ain, cin, cin_res
 
-#%%
 @profile
 def get_candidate_components(sv, dims, Yres_buf, min_num_trial=3, gSig=(5, 5),
                              gHalf=(5, 5), sniper_mode=True, rval_thr=0.85,
@@ -2127,8 +2120,6 @@ def get_candidate_components(sv, dims, Yres_buf, min_num_trial=3, gSig=(5, 5),
 
     return Ain, Cin, Cin_res, idx, ijsig_all, cnn_pos, local_maxima
 
-
-#%%
 @profile
 def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                           dims, gSig, gSiz, ind_A, CY, CC, groups, oases, gnb=1,
@@ -2371,7 +2362,7 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
     return Ab, Cf, Yres_buf, rho_buf, CC, CY, ind_A, sv, groups, ind_new, ind_new_all, sv, cnn_pos
 
 
-#%% remove components online
+# remove components online
 def remove_components_online(ind_rem, gnb, Ab, use_dense, Ab_dense, AtA, CY,
                              CC, M, N, noisyC, OASISinstances, C_on, exp_comps):
 
@@ -2438,10 +2429,7 @@ def initialize_movie_online(Y, K, gSig, rf, stride, base_name,
     images = np.reshape(Yr.T, [T] + list(dims), order='F')
     Y = np.reshape(Yr, dims + (T,), order='F')
     Cn2 = caiman.local_correlations(Y)
-#    pl.imshow(Cn2)
-    #%
-    #% RUN ALGORITHM ON PATCHES
-#    pl.close('all')
+    # RUN ALGORITHM ON PATCHES
     cnm_init = caiman.source_extraction.cnmf.CNMF(n_processes, method_init='greedy_roi', k=K, gSig=gSig, merge_thresh=merge_thresh,
                                               p=0, dview=dview, Ain=None, rf=rf, stride=stride, method_deconvolution='oasis', skip_refinement=False,
                                               normalize_init=False, options_local_NMF=None,
@@ -2456,9 +2444,7 @@ def initialize_movie_online(Y, K, gSig, rf, stride, base_name,
     b_tot = cnm_init.b
     f_tot = cnm_init.f
 
-    print(('Number of components:' + str(A_tot.shape[-1])))
-
-    #%
+    print(f"Number of components: {A_tot.shape[-1]}")
 
     traces = C_tot + YrA_tot
     fitness_raw, fitness_delta, erfc_raw, erfc_delta, r_values, significant_samples = caiman.components_evaluation.evaluate_components(
@@ -2478,7 +2464,7 @@ def initialize_movie_online(Y, K, gSig, rf, stride, base_name,
 
     A_tot = A_tot.tocsc()[:, idx_components]
     C_tot = C_tot[idx_components]
-    #%
+
     cnm_refine = caiman.source_extraction.cnmf.CNMF(n_processes, method_init='greedy_roi', k=A_tot.shape, gSig=gSig, merge_thresh=merge_thresh, rf=None, stride=None,
                                                 p=p, dview=dview, Ain=A_tot, Cin=C_tot, f_in=f_tot, method_deconvolution='oasis', skip_refinement=True,
                                                 normalize_init=False, options_local_NMF=None,
@@ -2487,9 +2473,9 @@ def initialize_movie_online(Y, K, gSig, rf, stride, base_name,
                                                 batch_update_suff_stat=True, max_comp_update_shape=5)
 
     cnm_refine = cnm_refine.fit(images)
-    #%
+
     A, C, b, f, YrA = cnm_refine.A, cnm_refine.C, cnm_refine.b, cnm_refine.f, cnm_refine.YrA
-    #%
+
     final_frate = 10
     Npeaks = 10
     traces = C + YrA
@@ -2510,7 +2496,7 @@ def initialize_movie_online(Y, K, gSig, rf, stride, base_name,
     print(' ***** ')
     print((len(traces)))
     print((len(idx_components)))
-    #%
+
     cnm_refine.sn = sn # FIXME: There is no sn in scope here
     cnm_refine.idx_components = idx_components
     cnm_refine.idx_components_bad = idx_components_bad
@@ -2518,11 +2504,6 @@ def initialize_movie_online(Y, K, gSig, rf, stride, base_name,
     cnm_refine.fitness_raw = fitness_raw
     cnm_refine.fitness_delta = fitness_delta
     cnm_refine.Cn2 = Cn2
-
-    #%
-
-#    cnm_init.dview = None
-#    save_object(cnm_init,fls[0][:-4]+ '_DS_' + str(ds)+ '_init.pkl')
 
     return cnm_refine, Cn2, fname_new
 
