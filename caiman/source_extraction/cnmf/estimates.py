@@ -16,8 +16,8 @@ import time
 import uuid
 
 import caiman
-from caiman.components_evaluation import evaluate_components_CNN, estimate_components_quality_auto, select_components_from_metrics, compute_eccentricity
 from caiman.base.rois import detect_duplicates_and_subsets, nf_match_neurons_in_binary_masks, nf_masks_to_neurof_dict
+from caiman.components_evaluation import evaluate_components_CNN, estimate_components_quality_auto, select_components_from_metrics, compute_eccentricity
 from caiman.source_extraction.cnmf.initialization import downscale
 from caiman.source_extraction.cnmf.merging import merge_iteration, merge_components
 from caiman.source_extraction.cnmf.spatial import threshold_components
