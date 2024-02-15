@@ -6,17 +6,18 @@ import numpy as np
 import pylab as pl
 pl.ion()
 
-from caiman.base.timeseries import timeseries
+import caiman.base.timeseries
 
 try:
     cv2.setNumThreads(0)
 except:
     pass
 
+################
+# This holds the trace class, which is a specialised Caiman timeseries class.
 
 
-
-class trace(timeseries):
+class trace(caiman.base.timeseries.timeseries):
     """
     Class representing a trace.
 
