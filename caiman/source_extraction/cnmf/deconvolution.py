@@ -1,10 +1,7 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
-"""Extract neural activity from a fluorescence trace using a constrained deconvolution approach
-
-Created on Tue Sep  1 16:11:25 2015
-@author: Eftychios A. Pnevmatikakis, based on an implementation by T. Machado,  Andrea Giovannucci & Ben Deverett
+"""
+Extract neural activity from a fluorescence trace using a constrained deconvolution approach
 """
 
 import numpy as np
@@ -15,8 +12,6 @@ from warnings import warn
 from math import log, sqrt, exp
 
 import sys
-#%%
-
 
 def constrained_foopsi(fluor, bl=None,  c1=None, g=None,  sn=None, p=None, method_deconvolution='oasis', bas_nonneg=True,
                        noise_range=[.25, .5], noise_method='logmexp', lags=5, fudge_factor=1.,
@@ -104,9 +99,6 @@ def constrained_foopsi(fluor, bl=None,  c1=None, g=None,  sn=None, p=None, metho
     References:
         * Pnevmatikakis et al. 2016. Neuron, in press, http://dx.doi.org/10.1016/j.neuron.2015.11.037
         * Machado et al. 2015. Cell 162(2):338-350
-
-    \image: docs/img/deconvolution.png
-    \image: docs/img/evaluationcomponent.png
     """
 
     if p is None:

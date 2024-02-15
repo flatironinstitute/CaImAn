@@ -30,25 +30,18 @@ import warnings
 import zarr
 from zipfile import ZipFile
 
-import caiman as cm
-
-from . import timeseries
+import caiman.base.timeseries
+import caiman.base.traces
+import caiman.mmapping
+import caiman.summary_images
+import caiman.utils.visualization
 
 try:
     cv2.setNumThreads(0)
 except:
     pass
 
-from . import timeseries as ts
-from .traces import trace
-
-from ..mmapping import load_memmap
-from ..utils import visualization
-from .. import summary_images as si
-from ..motion_correction import apply_shift_online, motion_correct_online
-
-
-class movie(ts.timeseries):
+class movie(caiman.base.timeseries.timeseries):
     """
     Class representing a movie. This class subclasses timeseries,
     that in turn subclasses ndarray
@@ -350,7 +343,7 @@ class movie(ts.timeseries):
 
         template = template[ms_h:h_i - ms_h, ms_w:w_i - ms_w].astype(np.float32)
 
-        #% run algorithm, press q to stop it
+        # run algorithm, press q to stop it
         shifts = []    # store the amount of shift in each frame
         xcorrs = []
 
@@ -549,11 +542,11 @@ class movie(ts.timeseries):
         myperc = partial(np.percentile, q=quantilMin, axis=-1)
         res = np.array(list(map(myperc,iter_win))).T
         if returnBL:
-                return cm.movie(cv2.resize(res,pixs.shape[::-1]),fr=self.fr).to3DFromPixelxTime(self.shape)
+                return caiman.movie(cv2.resize(res,pixs.shape[::-1]),fr=self.fr).to3DFromPixelxTime(self.shape)
         if (not in_place):            
             return (pixs-cv2.resize(res,pixs.shape[::-1])).to3DFromPixelxTime(self.shape)
         else:
-            self -= cm.movie(cv2.resize(res,pixs.shape[::-1]),fr=self.fr).to3DFromPixelxTime(self.shape) 
+            self -= caiman.movie(cv2.resize(res,pixs.shape[::-1]),fr=self.fr).to3DFromPixelxTime(self.shape) 
             return self
     
     def to2DPixelxTime(self, order='F'):
@@ -611,7 +604,7 @@ class movie(ts.timeseries):
                         **self.__dict__)
         numFramesNew, linePerFrame, pixPerLine = np.shape(mov_out)
 
-        #% compute baseline quickly
+        # compute baseline quickly
         logging.debug("binning data ...")
         sys.stdout.flush()
         
@@ -634,7 +627,7 @@ class movie(ts.timeseries):
                                    cval=0.0,
                                    prefilter=False)
 
-        #% compute DF/F
+        # compute DF/F
         if not in_place:
             if method == 'delta_f_over_sqrt_f':
                 mov_out = (mov_out - movBL) / np.sqrt(movBL)
@@ -884,7 +877,7 @@ class movie(ts.timeseries):
         T = self.shape[0]
         Cn = np.zeros(self.shape[1:])
         if T <= 3000:
-            Cn = si.local_correlations(np.array(self),
+            Cn = caiman.summary_images.local_correlations(np.array(self),
                                        eight_neighbours=eight_neighbours,
                                        swap_dim=swap_dim,
                                        order_mean=order_mean)
@@ -894,7 +887,7 @@ class movie(ts.timeseries):
             for jj, mv in enumerate(range(n_chunks - 1)):
                 logging.debug('number of chunks:' + str(jj) + ' frames: ' +
                               str([mv * frames_per_chunk, (mv + 1) * frames_per_chunk]))
-                rho = si.local_correlations(np.array(self[mv * frames_per_chunk:(mv + 1) * frames_per_chunk]),
+                rho = caiman.summary_images.local_correlations(np.array(self[mv * frames_per_chunk:(mv + 1) * frames_per_chunk]),
                                             eight_neighbours=eight_neighbours,
                                             swap_dim=swap_dim,
                                             order_mean=order_mean)
@@ -905,7 +898,7 @@ class movie(ts.timeseries):
 
             logging.debug('number of chunks:' + str(n_chunks - 1) + ' frames: ' +
                           str([(n_chunks - 1) * frames_per_chunk, T]))
-            rho = si.local_correlations(np.array(self[(n_chunks - 1) * frames_per_chunk:]),
+            rho = caiman.summary_images.local_correlations(np.array(self[(n_chunks - 1) * frames_per_chunk:]),
                                         eight_neighbours=eight_neighbours,
                                         swap_dim=swap_dim,
                                         order_mean=order_mean)
@@ -956,7 +949,7 @@ class movie(ts.timeseries):
         fovs = cv2.resize(np.uint8(fovs), (w1, h1), 1. / fx, 1. / fy, interpolation=cv2.INTER_NEAREST)
         return np.uint8(fovs), mcoef, distanceMatrix
 
-    def extract_traces_from_masks(self, masks: np.ndarray) -> trace:
+    def extract_traces_from_masks(self, masks: np.ndarray) -> caiman.base.traces.trace:
         """
         Args:
             masks: array, 3D with each 2D slice bein a mask (integer or fractional)
@@ -975,7 +968,7 @@ class movie(ts.timeseries):
 
         pixelsA = np.sum(A, axis=1)
         A = A / pixelsA[:, None]       # obtain average over ROI
-        traces = trace(np.dot(A, np.transpose(Y)).T, **self.__dict__)
+        traces = caiman.base.traces.trace(np.dot(A, np.transpose(Y)).T, **self.__dict__)
         return traces
 
     def resize(self, fx=1, fy=1, fz=1, interpolation=cv2.INTER_AREA):
@@ -1013,7 +1006,7 @@ class movie(ts.timeseries):
                 if len(new_m) == 0:
                     new_m = m_tmp
                 else:
-                    new_m = timeseries.concatenate([new_m, m_tmp], axis=0)
+                    new_m = caiman.base.timeseries.concatenate([new_m, m_tmp], axis=0)
 
             return new_m
         else:
@@ -1566,7 +1559,7 @@ def load(file_name: Union[str, list[str]],
 
         elif extension == '.mmap':
             filename = os.path.split(file_name)[-1]
-            Yr, dims, T = load_memmap(
+            Yr, dims, T = caiman.mmapping.load_memmap(
                 os.path.join(                  # type: ignore # same dims typing issue as above
                     os.path.split(file_name)[0], filename))
             images = np.reshape(Yr.T, [T] + list(dims), order='F')
@@ -1666,10 +1659,10 @@ def load_movie_chain(file_list: list[str],
             m = m[:, top:h - bottom, left:w - right, z_top:d - z_bottom]
 
         mov.append(m)
-    return ts.concatenate(mov, axis=0)
+    return caiman.base.timeseries.concatenate(mov, axis=0)
 
 ####
-# This is only used for demo_behavior, and used to be part of cm.load(), activated with the
+# This is only used for demo_behavior, and used to be part of caiman.load(), activated with the
 # 'is_behavior' boolean flag.
 
 def _load_behavior(file_name:str) -> Any:
@@ -1976,7 +1969,7 @@ def from_zip_file_to_movie(zipfile_name: str, start_end:Optional[tuple] = None) 
 
                     counter += 1
 
-    return cm.movie(mov[:counter])
+    return caiman.movie(mov[:counter])
 
 
 def from_zipfiles_to_movie_lists(zipfile_name: str, max_frames_per_movie: int = 3000,
@@ -2314,8 +2307,7 @@ def get_file_size(file_name, var_name_hdf5='mov') -> tuple[tuple, Union[int, tup
         else:
             raise Exception('File not found!')
     elif isinstance(file_name, tuple):
-        from ...base.movies import load
-        dims = load(file_name[0], var_name_hdf5=var_name_hdf5).shape
+        dims = caiman.base.movies.load(file_name[0], var_name_hdf5=var_name_hdf5).shape
         T = len(file_name)
 
     elif isinstance(file_name, list):
@@ -2494,7 +2486,7 @@ def play_movie(movie,
         anim = matplotlib.animation.FuncAnimation(fig, animate, frames=frames, interval=1, blit=True)
 
         # call our new function to display the animation
-        return visualization.display_animation(anim, fps=fr)
+        return caiman.utils.visualization.display_animation(anim, fps=fr)
 
     elif backend == 'embed_opencv':
         stopButton = widgets.ToggleButton(

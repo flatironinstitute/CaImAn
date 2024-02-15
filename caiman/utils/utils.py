@@ -37,13 +37,12 @@ except:
     pass
 
 
-from ..external.cell_magic_wand import cell_magic_wand
-from ..source_extraction.cnmf.spatial import threshold_components
+import caiman
+import caiman.external.cell_magic_wand
+import caiman.paths
 from caiman.paths import caiman_datadir
+import caiman.source_extraction.cnmf.spatial
 import caiman.utils
-
-#%%
-
 
 def download_demo(name:str='Sue_2x_3000_40_-46.tif', save_folder:str='') -> str:
     """download a file from the file list with the url of its location
@@ -62,9 +61,6 @@ def download_demo(name:str='Sue_2x_3000_40_-46.tif', save_folder:str='') -> str:
     Raise:
         WrongFolder Exception
     """
-
-    #\bug
-    #\warning
 
     file_dict = {
 		'Sue_2x_3000_40_-46.tif': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/Sue_2x_3000_40_-46.tif',
@@ -89,7 +85,7 @@ def download_demo(name:str='Sue_2x_3000_40_-46.tif', save_folder:str='') -> str:
                 'msCam13.avi': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/msCam13.avi',
                 'online_vs_offline.npz': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/online_vs_offline.npz',
 		}
-                 #          ,['./example_movies/demoMovie.tif','https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/demoMovie.tif']]
+
     base_folder = os.path.join(caiman_datadir(), 'example_movies')
     if os.path.exists(base_folder):
         if not os.path.isdir(os.path.join(base_folder, save_folder)):
@@ -242,7 +238,7 @@ def get_image_description_SI(fname:str) -> list:
     return image_descriptions
 
 
-#%% Generate data
+# Generate data
 def gen_data(dims:tuple[int,int]=(48, 48), N:int=10, sig:tuple[int,int]=(3, 3), tau:float=1., noise:float=.3, T:int=2000,
              framerate:int=30, firerate:float=.5, seed:int=3, cmap:bool=False, truncate:float=np.exp(-2),
              difference_of_Gaussians:bool=True, fluctuating_bkgrd:list=[50, 300]) -> tuple[np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, np.ndarray, tuple[int, int]]:
@@ -311,9 +307,8 @@ def gen_data(dims:tuple[int,int]=(48, 48), N:int=10, sig:tuple[int,int]=(3, 3), 
         * (np.prod(dims), T)).astype('float32') + trueA.dot(trueC)
 
     if cmap:
-        import caiman as cm
         Y = np.reshape(Yr, dims + (T,), order='F')
-        Cn = cm.local_correlations(Y)
+        Cn = caiman.local_correlations(Y)
         plt.figure(figsize=(20, 3))
         plt.plot(trueC.T)
         plt.figure(figsize=(20, 3))
@@ -338,8 +333,6 @@ def gen_data(dims:tuple[int,int]=(48, 48), N:int=10, sig:tuple[int,int]=(3, 3), 
         plt.show()
     return Yr, trueC, trueS, trueA, trueb, truef, centers, dims # XXX dims is always the same as passed into the function?
 
-
-#%%
 def save_object(obj, filename:str) -> None:
     with open(filename, 'wb') as output:
         pickle.dump(obj, output, pickle.HIGHEST_PROTOCOL)
@@ -349,7 +342,7 @@ def load_object(filename:str) -> Any:
     with open(filename, 'rb') as input_obj:
         obj = pickle.load(input_obj)
     return obj
-#%%
+
 def apply_magic_wand(A, gSig, dims, A_thr=None, coms=None, dview=None,
                      min_frac=0.7, max_frac=1.0, roughness=2, zoom_factor=1,
                      center_range=2) -> np.ndarray:
@@ -385,10 +378,10 @@ def apply_magic_wand(A, gSig, dims, A_thr=None, coms=None, dview=None,
     if (A_thr is None) and (coms is None):
         import pdb
         pdb.set_trace()
-        A_thr = threshold_components(
+        A_thr = caiman.source_extraction.cnmf.spatial.threshold_components(
                         A.tocsc()[:], dims, medw=None, thr_method='max',
                         maxthr=0.2, nrgthr=0.99, extract_cc=True,se=None,
-                        ss=None, dview=dview)>0
+                        ss=None, dview=dview) > 0
 
         coms = [scipy.ndimage.center_of_mass(mm.reshape(dims, order='F')) for
                 mm in A_thr.T]
@@ -418,10 +411,15 @@ def apply_magic_wand(A, gSig, dims, A_thr=None, coms=None, dview=None,
 
 def cell_magic_wand_wrapper(params):
     a, com, min_radius, max_radius, roughness, zoom_factor, center_range = params
-    msk = cell_magic_wand(a, com, min_radius, max_radius, roughness,
-                          zoom_factor, center_range)
+    msk = caiman.external.cell_magic_wand.cell_magic_wand(
+        a,
+        com,
+        min_radius,
+        max_radius,
+        roughness,
+        zoom_factor,
+        center_range)
     return msk
-#%% From https://codereview.stackexchange.com/questions/120802/recursively-save-python-dictionaries-to-hdf5-files-using-h5py
 
 
 def save_dict_to_hdf5(dic:dict, filename:str, subdir:str='/') -> None:
@@ -432,6 +430,7 @@ def save_dict_to_hdf5(dic:dict, filename:str, subdir:str='/') -> None:
         filename: str
             file name to save the dictionary to (in hdf5 format for now)
     '''
+    # From https://codereview.stackexchange.com/questions/120802/recursively-save-python-dictionaries-to-hdf5-files-using-h5py
 
     with h5py.File(filename, 'w') as h5file:
         recursively_save_dict_contents_to_group(h5file, subdir, dic)
@@ -647,7 +646,7 @@ def get_caiman_version() -> tuple[str, str]:
     """ Get the version of CaImAn, as best we can determine"""
     # This does its best to determine the version of CaImAn. This uses the first successful
     # from these methods:
-    # 'GITW' ) git rev-parse if caiman is built from "pip install -e ." and we are working
+    # 'GITW') git rev-parse if caiman is built from "pip install -e ." and we are working
     #    out of the checkout directory (the user may have since updated without reinstall)
     # 'RELF') A release file left in the process to cut a release. Should have a single line
     #    in it whick looks like "Version:1.4"

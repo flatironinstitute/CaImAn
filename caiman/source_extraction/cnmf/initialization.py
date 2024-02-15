@@ -25,17 +25,21 @@ import sys
 import warnings
 
 import caiman
-from .deconvolution import constrained_foopsi
-#from .utilities import fast_graph_Laplacian_patches
-from .pre_processing import get_noise_fft, get_noise_welch
-from .spatial import circular_constraint, connectivity_constraint
-from ...utils.utils import parmap
-from ...utils.stats import pd_solve, compressive_nmf
+from caiman.source_extraction.cnmf.deconvolution import constrained_foopsi
+from caiman.source_extraction.cnmf.pre_processing import get_noise_fft, get_noise_welch
+from caiman.source_extraction.cnmf.spatial import circular_constraint, connectivity_constraint
+from caiman.utils.stats import pd_solve, compressive_nmf
+from caiman.utils.utils import parmap
 
 try:
     cv2.setNumThreads(0)
 except:
     pass
+
+try:
+    profile
+except:
+    def profile(a): return a
 
 #FIXME review this and find a better way to do it
 warnings.filterwarnings(action='ignore', category=ConvergenceWarning)
@@ -58,7 +62,6 @@ def resize(Y, size, interpolation=cv2.INTER_LINEAR):
     else:  # TODO deal with ndim=4
         raise NotImplementedError
 
-#%%
 def decimate_last_axis(y, sub):
     q = y.shape[-1] // sub
     r = y.shape[-1] % sub
@@ -136,14 +139,6 @@ def downscale(Y, ds, opencv=False):
                                           .reshape(q[0], ds[0], q[1], ds[1], r[2])
                                           .mean(1).mean(2).mean(2))
     return Y_ds if d == 3 else Y_ds[:, :, 0]
-
-
-
-#%%
-try:
-    profile
-except:
-    def profile(a): return a
 
 def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter=5, maxIter=5, nb=1,
                           kernel=None, use_hals=True, normalize_init=True, img=None, method_init='greedy_roi',
@@ -283,11 +278,6 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
 
     """
     method = method_init
-    if method == 'local_nmf':
-        tsub_lnmf = tsub
-        ssub_lnmf = ssub
-        tsub = 1
-        ssub = 1
 
     if gSiz is None:
         gSiz = 2 * (np.asarray(gSig) + .5).astype(int) + 1
@@ -321,8 +311,6 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
             logging.info("Spatial/Temporal downsampling 2-photon")
             # this increments the performance against ground truth and solves border problems
             Y_ds = downscale(Y, tuple([ssub] * len(d) + [tsub]), opencv=True)
-#            mean_val = np.mean(Y)
-#            Y_ds = downscale_local_mean(Y, tuple([ssub] * len(d) + [tsub]), cval=mean_val)
     else:
         Y_ds = Y
 
@@ -369,36 +357,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
             Y_ds, nr=K, sigma_smooth=sigma_smooth_snmf, truncate=2, fun='logcosh', tol=1e-10,
             max_iter=max_iter_snmf, remove_baseline=True, perc_baseline=perc_baseline_snmf, nb=nb)
 
-    elif method == 'local_nmf':
-        # todo check this unresolved reference
-        from SourceExtraction.CNMF4Dendrites import CNMF4Dendrites
-        from SourceExtraction.AuxilaryFunctions import GetCentersData
-        # Get initialization for components center
-        # print(Y_ds.transpose([2, 0, 1]).shape)
-        if options_local_NMF is None:
-            raise Exception('You need to define arguments for local NMF')
-        else:
-            NumCent = options_local_NMF.pop('NumCent', None)
-            # Max number of centers to import from Group Lasso initialization - if 0,
-            # we don't run group lasso
-            cent = GetCentersData(Y_ds.transpose([2, 0, 1]), NumCent)
-            sig = Y_ds.shape[:-1]
-            # estimate size of neuron - bounding box is 3 times this size. If larger
-            # then data, we have no bounding box.
-            cnmf_obj = CNMF4Dendrites(
-                sig=sig, verbose=True, adaptBias=True, **options_local_NMF)
-
-        # Define CNMF parameters
-        _, _, _ = cnmf_obj.fit(
-            np.array(Y_ds.transpose([2, 0, 1]), dtype=float), cent)
-
-        Ain = cnmf_obj.A
-        Cin = cnmf_obj.C
-        b_in = cnmf_obj.b
-        f_in = cnmf_obj.f
-
     else:
-
         print(method)
         raise Exception("Unsupported initialization method")
 
@@ -455,8 +414,6 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
     else:
         return scipy.sparse.csc_matrix(Ain), Cin, b_in, f_in, center
 
-
-#%%
 def ICA_PCA(Y_ds, nr, sigma_smooth=(.5, .5, .5), truncate=2, fun='logcosh',
             max_iter=1000, tol=1e-10, remove_baseline=True, perc_baseline=20, nb=1):
     """ Initialization using ICA and PCA. DOES NOT WORK WELL WORK IN PROGRESS"
@@ -967,9 +924,6 @@ def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1,
     f_in = model.components_.astype(np.float32)
 
     return A, C, np.array(center, dtype='uint16'), b_in, f_in
-
-#%%
-
 
 def finetune(Y, cin, nIter=5):
     """compute a initialized version of A and C
@@ -2016,7 +1970,6 @@ def compute_W(Y, A, C, dims, radius, data_fits_in_memory=True, ssub=1, tsub=1, p
     data = np.concatenate(data)
     return spr.csr_matrix((data, indices, indptr), dtype='float32'), b0.astype(np.float32)
 
-#%%
 def nnsvd_init(X, n_components, r_ov=10, eps=1e-6, random_state=42):
     # NNDSVD initialization from scikit learn package (modified)
     U, S, V = randomized_svd(X, n_components + r_ov, random_state=random_state)
@@ -2060,7 +2013,7 @@ def nnsvd_init(X, n_components, r_ov=10, eps=1e-6, random_state=42):
     C = W.T
     A = H.T
     return A[:, 1:n_components], C[:n_components], (U, S, V) #
-#%%
+
 def norm(x):
     """Dot product-based Euclidean norm implementation
     See: http://fseoane.net/blog/2011/computing-the-vector-norm/

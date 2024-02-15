@@ -10,8 +10,8 @@ from scipy.ndimage import generate_binary_structure, iterate_structure
 
 import caiman.utils.utils
 import caiman.base.movies
-from ...paths import caiman_datadir
-from .utilities import dict_compare
+from caiman.paths import caiman_datadir
+from caiman.source_extraction.cnmf.utilities import dict_compare
 
 
 class CNMFParams(object):

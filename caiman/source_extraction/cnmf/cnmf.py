@@ -12,7 +12,6 @@ Its architecture is similar to the one of scikit-learn calling the function fit 
 
 See Also:
     http://www.cell.com/neuron/fulltext/S0896-6273(15)01084-3
-.. mage:: docs/img/quickintro.png
 """
 
 from copy import deepcopy
@@ -27,22 +26,22 @@ import psutil
 import scipy
 import sys
 
-from .estimates import Estimates
-from .initialization import initialize_components, compute_W
-from .map_reduce import run_CNMF_patches
-from .merging import merge_components
-from .params import CNMFParams
-from .pre_processing import preprocess_data
-from .spatial import update_spatial_components
-from .temporal import update_temporal_components, constrained_foopsi_parallel
-from .utilities import update_order
-from ... import mmapping
-from ...components_evaluation import estimate_components_quality
-from ...motion_correction import MotionCorrect
-from ...utils.utils import save_dict_to_hdf5, load_dict_from_hdf5
-from caiman import summary_images
-from caiman import cluster
+import caiman
+from caiman.components_evaluation import estimate_components_quality
+import caiman.mmapping
+from caiman.motion_correction import MotionCorrect
 import caiman.paths
+from caiman.source_extraction.cnmf.estimates import Estimates
+from caiman.source_extraction.cnmf.initialization import initialize_components, compute_W
+from caiman.source_extraction.cnmf.map_reduce import run_CNMF_patches
+from caiman.source_extraction.cnmf.merging import merge_components
+from caiman.source_extraction.cnmf.params import CNMFParams
+from caiman.source_extraction.cnmf.pre_processing import preprocess_data
+from caiman.source_extraction.cnmf.spatial import update_spatial_components
+from caiman.source_extraction.cnmf.temporal import update_temporal_components, constrained_foopsi_parallel
+from caiman.source_extraction.cnmf.utilities import update_order
+from caiman.utils.utils import save_dict_to_hdf5, load_dict_from_hdf5
+
 
 try:
     cv2.setNumThreads(0)
@@ -62,9 +61,6 @@ class CNMF(object):
     it computes it using all the files inside of cnmf folder.
     Its architecture is similar to the one of scikit-learn calling the function fit to run everything which is part
     of the structure of the class
-
-    it is calling everyfunction from the cnmf folder
-    you can find out more at how the functions are called and how they are laid out at the ipython notebook
 
     See Also:
     @url http://www.cell.com/neuron/fulltext/S0896-6273(15)01084-3
@@ -331,7 +327,7 @@ class CNMF(object):
         base_name = pathlib.Path(fnames[0]).stem + "_memmap_"
         if extension == '.mmap':
             fname_new = fnames[0]
-            Yr, dims, T = mmapping.load_memmap(fnames[0])
+            Yr, dims, T = caiman.mmapping.load_memmap(fnames[0])
             if np.isfortran(Yr):
                 raise Exception('The file should be in C order (see save_memmap function)')
         else:
@@ -356,11 +352,11 @@ class CNMF(object):
                 # for further details.
                 # b0 = 0 if self.params.get('motion', 'border_nan') == 'copy' else 0
                 b0 = 0
-                fname_new = mmapping.save_memmap(fname_mc, base_name=base_name, order='C',
+                fname_new = caiman.mmapping.save_memmap(fname_mc, base_name=base_name, order='C',
                                                  var_name_hdf5=data_set_name, border_to_0=b0)
             else:
-                fname_new = mmapping.save_memmap(fnames, base_name=base_name, var_name_hdf5=data_set_name, order='C')
-            Yr, dims, T = mmapping.load_memmap(fname_new)
+                fname_new = caiman.mmapping.save_memmap(fnames, base_name=base_name, var_name_hdf5=data_set_name, order='C')
+            Yr, dims, T = caiman.mmapping.load_memmap(fname_new)
 
         images = np.reshape(Yr.T, [T] + list(dims), order='F')
         self.mmap_file = fname_new
@@ -368,7 +364,7 @@ class CNMF(object):
             return self.fit(images, indices=indices)
 
         fit_cnm = self.fit(images, indices=indices)
-        Cn = summary_images.local_correlations(images[::max(T//1000, 1)], swap_dim=False)
+        Cn = caiman.summary_images.local_correlations(images[::max(T//1000, 1)], swap_dim=False)
         Cn[np.isnan(Cn)] = 0
         fit_cnm.save(fname_new[:-5] + '_init.hdf5')
         #fit_cnm.params.change_params({'p': self.params.get('preprocess', 'p')})
@@ -382,7 +378,8 @@ class CNMF(object):
         cnm2.estimates.Cn = Cn
         cnm2.save(cnm2.mmap_file[:-4] + 'hdf5')
 
-        cluster.stop_server(dview=self.dview)
+        # XXX Why are we stopping the cluster here? What started it? Why remove log files?
+        caiman.cluster.stop_server(dview=self.dview)
         log_files = glob.glob('*_LOG_*')
         for log_file in log_files:
             os.remove(log_file)
@@ -704,7 +701,7 @@ class CNMF(object):
         if 'numpy.ndarray' in str(type(Yr)):
             YA = (Ab.T.dot(Yr)).T * nA2_inv_mat
         else:
-            YA = mmapping.parallel_dot_product(Yr, Ab, dview=self.dview, block_size=block_size,
+            YA = caiman.mmapping.parallel_dot_product(Yr, Ab, dview=self.dview, block_size=block_size,
                                            transpose=True, num_blocks_per_run=num_blocks_per_run) * nA2_inv_mat
 
         AA = Ab.T.dot(Ab) * nA2_inv_mat
@@ -982,14 +979,12 @@ class CNMF(object):
         return Yr
 
 
-def load_CNMF(filename, n_processes=1, dview=None):
-    '''load object saved with the CNMF save method. Currently implemented for hdf5 and nwb.
+def load_CNMF(filename:str, n_processes=1, dview=None):
+    '''load object saved with the CNMF save method
 
     Args:
-        filename: str
+        filename:
             hdf5 (or nwb) file name containing the saved object
-        n_processes: int
-            number of processes to use, default 1
         dview: multiprocessing or ipyparallel object
             used to set up parallelization, default None
     '''

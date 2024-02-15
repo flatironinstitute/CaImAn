@@ -1,18 +1,17 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 import ipyparallel as parallel
 from itertools import chain
 import logging
 import numpy as np
 import os
+import pathlib
 import pickle
 import sys
 import tifffile
 from typing import Any, Optional, Union
-import pathlib
 
-import caiman as cm
+import caiman
 import caiman.paths
 
 def prepare_shape(mytuple:tuple) -> tuple:
@@ -412,7 +411,7 @@ def save_memmap(filenames:list[str],
 
             logging.debug('Distributing memory map over many files')
             # Here we make a bunch of memmap files in the right order. Same parameters
-            fname_parts = cm.save_memmap_each(filenames,
+            fname_parts = caiman.save_memmap_each(filenames,
                                               base_name=base_name,
                                               order=order,
                                               border_to_0=border_to_0,
@@ -432,7 +431,7 @@ def save_memmap(filenames:list[str],
         if order == 'F':
             raise Exception('You cannot merge files in F order, they must be in C order')
 
-        fname_new = cm.save_memmap_join(fname_parts, base_name=base_name,
+        fname_new = caiman.save_memmap_join(fname_parts, base_name=base_name,
                                         dview=dview, n_chunks=n_chunks)
 
     else:
@@ -458,9 +457,9 @@ def save_memmap(filenames:list[str],
 
             else:
                 if isinstance(f, (str, list)):
-                    Yr = cm.load(caiman.paths.fn_relocated(f), fr=1, in_memory=True, var_name_hdf5=var_name_hdf5)
+                    Yr = caiman.load(caiman.paths.fn_relocated(f), fr=1, in_memory=True, var_name_hdf5=var_name_hdf5)
                 else:
-                    Yr = cm.movie(f)
+                    Yr = caiman.movie(f)
                 if xy_shifts is not None:
                     Yr = Yr.apply_shifts(xy_shifts, interpolation='cubic', remove_blanks=False)
 
@@ -492,7 +491,7 @@ def save_memmap(filenames:list[str],
             fx, fy, fz = resize_fact
             if fx != 1 or fy != 1 or fz != 1:
                 if 'movie' not in str(type(Yr)):
-                    Yr = cm.movie(Yr, fr=1)
+                    Yr = caiman.movie(Yr, fr=1)
                 Yr = Yr.resize(fx=fx, fy=fy, fz=fz)
 
             T, dims = Yr.shape[0], Yr.shape[1:]
@@ -501,7 +500,7 @@ def save_memmap(filenames:list[str],
             Yr = np.ascontiguousarray(Yr, dtype=np.float32) + np.float32(0.0001) + np.float32(add_to_movie)
 
             if idx == 0:
-                fname_tot = cm.paths.generate_fname_tot(base_name, dims, order)
+                fname_tot = caiman.paths.generate_fname_tot(base_name, dims, order)
                 if isinstance(f, str):
                     fname_tot = caiman.paths.fn_relocated(os.path.join(os.path.split(f)[0], fname_tot))
                 if len(filenames) > 1:
@@ -643,7 +642,7 @@ def save_tif_to_mmap_online(movie_iterable, save_base_name='YrOL_', order='C', a
 
     if isinstance(movie_iterable, str):         # Allow specifying a filename rather than its data rep
         with tifffile.TiffFile(movie_iterable) as tf:  # And load it if that happens
-            movie_iterable = cm.movie(tf)
+            movie_iterable = caiman.movie(tf)
 
     count = 0
     new_mov = []

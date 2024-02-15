@@ -28,16 +28,8 @@ import tempfile
 import time
 import psutil
 
-from ...mmapping import load_memmap, parallel_dot_product
-from ...utils.stats import csc_column_remove
-
-
-def basis_denoising(y, c, boh, sn, id2_, px):
-    if np.size(c) > 0:
-        _, _, a, _, _ = lars_regression_noise(y, c, 1, sn) # FIXME Undefined function
-    else:
-        return (None, None, None)
-    return a, px, id2_
+import caiman.mmapping
+import caiman.utils.stats
 
 def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
                               min_size=3, max_size=8, dist=3,
@@ -183,7 +175,7 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
     ff = np.where((np.sum(C, axis=1)==0) + np.isnan(np.sum(C, axis=1)))[0]
     if np.size(ff) > 0:
         logging.info(f"Eliminating empty and nan components: {ff}")
-        A_in = csc_column_remove(A_in, list(ff))
+        A_in = caiman.utils.stats.csc_column_remove(A_in, list(ff))
         C = np.delete(C, list(ff), 0)
         # update indices
         ind_list = list(range(nr-np.size(ff)))
@@ -250,7 +242,7 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
     if np.size(ff) > 0:
         logging.info(f'removing {ff.shape[0]} empty spatial component(s)')
         if any(ff < nr):
-            A_ = csc_column_remove(A_, list(ff[ff < nr]))
+            A_ = caiman.utils.stats.csc_column_remove(A_, list(ff[ff < nr]))
             C = np.delete(C, list(ff[ff < nr]), 0)
             ff -= nr
             nr = nr - len(ff[ff < nr])
@@ -269,7 +261,7 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
         if 'memmap' in str(type(Y)):
             bl_siz1 = Y.shape[0] // (num_blocks_per_run_spat - 1)
             bl_siz2 = psutil.virtual_memory().available // (4*Y.shape[-1]*(num_blocks_per_run_spat + 1))
-            Y_resf = parallel_dot_product(Y, f.T, dview=dview, block_size=min(bl_siz1, bl_siz2), num_blocks_per_run=num_blocks_per_run_spat) - \
+            Y_resf = caiman.mmapping.parallel_dot_product(Y, f.T, dview=dview, block_size=min(bl_siz1, bl_siz2), num_blocks_per_run=num_blocks_per_run_spat) - \
                 A_.dot(C[:nr].dot(f.T))
         else:
             # Y*f' - A*(C*f')
@@ -367,7 +359,7 @@ def regression_ipyparallel(pars):
     Y_name, C_name, noise_sn, idxs_C, idxs_Y, method_least_square, cct = pars
     # we load from the memmap file
     if isinstance(Y_name, str):
-        Y, _, _ = load_memmap(Y_name)
+        Y, _, _ = caiman.mmapping.load_memmap(Y_name)
         Y = np.array(Y[idxs_Y, :])
     else:
         Y = Y_name[idxs_Y, :]
@@ -1135,7 +1127,7 @@ def creatememmap(Y, Cf, dview):
         else:
             Y_name = os.path.join(folder, 'Y_temp.npy')
             np.save(Y_name, Y)
-            Y, _, _, _ = load_memmap(Y_name)
+            Y, _, _, _ = caiman.mmapping.load_memmap(Y_name)
             raise Exception('Not implemented consistently')
     return C_name, Y_name, folder
 

@@ -12,7 +12,7 @@ from pyqtgraph import FileDialog, QtWidgets
 from pyqtgraph.parametertree import Parameter, ParameterTree
 from scipy.sparse import csc_matrix
 
-import caiman as cm
+import caiman
 from caiman.source_extraction.cnmf.cnmf import load_CNMF
 from caiman.source_extraction.cnmf.params import CNMFParams
 
@@ -67,10 +67,10 @@ else:
                                           directory=d, filter=f + ';;*.mmap')[0]
 
 if fpath[-3:] == 'nwb':
-    mov = cm.load(cnm_obj.mmap_file,
+    mov = caiman.load(cnm_obj.mmap_file,
                   var_name_hdf5='acquisition/TwoPhotonSeries')
 else:
-    mov = cm.load(cnm_obj.mmap_file)
+    mov = caiman.load(cnm_obj.mmap_file)
 
 estimates = cnm_obj.estimates
 params_obj = cnm_obj.params
@@ -106,7 +106,7 @@ if estimates.b is None:
     cb.show()
 
 if not hasattr(estimates, 'Cn'):
-    estimates.Cn = cm.local_correlations(mov, swap_dim=False)
+    estimates.Cn = caiman.local_correlations(mov, swap_dim=False)
 #Cn = estimates.Cn
 
 # We rotate our components 90 degrees right because of incompatibility of pyqtgraph and pyplot

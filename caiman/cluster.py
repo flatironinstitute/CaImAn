@@ -7,24 +7,18 @@ We put arrays on disk as raw bytes, extending along the first dimension.
 Alongside each array x we ensure the value x.dtype which stores the data type.
 """
 
-import glob
 import ipyparallel
-from ipyparallel import Client
 import logging
 import multiprocessing
-from multiprocessing import Pool
 import numpy as np
 import os
 import platform
 import psutil
 import shlex
-import shutil
 import subprocess
 import sys
 import time
 from typing import Any, Optional, Union
-
-from .mmapping import load_memmap
 
 logger = logging.getLogger(__name__)
 
@@ -245,12 +239,12 @@ def setup_cluster(backend:str = 'multiprocessing',
             except:                                                # If we're not running under ipython, don't do anything.
                 pass
         c = None
-        dview = Pool(n_processes, maxtasksperchild=maxtasksperchild)
+        dview = multiprocessing.Pool(n_processes, maxtasksperchild=maxtasksperchild)
 
     elif backend == 'ipyparallel':
         stop_server()
         start_server(ncpus=n_processes)
-        c = Client()
+        c = ipyparallel.Client()
         logger.info(f'Started ipyparallel cluster: Using {len(c)} processes')
         dview = c[:len(c)]
 
