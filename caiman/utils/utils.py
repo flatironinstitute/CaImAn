@@ -10,7 +10,6 @@ https://docs.python.org/3/library/urllib.request.htm
 
 """
 
-import caiman
 import certifi
 import contextlib
 import cv2
@@ -38,10 +37,12 @@ except:
     pass
 
 
+import caiman
 import caiman.external.cell_magic_wand
 import caiman.paths
 import caiman.source_extraction.cnmf.spatial
 import caiman.utils
+from caiman.utils import caiman_datadir
 
 def download_demo(name:str='Sue_2x_3000_40_-46.tif', save_folder:str='') -> str:
     """download a file from the file list with the url of its location
@@ -60,9 +61,6 @@ def download_demo(name:str='Sue_2x_3000_40_-46.tif', save_folder:str='') -> str:
     Raise:
         WrongFolder Exception
     """
-
-    #\bug
-    #\warning
 
     file_dict = {
 		'Sue_2x_3000_40_-46.tif': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/Sue_2x_3000_40_-46.tif',
