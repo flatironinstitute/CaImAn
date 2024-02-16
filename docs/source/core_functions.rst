@@ -53,8 +53,8 @@ Motion Correction
 .. automethod:: MotionCorrect.motion_correct_rigid
 .. automethod:: MotionCorrect.motion_correct_pwrigid
 .. automethod:: MotionCorrect.apply_shifts_movie
-.. automethod:: motion_correct_oneP_rigid
-.. automethod:: motion_correct_oneP_nonrigid
+.. autofunction:: motion_correct_oneP_rigid
+.. autofunction:: motion_correct_oneP_nonrigid
 
 
 Estimates
@@ -259,8 +259,4 @@ VolPy
 
 .. currentmodule:: caiman.source_extraction.volpy.spikepursuit
 .. autofunction:: volspike
-.. autofunction:: denoiseSpikes
-.. autofunction:: getThresh
-.. autofunction:: whitenedMathcedFilter
-.. autofunction:: highpassVideo
 

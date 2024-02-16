@@ -2203,23 +2203,24 @@ def load_iter(file_name: Union[str, list[str]], subindices=None, var_name_hdf5: 
             logging.error(f"File request:[{file_name}] not found!")
             raise Exception('File not found!')
 
-def get_file_size(file_name, var_name_hdf5='mov') -> tuple[tuple, Union[int, tuple]]:
-    """ Computes the dimensions of a file or a list of files without loading
+def get_file_size(file_name, var_name_hdf5:str='mov') -> tuple[tuple, Union[int, tuple]]:
+    """
+    Computes the dimensions of a file or a list of files without loading
     it/them in memory. An exception is thrown if the files have FOVs with
     different sizes
-        Args:
-            file_name: str/filePath or various list types
-                locations of file(s)
 
-            var_name_hdf5: 'str'
-                if loading from hdf5 name of the dataset to load
+    Args:
+        file_name:
+            locations of file(s)
+        var_name_hdf5:
+            if loading from hdf5 name of the dataset to load
 
-        Returns:
-            dims: tuple
-                dimensions of FOV
+    Returns:
+        dims: tuple
+            dimensions of FOV
+        T: int or tuple of int
+            number of timesteps in each file
 
-            T: int or tuple of int
-                number of timesteps in each file
     """
     # TODO There is a lot of redundant code between this, load(), and load_iter() that should be unified somehow
     if isinstance(file_name, pathlib.Path):

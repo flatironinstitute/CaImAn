@@ -123,10 +123,8 @@ A couple of things to note:
    need to be removed. Use the Windows find-file utility
    (under the Start Menu) to look for ``vs2019_compiler_vars.bat`` under 
    your home directory. If a copy shows up, delete the version that has
-   conda:raw-latex:`\envs`:raw-latex:`\caiman` as part of its location.
+   your ``caiman`` environment name as part of its location.
    You may then continue the installation.
-
-.. code:: bash
 
 .. raw:: html
 
@@ -171,7 +169,7 @@ and install the package file you will find in the folder that pops up
 
 
 Section 2: Set up demos with caimanmanager
------------------------
+------------------------------------------
 
 Once Caiman is installed, you will likely want to set up a working directory with code samples and datasets. 
 The installation step in Section 1 produced a command ``caimanmanager`` that handles this. caimanmanager will

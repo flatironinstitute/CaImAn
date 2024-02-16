@@ -153,10 +153,11 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
     Initialize components. This function initializes the spatial footprints, temporal components,
     and background which are then further refined by the CNMF iterations. There are four
     different initialization methods depending on the data you're processing:
-        'greedy_roi': GreedyROI method used in standard 2p processing (default)
-        'corr_pnr': GreedyCorr method used for processing 1p data
-        'sparse_nmf': Sparse NMF method suitable for dendritic/axonal imaging
-        'graph_nmf': Graph NMF method also suitable for dendritic/axonal imaging
+
+    greedy_roi: GreedyROI method used in standard 2p processing (default)
+    corr_pnr:   GreedyCorr method used for processing 1p data
+    sparse_nmf: Sparse NMF method suitable for dendritic/axonal imaging
+    graph_nmf:  Graph NMF method also suitable for dendritic/axonal imaging
 
     The GreedyROI method by default is not using the RollingGreedyROI method. This can
     be changed through the binary flag 'rolling_sum'.
