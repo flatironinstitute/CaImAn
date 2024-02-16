@@ -3,6 +3,7 @@ future
 h5py
 holoviews
 ipyparallel
+ipywidgets
 matplotlib
 numpy
 numpydoc
