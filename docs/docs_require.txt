@@ -18,3 +18,4 @@ scipy
 tensorflow
 tifffile
 tqdm
+zarr
