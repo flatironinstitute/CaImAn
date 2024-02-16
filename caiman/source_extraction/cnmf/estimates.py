@@ -1071,51 +1071,43 @@ class Estimates(object):
             self.idx_components = np.intersect1d(self.idx_components, idx_ecc)
         return self
 
-    def filter_components(self, imgs, params, new_dict={}, dview=None, select_mode='All'):
-        """Filters components based on given thresholds without re-computing
+    def filter_components(self, imgs, params, new_dict={}, dview=None, select_mode:str='All'):
+        """
+        Filters components based on given thresholds without re-computing
         the quality metrics. If the quality metrics are not present then it
         calls self.evaluate components.
 
         Args:
             imgs: np.array (possibly memory mapped, t,x,y[,z])
                 Imaging data
-
             params: params object
                 Parameters of the algorithm
+            new_dict: dict
+                New dictionary with parameters to be called. The dictionary's keys are
+                used to modify the params.quality subdictionary:
 
-            select_mode: str
+                min_SNR: float
+                    trace SNR threshold
+                SNR_lowest: float
+                    minimum required trace SNR
+                rval_thr: float
+                    space correlation threshold
+                rval_lowest: float
+                    minimum required space correlation
+                use_cnn: bool
+                    flag for using the CNN classifier
+                min_cnn_thr: float
+                    CNN classifier threshold
+                cnn_lowest: float
+                    minimum required CNN threshold
+                gSig_range: list
+                    gSig scale values for CNN classifier
+
+            select_mode:
                 Can be 'All' (no subselection is made, but quality filtering is performed),
                 'Accepted' (subselection of accepted components, a field named self.accepted_list must exist),
                 'Rejected' (subselection of rejected components, a field named self.rejected_list must exist),
                 'Unassigned' (both fields above need to exist)
-
-            new_dict: dict
-                New dictionary with parameters to be called. The dictionary
-                modifies the params.quality subdictionary in the following
-                entries:
-                    min_SNR: float
-                        trace SNR threshold
-
-                    SNR_lowest: float
-                        minimum required trace SNR
-
-                    rval_thr: float
-                        space correlation threshold
-
-                    rval_lowest: float
-                        minimum required space correlation
-
-                    use_cnn: bool
-                        flag for using the CNN classifier
-
-                    min_cnn_thr: float
-                        CNN classifier threshold
-
-                    cnn_lowest: float
-                        minimum required CNN threshold
-
-                    gSig_range: list
-                        gSig scale values for CNN classifier
 
         Returns:
             self: estimates object
@@ -1407,9 +1399,10 @@ class Estimates(object):
 
     def remove_small_large_neurons(self, min_size_neuro, max_size_neuro,
                                    select_comp=False):
-        ''' remove neurons that are too large or too small
+        """
+        Remove neurons that are too large or too small
 
-    	Args:
+        Args:
             min_size_neuro: int
                 min size in pixels
             max_size_neuro: int
@@ -1421,7 +1414,9 @@ class Estimates(object):
         Returns:
             neurons_to_keep: np.array
                 indices of components with size within the acceptable range
-        '''
+
+        """
+
         if self.A_thr is None:
             raise Exception('You need to compute thresholded components before calling remove_duplicates: use the threshold_components method')
 

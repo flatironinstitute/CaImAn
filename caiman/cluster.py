@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 
-""" functions related to the creation and management of the "cluster",
+"""
+Functions related to the creation and management of the "cluster",
 meaning the framework for distributed computation.
 
 We put arrays on disk as raw bytes, extending along the first dimension.
@@ -182,32 +183,37 @@ def setup_cluster(backend:str = 'multiprocessing',
                   maxtasksperchild:int = None) -> tuple[Any, Any, Optional[int]]:
     """
     Setup and/or restart a parallel cluster.
+
     Args:
-        backend
+        backend:
             One of:
                 'multiprocessing' - Use multiprocessing library
                 'ipyparallel' - Use ipyparallel instead (better on Windows?)
                 'single' - Don't be parallel (good for debugging, slow)
+
             Most backends will try, by default, to stop a running cluster if
             it is running before setting up a new one, or throw an error if
             they find one.
-        n_processes
+        n_processes:
             Sets number of processes to use. If None, is set automatically. 
-        single_thread
+        single_thread:
             Deprecated alias for the 'single' backend.
-        ignore_preexisting
+        ignore_preexisting:
             If True, ignores the existence of an already running multiprocessing
             pool (which usually indicates a previously-started CaImAn cluster)
-        maxtasksperchild
+        maxtasksperchild:
             Only used for multiprocessing, default None (number of tasks a worker process can 
             complete before it will exit and be replaced with a fresh worker process).
             
     Returns:
-        c: ipyparallel.Client object; only used for ipyparallel backends, else None
-        dview: multicore processing engine that is used for parallel processing. 
+        c:
+            ipyparallel.Client object; only used for ipyparallel backends, else None
+        dview:
+            multicore processing engine that is used for parallel processing. 
             If backend is 'multiprocessing' then dview is Pool object.
             If backend is 'ipyparallel' then dview is a DirectView object. 
-        n_processes: number of workers in dview. None means single core mode in use. 
+        n_processes:
+            number of workers in dview. None means single core mode in use. 
     """
 
     sys.stdout.flush() # XXX Unsure why we do this

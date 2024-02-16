@@ -11,7 +11,7 @@ CaImAn implements a set of essential methods required in the analysis pipeline o
 <CaImAn_features_and_references.html>`_.
 
 Companion paper
---------------
+---------------
 
 A paper explaining most of the implementation details and benchmarking can be found `here
 <https://elifesciences.org/articles/38173>`_.
@@ -28,22 +28,8 @@ A paper explaining most of the implementation details and benchmarking can be fo
     publisher={eLife Sciences Publications Limited}
   }
 
-
-Developers/Contributors
-------------
-
-CaImAn is being developed at the `Flatiron Institute <https://www.simonsfoundation.org/flatiron/>`_ with numerous contributions from the broader community. The main developers are
-
-* Eftychios A. Pnevmatikakis, Flatiron Institute
-* Andrea Giovannucci, University of North Carolina at Chapel Hill, previously at Flatiron Institute
-* Johannes Friedrich, Flatiron Institute
-* Pat Gunn, Flatiron Institute
-
-A complete list of contributors can be found `here <https://github.com/flatironinstitute/CaImAn/graphs/contributors>`_.
-
-
 Questions, comments, issues
------------------------------
+---------------------------
 
 Please use our `gitter chat room <https://gitter.im/agiovann/Constrained_NMF>`_ for questions and comments and create an issue on our `repo page <https://github.com/flatironinstitute/CaImAn>`_ for any bugs you might encounter.
 

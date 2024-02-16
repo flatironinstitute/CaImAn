@@ -677,7 +677,7 @@ def constrained_oasisAR2(y, g, sn, optimize_b=True, b_nonneg=True, optimize_g=0,
 
         s_min : float, optional, default 0
             Minimal non-zero activity within each bin (minimal 'spike size').
-            For negative values the threshold is |s_min| * sn * sqrt(1-decay_constant)
+            For negative values the threshold is abs(s_min) * sn * sqrt(1 - decay_constant)
             If 0 the threshold is determined automatically such that RSS <= sn^2 T
 
     Returns:

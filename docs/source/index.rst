@@ -13,7 +13,6 @@ Contents:
 
    Overview
    Installation
-   news
    Getting_Started
    Handling_Movies
    CaImAn_Tips
