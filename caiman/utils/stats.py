@@ -233,7 +233,7 @@ def kde(data, N=None, MIN=None, MAX=None):
 
     # Histogram the data to get a crude first approximation of the density
     M = len(data)
-    DataHist, bins = scipy.histogram(data, bins=N, range=(MIN, MAX))
+    DataHist, bins = np.histogram(data, bins=N, range=(MIN, MAX))
     DataHist = DataHist / M
     DCTData = fftpack.dct(DataHist, norm=None)
 
