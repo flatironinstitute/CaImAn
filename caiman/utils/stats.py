@@ -220,7 +220,7 @@ Updated 1-23-2013
 def kde(data, N=None, MIN=None, MAX=None):
 
     # Parameters to set up the mesh on which to calculate
-    N = 2**12 if N is None else int(2**scipy.ceil(scipy.log2(N)))
+    N = 2**12 if N is None else int(2 ** np.ceil(np.log2(N)))
     if MIN is None or MAX is None:
         minimum = min(data)
         maximum = max(data)
@@ -233,7 +233,7 @@ def kde(data, N=None, MIN=None, MAX=None):
 
     # Histogram the data to get a crude first approximation of the density
     M = len(data)
-    DataHist, bins = scipy.histogram(data, bins=N, range=(MIN, MAX))
+    DataHist, bins = np.histogram(data, bins=N, range=(MIN, MAX))
     DataHist = DataHist / M
     DCTData = fftpack.dct(DataHist, norm=None)
 
@@ -249,13 +249,13 @@ def kde(data, N=None, MIN=None, MAX=None):
         return None
 
     # Smooth the DCTransformed data using t_star
-    SmDCTData = DCTData * scipy.exp(-scipy.arange(N)**2 * scipy.pi**2 * t_star / 2)
+    SmDCTData = DCTData * np.exp(-np.arange(N)**2 * np.pi**2 * t_star / 2)
     # Inverse DCT to get density
     density = fftpack.idct(SmDCTData, norm=None) * N / R
     mesh = [(bins[i] + bins[i + 1]) / 2 for i in range(N)]
-    bandwidth = scipy.sqrt(t_star) * R
+    bandwidth = np.sqrt(t_star) * R
 
-    density = density / scipy.trapz(density, mesh)
+    density = density / np.trapz(density, mesh)
     cdf = np.cumsum(density) * (mesh[1] - mesh[0])
 
     return bandwidth, mesh, density, cdf
@@ -263,16 +263,16 @@ def kde(data, N=None, MIN=None, MAX=None):
 
 def fixed_point(t, M, I, a2):
     l = 7
-    I = scipy.float64(I)
-    M = scipy.float64(M)
-    a2 = scipy.float64(a2)
-    f = 2 * scipy.pi**(2 * l) * scipy.sum(I**l * a2 * scipy.exp(-I * scipy.pi**2 * t))
+    I = np.float64(I)
+    M = np.float64(M)
+    a2 = np.float64(a2)
+    f = 2 * np.pi ** (2 * l) * np.sum(I**l * a2 * np.exp(-I * np.pi**2 * t))
     for s in range(l, 1, -1):
-        K0 = scipy.prod(range(1, 2 * s, 2)) / scipy.sqrt(2 * scipy.pi)
+        K0 = np.prod(range(1, 2 * s, 2)) / np.sqrt(2 * np.pi)
         const = (1 + (1 / 2)**(s + 1 / 2)) / 3
         time = (2 * const * K0 / M / f)**(2 / (3 + 2 * s))
-        f = 2 * scipy.pi**(2 * s) * scipy.sum(I**s * a2 * scipy.exp(-I * scipy.pi**2 * time))
-    return t - (2 * M * scipy.sqrt(scipy.pi) * f)**(-2 / 5)
+        f = 2 * np.pi**(2 * s) * np.sum(I**s * a2 * np.exp(-I * np.pi**2 * time))
+    return t - (2 * M * np.sqrt(np.pi) * f)**(-2 / 5)
 
 
 def csc_column_remove(A, ind):
