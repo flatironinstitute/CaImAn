@@ -12,6 +12,7 @@ Contents:
    :maxdepth: 3
 
    Overview
+   CaImAn_features_and_references
    Installation
    Getting_Started
    Handling_Movies
@@ -21,5 +22,4 @@ Contents:
    GUI
    readme-gpu
    cluster
-   CaImAn_features_and_references
    core_functions
