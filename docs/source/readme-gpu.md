@@ -21,7 +21,8 @@ CaImAn and CUDA
 CaImAn has experimental support for computing FFTs on your GPU,
 using the pycuda libraries instead of OpenCV or numpy. This can be used during motion correction.
 
-# Installation
+Installation
+------------
 We assume you have CaImAn generally working first. If you do not,
 follow the general instructions first and verify you have a working
 environment.
@@ -32,7 +33,8 @@ caiman environment and then do `conda install -c conda-forge pycuda`. This may b
 It is possible to instead install CUDA, then use pip to install pycuda, but this is involved enough
 that it's better to try the above first.
 
-# Use
+Use
+---
 The CUDA codepaths will only be active if the needed libraries are installed on your system. Otherwise non-CUDA codepaths will be active (even if CUDA is requested in our code).
 
 The following functions have been extended with a
