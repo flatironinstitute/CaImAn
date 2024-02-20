@@ -1,7 +1,7 @@
 Installation and Updating
 =========================
 
-This page will give more detailed setup instructions for Caiman than the `main readme <../../README.md>`_. 
+This page will give more detailed setup instructions for Caiman than the main readme in the source tree.
 This is the place you should visit first if you run into problems and need to troubleshoot. It includes 
 info on initial setup, as well as updating with new releases. There is a Table of Contents on the 
 left-hand side of this page, so if you need help with a particular task, that should help you get oriented. 
@@ -36,7 +36,7 @@ and make contributions to Caiman.
 
 Section 1A. Install with conda
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-These are basically the Quickstart instructions on the `main readme page <../../README.md>`_, so if you follow those, you 
+These are basically the Quickstart instructions on the main readme page at the repo: <https://github.com/flatironinstitute/CaImAn>, so if you follow those, you 
 should be good to go. 
 
 .. raw:: html
@@ -73,7 +73,7 @@ Section 1B. Development-mode install
 
 Dev mode install allows you to modify the source files of Caiman and makes it easier
 to contribute to the project, fix bugs etc. The general motivation for setting up
-an editable development environment is described in more detail in our `contributors page <../../CONTRIBUTING.md>`_.
+an editable development environment is described in more detail in our `contributors page <https://github.com/flatironinstitute/CaImAn/blob/main/CONTRIBUTING.md>`_.
 
 If you install in dev mode you will likely need to set some environment variables manually (it is 
 done automatically when you do the conda install): this is discussed in Section 4C.
@@ -372,6 +372,6 @@ following the instructions
 
 Section 4D: Other topics
 ~~~~~~~~~~~~~~~~~~~~~~~~~
-
-- `Running Caiman on a cluster <./CLUSTER.md>`_ 
-- `Setting up Caiman to use your GPUs <./README-GPU.md>`_
+See also
+- Our clustering doc
+- Caiman and GPUs

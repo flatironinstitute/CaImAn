@@ -1,5 +1,5 @@
 File Formats
-======
+============
 These notes cover imaging data you'll load into Caiman for analysis, typically 2d (occasionally 3d) data over time. There are several formats we support, some with caveats. If there are other formats you want, or caveats you find particularly burdensome, reach out and if it's easy we may be able to adjust the software, or alternatively offer ideas on how to convert your files for use with Caiman.
 
 

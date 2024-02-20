@@ -1,5 +1,5 @@
-Features
---------
+Caiman Features
+---------------
 
 CaImAn includes a variety of scalable methods for the analysis of
 calcium (and voltage) imaging data:

@@ -55,7 +55,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'CaImAn'
-copyright = '2019, Flatiron Institute, Simons Foundation, New York, NY'
+copyright = '2024, Flatiron Institute, Simons Foundation, New York, NY'
 author = 'Eftychios Pnevmatikakis and Andrea Giovannucci'
 
 # The version info for the project you're documenting, acts as replacement for

@@ -15,8 +15,11 @@ Contents:
    Installation
    Getting_Started
    Handling_Movies
+   performance_guide
    CaImAn_Tips
-   On_file_types_and_sizes
+   file_formats
    GUI
+   readme-gpu
+   cluster
    CaImAn_features_and_references
    core_functions

@@ -1,5 +1,5 @@
 Overview
-=========
+========
 
 .. image:: ../LOGOS/Caiman_logo_FI.png
     :width: 300px
