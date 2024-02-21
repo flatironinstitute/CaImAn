@@ -1,5 +1,5 @@
-CaImAn Tips
-===========
+General Tips
+============
 
 Motion Correction tips
 ----------------------
@@ -33,7 +33,7 @@ Motion Correction tips
    of chunks (``params.motion.splits_els`` and ``params.motion.split_rig``)
    with the length of your recording (e.g. ``int((number of total frames)/200)``).
 
-CaImAn Online Processing tips
+Caiman Online Processing tips
 -----------------------------
 
 -  Important parameters for online processing are the CNN threshold
@@ -71,7 +71,7 @@ CaImAn Online Processing tips
 -  When using the CNN for screening candidate components, the usage of a
    GPU can lead to significant computational gains.
 
-CaImAn Batch processing tips
+Caiman Batch processing tips
 ----------------------------
 
 -  In order to optimize memory consumption and parallelize computing, it

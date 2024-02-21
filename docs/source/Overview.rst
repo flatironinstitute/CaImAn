@@ -5,9 +5,9 @@ Overview
     :width: 300px
     :align: right
 
-CaImAn is a Python toolbox for large scale **Ca**\ lcium **Im**\ aging data **An**\ alysis and behavioral analysis.
+Caiman is a Python toolbox for large scale **Ca**\ lcium **Im**\ aging data **An**\ alysis and behavioral analysis.
 
-CaImAn implements a set of essential methods required in the analysis pipeline of large scale calcium imaging data. Fast and scalable algorithms are implemented for motion correction, source extraction, spike deconvolution, and component registration across multiple days. It is suitable for both two-photon and one-photon fluorescence microscopy data, and can be run in both batch and online modes. CaImAn also contains some routines for the analysis of behavior from video cameras. A list of features as well as relevant references can be found `here
+Caiman implements a set of essential methods required in the analysis pipeline of large scale calcium imaging data. Fast and scalable algorithms are implemented for motion correction, source extraction, spike deconvolution, and component registration across multiple days. It is suitable for both two-photon and one-photon fluorescence microscopy data, and can be run in both batch and online modes. It also contains some routines for the analysis of behavior from video cameras. A list of features as well as relevant references can be found `here
 <CaImAn_features_and_references.html>`_.
 
 Companion paper
