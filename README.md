@@ -3,7 +3,7 @@
 
 CaImAn
 ======
-<img src="https://github.com/flatironinstitute/CaImAn/blob/main/docs/LOGOS/Caiman_logo_FI.png" width="400" align="right">
+<img src="https://github.com/flatironinstitute/CaImAn/blob/main/docs/LOGOS/Caiman_logo_2.png" width="400" align="right">
 
 A Python toolbox for large-scale **Ca**lcium **Im**aging **An**alysis.    
 

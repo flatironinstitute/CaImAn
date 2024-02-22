@@ -1,7 +1,7 @@
 Overview
 ========
 
-.. image:: ../LOGOS/Caiman_logo_FI.png
+.. image:: ../LOGOS/Caiman_logo_2.png
     :width: 300px
     :align: right
 
