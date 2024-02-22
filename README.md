@@ -9,6 +9,10 @@ A Python toolbox for large-scale **Ca**lcium **Im**aging **An**alysis.
 
 CaImAn implements a set of essential methods required to analyze calcium and voltage imaging data. It provides fast and scalable algorithms for motion correction, source extraction, spike deconvolution, and registering neurons across multiple sessions. It is suitable for both two-photon and one-photon fluorescence microscopy data, and can be run in both offline and online modes. Documentation is [here](https://caiman.readthedocs.io/en/latest/). 
 
+Caiman Central
+--------------
+- [Caiman Central](https://github.com/flatironinstitute/caiman_central) is the hub for sharing information about CaImAn. Information on quarterly community meetings, workshops, other events, and any other communications between the developers and the user community can be found there.
+
 # Quick start :rocket:
 Follow these three steps to get started quickly, from installation to working through a demo notebook. If you do not already have conda installed, [you can find it here](https://docs.conda.io/en/latest/miniconda.html). There is a video walkthrough of the following steps [here](https://youtu.be/b63zAmKihIY?si=m7WleTwdU0rJup_2).
 
@@ -59,11 +63,9 @@ The main use cases and notebooks are listed in the following table:
 A comprehensive list of references, where you can find detailed discussion of the methods and their development, can be found [here](https://caiman.readthedocs.io/en/master/CaImAn_features_and_references.html#references). 
 
 
-# Questions, help, news
-In addition to the demos, there are many ways to learn more about Caiman and receive help:
+# How to get help
 - [Online documentation](https://caiman.readthedocs.io/en/latest/) contains a lot of general information about Caiman, the parameters, how to interpret its outputs, and more.
 - [GitHub Discussions](https://github.com/flatironinstitute/CaImAn/discussions) is our preferred venue for users to ask for help.
-- [Caiman Central](https://github.com/flatironinstitute/caiman_central) is our central hub for sharing information about CaImAn. Tune in there for updates about quarterly community meetings, workshops, etc. 
 - The [Gitter forum](https://app.gitter.im/#/room/#agiovann_Constrained_NMF:gitter.im) is our old forum: we sometimes will ask people to join us there when something can best be solved in real time (e.g., installation problems).
 - If you have found a bug, we recommend searching the [issues at github](https://github.com/flatironinstitute/CaImAn/issues) and opening a new issue if you can't find the solution there. 
 - If there is a feature you would like to see implemented, feel free to come chat at the above forums or open an issue at Github.
