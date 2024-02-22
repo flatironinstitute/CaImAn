@@ -169,6 +169,8 @@ def df_percentile(inputData, axis=None):
     Extracting the percentile of the data where the mode occurs and its value.
     Used to determine the filtering level for DF/F extraction. Note that
     computation can be inaccurate for short traces.
+
+    If errors occur, return fallback values
     """
     if axis is not None:
 
@@ -181,24 +183,37 @@ def df_percentile(inputData, axis=None):
     else:
         # Create the function that we can use for the half-sample mode
         err = True
-        while err:
+        err_count = 0
+        max_err_count = 10
+        while err and err_count < max_err_count:
             try:
                 bandwidth, mesh, density, cdf = kde(inputData)
                 err = False
-            except:
-                logging.warning('Percentile computation failed. Duplicating ' + 'and trying again.')
+            except ValueError:
+                err_count += 1
+                logging.warning(f"kde() failure {err_count}. Concatenating traces and recomputing.")
                 if not isinstance(inputData, list):
                     inputData = inputData.tolist()
                 inputData += inputData
 
-        data_prct = cdf[np.argmax(density)] * 100
-        val = mesh[np.argmax(density)]
+        # There are three ways the above calculation can go wrong. 
+        # For each case: just use median.
+        # if cdf was never defined, it means kde never ran without error
+        try:
+            cdf
+        except NameError:
+            logging.warning('Max err count reached. Reverting to median.')
+            data_prct = 50
+            val = np.median(np.array(inputData))
+        else:
+            data_prct = cdf[np.argmax(density)] * 100
+            val = mesh[np.argmax(density)]
+
         if data_prct >= 100 or data_prct < 0:
-            logging.warning('Invalid percentile computed possibly due ' + 'short trace. Duplicating and recomuputing.')
-            if not isinstance(inputData, list):
-                inputData = inputData.tolist()
-            inputData *= 2
-            err = True
+            logging.warning('Invalid percentile (<0 or >100) computed. Reverting to median.')
+            data_prct = 50
+            val = np.median(np.array(inputData))
+
         if np.isnan(data_prct):
             logging.warning('NaN percentile computed. Reverting to median.')
             data_prct = 50
@@ -211,12 +226,11 @@ def df_percentile(inputData, axis=None):
 An implementation of the kde bandwidth selection method outlined in:
 Z. I. Botev, J. F. Grotowski, and D. P. Kroese. Kernel density
 estimation via diffusion. The Annals of Statistics, 38(5):2916-2957, 2010.
-Based on the implementation in Matlab by Zdravko Botev.
+Based on the implementation in Matlab by Zdravko Botev:
+See: https://www.mathworks.com/matlabcentral/fileexchange/14034-kernel-density-estimator
 Daniel B. Smith, PhD
 Updated 1-23-2013
 """
-
-
 def kde(data, N=None, MIN=None, MAX=None):
 
     # Parameters to set up the mesh on which to calculate
@@ -240,13 +254,13 @@ def kde(data, N=None, MIN=None, MAX=None):
     I = [iN * iN for iN in range(1, N)]
     SqDCTData = (DCTData[1:] / 2)**2
 
-    # The fixed point calculation finds the bandwidth = t_star
+    # The fixed point calculation finds the bandwidth = t_star for smoothing (see paper cited above)
     guess = 0.1
     try:
-        t_star = scipy.optimize.brentq(fixed_point, 0, guess, args=(M, I, SqDCTData))
-    except ValueError:
-        print('Oops!')
-        return None
+       t_star = scipy.optimize.brentq(fixed_point, 0, guess, args=(M, I, SqDCTData))
+    except ValueError as e:
+       # 
+       raise ValueError(f"Unable to find root: {str(e)}")
 
     # Smooth the DCTransformed data using t_star
     SmDCTData = DCTData * np.exp(-np.arange(N)**2 * np.pi**2 * t_star / 2)
@@ -262,6 +276,8 @@ def kde(data, N=None, MIN=None, MAX=None):
 
 
 def fixed_point(t, M, I, a2):
+    # TODO: document this: 
+    #   From Matlab code: this implements the function t-zeta*gamma^[l](t)
     l = 7
     I = np.float64(I)
     M = np.float64(M)
