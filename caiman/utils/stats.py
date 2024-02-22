@@ -170,7 +170,7 @@ def df_percentile(inputData, axis=None):
     Used to determine the filtering level for DF/F extraction. Note that
     computation can be inaccurate for short traces.
 
-    If errors occur, will just return fallback value of median (50% percentile)
+    If errors occur, return fallback values
     """
     if axis is not None:
 
@@ -185,7 +185,7 @@ def df_percentile(inputData, axis=None):
         err = True
         err_count = 0
         max_err_count = 10
-        while err==True and err_count < max_err_count:
+        while err and err_count < max_err_count:
             try:
                 bandwidth, mesh, density, cdf = kde(inputData)
                 err = False
@@ -226,7 +226,8 @@ def df_percentile(inputData, axis=None):
 An implementation of the kde bandwidth selection method outlined in:
 Z. I. Botev, J. F. Grotowski, and D. P. Kroese. Kernel density
 estimation via diffusion. The Annals of Statistics, 38(5):2916-2957, 2010.
-Based on the implementation in Matlab by Zdravko Botev.
+Based on the implementation in Matlab by Zdravko Botev:
+See: https://www.mathworks.com/matlabcentral/fileexchange/14034-kernel-density-estimator
 Daniel B. Smith, PhD
 Updated 1-23-2013
 """
@@ -253,8 +254,7 @@ def kde(data, N=None, MIN=None, MAX=None):
     I = [iN * iN for iN in range(1, N)]
     SqDCTData = (DCTData[1:] / 2)**2
 
-    # The fixed point calculation finds the bandwidth = t_star
-    # fixed_point is function defined below
+    # The fixed point calculation finds the bandwidth = t_star for smoothing (see paper cited above)
     guess = 0.1
     try:
        t_star = scipy.optimize.brentq(fixed_point, 0, guess, args=(M, I, SqDCTData))
@@ -276,7 +276,8 @@ def kde(data, N=None, MIN=None, MAX=None):
 
 
 def fixed_point(t, M, I, a2):
-    # TODO: document this
+    # TODO: document this: 
+    #   From Matlab code: this implements the function t-zeta*gamma^[l](t)
     l = 7
     I = np.float64(I)
     M = np.float64(M)
