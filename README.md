@@ -63,8 +63,7 @@ The main use cases and notebooks are listed in the following table:
 A comprehensive list of references, where you can find detailed discussion of the methods and their development, can be found [here](https://caiman.readthedocs.io/en/master/CaImAn_features_and_references.html#references). 
 
 
-# Questions, help, news
-In addition to the demos, there are many ways to learn more about Caiman and receive help:
+# How to get help
 - [Online documentation](https://caiman.readthedocs.io/en/latest/) contains a lot of general information about Caiman, the parameters, how to interpret its outputs, and more.
 - [GitHub Discussions](https://github.com/flatironinstitute/CaImAn/discussions) is our preferred venue for users to ask for help.
 - The [Gitter forum](https://app.gitter.im/#/room/#agiovann_Constrained_NMF:gitter.im) is our old forum: we sometimes will ask people to join us there when something can best be solved in real time (e.g., installation problems).
