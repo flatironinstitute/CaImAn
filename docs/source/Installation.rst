@@ -1,7 +1,7 @@
 Installation and Updating
 =========================
 
-This page will give more detailed setup instructions for Caiman than the `main readme <../../README.md>`_. 
+This page will give more detailed setup instructions for Caiman than the main readme in the source tree.
 This is the place you should visit first if you run into problems and need to troubleshoot. It includes 
 info on initial setup, as well as updating with new releases. There is a Table of Contents on the 
 left-hand side of this page, so if you need help with a particular task, that should help you get oriented. 
@@ -36,7 +36,7 @@ and make contributions to Caiman.
 
 Section 1A. Install with conda
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-These are basically the Quickstart instructions on the `main readme page <../../README.md>`_, so if you follow those, you 
+These are basically the Quickstart instructions on the main readme page at the repo: <https://github.com/flatironinstitute/CaImAn>, so if you follow those, you 
 should be good to go. 
 
 .. raw:: html
@@ -72,8 +72,7 @@ Section 1B. Development-mode install
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 Dev mode install allows you to modify the source files of Caiman and makes it easier
-to contribute to the project, fix bugs etc. The general motivation for setting up
-an editable development environment is described in more detail in our `contributors page <../../CONTRIBUTING.md>`_.
+to contribute to the project, fix bugs etc.
 
 If you install in dev mode you will likely need to set some environment variables manually (it is 
 done automatically when you do the conda install): this is discussed in Section 4C.
@@ -107,7 +106,7 @@ At the conda prompt:
 
 .. code:: bash
 
-     git clone https://github.com/your-username/CaImAn
+     git clone git@github.com:flatironinstitute/CaImAn.git
      cd CaImAn
      mamba env create -f environment.yml -n caiman
      conda activate caiman 
@@ -140,7 +139,7 @@ Dev Mode Install on MacOS and Linux
 
 .. code:: bash
 
-     git clone https://github.com/your-username/CaImAn
+     git clone git@github.com:flatironinstitute/CaImAn.git
      cd CaImAn/
      mamba env create -f environment.yml -n caiman
      source activate caiman
@@ -235,7 +234,7 @@ below to update the code. However, if the environment file has changed
 since your last update this may lead to you not the latest version. None of this applies
 to the conda-forge route (for which instructions are given above).
 
-From the conda environment you used to install CaImAn:
+From the conda environment you used to install Caiman:
 
 1. ``pip uninstall caiman``
 
@@ -257,7 +256,7 @@ From the conda environment you used to install CaImAn:
    variables have changed.
 
 -  The same applies if you want to modify some internal function of
-   CaImAn. If you used the ``pip install -e .`` option then you can
+   Caiman. If you used the ``pip install -e .`` option then you can
    directly modify it (that's why it's the editable developer mode). If you
    used the ``pip install .`` option then you will need to
    ``pip uninstall caiman`` followed by ``pip install .`` for your
@@ -278,7 +277,7 @@ Section 3C: Upgrade the demos with caimanmanager
    <summary>Upgrade the demos</summary>
 
 When you upgrade Caiman, sometimes the underlying APIs change. When this happens and it impacts a demo (or otherwise 
-requires changes to files in ``caiman_data``), we update the demo and data. This means that upgrading CaImAn works 
+requires changes to files in ``caiman_data``), we update the demo and data. This means that upgrading Caiman works 
 best if you also replace the ``caiman_data`` directory with a new version.
 
 To check if the demos or datafiles have changed since your last install, you can run ``caimanmanager check``. If they have not,
@@ -372,6 +371,8 @@ following the instructions
 
 Section 4D: Other topics
 ~~~~~~~~~~~~~~~~~~~~~~~~~
+See also:
 
-- `Running Caiman on a cluster <./CLUSTER.md>`_ 
-- `Setting up Caiman to use your GPUs <./README-GPU.md>`_
+* :doc:`Our clustering doc <cluster>`
+* :doc:`Caiman and GPUs <readme-gpu>`
+

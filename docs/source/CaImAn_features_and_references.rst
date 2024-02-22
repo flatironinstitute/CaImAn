@@ -1,7 +1,7 @@
-Features
---------
+Caiman Features
+---------------
 
-CaImAn includes a variety of scalable methods for the analysis of
+Caiman includes a variety of scalable methods for the analysis of
 calcium (and voltage) imaging data:
 
 |
@@ -44,7 +44,7 @@ calcium (and voltage) imaging data:
 
    -  Uses a Mask R-CNN to identify neurons in the FOV
    -  Extracts spiking activity using adaptive template matching.
-   -  Fully integrated with CaImAn, inherits all its capabilities.
+   -  Fully integrated with Caiman, inherits all its capabilities.
 |
 -  **Behavioral Analysis** [Behavior]_
 
@@ -59,8 +59,7 @@ calcium (and voltage) imaging data:
 
    -  Noise parameters estimation under the Poisson-Gaussian noise model
    -  Fast algorithm that scales to large datasets
-   -  A basic demo can be found at
-      ``CaImAn/demos/notebooks/demo_VST.ipynb``
+   -  A basic demo can be found in the default demos as demo_VST.ipynb
 
 
 
