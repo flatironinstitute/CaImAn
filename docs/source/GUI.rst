@@ -1,14 +1,14 @@
 Graphical interfaces
 ====================
 
-The CaImAn GUI
----------------
+The Caiman GUI
+--------------
 
 .. image:: ../img/GUI_img.png
     :width: 600px
     :align: center
 
-CaImAn comes with an experimental visual interface. To see an example on
+Caiman comes with an experimental visual interface. To see an example on
 how use it, first load and run either \* demo_OnACID_mesoscope.py \*
 demo_caiman_basic.py \* demo_pipeline.py
 
@@ -37,7 +37,7 @@ More features will be added in the future.
 External interfaces
 -------------------
 
-A couple of very nice visualization tools that directly call CaImAn have been developed recently
+A couple of very nice visualization tools that directly call Caiman have been developed recently
 by external researchers. For more information please check the following projects:
 
   - `mesmerize-core <https://github.com/nel-lab/mesmerize-core>`_ - also simplifies grid search for parameter tuning

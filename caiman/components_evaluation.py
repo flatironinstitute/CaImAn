@@ -13,9 +13,10 @@ from scipy.stats import norm
 from typing import Any, Union
 import warnings
 
+import caiman
 from caiman.paths import caiman_datadir
-from .utils.stats import mode_robust, mode_robust_fast
-from .utils.utils import load_graph
+import caiman.utils.stats
+import caiman.utils.utils
 
 try:
     cv2.setNumThreads(0)
@@ -75,9 +76,9 @@ def compute_event_exceptionality(traces: np.ndarray,
 
     T = np.shape(traces)[-1]
     if use_mode_fast:
-        md = mode_robust_fast(traces, axis=1)
+        md = caiman.utils.stats.mode_robust_fast(traces, axis=1)
     else:
-        md = mode_robust(traces, axis=1)
+        md = caiman.utils.stats.mode_robust(traces, axis=1)
 
     ff1 = traces - md[:, None]
 
@@ -301,7 +302,7 @@ def evaluate_components_CNN(A,
             else:
                 raise FileNotFoundError(f"File for requested model {model_name} not found")
             print(f"USING MODEL (tensorflow API): {model_file}")
-            loaded_model = load_graph(model_file)
+            loaded_model = caiman.utils.utils.load_graph(model_file)
 
         logging.debug("Loaded model from disk")
 
@@ -436,7 +437,7 @@ def evaluate_components(Y: np.ndarray,
             padafter = int(np.ceil(elm_missing / 2.))
             tr_tmp = np.pad(traces.T, ((padbefore, padafter), (0, 0)), mode='reflect')
             numFramesNew, num_traces = np.shape(tr_tmp)
-                                                                                             #% compute baseline quickly
+                                                                                             # compute baseline quickly
             logging.debug("binning data ...")
             tr_BL = np.reshape(tr_tmp, (downsampfact, numFramesNew // downsampfact, num_traces), order='F')
             tr_BL = np.percentile(tr_BL, 8, axis=0)
@@ -481,9 +482,8 @@ def grouper(n: int, iterable, fillvalue: bool = None):
 
 
 def evaluate_components_placeholder(params):
-    import caiman as cm
     fname, traces, A, C, b, f, final_frate, remove_baseline, N, robust_std, Athresh, Npeaks, thresh_C = params
-    Yr, dims, T = cm.load_memmap(fname)
+    Yr, dims, T = caiman.load_memmap(fname)
     Y = np.reshape(Yr, dims + (T,), order='F')
     fitness_raw, fitness_delta, _, _, r_values, significant_samples = \
         evaluate_components(Y, traces, A, C, b, f, final_frate, remove_baseline=remove_baseline,

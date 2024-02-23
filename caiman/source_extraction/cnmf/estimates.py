@@ -1,25 +1,28 @@
 #!/usr/bin/env python
 
 import bokeh
+import cv2
 import logging
 import matplotlib.pyplot as plt
 import numpy as np
+import os
+from pynwb import NWBHDF5IO, TimeSeries, NWBFile
+from pynwb.base import Images
+from pynwb.image import GrayscaleImage
+from pynwb.ophys import ImageSegmentation, Fluorescence, OpticalChannel, ImageSeries
+from pynwb.device import Device
 import scipy.sparse
 import time
+import uuid
 
 import caiman
-from .utilities import detrend_df_f, decimation_matrix
-from .spatial import threshold_components
-from .temporal import constrained_foopsi_parallel
-from .merging import merge_iteration, merge_components
-from ...components_evaluation import (
-        evaluate_components_CNN, estimate_components_quality_auto,
-        select_components_from_metrics, compute_eccentricity)
-from ...base.rois import (
-        detect_duplicates_and_subsets, nf_match_neurons_in_binary_masks,
-        nf_masks_to_neurof_dict)
-from .initialization import downscale
-
+from caiman.base.rois import detect_duplicates_and_subsets, nf_match_neurons_in_binary_masks, nf_masks_to_neurof_dict
+from caiman.components_evaluation import evaluate_components_CNN, estimate_components_quality_auto, select_components_from_metrics, compute_eccentricity
+from caiman.source_extraction.cnmf.initialization import downscale
+from caiman.source_extraction.cnmf.merging import merge_iteration, merge_components
+from caiman.source_extraction.cnmf.spatial import threshold_components
+from caiman.source_extraction.cnmf.temporal import constrained_foopsi_parallel
+from caiman.source_extraction.cnmf.utilities import detrend_df_f, decimation_matrix
 
 class Estimates(object):
     """
@@ -663,7 +666,6 @@ class Estimates(object):
             return mov
 
         if thr > 0:
-            import cv2
             if save_movie:
                 fourcc = cv2.VideoWriter_fourcc(*opencv_codec)
                 out = cv2.VideoWriter(movie_name, fourcc, 30.0,
@@ -800,6 +802,7 @@ class Estimates(object):
             self: CNMF object
                 self.F_dff contains the DF/F normalized traces
         """
+        # FIXME This method shares its name with a function elsewhere in the codebase (which it wraps)
 
         if self.C is None or self.C.shape[0] == 0:
             logging.warning("There are no components for DF/F extraction!")
@@ -983,6 +986,7 @@ class Estimates(object):
                 self.idx_components contains the indeced of components above
                 the required threshold.
         """
+        # FIXME this method shares its name with a function elsewhere in the codebase (that it wraps)
         dims = params.get('data', 'dims')
         gSig = params.get('init', 'gSig')
         min_cnn_thr = params.get('quality', 'min_cnn_thr')
@@ -1067,51 +1071,43 @@ class Estimates(object):
             self.idx_components = np.intersect1d(self.idx_components, idx_ecc)
         return self
 
-    def filter_components(self, imgs, params, new_dict={}, dview=None, select_mode='All'):
-        """Filters components based on given thresholds without re-computing
+    def filter_components(self, imgs, params, new_dict={}, dview=None, select_mode:str='All'):
+        """
+        Filters components based on given thresholds without re-computing
         the quality metrics. If the quality metrics are not present then it
         calls self.evaluate components.
 
         Args:
             imgs: np.array (possibly memory mapped, t,x,y[,z])
                 Imaging data
-
             params: params object
                 Parameters of the algorithm
+            new_dict: dict
+                New dictionary with parameters to be called. The dictionary's keys are
+                used to modify the params.quality subdictionary:
 
-            select_mode: str
+                min_SNR: float
+                    trace SNR threshold
+                SNR_lowest: float
+                    minimum required trace SNR
+                rval_thr: float
+                    space correlation threshold
+                rval_lowest: float
+                    minimum required space correlation
+                use_cnn: bool
+                    flag for using the CNN classifier
+                min_cnn_thr: float
+                    CNN classifier threshold
+                cnn_lowest: float
+                    minimum required CNN threshold
+                gSig_range: list
+                    gSig scale values for CNN classifier
+
+            select_mode:
                 Can be 'All' (no subselection is made, but quality filtering is performed),
                 'Accepted' (subselection of accepted components, a field named self.accepted_list must exist),
                 'Rejected' (subselection of rejected components, a field named self.rejected_list must exist),
                 'Unassigned' (both fields above need to exist)
-
-            new_dict: dict
-                New dictionary with parameters to be called. The dictionary
-                modifies the params.quality subdictionary in the following
-                entries:
-                    min_SNR: float
-                        trace SNR threshold
-
-                    SNR_lowest: float
-                        minimum required trace SNR
-
-                    rval_thr: float
-                        space correlation threshold
-
-                    rval_lowest: float
-                        minimum required space correlation
-
-                    use_cnn: bool
-                        flag for using the CNN classifier
-
-                    min_cnn_thr: float
-                        CNN classifier threshold
-
-                    cnn_lowest: float
-                        minimum required CNN threshold
-
-                    gSig_range: list
-                        gSig scale values for CNN classifier
 
         Returns:
             self: estimates object
@@ -1242,6 +1238,7 @@ class Estimates(object):
                          dview=None, max_merge_area=None):
             """merges components
             """
+            # FIXME This method shares its name with a function elsewhere in the codebase (which it wraps)
             self.A, self.C, self.nr, self.merged_ROIs, self.S, \
             self.bl, self.c1, self.neurons_sn, self.g, empty_merged, \
             self.YrA =\
@@ -1402,9 +1399,10 @@ class Estimates(object):
 
     def remove_small_large_neurons(self, min_size_neuro, max_size_neuro,
                                    select_comp=False):
-        ''' remove neurons that are too large or too small
+        """
+        Remove neurons that are too large or too small
 
-    	Args:
+        Args:
             min_size_neuro: int
                 min size in pixels
             max_size_neuro: int
@@ -1416,7 +1414,9 @@ class Estimates(object):
         Returns:
             neurons_to_keep: np.array
                 indices of components with size within the acceptable range
-        '''
+
+        """
+
         if self.A_thr is None:
             raise Exception('You need to compute thresholded components before calling remove_duplicates: use the threshold_components method')
 
@@ -1546,15 +1546,7 @@ class Estimates(object):
             location: str
         """
 
-        from pynwb import NWBHDF5IO, TimeSeries, NWBFile
-        from pynwb.base import Images
-        from pynwb.image import GrayscaleImage
-        from pynwb.ophys import ImageSegmentation, Fluorescence, OpticalChannel, ImageSeries
-        from pynwb.device import Device
-        import os
-
         if identifier is None:
-            import uuid
             identifier = uuid.uuid1().hex
 
         if '.nwb' != os.path.splitext(filename)[-1].lower():

@@ -1,16 +1,15 @@
-Getting Started with CaImAn
+Getting Started
 ===========================
 
 Demos
 -----
 
 -  Notebooks: The notebooks provide a simple and friendly way to get
-   into CaImAn and understand its main characteristics. They are located
-   in the ``demos/notebooks``. To launch one of the jupyter notebooks:
+   into Caiman and understand its main characteristics. They are located
+   in the ``demos/notebooks``. To launch one of the jupyter notebooks, activate your conda caiman environment, enter the caiman_data directory, and then:
 
    .. code:: bash
 
-          source activate CaImAn
           jupyter notebook --NotebookApp.iopub_data_rate_limit=1.0e10
 
    and select the notebook from within Jupyter’s browser. The argument
@@ -20,9 +19,6 @@ Demos
 -  demo files are also found in the demos/general subfolder. We suggest
    trying demo_pipeline.py first as it contains most of the tasks
    required by calcium imaging. For behavior use demo_behavior.py
-
--  If you want to directly launch the python files, your python console
-   still must be in the CaImAn directory.
 
 Basic Structure
 ---------------
@@ -36,13 +32,13 @@ the following objects:
    easily and is passed into all the algorithms.
 -  ``MotionCorrect``: An object for motion correction which can be used
    for both rigid and piece-wise rigid motion correction.
--  ``cnmf``: An object for running the CaImAn batch algorithm either in
+-  ``cnmf``: An object for running the Caiman batch algorithm either in
    patches or not, suitable for both two-photon (CNMF) and one-photon
    (CNMF-E) data.
--  ``online_cnmf``: An object for running the CaImAn online (OnACID)
+-  ``online_cnmf``: An object for running the Caiman online (OnACID)
    algorithm on two-photon data with or without motion correction.
 -  ``estimates``: A single object that stores the results of the
-   algorithms (CaImAn batch, CaImAn online) in a unified way that also
+   algorithms (batch, online) in a unified way that also
    contains plotting methods.
 
 To see examples of how these methods are used, please consult the demos.
@@ -51,7 +47,7 @@ To see examples of how these methods are used, please consult the demos.
 Parameters
 -----------
 
-CaImAn gives you access to a lot of parameters and lets you adapt the analysis to your data. Parameters are stored in
+Caiman gives you access to a lot of parameters and lets you adapt the analysis to your data. Parameters are stored in
 the ``params`` object in a set of dictionaries, sorted by the part of the analysis they are used in:
 
 -  ``data``: General params describing the dataset like dimensions, decay time, filename and framerate
@@ -123,7 +119,7 @@ As mentioned above, the results of the analysis are stored within the
 Result variables for 2p batch analysis
 --------------------------------------
 
-The results of CaImAn are saved in an ``estimates`` object. This is
+The results of Caiman are saved in an ``estimates`` object. This is
 stored inside the cnmf object, i.e. it can be accessed using
 ``cnmf.estimates``. The variables of interest are:
 
@@ -305,11 +301,12 @@ The cluster is set up with Caiman's ``setup_cluster()`` function, which takes in
                                                                     n_processes=None, 
                                                                     ignore_preexisting=False)
 
-The ``backend`` parameter determines the type of cluster used. The default value, ``'multiprocessing'``, uses the 
-multiprocessing package, but ``ipyparallel`` is also available. More information on these choices can be 
-found `here <https://github.com/flatironinstitute/CaImAn/blob/master/docs/CLUSTER.md>`_. You can set the number of 
-processes (cpu cores) to use with the ``n_processes`` parameter: the default value ``None`` will lead to the function 
-selecting one *less* than the total number of logical cores available.  
+The **backend** parameter determines the type of cluster used. The default value, **'multiprocessing'**, uses the 
+multiprocessing package, but **ipyparallel** is also available. You can set the number of 
+processes (cpu cores) to use with the **n_processes** parameter: the default value **None** will lead to the function 
+selecting one *less* than the total number of logical cores available.
+
+More information on these choices can be found :doc:`in the cluster doc <cluster>`.
 
 The parameter ``ignore_preexisting``, which defaults to ``False``, is a failsafe used to avoid overwhelming your resources. 
 If you try to start another cluster when Caiman already has one running, you will get an error. However, sometimes 
@@ -317,7 +314,7 @@ on more powerful machines you may want to spin up multiple Caiman environments. 
 set ``ignore_preexisting`` to ``True``.
 
 The output variable ``cluster`` is the multicore processing object that will be used in subsequent processing steps. It will 
-be passed as a parameter in subsequent stages and is the fulcrum for parallelization. The 
+be passed as a parameter in subsequent stages and sets policy for parallelization. The 
 other output that can be useful to check is ``n_processes``, as it will tell you how many CPU cores you have set up 
 in your cluster.
 

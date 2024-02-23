@@ -487,35 +487,33 @@ def create_NL_model(Y=None, shape=(None, None, 1), n_channels=8, gSig=5, r_facto
 
 def fit_NL_model(model_NL, Y, patience=5, val_split=0.2, batch_size=32,
                  epochs=500, schedule=None):
-    """ Fit either the linear or the non-linear model. The model is fit for a
+    """
+    Fit either the linear or the non-linear model. The model is fit for a
     use specified maximum number of epochs and early stopping is used based on the 
     validation loss. A Tensorboard compatible log is also created.
+
     Args:
         model_LN: Keras Ring-CNN model
             see create_LN_model and create_NL_model above
-
         patience: int, default: 5
             patience value for early stopping criterion
-
         val_split: float, default: 0.2
             fraction of data to keep for validation (value between 0 and 1)
-
         batch_size: int, default: 32
             batch size during training
-
         epochs: int, default: 500
             maximum number of epochs
-
         schedule: keras learning rate scheduler
 
     Returns:
-        model_NL: Keras Ring-CNN model
+        model_NL: 
+            Keras Ring-CNN model
             trained model loaded with best weights according to validation loss
+        history_NL:
+            contains data related to the training history
+        path_to_model:
+            path to where the weights are stored
 
-        history_NL: contains data related to the training history
-
-        path_to_model: str
-            path to where the weights are stored.
     """
     if Y.ndim < 4:
         Y = np.expand_dims(Y, axis=-1)
