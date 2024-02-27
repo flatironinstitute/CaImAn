@@ -1,5 +1,6 @@
 #!/usr/bin/env python
 
+import json
 import logging
 import numpy as np
 import os
@@ -7,6 +8,7 @@ import pkg_resources
 from pprint import pformat
 import scipy
 from scipy.ndimage import generate_binary_structure, iterate_structure
+from typing import Optional
 
 import caiman.utils.utils
 import caiman.base.movies
@@ -41,21 +43,37 @@ class CNMFParams(object):
                  thresh_fitness_delta=-50, thresh_fitness_raw=None, thresh_overlap=0.5,
                  update_freq=200, update_num_comps=True, use_dense=True, use_peak_max=True,
                  only_init_patch=True, var_name_hdf5='mov', max_merge_area=None, 
-                 use_corr_img=False, params_dict={},
+                 use_corr_img=False,
+                 params_from_file:Optional[str]=None,
+                 params_dict={},
                  ):
         """Class for setting the processing parameters. All parameters for CNMF, online-CNMF, quality testing,
         and motion correction can be set here and then used in the various processing pipeline steps.
-        The preferred way to set parameters is by using the set function, where a subclass is determined and a
-        dictionary is passed. The whole dictionary can also be initialized at once by passing a dictionary params_dict
-        when initializing the CNMFParams object. Direct setting of the positional arguments in CNMFParams is only
-        present for backwards compatibility reasons and should not be used if possible.
+
+        Params have default values; users can override the defaults in two intended ways:
+            A) During initialisation of the object, people can pass a nested dictionary through the
+               params_dict parameter, or the name of a jsonfile containing the same nested dictionary
+               through the params_from_file parameter
+            B) If the CNMFParams object already exists, they can call its change_params() method to pass in
+               a dict or change_params_from_jsonfile() to pass in a filename
+        With both of these, people only need to name and override values they wish to change; all others keep
+        their defaults.
+
+        All other means of changing parameters are deprecated (including other constructor arguments)
+        and will be removed in some future version of Caiman (whether they give a deprecation warning or not). 
 
         Args:
-            Any parameter that is not set get a default value specified
-            by the dictionary default options
-        DATA PARAMETERS (CNMFParams.data) #####
+            params_from_file
+                name of a json file used to initialise the object
+            params_dict
+                a dictionary used to initialise the object
 
-            fnames: list[str]
+            Any parameter that is not set uses a default value
+            All other arguments are deprecated and should not be used.
+
+        Object Structure:
+          CNMFParams.data (these represent features of the data and other misc settings):
+            fnames
                 list of complete paths to files that need to be processed
 
             dims: (int, int), default: computed from fnames
@@ -74,10 +92,10 @@ class CNMFParams(object):
                 if loading from hdf5 name of the variable to load
 
             caiman_version: str
-                version of CaImAn being used
+                version of CaImAn being used. Please do not override this
 
             last_commit: str
-                hash of last commit in the caiman repo
+                hash of last commit in the caiman repo. Pleaes do not override this.
 
             mmap_F: list[str]
                 paths to F-order memory mapped files after motion correction
@@ -85,47 +103,21 @@ class CNMFParams(object):
             mmap_C: str
                 path to C-order memory mapped file after motion correction
 
-        PATCH PARAMS (CNMFParams.patch)######
-
-            rf: int or list or None, default: None
-                Half-size of patch in pixels. If None, no patches are constructed and the whole FOV is processed jointly.
-                If list, it should be a list of two elements corresponding to the height and width of patches
-
-            stride: int or None, default: None
-                Overlap between neighboring patches in pixels.
-
-            nb_patch: int, default: 1
-                Number of (local) background components per patch
-
+          CNMFParams.patch (these control how the data is divided into patches):
             border_pix: int, default: 0
                 Number of pixels to exclude around each border.
-
-            low_rank_background: bool, default: True
-                Whether to update the background using a low rank approximation.
-                If False all the nonzero elements of the background components are updated using hals
-                (to be used with one background per patch)
 
             del_duplicates: bool, default: False
                 Delete duplicate components in the overlapping regions between neighboring patches. If False,
                 then merging is used.
 
-            only_init: bool, default: True
-                whether to run only the initialization
+            in_memory: bool, default: True
+                Whether to load patches in memory
 
-            p_patch: int, default: 0
-                order of AR dynamics when processing within a patch
-
-            skip_refinement: bool, default: False
-                Whether to skip refinement of components (deprecated?)
-
-            remove_very_bad_comps: bool, default: True
-                Whether to remove (very) bad quality components during patch processing
-
-            p_ssub: float, default: 2
-                Spatial downsampling factor
-
-            p_tsub: float, default: 2
-                Temporal downsampling factor
+            low_rank_background: bool, default: True
+                Whether to update the background using a low rank approximation.
+                If False all the nonzero elements of the background components are updated using hals
+                (to be used with one background per patch)
 
             memory_fact: float, default: 1
                 unitless number for increasing the amount of available memory
@@ -133,19 +125,46 @@ class CNMFParams(object):
             n_processes: int
                 Number of processes used for processing patches in parallel
 
-            in_memory: bool, default: True
-                Whether to load patches in memory
+            nb_patch: int, default: 1
+                Number of (local) background components per patch
 
-        PRE-PROCESS PARAMS (CNMFParams.preprocess) #############
+            only_init: bool, default: True
+                whether to run only the initialization
 
-            sn: np.array or None, default: None
-                noise level for each pixel
+            p_patch: int, default: 0
+                order of AR dynamics when processing within a patch
 
-            noise_range: [float, float], default: [.25, .5]
-                range of normalized frequencies over which to compute the PSD for noise determination
+            remove_very_bad_comps: bool, default: True
+                Whether to remove (very) bad quality components during patch processing
 
-            noise_method: 'mean'|'median'|'logmexp', default: 'mean'
-                PSD averaging method for computing the noise std
+            rf: int or list or None, default: None
+                Half-size of patch in pixels. If None, no patches are constructed and the whole FOV is processed jointly.
+                If list, it should be a list of two elements corresponding to the height and width of patches
+
+            skip_refinement: bool, default: False
+                Whether to skip refinement of components (deprecated?)
+
+            p_ssub: float, default: 2
+                Spatial downsampling factor
+
+            stride: int or None, default: None
+                Overlap between neighboring patches in pixels.
+
+            p_tsub: float, default: 2
+                Temporal downsampling factor
+
+          CNMFParams.preprocess (these control preprocessing steps for the data):
+            check_nan: bool, default: True
+                whether to check for NaNs
+
+            compute_g': bool, default: False
+                whether to estimate global time constant
+
+            include_noise: bool, default: False
+                    flag for using noise values when estimating g
+
+            lags: int, default: 5
+                number of lags to be considered for time constant estimation
 
             max_num_samples_fft: int, default: 3*1024
                 Chunk size for computing the PSD of the data (for memory considerations)
@@ -153,26 +172,22 @@ class CNMFParams(object):
             n_pixels_per_process: int, default: 1000
                 Number of pixels to be allocated to each process
 
-            compute_g': bool, default: False
-                whether to estimate global time constant
+            noise_method: 'mean'|'median'|'logmexp', default: 'mean'
+                PSD averaging method for computing the noise std
+
+            noise_range: [float, float], default: [.25, .5]
+                range of normalized frequencies over which to compute the PSD for noise determination
 
             p: int, default: 2
                  order of AR indicator dynamics
 
-            lags: int, default: 5
-                number of lags to be considered for time constant estimation
-
-            include_noise: bool, default: False
-                    flag for using noise values when estimating g
-
             pixels: list, default: None
                  pixels to be excluded due to saturation
 
-            check_nan: bool, default: True
-                whether to check for NaNs
+            sn: np.array or None, default: None
+                noise level for each pixel
 
-        INIT PARAMS (CNMFParams.init)###############
-
+          CNMFParams.init (these control how CNMF should be initialised):
             K: int, default: 30
                 number of components to be found (per patch or whole FOV depending on whether rf=None)
 
@@ -194,29 +209,32 @@ class CNMFParams(object):
             SC_nnn: int, default: 20
                 number of nearest neighbors to use
 
+            alpha_snmf: float, default: 0.5
+                sparse NMF sparsity regularization weight
+
+            center_psf: bool, default: False
+                whether to use 1p data processing mode. Set to true for 1p
+
             gSig: [int, int], default: [5, 5]
                 radius of average neurons (in pixels)
 
             gSiz: [int, int], default: [int(round((x * 2) + 1)) for x in gSig],
                 half-size of bounding box for each neuron
 
-            center_psf: bool, default: False
-                whether to use 1p data processing mode. Set to true for 1p
+            init_iter: int, default: 2
+                number of iterations during corr_pnr (1p) initialization
 
-            ssub: float, default: 2
-                spatial downsampling factor
-
-            tsub: float, default: 2
-                temporal downsampling factor
-
-            nb: int, default: 1
-                number of background components
+            kernel: np.array or None, default: None
+                user specified template for greedyROI
 
             lambda_gnmf: float, default: 1.
                 regularization weight for graph NMF
 
             maxIter: int, default: 5
                 number of HALS iterations during initialization
+
+            max_iter_snmf : int, default: 500
+                maximum number of iterations for sparse NMF initialization
 
             method_init: 'greedy_roi'|'corr_pnr'|'sparse_NMF'|'local_NMF' default: 'greedy_roi'
                 initialization method. use 'corr_pnr' for 1p processing and 'sparse_NMF' for dendritic processing.
@@ -227,44 +245,11 @@ class CNMFParams(object):
             min_pnr: float, default: 20
                 minimum value of psnr image for determining a candidate component during corr_pnr
 
-            seed_method: str {'auto', 'manual', 'semi'}
-                methods for choosing seed pixels during greedy_roi or corr_pnr initialization
-                'semi' detects nr components automatically and allows to add more manually
-                if running as notebook 'semi' and 'manual' require a backend that does not
-                inline figures, e.g. %matplotlib tk
-
-            ring_size_factor: float, default: 1.5
-                radius of ring (*gSig) for computing background during corr_pnr
-
-            ssub_B: float, default: 2
-                downsampling factor for background during corr_pnr
-
-            init_iter: int, default: 2
-                number of iterations during corr_pnr (1p) initialization
-
             nIter: int, default: 5
                 number of rank-1 refinement iterations during greedy_roi initialization
 
-            rolling_sum: bool, default: True
-                use rolling sum (as opposed to full sum) for determining candidate centroids during greedy_roi
-
-            rolling_length: int, default: 100
-                width of rolling window for rolling sum option
-
-            kernel: np.array or None, default: None
-                user specified template for greedyROI
-
-            max_iter_snmf : int, default: 500
-                maximum number of iterations for sparse NMF initialization
-
-            alpha_snmf: float, default: 0.5
-                sparse NMF sparsity regularization weight
-
-            sigma_smooth_snmf : (float, float, float), default: (.5,.5,.5)
-                std of Gaussian kernel for smoothing data in sparse_NMF
-
-            perc_baseline_snmf: float, default: 20
-                percentile to be removed from the data in sparse_NMF prior to decomposition
+            nb: int, default: 1
+                number of background components
 
             normalize_init: bool, default: True
                 whether to equalize the movies during initialization
@@ -272,10 +257,39 @@ class CNMFParams(object):
             options_local_NMF: dict
                 dictionary with parameters to pass to local_NMF initializer
 
-        SPATIAL PARAMS (CNMFParams.spatial) ##########
+            perc_baseline_snmf: float, default: 20
+                percentile to be removed from the data in sparse_NMF prior to decomposition
 
-            method_exp: 'dilate'|'ellipse', default: 'dilate'
-                method for expanding footprint of spatial components
+            ring_size_factor: float, default: 1.5
+                radius of ring (*gSig) for computing background during corr_pnr
+
+            rolling_length: int, default: 100
+                width of rolling window for rolling sum option
+
+            rolling_sum: bool, default: True
+                use rolling sum (as opposed to full sum) for determining candidate centroids during greedy_roi
+
+            seed_method: str {'auto', 'manual', 'semi'}
+                methods for choosing seed pixels during greedy_roi or corr_pnr initialization
+                'semi' detects nr components automatically and allows to add more manually
+                if running as notebook 'semi' and 'manual' require a backend that does not
+                inline figures, e.g. %matplotlib tk
+
+            sigma_smooth_snmf : (float, float, float), default: (.5,.5,.5)
+                std of Gaussian kernel for smoothing data in sparse_NMF
+
+            ssub: float, default: 2
+                spatial downsampling factor
+
+            ssub_B: float, default: 2
+                downsampling factor for background during corr_pnr
+
+            tsub: float, default: 2
+                temporal downsampling factor
+
+          CNMFParams.spatial (these control how the algorithms handle spatial components):
+            block_size_spat : int, default: 5000
+                Number of pixels to process at the same time for dot product. Reduce if you face memory problems
 
             dist: float, default: 3
                 expansion factor of ellipse
@@ -283,27 +297,34 @@ class CNMFParams(object):
             expandCore: morphological element, default: None(?)
                 morphological element for expanding footprints under dilate
 
-            nb: int, default: 1
-                number of global background components
-
-            n_pixels_per_process: int, default: 1000
-                number of pixels to be processed by each worker
-
-            thr_method: 'nrg'|'max', default: 'nrg'
-                thresholding method
-
-            maxthr: float, default: 0.1
-                Max threshold
-
-            nrgthr: float, default: 0.9999
-                Energy threshold
-
             extract_cc: bool, default: True
                 whether to extract connected components during thresholding
                 (might want to turn to False for dendritic imaging)
 
+            maxthr: float, default: 0.1
+                Max threshold
+
             medw: (int, int) default: None
                 window of median filter (set to (3,)*len(dims) in cnmf.fit)
+
+            method_exp: 'dilate'|'ellipse', default: 'dilate'
+                method for expanding footprint of spatial components
+
+            method_ls: 'lasso_lars'|'nnls_L0', default: 'lasso_lars'
+                'nnls_L0'. Nonnegative least square with L0 penalty
+                'lasso_lars' lasso lars function from scikit learn
+
+            n_pixels_per_process: int, default: 1000
+                number of pixels to be processed by each worker
+
+            normalize_yyt_one: bool, default: True
+                Whether to normalize the C and A matrices so that diag(C*C.T) = 1 during update spatial
+
+            nrgthr: float, default: 0.9999
+                Energy threshold
+
+            num_blocks_per_run_spat: int, default: 20
+                Parallelization of A'*Y operation
 
             se: np.array or None, default: None
                  Morphological closing structuring element (set to np.ones((3,)*len(dims), dtype=np.uint8) in cnmf.fit)
@@ -311,47 +332,25 @@ class CNMFParams(object):
             ss: np.array or None, default: None
                 Binary element for determining connectivity (set to np.ones((3,)*len(dims), dtype=np.uint8) in cnmf.fit)
 
+            thr_method: 'nrg'|'max', default: 'nrg'
+                thresholding method
+
             update_background_components: bool, default: True
                 whether to update the spatial background components
 
-            method_ls: 'lasso_lars'|'nnls_L0', default: 'lasso_lars'
-                'nnls_L0'. Nonnegative least square with L0 penalty
-                'lasso_lars' lasso lars function from scikit learn
 
-            block_size : int, default: 5000
-                Number of pixels to process at the same time for dot product. Reduce if you face memory problems
-
-            num_blocks_per_run: int, default: 20
-                Parallelization of A'*Y operation
-
-            normalize_yyt_one: bool, default: True
-                Whether to normalize the C and A matrices so that diag(C*C.T) = 1 during update spatial
-
-        TEMPORAL PARAMS (CNMFParams.temporal)###########
-
+          CNMFParams.temporal (these control how the algorithms handle temporal components):
             ITER: int, default: 2
                 block coordinate descent iterations
-
-            method_deconvolution: 'oasis'|'cvxpy'|'oasis', default: 'oasis'
-                method for solving the constrained deconvolution problem ('oasis','cvx' or 'cvxpy')
-                if method cvxpy, primary and secondary (if problem unfeasible for approx solution)
-
-            solvers: 'ECOS'|'SCS', default: ['ECOS', 'SCS']
-                 solvers to be used with cvxpy, can be 'ECOS','SCS' or 'CVXOPT'
-
-            p: 0|1|2, default: 2
-                order of AR indicator dynamics
-
-            memory_efficient: False
 
             bas_nonneg: bool, default: True
                 whether to set a non-negative baseline (otherwise b >= min(y))
 
-            noise_range: [float, float], default: [.25, .5]
-                range of normalized frequencies over which to compute the PSD for noise determination
+            block_size_temp : int, default: 5000
+                Number of pixels to process at the same time for dot product. Reduce if you face memory problems
 
-            noise_method: 'mean'|'median'|'logmexp', default: 'mean'
-                PSD averaging method for computing the noise std
+            fudge_factor: float (close but smaller than 1) default: .96
+                bias correction factor for discrete time constants
 
             lags: int, default: 5
                 number of autocovariance lags to be considered for time constant estimation
@@ -359,29 +358,39 @@ class CNMFParams(object):
             optimize_g: bool, default: False
                 flag for optimizing time constants
 
-            fudge_factor: float (close but smaller than 1) default: .96
-                bias correction factor for discrete time constants
+            memory_efficient:
+                (undocumented)
 
-            nb: int, default: 1
-                number of global background components
+            method_deconvolution: 'oasis'|'cvxpy'|'oasis', default: 'oasis'
+                method for solving the constrained deconvolution problem ('oasis','cvx' or 'cvxpy')
+                if method cvxpy, primary and secondary (if problem unfeasible for approx solution)
 
-            verbosity: bool, default: False
-                whether to be verbose
+            noise_method: 'mean'|'median'|'logmexp', default: 'mean'
+                PSD averaging method for computing the noise std
 
-            block_size : int, default: 5000
-                Number of pixels to process at the same time for dot product. Reduce if you face memory problems
+            noise_range: [float, float], default: [.25, .5]
+                range of normalized frequencies over which to compute the PSD for noise determination
 
-            num_blocks_per_run: int, default: 20
+            num_blocks_per_run_temp: int, default: 20
                 Parallelization of A'*Y operation
+
+            p: 0|1|2, default: 2
+                order of AR indicator dynamics
 
             s_min: float or None, default: None
                 Minimum spike threshold amplitude (computed in the code if used).
 
-        MERGE PARAMS (CNMFParams.merge)#####
+            solvers: 'ECOS'|'SCS', default: ['ECOS', 'SCS']
+                 solvers to be used with cvxpy, can be 'ECOS','SCS' or 'CVXOPT'
+
+            verbosity: bool, default: False
+                whether to be verbose
+
+          CNMFParams.merging (these control how components are merged):
             do_merge: bool, default: True
                 Whether or not to merge
 
-            thr: float, default: 0.8
+            merge_thr: float, default: 0.8
                 Trace correlation threshold for merging two components.
 
             merge_parallel: bool, default: False
@@ -390,25 +399,9 @@ class CNMFParams(object):
             max_merge_area: int or None, default: None
                 maximum area (in pixels) of merged components, used to determine whether to merge components during fitting process
 
-        QUALITY EVALUATION PARAMETERS (CNMFParams.quality)###########
-
-            min_SNR: float, default: 2.5
-                trace SNR threshold. Traces with SNR above this will get accepted
-
+          CNMFParams.quality (these control how quality of traces are evaluated):
             SNR_lowest: float, default: 0.5
                 minimum required trace SNR. Traces with SNR below this will get rejected
-
-            rval_thr: float, default: 0.8
-                space correlation threshold. Components with correlation higher than this will get accepted
-
-            rval_lowest: float, default: -1
-                minimum required space correlation. Components with correlation below this will get rejected
-
-            use_cnn: bool, default: True
-                flag for using the CNN classifier.
-
-            min_cnn_thr: float, default: 0.9
-                CNN classifier threshold. Components with score higher than this will get accepted
 
             cnn_lowest: float, default: 0.1
                 minimum required CNN threshold. Components with score lower than this will get rejected.
@@ -416,19 +409,39 @@ class CNMFParams(object):
             gSig_range: list or integers, default: None
                 gSig scale values for CNN classifier. In not None, multiple values are tested in the CNN classifier.
 
-        ONLINE CNMF (ONACID) PARAMETERS (CNMFParams.online)#####
+            min_SNR: float, default: 2.5
+                trace SNR threshold. Traces with SNR above this will get accepted
 
+            min_cnn_thr: float, default: 0.9
+                CNN classifier threshold. Components with score higher than this will get accepted
+
+            rval_lowest: float, default: -1
+                minimum required space correlation. Components with correlation below this will get rejected
+
+            rval_thr: float, default: 0.8
+                space correlation threshold. Components with correlation higher than this will get accepted
+
+            use_cnn: bool, default: True
+                flag for using the CNN classifier.
+
+            use_ecc:
+                (undocumented)
+
+            max_ecc:
+                (undocumented)
+
+          CNMFParams.online (these control the Online/OnACID mode):
             N_samples_exceptionality: int, default: np.ceil(decay_time*fr),
                 Number of frames over which trace SNR is computed (usually length of a typical transient)
 
             batch_update_suff_stat: bool, default: False
                 Whether to update sufficient statistics in batch mode
 
-            ds_factor: int, default: 1,
-                spatial downsampling factor for faster processing (if > 1)
-
             dist_shape_update: bool, default: False,
                 update shapes in a distributed fashion
+
+            ds_factor: int, default: 1,
+                spatial downsampling factor for faster processing (if > 1)
 
             epochs: int, default: 1,
                 number of times to go over data
@@ -483,12 +496,16 @@ class CNMFParams(object):
                 Number of additional iterations for computing traces
 
             num_times_comp_updated: int, default: np.inf
+                (undocumented)
 
             opencv_codec: str, default: 'H264'
                 FourCC video codec for saving movie. Check http://www.fourcc.org/codecs.php
 
             path_to_model: str, default: os.path.join(caiman_datadir(), 'model', 'cnn_model_online.h5')
                 Path to online CNN classifier
+
+            ring_CNN:
+                Whether to use a ring CNN model (XXX due to bugs, this flag may not work and may never have worked)
 
             rval_thr: float, default: 0.8
                 space correlation threshold for accepting a new component
@@ -505,6 +522,9 @@ class CNMFParams(object):
             sniper_mode: bool, default: False
                 Whether to use the online CNN classifier for screening candidate components (otherwise space
                 correlation is used)
+
+            stop_detection:
+                Stop detecting neurons at the last epoch (XXX what does this mean?)
 
             test_both: bool, default: False
                 Whether to use both the CNN and space correlation for screening new components
@@ -527,14 +547,19 @@ class CNMFParams(object):
             update_num_comps: bool, default: True
                 Whether to search for new components
 
+            use_corr_img:
+                Use correlation image to detect new components
+
             use_dense: bool, default: True
                 Whether to store and represent A and b as a dense matrix
 
             use_peak_max: bool, default: True
                 Whether to find candidate centroids using skimage's find local peaks function
 
-        MOTION CORRECTION PARAMETERS (CNMFParams.motion)####
+            W_update_factor:
+                Update W less often than shapes by a given factor (XXX does this work?)
 
+          CNMFParams.motion (these control motion-correction):
             border_nan: bool or str, default: 'copy'
                 flag for allowing NaN in the boundaries. True allows NaN, whereas 'copy' copies the value of the
                 nearest data point.
@@ -563,8 +588,8 @@ class CNMFParams(object):
             num_frames_split: int, default: 80
                 split movie every x frames for parallel processing
 
-            num_splits_to_process_els, default: [7, None]
             num_splits_to_process_rig, default: None
+                (Undocumented, changing this likely to break the code - FIXME why is this a parameter then?)
 
             overlaps: (int, int), default: (24, 24)
                 overlap between patches in pixels in pw-rigid motion correction.
@@ -576,10 +601,10 @@ class CNMFParams(object):
                 flag for applying shifts using cubic interpolation (otherwise FFT)
 
             splits_els: int, default: 14
-                number of splits across time for pw-rigid registration
+                number of splits across time for pw-rigid registration.
 
             splits_rig: int, default: 14
-                number of splits across time for rigid registration
+                number of splits across time for rigid registration.
 
             strides: (int, int), default: (96, 96)
                 how often to start a new patch in pw-rigid registration. Size of each patch will be strides + overlaps
@@ -593,8 +618,7 @@ class CNMFParams(object):
             indices: tuple(slice), default: (slice(None), slice(None))
                 Use that to apply motion correction only on a part of the FOV
 
-        RING CNN PARAMETERS (CNMFParams.ring_CNN)
-
+          CNMFParams.ring_CNN (these control the ring neural networks):
             n_channels: int, default: 2
                 Number of "ring" kernels
 
@@ -636,8 +660,8 @@ class CNMFParams(object):
                 Flag for reusing an already trained model (saved in path to model)
         """
 
-        if decay_time == 0 or decay_time == 0.0:
-            raise Exception("A decay time of 0 is not permitted")
+        if float(decay_time) == float(0.0):
+            raise Exception("A decay time of zero is not permitted")
 
         self.data = {
             'fnames': fnames,
@@ -740,7 +764,6 @@ class CNMFParams(object):
             'method_ls': 'lasso_lars',
             # number of pixels to be processed by each worker
             'n_pixels_per_process': n_pixels_per_process,
-            'nb': gnb,                        # number of background components
             'normalize_yyt_one': True,
             'nrgthr': 0.9999,                # Energy threshold
             'num_blocks_per_run_spat': num_blocks_per_run_spat, # number of process to parallelize residual computation ** DECREASE IF MEMORY ISSUES
@@ -768,7 +791,6 @@ class CNMFParams(object):
             # if method cvxpy, primary and secondary (if problem unfeasible for approx
             # solution) solvers to be used with cvxpy, can be 'ECOS','SCS' or 'CVXOPT'
             'method_deconvolution': method_deconvolution,  # 'cvxpy', # 'oasis'
-            'nb': gnb,                   # number of background components
             'noise_method': 'mean',     # averaging method ('mean','median','logmexp')
             'noise_range': [.25, .5],   # range of normalized frequencies over which to average
             'num_blocks_per_run_temp': num_blocks_per_run_temp, # number of process to parallelize residual computation ** DECREASE IF MEMORY ISSUES
@@ -855,7 +877,7 @@ class CNMFParams(object):
             'niter_rig': 1,                     # number of iterations rigid motion correction
             'nonneg_movie': True,               # flag for producing a non-negative movie
             'num_frames_split': 80,             # split across time every x frames
-            'num_splits_to_process_els': None,  # DO NOT MODIFY
+            'num_splits_to_process_els': None,  # Unused, will be removed in a future version of Caiman
             'num_splits_to_process_rig': None,  # DO NOT MODIFY
             'overlaps': (32, 32),               # overlap between patches in pw-rigid motion correction
             'pw_rigid': False,                  # flag for performing pw-rigid motion correction
@@ -884,6 +906,8 @@ class CNMFParams(object):
             'reuse_model': False                # reuse an already trained model
         }
 
+        if params_from_file is not None:
+            self.change_params_from_jsonfile(params_from_file)
         self.change_params(params_dict)
 
 
@@ -951,15 +975,22 @@ class CNMFParams(object):
                 logging.warning(key + "=0, hence setting key update_num_comps " +
                                 "in group online automatically to False.")
 
-    def set(self, group, val_dict, set_if_not_exists=False, verbose=False):
+    def set(self, group:str, val_dict:dict, set_if_not_exists:bool=False, verbose=False) -> None:
         """ Add key-value pairs to a group. Existing key-value pairs will be overwritten
             if specified in val_dict, but not deleted.
 
         Args:
-            group: The name of the group.
-            val_dict: A dictionary with key-value pairs to be set for the group.
-            set_if_not_exists: Whether to set a key-value pair in a group if the key does not currently exist in the group.
+            group: The name of the group
+            val_dict: A dictionary with key-value pairs to be set for the group
+            warn_unused: 
+            set_if_not_exists: Whether to set a key-value pair in a group if the key does not currently exist in the group. (DEPRECATED)
         """
+
+        if set_if_not_exists:
+            logging.warning("The set_if_not_exists flag for CNMFParams.set() is deprecated and will be removed in a future version of Caiman")
+            # can't easily catch if it's passed but set to False, but that wouldn't do anything because of the default,
+            # and if they get that error it's at least really easy to fix - just remove the flag
+            # we don't want to support this because it makes the structure of the object unpredictable except at runtime
 
         if not hasattr(self, group):
             raise KeyError(f'No group in CNMFParams named {group}')
@@ -969,7 +1000,7 @@ class CNMFParams(object):
             if k not in d and not set_if_not_exists:
                 if verbose:
                     logging.warning(
-                        f"NOT setting value of key {k} in group {group}, because no prior key existed...")
+                        f"{group}/{k} not set: invalid target in CNMFParams object")
             else:
                 try:
                     if np.any(d[k] != v):
@@ -1029,17 +1060,45 @@ class CNMFParams(object):
 
         return True
 
-    def to_dict(self):
+    def to_dict(self) -> dict:
         """Returns the params class as a dictionary with subdictionaries for each
         category."""
-        return {'data': self.data, 'spatial_params': self.spatial, 'temporal_params': self.temporal,
-                'init_params': self.init, 'preprocess_params': self.preprocess,
-                'patch_params': self.patch, 'online': self.online, 'quality': self.quality,
-                'merging': self.merging, 'motion': self.motion, 'ring_CNN': self.ring_CNN
-                }
+        return {
+               'data': self.data,
+               'init': self.init,
+               'merging': self.merging,
+               'motion': self.motion,
+               'online': self.online,
+               'patch': self.patch,
+               'preprocess': self.preprocess,
+               'ring_CNN': self.ring_CNN,
+               'quality': self.quality,
+               'spatial': self.spatial,
+               'temporal': self.temporal
+               }
 
-    def __repr__(self):
+    def to_json(self) -> str:
+        """ Reversibly serialise CNMFParams to json """
+        dictdata = self.to_dict()
+        # now we need to tweak dictdata to convert ndarrays to something json can represent
+        class NumpyEncoder(json.JSONEncoder): # Custom json encoder that handles ndarrays better
+            def default(self, obj):
+                if isinstance(obj, np.ndarray):
+                    return obj.tolist()
+                elif isinstance(obj, np.integer):
+                    return int(obj)
+                elif isinstance(obj, slice):
+                    return list([obj.start, obj.stop, obj.step])
+                return json.JSONEncoder.default(self, obj)
+        return json.dumps(dictdata, cls=NumpyEncoder)
 
+
+    def to_jsonfile(self, targfn:str) -> None:
+        """ Reversibly serialise CNMFParams to a json file """
+        with open(targfn, 'w') as targfh:
+            targfh.write(self.to_json())
+
+    def __repr__(self) -> str:
         formatted_outputs = [
             f'{group_name}:\n\n{pformat(group_dict)}'
             for group_name, group_dict in self.to_dict().items()
@@ -1047,24 +1106,56 @@ class CNMFParams(object):
 
         return 'CNMFParams:\n\n' + '\n\n'.join(formatted_outputs)
 
-    def change_params(self, params_dict, verbose=False):
-        """ Method for updating the params object by providing a single dictionary.
-        For each key in the provided dictionary the method will search in all
-        subdictionaries and will update the value if it finds a match.
+    def change_params(self, params_dict, allow_legacy:bool=True, warn_unused:bool=True, verbose:bool=False) -> None:
+        """ Method for updating the params object by providing a dictionary.
 
         Args:
-            params_dict: dictionary with parameters to be changed and new values
-            verbose: bool (False). Print message for all keys
+            params_dict: dictionary with parameters to be changed
+            verbose: If true, will complain if the params dictionary is not complete
+            allow_legacy: If True, throw a deprecation warning and then attempt to
+                          handle unconsumed keys using the older copy-it-everywhere logic.
+                          We will eventually remove this option and the corresponding code.
+            warn_unused: If True, emit warnings when the params dict has fields in it that
+                         were never used in populating the Params object. You really should not
+                         set this to False. Fix your code.
         """
-        for gr in list(self.__dict__.keys()):
-            self.set(gr, params_dict, verbose=verbose)
-        for k, v in params_dict.items():
-            flag = True
-            for gr in list(self.__dict__.keys()):
-                d = getattr(self, gr)
-                if k in d:
-                    flag = False
-            if flag:
-                logging.warning(f'No parameter {k} found!')
+        # When we're ready to remove allow_legacy, this code will get a lot simpler
+
+        consumed = {} # Keep track of what parameters in params_dict were used to set something in params (just for legacy API)
+        for paramkey in params_dict:
+            if paramkey in list(self.__dict__.keys()): # Proper pathed part
+                cat_handle = getattr(self, paramkey)
+                for k, v in params_dict[paramkey].items():
+                    if k not in cat_handle and warn_unused:
+                        # For regular/pathed API, we can notice right away if the user gave us something that won't update the object
+                        logging.warning(f"In setting CNMFParams, provided key {paramkey}/{k} was not consumed. This is a bug!")
+                    else:
+                        cat_handle[k] = v 
+            # BEGIN code that we will remove in some future version of caiman
+            elif allow_legacy:
+                for category in list(self.__dict__.keys()):
+                    cat_handle = getattr(self, category) # Thankfully a read-write handle
+                    if paramkey in cat_handle: # Is it known?
+                        legacy_used = True
+                        consumed[paramkey] = True
+                        cat_handle[paramkey] = params_dict[paramkey] # Do the update
+                if legacy_used:
+                    logging.warning(f"In setting CNMFParams, non-pathed parameters were used; this is deprecated. allow_legacy will default to False, and then will be removed in future versions of Caiman")
+        # END
+        if warn_unused:
+            for toplevel_k in params_dict:
+                if toplevel_k not in consumed and toplevel_k not in list(self.__dict__.keys()): # When we remove legacy behaviour, this logic will simplify and fold into above
+                    logging.warning(f"In setting CNMFParams, provided toplevel key {toplevel_k} was unused. This is a bug!")
         self.check_consistency()
-        return self
+
+    def change_params_from_json(self, jsonstring:str, verbose:bool=False) -> None:
+        """ Same as change_params, except it takes json as input """
+        to_load = json.loads(jsonstring)
+        self.change_params(to_load, verbose=verbose)
+
+    def change_params_from_jsonfile(self, json_fn:str, verbose:bool=False) -> None:
+        """ Same as change_params, except it takes a json file as input; pass the filename """
+        with open(json_fn, 'r') as json_fh:
+            to_load = json.load(json_fh)
+        self.change_params(to_load, verbose=verbose)
+

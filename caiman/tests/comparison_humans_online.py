@@ -185,30 +185,49 @@ for ind_dataset in ID:
 
     # %%
     params_dict = {
-        'fnames': fls,
-        'fr': fr,
-        'decay_time': decay_time,
-        'gSig': gSig,
-        'p': global_params['p'],
-        'min_SNR': global_params['min_SNR'],
-        'rval_thr': global_params['rval_thr'],
-        'ds_factor': ds_factor,
-        'nb': gnb,
-        'motion_correct': global_params['mot_corr'],
-        'init_batch': init_batch,
-        'init_method': 'bare',
-        'normalize': True,
-        'expected_comps': expected_comps,
-        'dist_shape_update': True,
-        'K': K,
-        'epochs': epochs,
-        'show_movie': False,
-        'min_num_trial': global_params['min_num_trial'],
-        'use_peak_max': True,
-        'thresh_CNN_noisy': global_params['thresh_CNN_noisy'],
-        'sniper_mode': global_params['sniper_mode'],
-        'use_dense': False,
-        'update_freq': global_params['update_freq']
+        'data': {
+                'decay_time': decay_time,
+                'fnames': fls,
+                'fr': fr,
+                },
+        'init': {
+                'gSig': gSig,
+                'K': K,
+                'nb': gnb,
+                },
+        'online': {
+                  'dist_shape_update': True,
+                  'ds_factor': ds_factor,
+                  'epochs': epochs,
+                  'expected_comps': expected_comps,
+                  'init_batch': init_batch,
+                  'init_method': 'bare',
+                  'min_num_trial': global_params['min_num_trial'],
+                  'min_SNR': global_params['min_SNR'],
+                  'motion_correct': global_params['mot_corr'],
+                  'normalize': True,
+                  'rval_thr': global_params['rval_thr'],
+                  'show_movie': False,
+                  'sniper_mode': global_params['sniper_mode'],
+                  'thresh_CNN_noisy': global_params['thresh_CNN_noisy'],
+                  'update_freq': global_params['update_freq']
+                  'use_dense': False,
+                  'use_peak_max': True,
+                  },
+        'preprocess': {
+                      'p': global_params['p'],
+                      },
+        'quality': {
+                   'min_SNR': global_params['min_SNR'],
+                   'rval_thr': global_params['rval_thr'],
+                   },
+        'spatial': {
+                   'nb': gnb,
+                   },
+        'temporal': {
+                    'nb': gnb,
+                    'p': global_params['p'],
+                    },
     }
     opts = cnmf.params.CNMFParams(params_dict=params_dict)
 

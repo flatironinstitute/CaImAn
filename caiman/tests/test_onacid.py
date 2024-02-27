@@ -1,4 +1,6 @@
 #!/usr/bin/env python
+
+import code
 import numpy.testing as npt
 import os
 from caiman.source_extraction import cnmf
@@ -25,25 +27,46 @@ def demo():
     K = 4              # max number of components in each patch
 
     params_dict = {
-        'fr': fr,
-        'fnames': fname,
-        'decay_time': decay_time,
-        'gSig': gSig,
-        'p': p,
-        'motion_correct': False,
-        'min_SNR': min_SNR,
-        'nb': gnb,
-        'init_batch': init_batch,
-        'init_method': init_method,
-        'rf': patch_size // 2,
-        'stride': stride,
-        'sniper_mode': True,
-        'thresh_CNN_noisy': thresh_CNN_noisy,
-        'K': K
+                  'data': {
+                          'decay_time': decay_time,
+                          'fr': fr,
+                          'fnames': fname
+                          },
+                  'init': {
+                          'K': K,
+                          'gSig': gSig,
+                          'nb': gnb
+                          },
+                  'online': {
+                            'init_batch': init_batch,
+                            'init_method': init_method,
+                            'min_SNR': min_SNR,
+                            'motion_correct': False,
+                            'sniper_mode': True,
+                            'thresh_CNN_noisy': thresh_CNN_noisy
+                            },
+                  'patch':{
+                          'rf': patch_size // 2,
+                          'stride': stride
+                          },
+                  'preprocess': {
+                                'p': p
+                                },
+                  'quality': {
+                             'min_SNR': min_SNR # FIXME duplicated between online.min_SNR and quality.min_SNR
+                             },
+                  'spatial': {
+                             'nb': gnb # FIXME duplicated between init.nb and spatial.nb and temporal.nb
+                             },
+                  'temporal': {
+                              'nb': gnb, # FIXME duplicated between init.nb and spatial.nb and temporal.nb
+                              'p': p, # FIXME duplicated between preprocess.p and temporal.p
+                              },
     }
     opts = cnmf.params.CNMFParams(params_dict=params_dict)
     cnm = cnmf.online_cnmf.OnACID(params=opts)
     cnm.fit_online()
+    #code.interact(local=dict(globals(), **locals()) )
     cnm.save('test_online.hdf5')
     cnm2 = cnmf.online_cnmf.load_OnlineCNMF('test_online.hdf5')
     npt.assert_allclose(cnm.estimates.A.sum(), cnm2.estimates.A.sum())
@@ -52,4 +75,4 @@ def demo():
 
 def test_onacid():
     demo()
-    pass
+

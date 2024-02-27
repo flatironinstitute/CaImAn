@@ -126,9 +126,8 @@ class MotionCorrect(object):
            splits_els':list
                for parallelization split the movies in  num_splits chunks across time
 
-           num_splits_to_process_els: list,
-               if none all the splits are processed and the movie is saved  otherwise at each iteration
-                num_splits_to_process_els are considered
+           num_splits_to_process_els: UNUSED
+               Legacy parameter, does not do anything
 
            upsample_factor_grid:int,
                upsample factor of shifts per patches to avoid smearing when merging patches
@@ -187,7 +186,6 @@ class MotionCorrect(object):
         self.strides = strides
         self.overlaps = overlaps
         self.splits_els = splits_els
-        self.num_splits_to_process_els = num_splits_to_process_els
         self.upsample_factor_grid = upsample_factor_grid
         self.max_deviation_rigid = max_deviation_rigid
         self.shifts_opencv = bool(shifts_opencv)
