@@ -317,9 +317,6 @@ class CNMFParams(object):
             n_pixels_per_process: int, default: 1000
                 number of pixels to be processed by each worker
 
-            nb: int, default: 1
-                number of global background components
-
             normalize_yyt_one: bool, default: True
                 Whether to normalize the C and A matrices so that diag(C*C.T) = 1 during update spatial
 
@@ -367,9 +364,6 @@ class CNMFParams(object):
             method_deconvolution: 'oasis'|'cvxpy'|'oasis', default: 'oasis'
                 method for solving the constrained deconvolution problem ('oasis','cvx' or 'cvxpy')
                 if method cvxpy, primary and secondary (if problem unfeasible for approx solution)
-
-            nb: int, default: 1
-                number of global background components
 
             noise_method: 'mean'|'median'|'logmexp', default: 'mean'
                 PSD averaging method for computing the noise std
