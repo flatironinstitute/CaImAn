@@ -55,69 +55,64 @@ def main():
     # If you prefer to hardcode filenames, you could do something like this:
     # fnames = ["/path/to/myfile1.avi", "/path/to/myfile2.avi"]
 
-    if cfg.no_patches:
-        is_patches = False # flag for processing in patches or not
+    if cfg.configfile:
+        opts = params.CNMFParams(params_from_file=cfg.configfile)
+        if opts.data['fnames'] is None:
+            opts.set("data", {"fnames": fnames})
     else:
-        is_patches = True
+        # set up some parameters
+        fr = 10                 # approximate frame rate of data
+        decay_time = 5.0        # length of transient
 
-    # set up some parameters
-    fr = 10                 # approximate frame rate of data
-    decay_time = 5.0        # length of transient
-
-    if is_patches:          # PROCESS IN PATCHES AND THEN COMBINE
+        # See the without_patches json for an alternative
         rf = 10             # half size of each patch
         stride = 4          # overlap between patches
         K = 4               # number of components in each patch
-    else:                   # PROCESS THE WHOLE FOV AT ONCE
-        rf = None           # setting these parameters to None
-        stride = None       # will run CNMF on the whole FOV
-        K = 30              # number of neurons expected (in the whole FOV)
 
-    gSig = [6, 6]           # expected half size of neurons
-    merge_thresh = 0.80     # merging threshold, max correlation allowed
-    p = 2                   # order of the autoregressive system
-    gnb = 2                 # global background order
+        gSig = [6, 6]           # expected half size of neurons
+        merge_thresh = 0.80     # merging threshold, max correlation allowed
+        p = 2                   # order of the autoregressive system
+        gnb = 2                 # global background order
 
-    min_SNR = 2      # peak SNR for accepted components (if above this, accept)
-    rval_thr = 0.85     # space correlation threshold (if above this, accept)
-    use_cnn = True      # use the CNN classifier
-    min_cnn_thr = 0.99  # if cnn classifier predicts below this value, reject
-    cnn_lowest = 0.1 # neurons with cnn probability lower than this value are rejected
+        min_SNR = 2      # peak SNR for accepted components (if above this, accept)
+        rval_thr = 0.85     # space correlation threshold (if above this, accept)
+        use_cnn = True      # use the CNN classifier
+        min_cnn_thr = 0.99  # if cnn classifier predicts below this value, reject
+        cnn_lowest = 0.1 # neurons with cnn probability lower than this value are rejected
 
-    params_dict = {
-        'data': {
-            'fnames': fnames,
-            'fr': fr,
-            'decay_time': decay_time,
-            },
-        'init': {
-            'gSig': gSig,
-            'K': K,
-            'nb': gnb
-            },
-        'patch': {
-            'rf': rf,
-            'stride': stride,
-            },
-        'merging': {
-            'merge_thr': merge_thresh,
-            },
-        'preprocess': {
-            'p': p,
-            },
-        'temporal': {
-            'p': p,
-            },
-        'quality': {
-                'min_SNR': min_SNR,
-                'rval_thr': rval_thr,
-                'use_cnn': use_cnn,
-                'min_cnn_thr': min_cnn_thr,
-                'cnn_lowest': cnn_lowest
+        params_dict = {
+            'data': {
+                'fnames': fnames,
+                'fr': fr,
+                'decay_time': decay_time,
+                },
+            'init': {
+                'gSig': gSig,
+                'K': K,
+                'nb': gnb
+                },
+            'patch': {
+                'rf': rf,
+                'stride': stride,
+                },
+            'merging': {
+                'merge_thr': merge_thresh,
+                },
+            'preprocess': {
+                'p': p,
+                },
+            'temporal': {
+                'p': p,
+                },
+            'quality': {
+                    'min_SNR': min_SNR,
+                    'rval_thr': rval_thr,
+                    'use_cnn': use_cnn,
+                    'min_cnn_thr': min_cnn_thr,
+                    'cnn_lowest': cnn_lowest
+                }
             }
-        }
-
-    opts = params.CNMFParams(params_dict=params_dict)
+        opts = params.CNMFParams(params_dict=params_dict)
 
     # start a cluster for parallel processing
     c, dview, n_processes = cm.cluster.setup_cluster(backend=cfg.cluster_backend, n_processes=cfg.cluster_nproc)
@@ -134,7 +129,7 @@ def main():
                                            winSize_baseline=100, quantil_min_baseline=10,
                                            dview=dview)
     Cn = Cns.max(axis=0)
-    Cn[np.isnan(Cn)] = 0
+    Cn[np.isnan(Cn)] = 0 # Convert NaNs to zero
     if not cfg.no_play:
         cnm.estimates.plot_contours(img=Cn)
 
@@ -183,8 +178,8 @@ def main():
 
 def handle_args():
     parser = argparse.ArgumentParser(description="Demonstrate basic Caiman functionality")
+    parser.add_argument("--configfile", help="JSON Configfile for Caiman parameters")
     parser.add_argument("--keep_logs",  action="store_true", help="Keep temporary logfiles")
-    parser.add_argument("--no_patches", action="store_true", help="Do not use patches")
     parser.add_argument("--no_play",    action="store_true", help="Do not display results")
     parser.add_argument("--cluster_backend", default="multiprocessing", help="Specify multiprocessing, ipyparallel, or single to pick an engine")
     parser.add_argument("--cluster_nproc", type=int, default=None, help="Override automatic selection of number of workers to use")
