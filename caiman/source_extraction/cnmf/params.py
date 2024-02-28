@@ -1141,6 +1141,7 @@ class CNMFParams(object):
                         cat_handle[k] = v 
             # BEGIN code that we will remove in some future version of caiman
             elif allow_legacy:
+                legacy_used = False
                 for category in list(self.__dict__.keys()):
                     cat_handle = getattr(self, category) # Thankfully a read-write handle
                     if paramkey in cat_handle: # Is it known?
