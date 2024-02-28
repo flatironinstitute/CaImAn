@@ -78,16 +78,44 @@ def main():
     p = 2                   # order of the autoregressive system
     gnb = 2                 # global background order
 
-    params_dict = {'fnames': fnames,
-                   'fr': fr,
-                   'decay_time': decay_time,
-                   'rf': rf,
-                   'stride': stride,
-                   'K': K,
-                   'gSig': gSig,
-                   'merge_thr': merge_thresh,
-                   'p': p,
-                   'nb': gnb}
+    min_SNR = 2      # peak SNR for accepted components (if above this, accept)
+    rval_thr = 0.85     # space correlation threshold (if above this, accept)
+    use_cnn = True      # use the CNN classifier
+    min_cnn_thr = 0.99  # if cnn classifier predicts below this value, reject
+    cnn_lowest = 0.1 # neurons with cnn probability lower than this value are rejected
+
+    params_dict = {
+        'data': {
+            'fnames': fnames,
+            'fr': fr,
+            'decay_time': decay_time,
+            },
+        'init': {
+            'gSig': gSig,
+            'K': K,
+            'nb': gnb
+            },
+        'patch': {
+            'rf': rf,
+            'stride': stride,
+            },
+        'merging': {
+            'merge_thr': merge_thresh,
+            },
+        'preprocess': {
+            'p': p,
+            },
+        'temporal': {
+            'p': p,
+            },
+        'quality': {
+                'min_SNR': min_SNR,
+                'rval_thr': rval_thr,
+                'use_cnn': use_cnn,
+                'min_cnn_thr': min_cnn_thr,
+                'cnn_lowest': cnn_lowest
+            }
+        }
 
     opts = params.CNMFParams(params_dict=params_dict)
 
@@ -124,19 +152,8 @@ def main():
     #   c) each shape passes a CNN based classifier (this will pick up only neurons
     #           and filter out active processes)
 
-    min_SNR = 2      # peak SNR for accepted components (if above this, accept)
-    rval_thr = 0.85     # space correlation threshold (if above this, accept)
-    use_cnn = True      # use the CNN classifier
-    min_cnn_thr = 0.99  # if cnn classifier predicts below this value, reject
-    cnn_lowest = 0.1 # neurons with cnn probability lower than this value are rejected
 
-    cnm2.params.set('quality', {'min_SNR': min_SNR,
-                                'rval_thr': rval_thr,
-                                'use_cnn': use_cnn,
-                                'min_cnn_thr': min_cnn_thr,
-                                'cnn_lowest': cnn_lowest})
-
-    cnm2.estimates.evaluate_components(images, cnm2.params, dview=dview)
+    cnm2.estimates.evaluate_components(images, opts, dview=dview)
 
     if not cfg.no_play:
         # visualize selected and rejected components
