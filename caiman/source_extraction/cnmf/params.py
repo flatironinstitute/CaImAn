@@ -764,6 +764,7 @@ class CNMFParams(object):
             'method_ls': 'lasso_lars',
             # number of pixels to be processed by each worker
             'n_pixels_per_process': n_pixels_per_process,
+            'nb': gnb,                        # number of background components
             'normalize_yyt_one': True,
             'nrgthr': 0.9999,                # Energy threshold
             'num_blocks_per_run_spat': num_blocks_per_run_spat, # number of process to parallelize residual computation ** DECREASE IF MEMORY ISSUES
@@ -791,6 +792,7 @@ class CNMFParams(object):
             # if method cvxpy, primary and secondary (if problem unfeasible for approx
             # solution) solvers to be used with cvxpy, can be 'ECOS','SCS' or 'CVXOPT'
             'method_deconvolution': method_deconvolution,  # 'cvxpy', # 'oasis'
+            'nb': gnb,                   # number of background components
             'noise_method': 'mean',     # averaging method ('mean','median','logmexp')
             'noise_range': [.25, .5],   # range of normalized frequencies over which to average
             'num_blocks_per_run_temp': num_blocks_per_run_temp, # number of process to parallelize residual computation ** DECREASE IF MEMORY ISSUES
