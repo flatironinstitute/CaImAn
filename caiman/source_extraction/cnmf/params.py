@@ -982,6 +982,11 @@ class CNMFParams(object):
                 self.set('online', {'update_num_comps': False})
                 logging.warning(key + "=0, hence setting key update_num_comps " +
                                 "in group online automatically to False.")
+        # FIXME The authoritative value is stored in the init field. This should later be refactored out
+        #     into a general section, once we're passing around the CNMFParams object rather than splatting it out
+        #     from **get_group
+        self.spatial['nb']  = self.init['nb']
+        self.temporal['nb'] = self.init['nb']
 
     def set(self, group:str, val_dict:dict, set_if_not_exists:bool=False, verbose=False) -> None:
         """ Add key-value pairs to a group. Existing key-value pairs will be overwritten
@@ -1134,6 +1139,11 @@ class CNMFParams(object):
             if paramkey in list(self.__dict__.keys()): # Proper pathed part
                 cat_handle = getattr(self, paramkey)
                 for k, v in params_dict[paramkey].items():
+                    if k == 'nb' and paramkey != 'init':
+                        # Special casing to handle a misdesign in CNMFParams where some keys must have the same value in different
+                        # sections.
+                        logging.warning("The 'nb' parameter can only be set in the init part of CNMFParams. Attempts to set it elsewhere are ignored")
+                        continue
                     if k not in cat_handle and warn_unused:
                         # For regular/pathed API, we can notice right away if the user gave us something that won't update the object
                         logging.warning(f"In setting CNMFParams, provided key {paramkey}/{k} was not consumed. This is a bug!")
