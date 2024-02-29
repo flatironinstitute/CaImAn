@@ -997,6 +997,10 @@ class CNMFParams(object):
             val_dict: A dictionary with key-value pairs to be set for the group
             warn_unused: 
             set_if_not_exists: Whether to set a key-value pair in a group if the key does not currently exist in the group. (DEPRECATED)
+
+        This is not intended for general use and does not run consistency checks on the CNMFParams object afterwards
+        (or do any triggered actions on certain values being set like filenames). Usually the change_params() method is more appropriate.
+        A future version of caiman may make this method private.
         """
 
         if set_if_not_exists:
