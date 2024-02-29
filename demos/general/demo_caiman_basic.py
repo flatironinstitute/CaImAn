@@ -58,7 +58,7 @@ def main():
     if cfg.configfile:
         opts = params.CNMFParams(params_from_file=cfg.configfile)
         if opts.data['fnames'] is None:
-            opts.set("data", {"fnames": fnames})
+            opts.change_params({"data": {"fnames": fnames}})
     else:
         # set up some parameters
         fr = 10                 # approximate frame rate of data
