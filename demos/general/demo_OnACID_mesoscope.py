@@ -46,57 +46,65 @@ def main():
             "%(relativeCreated)12d [%(filename)s:%(funcName)20s():%(lineno)s][%(process)d] %(message)s",
             level=logging.WARNING)
 
-    if cfg.input is None:
+    if cfg.configfile:
+        opts = cnmf.params.CNMFParams(params_from_file=cfg.configfile)
+    else:
+        # Set up parameters using builtin defaults
+        params_dict = {
+            'data': {
+                'fr': 15,
+                'decay_time': 0.5,
+                },
+            'init': {
+                'gSig': (3, 3), # The notebooks have (4, 4) though
+                'nb': 2,
+                'K': 2,
+                },
+            'preprocess': {
+                'p': 1, # Possibly redundant
+                },
+            'temporal': {
+                'p': 1, # Possibly redundant
+                },
+            'online': {
+                'min_SNR': 1,
+                'rval_thr': 0.9,
+                'ds_factor': 1,
+                'motion_correct': True,
+                'init_batch': 200,
+                'init_method': 'bare',
+                'normalize': True,
+                'sniper_mode': True,
+                'epochs': 1,
+                'max_shifts_online': 10,
+                'dist_shape_update': True,
+                'min_num_trial': 10,
+                },
+            'motion': {
+                'pw_rigid': False,
+    
+                },
+            'quality': {
+                'min_SNR': 2,
+                'rval_thr': 0.85,
+                'use_cnn': True,
+                'min_cnn_thr': 0.99,
+                'cnn_lowest': 0.1
+                },
+            }
+        opts = cnmf.params.CNMFParams(params_dict=params_dict)
+
+    opts.change_params({'online': {'show_movie': not cfg.no_play}}) # Override from CLI
+
+    if cfg.input is not None: # CLI arg can override all other settings for fnames, although other data-centric commands still must match source data
+        opts.change_params({'data': {'fnames': cfg.input}})
+
+    if not opts.data['fnames']: # Set neither by CLI arg nor through JSON, so use default data
         fnames = [download_demo('Tolias_mesoscope_1.hdf5'),
                   download_demo('Tolias_mesoscope_2.hdf5'),
                   download_demo('Tolias_mesoscope_3.hdf5')]
-    else:
-        fnames = cfg.input
+        opts.change_params({'data': {'fnames': fnames}})
 
-    # Set up some parameters
-
-    fr = 15  # frame rate (Hz)
-    decay_time = 0.5  # approximate length of transient event in seconds
-    gSig = (3, 3)  # expected half size of neurons
-    p = 1  # order of AR indicator dynamics
-    min_SNR = 1   # minimum SNR for accepting new components
-    ds_factor = 1  # spatial downsampling factor (increases speed but may lose some fine structure)
-    gnb = 2  # number of background components
-    gSig = tuple(np.ceil(np.array(gSig) / ds_factor).astype('int')) # recompute gSig if downsampling is involved
-    mot_corr = True  # flag for online motion correction
-    pw_rigid = False  # flag for pw-rigid motion correction (slower but potentially more accurate)
-    max_shifts_online = np.ceil(10.).astype('int')  # maximum allowed shift during motion correction
-    sniper_mode = True  # use a CNN to detect new neurons (o/w space correlation)
-    rval_thr = 0.9  # soace correlation threshold for candidate components
-    # set up some additional supporting parameters needed for the algorithm
-    # (these are default values but can change depending on dataset properties)
-    init_batch = 200  # number of frames for initialization (presumably from the first file)
-    K = 2  # initial number of components
-    epochs = 1  # number of passes over the data
-    show_movie = not cfg.no_play # show the movie as the data gets processed
-
-    params_dict = {'fnames': fnames,
-                   'fr': fr,
-                   'decay_time': decay_time,
-                   'gSig': gSig,
-                   'p': p,
-                   'min_SNR': min_SNR,
-                   'rval_thr': rval_thr,
-                   'ds_factor': ds_factor,
-                   'nb': gnb,
-                   'motion_correct': mot_corr,
-                   'init_batch': init_batch,
-                   'init_method': 'bare',
-                   'normalize': True,
-                   'sniper_mode': sniper_mode,
-                   'K': K,
-                   'epochs': epochs,
-                   'max_shifts_online': max_shifts_online,
-                   'pw_rigid': pw_rigid,
-                   'dist_shape_update': True,
-                   'min_num_trial': 10,
-                   'show_movie': show_movie}
-    opts = cnmf.params.CNMFParams(params_dict=params_dict)
 
     # fit online
     cnm = cnmf.online_cnmf.OnACID(params=opts)
@@ -117,7 +125,7 @@ def main():
     T_motion = 1e3*np.array(cnm.t_motion)
     T_detect = 1e3*np.array(cnm.t_detect)
     T_shapes = 1e3*np.array(cnm.t_shapes)
-    T_track = 1e3*np.array(cnm.t_online) - T_motion - T_detect - T_shapes
+    T_track  = 1e3*np.array(cnm.t_online) - T_motion - T_detect - T_shapes
     plt.figure()
     plt.stackplot(np.arange(len(T_motion)), T_motion, T_track, T_detect, T_shapes)
     plt.legend(labels=['motion', 'tracking', 'detect', 'shapes'], loc=2)
@@ -147,18 +155,8 @@ def main():
     Yr, dims, T = cm.load_memmap(memmap_file)
 
     images = np.reshape(Yr.T, [T] + list(dims), order='F')
-    min_SNR = 2  # peak SNR for accepted components (if above this, accept)
-    rval_thr = 0.85  # space correlation threshold (if above this, accept)
-    use_cnn = True  # use the CNN classifier
-    min_cnn_thr = 0.99  # if cnn classifier predicts below this value, reject
-    cnn_lowest = 0.1  # neurons with cnn probability lower than this value are rejected
 
-    cnm.params.set('quality',   {'min_SNR': min_SNR,
-                                'rval_thr': rval_thr,
-                                'use_cnn': use_cnn,
-                                'min_cnn_thr': min_cnn_thr,
-                                'cnn_lowest': cnn_lowest})
-
+    # evaluate_components uses parameters from the 'quality' category
     cnm.estimates.evaluate_components(images, cnm.params, dview=dview)
     cnm.estimates.Cn = Cn
     cnm.save(os.path.splitext(fnames[0])[0] + '_results.hdf5')
@@ -167,6 +165,7 @@ def main():
 
 def handle_args():
     parser = argparse.ArgumentParser(description="Full OnACID Caiman demo")
+    parser.add_argument("--configfile", help="JSON Configfile for Caiman parameters")
     parser.add_argument("--no_play",    action="store_true", help="Do not display results")
     parser.add_argument("--cluster_backend", default="multiprocessing", help="Specify multiprocessing, ipyparallel, or single to pick an engine")
     parser.add_argument("--cluster_nproc", type=int, default=None, help="Override automatic selection of number of workers to use")

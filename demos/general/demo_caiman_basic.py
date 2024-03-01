@@ -47,14 +47,6 @@ def main():
             "%(relativeCreated)12d [%(filename)s:%(funcName)20s():%(lineno)s][%(process)d] %(message)s",
             level=logging.WARNING)
 
-    if cfg.input is None:
-        # If no input is specified, use sample data, downloading if necessary
-        fnames = [os.path.join(caiman_datadir(), 'example_movies', 'demoMovie.tif')] # file(s) to be analyzed
-    else:
-        fnames = cfg.input
-    # If you prefer to hardcode filenames, you could do something like this:
-    # fnames = ["/path/to/myfile1.avi", "/path/to/myfile2.avi"]
-
     if cfg.configfile:
         opts = params.CNMFParams(params_from_file=cfg.configfile)
         if opts.data['fnames'] is None:
@@ -113,6 +105,14 @@ def main():
                 }
             }
         opts = params.CNMFParams(params_dict=params_dict)
+
+    if cfg.input is not None: # CLI arg can override all other settings for fnames, although other data-centric commands still must match source data
+        opts.change_params({'data': {'fnames': cfg.input}})
+
+    if not opts.data['fnames']: # Set neither by CLI arg nor through JSON, so use default data
+        # If no input is specified, use sample data, downloading if necessary
+        fnames = [os.path.join(caiman_datadir(), 'example_movies', 'demoMovie.tif')] # file(s) to be analyzed
+        opts.change_params({'data': {'fnames': fnames}})
 
     # start a cluster for parallel processing
     c, dview, n_processes = cm.cluster.setup_cluster(backend=cfg.cluster_backend, n_processes=cfg.cluster_nproc)

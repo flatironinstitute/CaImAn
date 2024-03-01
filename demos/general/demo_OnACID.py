@@ -37,15 +37,8 @@ def main():
             "%(relativeCreated)12d [%(filename)s:%(funcName)20s():%(lineno)s][%(process)d] %(message)s",
             level=logging.WARNING)
 
-    if cfg.input is None:
-        fnames = [os.path.join(caiman_datadir(), 'example_movies', 'demoMovie.tif')]
-    else:
-        fnames = cfg.input
-
     if cfg.configfile:
         opts = cnmf.params.CNMFParams(params_from_file=cfg.configfile)
-        if opts.data['fnames'] is None:
-            opts.change_params({"data": {"fnames": fnames}})
     else:
         # set up some parameters
         fr = 10  # frame rate (Hz)
@@ -79,6 +72,12 @@ def main():
                        'K': K}
     
         opts = cnmf.params.CNMFParams(params_dict=params_dict)
+
+    if cfg.input is not None:
+        opts.change_params({"data": {"fnames": cfg.input}})
+
+    if not opts.data['fnames']: # Set neither by CLI arg nor through JSON, so use default data
+        fnames = [os.path.join(caiman_datadir(), 'example_movies', 'demoMovie.tif')]
 
     # If you want to break into an interactive console session, move and uncomment this wherever you want in the code
     # (and uncomment the code import at the top)
