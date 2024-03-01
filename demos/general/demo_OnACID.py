@@ -37,41 +37,7 @@ def main():
             "%(relativeCreated)12d [%(filename)s:%(funcName)20s():%(lineno)s][%(process)d] %(message)s",
             level=logging.WARNING)
 
-    if cfg.configfile:
-        opts = cnmf.params.CNMFParams(params_from_file=cfg.configfile)
-    else:
-        # set up some parameters
-        fr = 10  # frame rate (Hz)
-        decay_time = .75  # approximate length of transient event in seconds
-        gSig = [6, 6]  # expected half size of neurons
-        p = 1  # order of AR indicator dynamics
-        min_SNR = 1  # minimum SNR for accepting candidate components
-        thresh_CNN_noisy = 0.65  # CNN threshold for candidate components
-        gnb = 2  # number of background components
-        init_method = 'cnmf'  # initialization method
-    
-        # set up CNMF initialization parameters
-        init_batch = 400  # number of frames for initialization
-        patch_size = 32  # size of patch
-        stride = 3  # amount of overlap between patches
-        K = 4  # max number of components in each patch
-    
-        params_dict = {'fr': fr,
-                       'fnames': fnames,
-                       'decay_time': decay_time,
-                       'gSig': gSig,
-                       'p': p,
-                       'min_SNR': min_SNR,
-                       'nb': gnb,
-                       'init_batch': init_batch,
-                       'init_method': init_method,
-                       'rf': patch_size//2,
-                       'stride': stride,
-                       'sniper_mode': True,
-                       'thresh_CNN_noisy': thresh_CNN_noisy,
-                       'K': K}
-    
-        opts = cnmf.params.CNMFParams(params_dict=params_dict)
+    opts = cnmf.params.CNMFParams(params_from_file=cfg.configfile)
 
     if cfg.input is not None:
         opts.change_params({"data": {"fnames": cfg.input}})
@@ -105,7 +71,7 @@ def main():
 
 def handle_args():
     parser = argparse.ArgumentParser(description="Demonstrate basic Caiman Online functionality with CNMF initialization")
-    parser.add_argument("--configfile", help="JSON Configfile for Caiman parameters")
+    parser.add_argument("--configfile", default=os.path.join(caiman_datadir(), 'demos', 'general', 'params_demo_OnACID.json'), help="JSON Configfile for Caiman parameters")
     parser.add_argument("--input", action="append", help="File(s) to work on, provide multiple times for more files")
     parser.add_argument("--logfile",    help="If specified, log to the named file")
     return parser.parse_args()

@@ -1,0 +1,41 @@
+{
+    "data": {
+        "fr": 15,
+        "decay_time": 0.5
+        },
+    "init": {
+        "gSig": (4, 4),
+        "nb": 2,
+        "K": 2
+        },
+    "preprocess": {
+        "p": 1
+        },
+    "temporal": {
+        "p": 1
+        },
+    "online": {
+        "min_SNR": 1,
+        "rval_thr": 0.9,
+        "ds_factor": 1,
+        "motion_correct": true,
+        "init_batch": 200,
+        "init_method": "bare",
+        "normalize": true,
+        "sniper_mode": true,
+        "epochs": 1,
+        "max_shifts_online": 10,
+        "dist_shape_update": true,
+        "min_num_trial": 10
+        },
+    "motion": {
+        "pw_rigid": false
+        },
+    "quality": {
+        "min_SNR": 2,
+        "rval_thr": 0.85,
+        "use_cnn": true,
+        "min_cnn_thr": 0.99,
+        "cnn_lowest": 0.1
+	}
+}

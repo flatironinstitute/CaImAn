@@ -46,54 +46,7 @@ def main():
             "%(relativeCreated)12d [%(filename)s:%(funcName)20s():%(lineno)s][%(process)d] %(message)s",
             level=logging.WARNING)
 
-    if cfg.configfile:
-        opts = cnmf.params.CNMFParams(params_from_file=cfg.configfile)
-    else:
-        # Set up parameters using builtin defaults
-        params_dict = {
-            'data': {
-                'fr': 15,
-                'decay_time': 0.5,
-                },
-            'init': {
-                'gSig': (3, 3), # The notebooks have (4, 4) though
-                'nb': 2,
-                'K': 2,
-                },
-            'preprocess': {
-                'p': 1, # Possibly redundant
-                },
-            'temporal': {
-                'p': 1, # Possibly redundant
-                },
-            'online': {
-                'min_SNR': 1,
-                'rval_thr': 0.9,
-                'ds_factor': 1,
-                'motion_correct': True,
-                'init_batch': 200,
-                'init_method': 'bare',
-                'normalize': True,
-                'sniper_mode': True,
-                'epochs': 1,
-                'max_shifts_online': 10,
-                'dist_shape_update': True,
-                'min_num_trial': 10,
-                },
-            'motion': {
-                'pw_rigid': False,
-    
-                },
-            'quality': {
-                'min_SNR': 2,
-                'rval_thr': 0.85,
-                'use_cnn': True,
-                'min_cnn_thr': 0.99,
-                'cnn_lowest': 0.1
-                },
-            }
-        opts = cnmf.params.CNMFParams(params_dict=params_dict)
-
+    opts = cnmf.params.CNMFParams(params_from_file=cfg.configfile)
     opts.change_params({'online': {'show_movie': not cfg.no_play}}) # Override from CLI
 
     if cfg.input is not None: # CLI arg can override all other settings for fnames, although other data-centric commands still must match source data
@@ -165,7 +118,7 @@ def main():
 
 def handle_args():
     parser = argparse.ArgumentParser(description="Full OnACID Caiman demo")
-    parser.add_argument("--configfile", help="JSON Configfile for Caiman parameters")
+    parser.add_argument("--configfile", default=os.path.join(caiman_datadir(), 'demos', 'general', 'params_demo_OnACID_mesoscope.json'), help="JSON Configfile for Caiman parameters")
     parser.add_argument("--no_play",    action="store_true", help="Do not display results")
     parser.add_argument("--cluster_backend", default="multiprocessing", help="Specify multiprocessing, ipyparallel, or single to pick an engine")
     parser.add_argument("--cluster_nproc", type=int, default=None, help="Override automatic selection of number of workers to use")

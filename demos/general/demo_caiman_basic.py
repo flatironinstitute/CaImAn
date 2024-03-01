@@ -25,7 +25,7 @@ try:
 except:
     pass
 
-import caiman as cm
+import caiman
 from caiman.paths import caiman_datadir
 from caiman.source_extraction.cnmf import cnmf as cnmf
 from caiman.source_extraction.cnmf import params as params
@@ -47,64 +47,9 @@ def main():
             "%(relativeCreated)12d [%(filename)s:%(funcName)20s():%(lineno)s][%(process)d] %(message)s",
             level=logging.WARNING)
 
-    if cfg.configfile:
-        opts = params.CNMFParams(params_from_file=cfg.configfile)
-        if opts.data['fnames'] is None:
-            opts.change_params({"data": {"fnames": fnames}})
-    else:
-        # set up some parameters
-        fr = 10                 # approximate frame rate of data
-        decay_time = 5.0        # length of transient
-
-        # See the without_patches json for an alternative
-        rf = 10             # half size of each patch
-        stride = 4          # overlap between patches
-        K = 4               # number of components in each patch
-
-        gSig = [6, 6]           # expected half size of neurons
-        merge_thresh = 0.80     # merging threshold, max correlation allowed
-        p = 2                   # order of the autoregressive system
-        gnb = 2                 # global background order
-
-        min_SNR = 2      # peak SNR for accepted components (if above this, accept)
-        rval_thr = 0.85     # space correlation threshold (if above this, accept)
-        use_cnn = True      # use the CNN classifier
-        min_cnn_thr = 0.99  # if cnn classifier predicts below this value, reject
-        cnn_lowest = 0.1 # neurons with cnn probability lower than this value are rejected
-
-        params_dict = {
-            'data': {
-                'fnames': fnames,
-                'fr': fr,
-                'decay_time': decay_time,
-                },
-            'init': {
-                'gSig': gSig,
-                'K': K,
-                'nb': gnb
-                },
-            'patch': {
-                'rf': rf,
-                'stride': stride,
-                },
-            'merging': {
-                'merge_thr': merge_thresh,
-                },
-            'preprocess': {
-                'p': p,
-                },
-            'temporal': {
-                'p': p,
-                },
-            'quality': {
-                    'min_SNR': min_SNR,
-                    'rval_thr': rval_thr,
-                    'use_cnn': use_cnn,
-                    'min_cnn_thr': min_cnn_thr,
-                    'cnn_lowest': cnn_lowest
-                }
-            }
-        opts = params.CNMFParams(params_dict=params_dict)
+    opts = params.CNMFParams(params_from_file=cfg.configfile)
+    if opts.data['fnames'] is None:
+        opts.change_params({"data": {"fnames": fnames}})
 
     if cfg.input is not None: # CLI arg can override all other settings for fnames, although other data-centric commands still must match source data
         opts.change_params({'data': {'fnames': cfg.input}})
@@ -115,7 +60,7 @@ def main():
         opts.change_params({'data': {'fnames': fnames}})
 
     # start a cluster for parallel processing
-    c, dview, n_processes = cm.cluster.setup_cluster(backend=cfg.cluster_backend, n_processes=cfg.cluster_nproc)
+    c, dview, n_processes = caiman.cluster.setup_cluster(backend=cfg.cluster_backend, n_processes=cfg.cluster_nproc)
 
 
     # Run CaImAn Batch (CNMF)
@@ -134,7 +79,7 @@ def main():
         cnm.estimates.plot_contours(img=Cn)
 
     # load memory mapped file
-    Yr, dims, T = cm.load_memmap(cnm.mmap_file)
+    Yr, dims, T = caiman.load_memmap(cnm.mmap_file)
     images = np.reshape(Yr.T, [T] + list(dims), order='F')
 
     # refit
@@ -162,14 +107,14 @@ def main():
 
     # save results
     cnm2.estimates.Cn = Cn
-    cnm2.save(cnm2.mmap_file[:-4]+'hdf5')
+    cnm2.save(cnm2.mmap_file[:-4] + 'hdf5') # FIXME use the path library to do this the right way
 
     # play movie with results (original, reconstructed, amplified residual)
     if not cfg.no_play:
         cnm2.estimates.play_movie(images, magnification=4);
 
     # Stop the cluster and clean up log files
-    cm.stop_server(dview=dview)
+    caiman.stop_server(dview=dview)
 
     if not cfg.keep_logs:
         log_files = glob.glob('Yr*_LOG_*')
@@ -178,7 +123,7 @@ def main():
 
 def handle_args():
     parser = argparse.ArgumentParser(description="Demonstrate basic Caiman functionality")
-    parser.add_argument("--configfile", help="JSON Configfile for Caiman parameters")
+    parser.add_argument("--configfile", default=os.path.join(caiman_datadir(), 'demos', 'general', 'params_demo_caiman_basic_with_patches.json'), help="JSON Configfile for Caiman parameters")
     parser.add_argument("--keep_logs",  action="store_true", help="Keep temporary logfiles")
     parser.add_argument("--no_play",    action="store_true", help="Do not display results")
     parser.add_argument("--cluster_backend", default="multiprocessing", help="Specify multiprocessing, ipyparallel, or single to pick an engine")
