@@ -2261,7 +2261,7 @@ def get_file_size(file_name, var_name_hdf5:str='mov') -> tuple[tuple, Union[int,
                         dims[0], dims[1] = pims_movie.frame_shape[0:2]
             elif extension == '.mmap':
                 filename = os.path.split(file_name)[-1]
-                Yr, dims, T = load_memmap(os.path.join(
+                Yr, dims, T = caiman.mmapping.load_memmap(os.path.join(
                         os.path.split(file_name)[0], filename))
             elif extension in ('.h5', '.hdf5', '.nwb', 'n5', 'zarr'):
                 # FIXME this doesn't match the logic in load()
