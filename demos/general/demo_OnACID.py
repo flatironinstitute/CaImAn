@@ -44,6 +44,7 @@ def main():
 
     if not opts.data['fnames']: # Set neither by CLI arg nor through JSON, so use default data
         fnames = [os.path.join(caiman_datadir(), 'example_movies', 'demoMovie.tif')]
+        opts.change_params({"data": {"fnames": fnames}})
 
     # If you want to break into an interactive console session, move and uncomment this wherever you want in the code
     # (and uncomment the code import at the top)
