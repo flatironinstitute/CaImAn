@@ -27,7 +27,7 @@ try:
 except:
     pass
 
-import caiman as cm
+import caiman
 from caiman.motion_correction import MotionCorrect
 from caiman.source_extraction.cnmf import cnmf as cnmf
 from caiman.source_extraction.cnmf import params as params
@@ -49,48 +49,16 @@ def main():
             "%(relativeCreated)12d [%(filename)s:%(funcName)20s():%(lineno)s][%(process)d] %(message)s",
             level=logging.WARNING)
 
-    if cfg.input is None:
-        # If no input is specified, use sample data, downloading if necessary
-        fnames = [download_demo('Sue_2x_3000_40_-46.tif')]
-    else:
-        fnames = cfg.input
-
     # First set up some parameters for data and motion correction
+    opts = params.CNMFParams(params_from_file=cfg.input)
 
-    # dataset dependent parameters
-    fr = 30             # imaging rate in frames per second
-    decay_time = 0.4    # length of a typical transient in seconds
-    dxy = (2., 2.)      # spatial resolution in x and y in (um per pixel)
-    # note the lower than usual spatial resolution here
-    max_shift_um = (12., 12.)       # maximum shift in um
-    patch_motion_um = (100., 100.)  # patch size for non-rigid correction in um
+    if cfg.input is not None:
+        opts.change_params({"data": {"fnames": cfg.input}})
+    if not opts.data['fnames']: # Set neither by CLI arg nor through JSON, so use default data
+        fnames = [download_demo('Sue_2x_3000_40_-46.tif')]
+        opts.change_params({"data": {"fnames": fnames}})
 
-    # motion correction parameters
-    pw_rigid = True       # flag to select rigid vs pw_rigid motion correction
-    # maximum allowed rigid shift in pixels
-    max_shifts = [int(a/b) for a, b in zip(max_shift_um, dxy)]
-    # start a new patch for pw-rigid motion correction every x pixels
-    strides = tuple([int(a/b) for a, b in zip(patch_motion_um, dxy)])
-    # overlap between patches (size of patch in pixels: strides+overlaps)
-    overlaps = (24, 24)
-    # maximum deviation allowed for patch with respect to rigid shifts
-    max_deviation_rigid = 3
-    border_nan = 'copy'
-
-    params_dict = {'fnames': fnames,
-                   'fr': fr,
-                   'decay_time': decay_time,
-                   'dxy': dxy,
-                   'pw_rigid': pw_rigid,
-                   'max_shifts': max_shifts,
-                   'strides': strides,
-                   'overlaps': overlaps,
-                   'max_deviation_rigid': max_deviation_rigid,
-                   'border_nan': border_nan}
-
-    opts = params.CNMFParams(params_dict=params_dict)
-
-    m_orig = cm.load_movie_chain(fnames)
+    m_orig = caiman.load_movie_chain(opts.data['fnames'])
 
     # play the movie (optional)
     # playing the movie using opencv. It requires loading the movie in memory.
@@ -102,11 +70,11 @@ def main():
         moviehandle.play(q_max=99.5, fr=60, magnification=2)
 
     # start a cluster for parallel processing
-    c, dview, n_processes = cm.cluster.setup_cluster(backend=cfg.cluster_backend, n_processes=cfg.cluster_nproc)
+    c, dview, n_processes = caiman.cluster.setup_cluster(backend=cfg.cluster_backend, n_processes=cfg.cluster_nproc)
 
     # Motion Correction
     # first we create a motion correction object with the specified parameters
-    mc = MotionCorrect(fnames, dview=dview, **opts.get_group('motion'))
+    mc = MotionCorrect(opts.data['fnames'], dview=dview, **opts.get_group('motion'))
     # note that the file is not loaded in memory
 
     # Run (piecewise-rigid motion) correction using NoRMCorre
@@ -114,10 +82,10 @@ def main():
 
     # compare with original movie
     if not cfg.no_play:
-        m_orig = cm.load_movie_chain(fnames)
-        m_els = cm.load(mc.mmap_file)
+        m_orig = caiman.load_movie_chain(opts.data['fnames'])
+        m_els = caiman.load(mc.mmap_file)
         ds_ratio = 0.2
-        moviehandle = cm.concatenate([m_orig.resize(1, 1, ds_ratio) - mc.min_mov*mc.nonneg_movie,
+        moviehandle = caiman.concatenate([m_orig.resize(1, 1, ds_ratio) - mc.min_mov*mc.nonneg_movie,
                                       m_els.resize(1, 1, ds_ratio)], axis=2)
         moviehandle.play(fr=60, q_max=99.5, magnification=2)  # press q to exit
 
@@ -128,50 +96,17 @@ def main():
     # the boundaries
 
     # memory map the file in order 'C'
-    fname_new = cm.save_memmap(mc.mmap_file, base_name='memmap_', order='C',
+    fname_new = caiman.save_memmap(mc.mmap_file, base_name='memmap_', order='C',
                                border_to_0=border_to_0)  # exclude borders
 
     # now load the file
-    Yr, dims, T = cm.load_memmap(fname_new)
+    Yr, dims, T = caiman.load_memmap(fname_new)
     images = np.reshape(Yr.T, [T] + list(dims), order='F')
     # load frames in python format (T x X x Y)
 
     # restart cluster to clean up memory
-    cm.stop_server(dview=dview)
-    c, dview, n_processes = cm.cluster.setup_cluster(backend=cfg.cluster_backend, n_processes=cfg.cluster_nproc)
-
-    #  Parameters for source extraction and deconvolution
-    p = 1                    # order of the autoregressive system
-    gnb = 2                  # number of global background components
-    merge_thr = 0.85         # merging threshold, max correlation allowed
-    rf = 15
-    # half-size of the patches in pixels. e.g., if rf=25, patches are 50x50
-    stride_cnmf = 6          # amount of overlap between the patches in pixels
-    K = 4                    # number of components per patch
-    gSig = [4, 4]            # expected half size of neurons in pixels
-    # initialization method (if analyzing dendritic data using 'sparse_nmf')
-    method_init = 'greedy_roi'
-    ssub = 2                     # spatial subsampling during initialization
-    tsub = 2                     # temporal subsampling during initialization
-
-    # parameters for component evaluation
-    opts_dict = {'fnames': fnames,
-                 'p': p,
-                 'fr': fr,
-                 'nb': gnb,
-                 'rf': rf,
-                 'K': K,
-                 'gSig': gSig,
-                 'stride': stride_cnmf,
-                 'method_init': method_init,
-                 'rolling_sum': True,
-                 'merge_thr': merge_thr,
-                 'n_processes': n_processes,
-                 'only_init': True,
-                 'ssub': ssub,
-                 'tsub': tsub}
-
-    opts.change_params(params_dict=opts_dict);
+    caiman.stop_server(dview=dview)
+    c, dview, n_processes = caiman.cluster.setup_cluster(backend=cfg.cluster_backend, n_processes=cfg.cluster_nproc)
 
     # RUN CNMF ON PATCHES
     # First extract spatial and temporal components on patches and combine them
@@ -196,7 +131,7 @@ def main():
 
     # save results
     cnm.estimates.Cn = Cn
-    cnm.save(fname_new[:-5]+'_init.hdf5')
+    cnm.save(fname_new[:-5] + '_init.hdf5') # FIXME
 
     # RE-RUN seeded CNMF on accepted patches to refine and perform deconvolution
     cnm2 = cnm.refit(images, dview=dview)
@@ -207,18 +142,6 @@ def main():
     #   b) a minimum peak SNR is required over the length of a transient
     #   c) each shape passes a CNN based classifier
 
-    min_SNR = 2  # signal to noise ratio for accepting a component
-    rval_thr = 0.85  # space correlation threshold for accepting a component
-    use_cnn = True
-    cnn_thr = 0.99  # threshold for CNN based classifier
-    cnn_lowest = 0.1 # neurons with cnn probability lower than this value are rejected
-
-    cnm2.params.set('quality', {'decay_time': decay_time,
-                               'min_SNR': min_SNR,
-                               'rval_thr': rval_thr,
-                               'use_cnn': use_cnn,
-                               'min_cnn_thr': cnn_thr,
-                               'cnn_lowest': cnn_lowest})
     cnm2.estimates.evaluate_components(images, cnm2.params, dview=dview)
 
     if not cfg.no_play:
@@ -252,7 +175,7 @@ def main():
                                   include_bck=False)  # background not shown
 
     # Stop the cluster and clean up log files
-    cm.stop_server(dview=dview)
+    caiman.stop_server(dview=dview)
 
     if not cfg.keep_logs:
         log_files = glob.glob('*_LOG_*')
@@ -261,6 +184,7 @@ def main():
 
 def handle_args():
     parser = argparse.ArgumentParser(description="Demonstrate 2P Pipeline using batch algorithm")
+    parser.add_argument("--configfile", default=os.path.join(caiman.paths.caiman_datadir(), 'demos', 'general', 'params_demo_pipeline.json'), help="JSON Configfile for Caiman parameters")
     parser.add_argument("--keep_logs",  action="store_true", help="Keep temporary logfiles")
     parser.add_argument("--no_play",    action="store_true", help="Do not display results")
     parser.add_argument("--cluster_backend", default="multiprocessing", help="Specify multiprocessing, ipyparallel, or single to pick an engine")
