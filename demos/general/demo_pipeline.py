@@ -50,7 +50,7 @@ def main():
             level=logging.WARNING)
 
     # First set up some parameters for data and motion correction
-    opts = params.CNMFParams(params_from_file=cfg.input)
+    opts = params.CNMFParams(params_from_file=cfg.configfile)
 
     if cfg.input is not None:
         opts.change_params({"data": {"fnames": cfg.input}})
