@@ -1576,13 +1576,16 @@ def load(file_name: Union[str, list[str]],
         elif extension == '.sbx':
             logging.debug('sbx')
             if subindices is not None:
-                return movie(sbxreadskip(file_name[:-4], subindices), fr=fr).astype(outtype)
+                input_arr, meta_fromfile = sbxreadskip(file_name[:-4], subindices)
             else:
-                input_arr, fr_realtime = sbxread(file_name[:-4], k=0, n_frames=np.inf)
+                input_arr, meta_fromfile = sbxread(file_name[:-4], k=0, n_frames=np.inf)
 
+            if meta_data is None:
+                meta_data = meta_fromfile
+            else:
+                meta_data.update(meta_fromfile)
             if fr <= 0:
-                fr = fr_realtime
-            return movie(input_arr, fr=fr).astype(outtype)
+                fr = meta_data['fr']
 
         elif extension == '.sima':
             raise Exception("movies.py:load(): FATAL: sima support was removed in 1.9.8")
@@ -1765,7 +1768,7 @@ def _todict(matobj) -> dict:
     return ret
 
 
-def sbxread(filename: str, k: int = 0, n_frames=np.inf) -> np.ndarray:
+def sbxread(filename: str, k: int = 0, n_frames=np.inf) -> tuple[np.ndarray, dict]:
     """
     Args:
         filename: str
@@ -1780,7 +1783,7 @@ def sbxread(filename: str, k: int = 0, n_frames=np.inf) -> np.ndarray:
     return sbxreadskip(filename, slice(k, k + n_frames))
 
 
-def sbxreadskip(filename: str, subindices) -> np.ndarray:
+def sbxreadskip(filename: str, subindices) -> tuple[np.ndarray, dict]:
     """
     Args:
         filename: str
@@ -1788,7 +1791,13 @@ def sbxreadskip(filename: str, subindices) -> np.ndarray:
         
         subindices: slice | array-like
             which frames to read
+
+    Output: (data, meta_data)
+        meta_data['fr_orig']: original frame rate (full z-stacks/second if applicable)
+        meta_data['dxy']: spatial resolution in x and y (um per pixel), if available
     """
+    meta_data = dict()
+
     # Check if contains .sbx and if so just truncate
     if '.sbx' in filename:
         filename = filename[:-4]
@@ -1798,17 +1807,29 @@ def sbxreadskip(filename: str, subindices) -> np.ndarray:
 
     # Get shape (and update info)
     data_shape = sbxshape(filename, info)  # (chans, X, Y, Z, frames)
-    n_slices = data_shape[3]
+    n_planes = data_shape[3]
     n_frames = data_shape[4]
         
     # Frame rate (to use if not specified)
     # use uncorrected recordsPerBuffer here b/c we want the actual # of resonant scans per frame
-    fr = info['resfreq'] / info['recordsPerBuffer']
+    meta_data['fr'] = info['resfreq'] / info['recordsPerBuffer'] / n_planes
+
+    # Spatial resolution
+    if 'dycal' in info and 'dxcal' in info:
+        meta_data['dxy'] = (info['dxcal'], info['dycal'])
+    else:
+        try:
+            magidx = info['config']['magnification'] - 1
+            dx = info['calibration'][magidx]['x']
+            dy = info['calibration'][magidx]['y']
+            meta_data['dxy'] = (dx, dy)
+        except (KeyError, TypeError):
+            pass
 
     if 'scanbox_version' in info and info['scanbox_version'] == 3:
-        n_samples = np.prod(info['sz']) * info['nChan'] * 2 * n_slices
+        n_samples = np.prod(info['sz']) * info['nChan'] * 2 * n_planes
     else:
-        n_samples = info['sz'][1] * info['recordsPerBuffer'] * 2 * info['nChan'] * n_slices
+        n_samples = info['sz'][1] * info['recordsPerBuffer'] * 2 * info['nChan'] * n_planes
     if n_samples <= 0:
         raise Exception('Invalid scanbox metadata')
 
@@ -1861,10 +1882,10 @@ def sbxreadskip(filename: str, subindices) -> np.ndarray:
     # To (chans, frames, Y, X, Z)
     # Don't remove channel dim to avoid ambiguity; will be handled by caller if necessary
     x = x.transpose([0, 4, 2, 1, 3])
-    if n_slices == 1:  # remove singleton z-axis
+    if n_planes == 1:  # remove singleton z-axis
         x = x.squeeze(-1)
 
-    return x, fr
+    return x, meta_data
 
 
 
