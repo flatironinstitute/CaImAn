@@ -36,7 +36,6 @@
 	"merge_thr": 0.85
     },
     "quality": {
-	"decay_time": 0.4,
 	"min_SNR": 2,
 	"rval_thr": 0.85,
 	"use_cnn": true,
