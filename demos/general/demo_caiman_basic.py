@@ -48,8 +48,6 @@ def main():
             level=logging.WARNING)
 
     opts = params.CNMFParams(params_from_file=cfg.configfile)
-    if opts.data['fnames'] is None:
-        opts.change_params({"data": {"fnames": fnames}})
 
     if cfg.input is not None: # CLI arg can override all other settings for fnames, although other data-centric commands still must match source data
         opts.change_params({'data': {'fnames': cfg.input}})

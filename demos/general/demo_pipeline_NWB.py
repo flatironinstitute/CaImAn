@@ -74,7 +74,7 @@ def main():
                         session_id='Session 1',
                         var_name_hdf5='TwoPhotonSeries')
         fnames = [convert_target]
-        opts.change_params({'data': {'fnames': fnames, 'var_names_hdf5': 'TwoPhotonSeries'}})
+        opts.change_params({'data': {'fnames': fnames, 'var_name_hdf5': 'TwoPhotonSeries'}})
     elif cfg.input[0].endswith('.nwb'):
         if os.path.isfile(cfg.input[0]):
             # We were handed at least one nwb file and it exists either right here or as an absolute path
@@ -100,7 +100,7 @@ def main():
         raise Exception("If you're providing your own data to this demo, you must provide it in nwb format or pre-convert it yourself")
 
     # estimates save path can be same or different from raw data path
-    save_path = os.path.splitext(fnames[0])[0] + '_CNMF_estimates.nwb' # TODO: Make this a parameter?
+    save_path = os.path.splitext(fnames[0])[0] + '_CNMF_estimates.nwb'
 
     # We're done with all the file input parts
 
@@ -136,7 +136,10 @@ def main():
         moviehandle.play(fr=60, q_max=99.5, magnification=2)  # press q to exit
 
     # MEMORY MAPPING
-    border_to_0 = 0 if mc.border_nan == 'copy' else mc.border_to_0
+    if mc.border_nan == 'copy':
+        border_to_0 = 0
+    else:
+        border_to_0 = mc.border_to_0
     # you can include the boundaries of the FOV if you used the 'copy' option
     # during motion correction, although be careful about the components near
     # the boundaries
