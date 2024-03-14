@@ -151,23 +151,17 @@ def main():
     axs[0].imshow(summary_images[0]); axs[1].imshow(summary_images[2])
     axs[0].set_title('mean image'); axs[1].set_title('corr image');
 
-    # methods for segmentation
-    methods_list = ['manual_annotation',       # manual annotations need prepared annotated datasets in the same format as demo_voltage_imaging_ROIs.hdf5 
-                    'maskrcnn',                # Mask R-CNN is a convolutional neural network trained for detecting neurons in summary images
-                    'gui_annotation']          # use VolPy GUI to correct outputs of Mask R-CNN or annotate new datasets 
-                    
-    method = methods_list[0]
-    if method == 'manual_annotation':                
+    if cfg.method == 'manual_annotation':
         with h5py.File(path_ROIs, 'r') as fl:
             ROIs = fl['mov'][()]  
 
-    elif method == 'maskrcnn':                 
+    elif cfg.method == 'maskrcnn':
         weights_path = download_model('mask_rcnn')    
         ROIs = utils.mrcnn_inference(img=summary_images.transpose([1, 2, 0]), size_range=[5, 22],
                                      weights_path=weights_path, display_result=True) # size parameter decides size range of masks to be selected
         cm.movie(ROIs).save(fnames[:-5] + '_mrcnn_ROIs.hdf5')
 
-    elif method == 'gui_annotation':
+    elif cfg.method == 'gui_annotation':
         # run volpy_gui.py file in the caiman/source_extraction/volpy folder
         gui_ROIs =  caiman_datadir() + '/example_movies/volpy/gui_roi.hdf5'
         with h5py.File(gui_ROIs, 'r') as fl:
@@ -277,6 +271,7 @@ def handle_args():
     parser.add_argument("--input", action="append", help="File(s) to work on, provide multiple times for more files")
     parser.add_argument("--pathinput", action="append", help="Path input file(s) to work on, provide multiple times for more files")
     parser.add_argument("--logfile",    help="If specified, log to the named file")
+    parser.add_argument("--method", default="manual_annotation", choices=["manual_annotation", "maskrcnn", "gui_annotation"], help="Segmentation method")
     return parser.parse_args()
 
 ########
