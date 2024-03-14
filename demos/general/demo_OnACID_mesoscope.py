@@ -16,9 +16,9 @@ for sharing the data used in this demo.
 
 import argparse
 import glob
+import logging
 import numpy as np
 import os
-import logging
 import matplotlib.pyplot as plt
 
 try:
@@ -37,28 +37,31 @@ def main():
 
     if cfg.logfile:
         logging.basicConfig(format=
-            "%(relativeCreated)12d [%(filename)s:%(funcName)20s():%(lineno)s][%(process)d] %(message)s",
-            level=logging.WARNING,
+            "[%(filename)s:%(funcName)20s():%(lineno)s] %(message)s",
+            level=logging.INFO,
             filename=cfg.logfile)
         # You can make the output more or less verbose by setting level to logging.DEBUG, logging.INFO, logging.WARNING, or logging.ERROR
     else:
         logging.basicConfig(format=
-            "%(relativeCreated)12d [%(filename)s:%(funcName)20s():%(lineno)s][%(process)d] %(message)s",
-            level=logging.WARNING)
+            "[%(filename)s:%(funcName)20s():%(lineno)s] %(message)s",
+            level=logging.INFO)
 
     opts = cnmf.params.CNMFParams(params_from_file=cfg.configfile)
-    opts.change_params({'online': {'show_movie': not cfg.no_play}}) # Override from CLI
 
-    if cfg.input is not None: # CLI arg can override all other settings for fnames, although other data-centric commands still must match source data
+    if cfg.input is not None and len(cfg.input) != 0: # CLI arg can override all other settings for fnames, although other data-centric commands still must match source data
         opts.change_params({'data': {'fnames': cfg.input}})
 
     if not opts.data['fnames']: # Set neither by CLI arg nor through JSON, so use default data
-        fnames = [download_demo('Tolias_mesoscope_1.hdf5'),
-                  download_demo('Tolias_mesoscope_2.hdf5'),
-                  download_demo('Tolias_mesoscope_3.hdf5')]
+        fld_name = 'Mesoscope'
+        print("Downloading demos...")
+        fnames = [download_demo('Tolias_mesoscope_1.hdf5', fld_name),
+                  download_demo('Tolias_mesoscope_2.hdf5', fld_name),
+                  download_demo('Tolias_mesoscope_3.hdf5', fld_name)]
         opts.change_params({'data': {'fnames': fnames}})
 
+    opts.change_params({'online': {'show_movie': cfg.show_movie}}) # Override from CLI
 
+    print(f"Params: {opts.to_json()}")
     # fit online
     cnm = cnmf.online_cnmf.OnACID(params=opts)
     cnm.fit_online()
@@ -119,7 +122,7 @@ def main():
 def handle_args():
     parser = argparse.ArgumentParser(description="Full OnACID Caiman demo")
     parser.add_argument("--configfile", default=os.path.join(caiman_datadir(), 'demos', 'general', 'params_demo_OnACID_mesoscope.json'), help="JSON Configfile for Caiman parameters")
-    parser.add_argument("--no_play",    action="store_true", help="Do not display results")
+    parser.add_argument("--show_movie",    action="store_true", help="Display results as movie")
     parser.add_argument("--cluster_backend", default="multiprocessing", help="Specify multiprocessing, ipyparallel, or single to pick an engine")
     parser.add_argument("--cluster_nproc", type=int, default=None, help="Override automatic selection of number of workers to use")
     parser.add_argument("--input", action="append", help="File(s) to work on, provide multiple times for more files")
