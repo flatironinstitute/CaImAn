@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+
 """
 Demo pipeline for processing voltage imaging data. The processing pipeline
 includes motion correction, memory mapping, segmentation, denoising and source
@@ -22,7 +23,7 @@ try:
 except:
     pass
 
-import caiman as cm
+import caiman
 from caiman.motion_correction import MotionCorrect
 from caiman.paths import caiman_datadir
 from caiman.source_extraction.volpy import utils
@@ -86,13 +87,13 @@ def main():
     # playing the movie using opencv. It requires loading the movie in memory.
     # To close the movie press q
     if not cfg.no_play:
-        m_orig = cm.load(fnames)
+        m_orig = caiman.load(fnames)
         ds_ratio = 0.2
         moviehandle = m_orig.resize(1, 1, ds_ratio)
         moviehandle.play(q_max=99.5, fr=40, magnification=4)
 
     # start a cluster for parallel processing
-    c, dview, n_processes = cm.cluster.setup_cluster(backend=cfg.cluster_backend, n_processes=cfg.cluster_nproc)
+    c, dview, n_processes = caiman.cluster.setup_cluster(backend=cfg.cluster_backend, n_processes=cfg.cluster_nproc)
 
     # %%% MOTION CORRECTION
     # first we create a motion correction object with the specified parameters
@@ -109,10 +110,10 @@ def main():
 
     # compare with original movie
     if not cfg.no_play:
-        m_orig = cm.load(fnames)
-        m_rig = cm.load(mc.mmap_file)
+        m_orig = caiman.load(fnames)
+        m_rig = caiman.load(mc.mmap_file)
         ds_ratio = 0.2
-        moviehandle = cm.concatenate([m_orig.resize(1, 1, ds_ratio),
+        moviehandle = caiman.concatenate([m_orig.resize(1, 1, ds_ratio),
                                       m_rig.resize(1, 1, ds_ratio)], axis=2)
         moviehandle.play(fr=40, q_max=99.5, magnification=4)  # press q to exit
 
@@ -125,7 +126,7 @@ def main():
         # the boundaries
         
         # memory map the file in order 'C'
-        fname_new = cm.save_memmap_join(mc.mmap_file, base_name='memmap_' + os.path.splitext(os.path.split(fnames)[-1])[0],
+        fname_new = caiman.save_memmap_join(mc.mmap_file, base_name='memmap_' + os.path.splitext(os.path.split(fnames)[-1])[0],
                                         add_to_mov=border_to_0, dview=dview)  # exclude border
     else: 
         mmap_list = [file for file in os.listdir(file_dir) if 
@@ -146,7 +147,7 @@ def main():
     img_corr = (Cn-np.mean(Cn))/np.std(Cn)
     summary_images = np.stack([img, img, img_corr], axis=0).astype(np.float32)
     # save summary images which are used in the VolPy GUI
-    cm.movie(summary_images).save(fnames[:-5] + '_summary_images.tif')
+    caiman.movie(summary_images).save(fnames[:-5] + '_summary_images.tif')
     fig, axs = plt.subplots(1, 2)
     axs[0].imshow(summary_images[0]); axs[1].imshow(summary_images[2])
     axs[0].set_title('mean image'); axs[1].set_title('corr image');
@@ -159,7 +160,7 @@ def main():
         weights_path = download_model('mask_rcnn')    
         ROIs = utils.mrcnn_inference(img=summary_images.transpose([1, 2, 0]), size_range=[5, 22],
                                      weights_path=weights_path, display_result=True) # size parameter decides size range of masks to be selected
-        cm.movie(ROIs).save(fnames[:-5] + '_mrcnn_ROIs.hdf5')
+        caiman.movie(ROIs).save(fnames[:-5] + '_mrcnn_ROIs.hdf5')
 
     elif cfg.method == 'gui_annotation':
         # run volpy_gui.py file in the caiman/source_extraction/volpy folder
@@ -172,8 +173,8 @@ def main():
     axs[0].set_title('mean image'); axs[1].set_title('masks')
         
     # restart cluster to clean up memory
-    cm.stop_server(dview=dview)
-    c, dview, n_processes = cm.cluster.setup_cluster(backend=cfg.cluster_backend, n_processes=cfg.cluster_nproc)
+    caiman.stop_server(dview=dview)
+    c, dview, n_processes = caiman.cluster.setup_cluster(backend=cfg.cluster_backend, n_processes=cfg.cluster_nproc)
 
 
     # parameters for trace denoising and spike extraction
@@ -255,7 +256,7 @@ def main():
         reuse_weights.append(w)
     
     # Stop the cluster and clean up log files
-    cm.stop_server(dview=dview)
+    caiman.stop_server(dview=dview)
 
     if not cfg.keep_logs:
         log_files = glob.glob('*_LOG_*')
