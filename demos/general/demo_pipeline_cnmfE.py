@@ -22,7 +22,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 
 
-import caiman as cm
+import caiman
 from caiman.motion_correction import MotionCorrect
 from caiman.source_extraction import cnmf
 from caiman.source_extraction.cnmf import params as params
@@ -83,7 +83,7 @@ def main():
 
     opts = params.CNMFParams(params_dict=params_dict)
 
-    c, dview, n_processes = cm.cluster.setup_cluster(backend=cfg.cluster_backend, n_processes=cfg.cluster_nproc)
+    c, dview, n_processes = caiman.cluster.setup_cluster(backend=cfg.cluster_backend, n_processes=cfg.cluster_nproc)
     # Motion Correction
     #  The pw_rigid flag set above, determines where to use rigid or pw-rigid
     #  motion correction
@@ -104,14 +104,14 @@ def main():
             plt.ylabel('pixels')
 
         bord_px = 0 if border_nan == 'copy' else bord_px
-        fname_new = cm.save_memmap(fname_mc, base_name='memmap_', order='C',
+        fname_new = caiman.save_memmap(fname_mc, base_name='memmap_', order='C',
                                    border_to_0=bord_px)
     else:  # if no motion correction just memory map the file
-        fname_new = cm.save_memmap(filename_reorder, base_name='memmap_',
+        fname_new = caiman.save_memmap(filename_reorder, base_name='memmap_',
                                    order='C', border_to_0=0, dview=dview)
 
     # load memory mappable file
-    Yr, dims, T = cm.load_memmap(fname_new)
+    Yr, dims, T = caiman.load_memmap(fname_new)
     images = Yr.T.reshape((T,) + dims, order='F')
 
     # Parameters for source extraction and deconvolution (CNMF-E algorithm)
@@ -171,7 +171,7 @@ def main():
 
     # compute some summary images (correlation and peak to noise)
     # change swap dim if output looks weird, it is a problem with tiffile
-    cn_filter, pnr = cm.summary_images.correlation_pnr(images[::1], gSig=gSig[0], swap_dim=False)
+    cn_filter, pnr = caiman.summary_images.correlation_pnr(images[::1], gSig=gSig[0], swap_dim=False)
     # if your images file is too long this computation will take unnecessarily
     # long time and consume a lot of memory. Consider changing images[::1] to
     # images[::5] or something similar to compute on a subset of the data
@@ -218,7 +218,7 @@ def main():
                                  include_bck=False, gain_res=4, bpx=bord_px)
 
     # Stop the cluster and clean up log files
-    cm.stop_server(dview=dview)
+    caiman.stop_server(dview=dview)
 
     if not cfg.keep_logs:
         log_files = glob.glob('*_LOG_*')
