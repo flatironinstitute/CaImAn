@@ -9,7 +9,7 @@ Second, let's say you want to improve something yourself:
 - The demo notebooks
 - The code base
 
-We welcome *all* such contributions. To make them, you need to make changes on your local version of Caiman and then push make a **Pull Request** (PR) to our GitHub repository. We will walk through this process in the rest of the document. 
+We welcome *all* such contributions. To make them, you need to make changes on your local version of Caiman and then push make a *Pull Request* (PR) to our GitHub repository. We will walk through this process in the rest of the document. 
 
 Before you go through the work required to improve something, we recommend that you let us know your plans on GitHub either in discussions or issues. This way, we can avoid duplicated effort (if someone is already working on it), or wasted time (it could turn out the changes might not be feasible right now because it conflicts with some other major feature we are working on). If needed, can usually set up a video chat to talk about a feature proposal if that works for you.
 
