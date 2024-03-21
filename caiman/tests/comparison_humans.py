@@ -23,10 +23,10 @@ except NameError:
     print('Not launched under iPython')
 
 import caiman as cm
+import matplotlib.pyplot as plt
 import numpy as np
 import os
 import time
-import matplotlib.pyplot as plt
 import scipy
 import sys
 import logging

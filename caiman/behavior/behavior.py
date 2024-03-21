@@ -5,9 +5,9 @@ Functions related to optical flow
 """
 
 import cv2
-import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
+import numpy as np
 import scipy
 from scipy.sparse import coo_matrix
 from scipy.io import loadmat
