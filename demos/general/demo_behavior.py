@@ -11,7 +11,7 @@ import cv2
 from IPython import get_ipython
 import logging
 import numpy as np
-import pylab as pl
+import matplotlib.pyplot as plt
 
 try:
     cv2.setNumThreads(0)
@@ -47,7 +47,7 @@ def main():
     pass # For compatibility between running under IDE and the CLI
 
     #%%
-    pl.ion()
+    plt.ion()
 
     fname = [u'demo_behavior.h5']
     if fname[0] in ['demo_behavior.h5']:
@@ -87,9 +87,9 @@ def main():
     
     #%%
     idd = 0
-    axlin = pl.subplot(n_components, 2, 2)
+    axlin = plt.subplot(n_components, 2, 2)
     for mag, dirct, spatial_filter in zip(mags, dircts_thresh, spatial_filter_):
-        pl.subplot(n_components, 2, 1 + idd * 2)
+        plt.subplot(n_components, 2, 1 + idd * 2)
         min_x, min_y = np.min(np.where(mask), 1)
 
         spfl = spatial_filter
@@ -99,14 +99,14 @@ def main():
 
         mask[min_x:max_x, min_y:max_y] = spfl
         mask[mask < np.nanpercentile(spfl, 70)] = np.nan
-        pl.imshow(m[0], cmap='gray')
-        pl.imshow(mask, alpha=.5)
-        pl.axis('off')
+        plt.imshow(m[0], cmap='gray')
+        plt.imshow(mask, alpha=.5)
+        plt.axis('off')
 
-        axelin = pl.subplot(n_components, 2, 2 + idd * 2, sharex=axlin)
-        pl.plot(mag / 10, 'k')
+        axelin = plt.subplot(n_components, 2, 2 + idd * 2, sharex=axlin)
+        plt.plot(mag / 10, 'k')
         dirct[mag < 0.5 * np.std(mag)] = np.nan
-        pl.plot(dirct, 'r-', linewidth=2)
+        plt.plot(dirct, 'r-', linewidth=2)
 
         idd += 1
 
