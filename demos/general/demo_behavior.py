@@ -1,14 +1,14 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 """
-Created on Sun Aug  6 11:43:39 2017
+Demonstrate Caiman functions relating to behavioral experiments and optical flow
 
-@author: agiovann
+This demo requires a GUI; it does not make sense to run it noninteractively.
 """
 
+
+import argparse
 import cv2
-from IPython import get_ipython
 import logging
 import numpy as np
 import pylab as pl
@@ -18,57 +18,47 @@ try:
 except:
     pass
 
-try:
-    if __IPYTHON__:
-        print("Detected iPython")
-        ipython = get_ipython()
-        ipython.run_line_magic('load_ext', 'autoreload')
-        ipython.run_line_magic('autoreload', '2')
-        ipython.run_line_magic('matplotlib', 'qt')
-except NameError:
-    pass
-
 import caiman as cm
 from caiman.behavior import behavior
 from caiman.utils.utils import download_demo
 
-#%%
-# Set up the logger; change this if you like.
-# You can log to a file using the filename parameter, or make the output more or less
-# verbose by setting level to logging.DEBUG, logging.INFO, logging.WARNING, or logging.ERROR
 
-logging.basicConfig(format=
-                          "%(relativeCreated)12d [%(filename)s:%(funcName)20s():%(lineno)s] [%(process)d] %(message)s",
-                    # filename="/tmp/caiman.log",
-                    level=logging.WARNING)
-
-#%%
 def main():
-    pass # For compatibility between running under IDE and the CLI
+    cfg = handle_args()
 
-    #%%
+    if cfg.logfile:
+        logging.basicConfig(format=
+            "[%(filename)s:%(funcName)20s():%(lineno)s] %(message)s",
+            level=logging.INFO,
+            filename=cfg.logfile)
+        # You can make the output more or less verbose by setting level to logging.DEBUG, logging.INFO, logging.WARNING, or logging.ERROR
+    else:
+        logging.basicConfig(format=
+            "[%(filename)s:%(funcName)20s():%(lineno)s] %(message)s",
+            level=logging.INFO)
+
+    if cfg.input is None:
+        # If no input is specified, use sample data, downloading if necessary
+        fnames = [download_demo('demo_behavior.h5')]
+    else:
+        fnames = cfg.input
+    # If you prefer to hardcode filenames, you could do something like this:
+    # fnames = ["/path/to/myfile1.avi", "/path/to/myfile2.avi"]
+
     pl.ion()
+    m = cm._load_behavior(fnames[0])
 
-    fname = [u'demo_behavior.h5']
-    if fname[0] in ['demo_behavior.h5']:
-        # TODO: todocument
-        fname = [download_demo(fname[0])]
-    # TODO: todocument
-    m = cm._load_behavior(fname[0])
+    # load, rotate and eliminate useless pixels
+    m = m.transpose([0, 2, 1]) # XXX Does this really work outside this dataset?
+    m = m[:, 150:, :] # TODO adopt some syntax for clipping, or make this optional and tell the user to clip before running
 
-    #%% load, rotate and eliminate useless pixels
-    m = m.transpose([0, 2, 1])
-    m = m[:, 150:, :]
-
-    #%% visualize movie
+    # visualize movie
     m.play()
 
-    #%% select interesting portion of the FOV (draw a polygon on the figure that pops up, when done press enter)
-    # TODO: Put the message below into the image
+    # select interesting portion of the FOV (draw a polygon on the figure that pops up, when done press enter)
     print("Please draw a polygon delimiting the ROI on the image that will be displayed after the image; press enter when done")
     mask = np.array(behavior.select_roi(np.median(m[::100], 0), 1)[0], np.float32)
 
-    #%%
     n_components = 4  # number of movement looked for
     resize_fact = 0.5  # for computational efficiency movies are downsampled
     # number of standard deviations above mean for the magnitude that are considered enough to measure the angle in polar coordinates
@@ -81,11 +71,10 @@ def main():
     spatial_filter_, time_trace_, of_or = cm.behavior.behavior.extract_motor_components_OF(m, n_components, mask=mask,
                                                                                            resize_fact=resize_fact, only_magnitude=only_magnitude, verbose=True, method_factorization='dict_learn', max_iter_DL=max_iter_DL)
 
-    #%%
+
     mags, dircts, dircts_thresh, spatial_masks_thrs = cm.behavior.behavior.extract_magnitude_and_angle_from_OF(
         spatial_filter_, time_trace_, of_or, num_std_mag_for_angle=num_std_mag_for_angle, sav_filter_size=3, only_magnitude=only_magnitude)
-    
-    #%%
+
     idd = 0
     axlin = pl.subplot(n_components, 2, 2)
     for mag, dirct, spatial_filter in zip(mags, dircts_thresh, spatial_filter_):
@@ -110,8 +99,11 @@ def main():
 
         idd += 1
 
-#%%
-# This is to mask the differences between running this demo in an IDE
-# versus from the CLI
-if __name__ == "__main__":
-    main()
+def handle_args():
+    parser = argparse.ArgumentParser(description="Demonstrate behavioural/optic flow functions")
+    parser.add_argument("--input", action="append", help="File(s) to work on, provide multiple times for more files")
+    parser.add_argument("--logfile",    help="If specified, log to the named file")
+    return parser.parse_args()
+
+########
+main()
