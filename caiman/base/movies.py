@@ -1175,7 +1175,7 @@ class movie(caiman.base.timeseries.timeseries):
             interpolation:
                 interpolation method for 'opencv' and 'embed_opencv' backends
 
-            backend: 'pylab', 'notebook', 'opencv' or 'embed_opencv'; the latter 2 are much faster
+            backend: 'opencv', 'embed_opencv', 'pyplot', 'notebook': the first two are much faster
 
             do_loop: Whether to loop the video
 
@@ -2363,7 +2363,7 @@ def play_movie(movie,
         interpolation:
             interpolation method for 'opencv' and 'embed_opencv' backends
 
-        backend: 'pylab', 'notebook', 'opencv' or 'embed_opencv'; the latter 2 are much faster
+        backend: 'opencv', 'embed_opencv', 'pyplot', or 'notebook': the first two are much faster
 
         do_loop: Whether to loop the video
 
@@ -2399,8 +2399,8 @@ def play_movie(movie,
     """
     # todo: todocument
     it = True if (isinstance(movie, list) or isinstance(movie, tuple) or isinstance(movie, str)) else False
-    if backend == 'pylab':
-        logging.warning('Using pylab back end: not recommended. Using the opencv backend will yield faster, higher-quality results.')
+    if backend == 'pyplot':
+        logging.warning('Using pyplot back end: not recommended. Using opencv will yield faster, higher-quality results.')
 
     gain = float(gain)     # convert to float in case we were passed an int
     if q_max < 100:
@@ -2444,7 +2444,7 @@ def play_movie(movie,
                         thickness=1)
         return frame
 
-    if backend == 'pylab':
+    if backend == 'pyplot':
         plt.ion()
         fig = plt.figure(1)
         ax = fig.add_subplot(111)
@@ -2556,7 +2556,7 @@ def play_movie(movie,
                 elif backend == 'embed_opencv' and not save_movie:
                     break
 
-                elif backend == 'pylab':
+                elif backend == 'pyplot':
                     if bord_px is not None and np.sum(bord_px) > 0:
                         frame = frame[bord_px:-bord_px, bord_px:-bord_px]
                     im.set_data((offset + frame) * gain / maxmov)
