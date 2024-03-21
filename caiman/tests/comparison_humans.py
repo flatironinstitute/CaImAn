@@ -26,7 +26,7 @@ import caiman as cm
 import numpy as np
 import os
 import time
-import pylab as pl
+import matplotlib.pyplot as plt
 import scipy
 import sys
 import logging
@@ -453,16 +453,14 @@ for params_movie in np.array(params_movies)[ID]:
         'downsample_ratio': .2,
         'thr_plot': 0.8
     }
-
-    pl.rcParams['pdf.fonttype'] = 42
-    font = {'family': 'Arial',
-            'weight': 'regular',
-            'size': 20}
-    pl.rc('font', **font)
-
     plot_results = False
     if plot_results:
-        pl.figure(figsize=(30, 20))
+        plt.rcParams['pdf.fonttype'] = 42
+        font = {'family': 'Arial',
+                'weight': 'regular',
+                'size': 20}
+        plt.rc('font', **font)
+        plt.figure(figsize=(30, 20))
 
     tp_gt, tp_comp, fn_gt, fp_comp, performance_cons_off = compare_components(gt_estimate, cnm2.estimates,
                                                                               Cn=Cn_orig, thresh_cost=.8,
