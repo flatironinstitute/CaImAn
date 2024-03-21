@@ -41,11 +41,11 @@ import cv2
 import gc
 import itertools
 import logging
+import matplotlib.pyplot as plt
 import numpy as np
 from numpy.fft import ifftshift
 import os
 import sys
-import pylab as pl
 import tifffile
 from typing import Optional
 from skimage.transform import resize as resize_sk
@@ -362,8 +362,8 @@ class MotionCorrect(object):
                     indices=self.indices)
             if not self.is3D:
                 if show_template:
-                    pl.imshow(new_template_els)
-                    pl.pause(.5)
+                    plt.imshow(new_template_els)
+                    plt.pause(.5)  #TODO: figure out if pausing half-second is necessary
             if np.isnan(np.sum(new_template_els)):
                 raise Exception(
                     'Template contains NaNs, something went wrong. Reconsider the parameters')
@@ -877,10 +877,10 @@ def motion_correct_online(movie_iterable, add_to_movie, max_shift_w=25, max_shif
                     template = np.median(buffer_templates, 0)
 
                 if show_template:
-                    pl.cla()
-                    pl.imshow(template, cmap='gray', vmin=250,
+                    plt.cla()
+                    plt.imshow(template, cmap='gray', vmin=250,
                               vmax=350, interpolation='none')
-                    pl.pause(.001)
+                    plt.pause(.001)
 
                 logging.debug('Relative change in template:' + str(
                     np.sum(np.abs(template - template_old)) / np.sum(np.abs(template))))
@@ -2687,23 +2687,23 @@ def compute_metrics_motion_correction(fname, final_size_x, final_size_y, swap_di
                 cv2.putText(vid_frame, 'x_flow', (2 * dims[0] + 10, 20), fontFace=5, fontScale=0.8, color=(
                     0, 255, 0), thickness=1)
                 cv2.imshow('frame', vid_frame)
-                pl.pause(1 / fr_play)
+                cv2.waitKey(1 / fr_play) # to pause between frames
                 if cv2.waitKey(1) & 0xFF == ord('q'):
                     break
             else:
-                pl.subplot(1, 3, 1)
-                pl.cla()
-                pl.imshow(fr, vmin=m_min, vmax=m_max, cmap='gray')
-                pl.title('movie')
-                pl.subplot(1, 3, 3)
-                pl.cla()
-                pl.imshow(flow[:, :, 1], vmin=vmin, vmax=vmax)
-                pl.title('y_flow')
-                pl.subplot(1, 3, 2)
-                pl.cla()
-                pl.imshow(flow[:, :, 0], vmin=vmin, vmax=vmax)
-                pl.title('x_flow')
-                pl.pause(1 / fr_play)
+                plt.subplot(1, 3, 1)
+                plt.cla()
+                plt.imshow(fr, vmin=m_min, vmax=m_max, cmap='gray')
+                plt.title('movie')
+                plt.subplot(1, 3, 3)
+                plt.cla()
+                plt.imshow(flow[:, :, 1], vmin=vmin, vmax=vmax)
+                plt.title('y_flow')
+                plt.subplot(1, 3, 2)
+                plt.cla()
+                plt.imshow(flow[:, :, 0], vmin=vmin, vmax=vmax)
+                plt.title('x_flow')
+                plt.pause(1 / fr_play)
 
         n = np.linalg.norm(flow)
         flows.append(flow)

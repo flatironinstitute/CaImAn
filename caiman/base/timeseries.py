@@ -9,9 +9,9 @@ from datetime import datetime
 from dateutil.tz import tzlocal
 import h5py
 import logging
+import matplotlib.pyplot as plt
 import numpy as np
 import os
-import pylab as plt
 from pynwb import NWBHDF5IO, NWBFile
 from pynwb.ophys import TwoPhotonSeries, OpticalChannel
 from pynwb.device import Device
