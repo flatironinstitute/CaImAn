@@ -6,7 +6,8 @@ Functions related to optical flow
 
 import cv2
 import numpy as np
-import pylab as pl
+import matplotlib
+import matplotlib.pyplot as plt
 import scipy
 from scipy.sparse import coo_matrix
 from scipy.io import loadmat
@@ -38,14 +39,14 @@ def select_roi(img: np.ndarray, n_rois: int = 1) -> list:
 
     masks = []
     for _ in range(n_rois):
-        fig = pl.figure()
-        pl.imshow(img, cmap=pl.cm.gray)
+        fig = plt.figure()
+        plt.imshow(img, cmap=matplotlib.cm.gray)
         pts = fig.ginput(0, timeout=0)
         mask = np.zeros(np.shape(img), dtype=np.int32)
         pts = np.asarray(pts, dtype=np.int32)
         cv2.fillConvexPoly(mask, pts, (1, 1, 1), lineType=cv2.LINE_AA)
         masks.append(mask)
-        pl.close()
+        plt.close()
 
     return masks
 
@@ -353,12 +354,12 @@ def extract_components(mov_tot,
 
 def plot_components(sp_filt, t_trace) -> None:
     # todo: todocument
-    pl.figure()
+    plt.figure()
     count = 0
     for comp, tr in zip(sp_filt, t_trace):
         count += 1
-        pl.subplot(6, 2, count)
-        pl.imshow(comp)
+        plt.subplot(6, 2, count)
+        plt.imshow(comp)
         count += 1
-        pl.subplot(6, 2, count)
-        pl.plot(tr)
+        plt.subplot(6, 2, count)
+        plt.plot(tr)
