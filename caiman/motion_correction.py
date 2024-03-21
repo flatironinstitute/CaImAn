@@ -41,11 +41,11 @@ import cv2
 import gc
 import itertools
 import logging
+import matplotlib.pyplot as plt
 import numpy as np
 from numpy.fft import ifftshift
 import os
 import sys
-import matplotlib.pyplot as plt
 import tifffile
 from typing import Optional
 from skimage.transform import resize as resize_sk
@@ -2687,7 +2687,7 @@ def compute_metrics_motion_correction(fname, final_size_x, final_size_y, swap_di
                 cv2.putText(vid_frame, 'x_flow', (2 * dims[0] + 10, 20), fontFace=5, fontScale=0.8, color=(
                     0, 255, 0), thickness=1)
                 cv2.imshow('frame', vid_frame)
-                plt.pause(1 / fr_play)
+                cv2.waitKey(1 / fr_play) # to pause between frames
                 if cv2.waitKey(1) & 0xFF == ord('q'):
                     break
             else:
