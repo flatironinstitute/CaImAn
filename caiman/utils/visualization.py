@@ -154,7 +154,7 @@ def nb_view_patches(Yr, A, C, b, f, d1, d2, YrA=None, image_neurons=None, thr=0.
             name of colormap (e.g. 'viridis') used to plot image_neurons
     """
 
-    colormap = matplotlib.cm.get_cmap(cmap)
+    colormap = matplotlib.colormaps.get_cmap(cmap)
     grayp = [matplotlib.colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
     nr, T = C.shape
     nA2 = np.ravel(np.power(A, 2).sum(0)) if isinstance(A, np.ndarray) else np.ravel(A.power(2).sum(0))
@@ -516,7 +516,7 @@ def nb_view_patches3d(Y_r, A, C, dims, image_type='mean', Yr=None,
     A = csc_matrix(A)[index_permut, :]
     dims = tuple(np.array(dims)[order[:3]])
     d1, d2, d3 = dims
-    colormap = matplotlib.cm.get_cmap(cmap)
+    colormap = matplotlib.colormaps.get_cmap(cmap)
     grayp = [matplotlib.colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
     nr, T = C.shape
 
@@ -780,7 +780,7 @@ def nb_imshow(image, cmap='jet'):
     """
     Interactive equivalent of imshow for ipython notebook
     """
-    colormap = matplotlib.cm.get_cmap(cmap)  # choose any matplotlib colormap here
+    colormap = matplotlib.colormaps.get_cmap(cmap)  # choose any matplotlib colormap here
     grayp = [matplotlib.colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
     xr = Range1d(start=0, end=image.shape[1])
     yr = Range1d(start=image.shape[0], end=0)
