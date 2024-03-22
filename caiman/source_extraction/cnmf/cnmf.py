@@ -622,7 +622,10 @@ class CNMF(object):
                             Yr, self.estimates.A.toarray(), self.estimates.C, self.dims,
                             self.params.get('init', 'ring_size_factor') *
                             self.params.get('init', 'gSiz')[0],
-                            ssub=self.params.get('init', 'ssub_B'))
+                            ssub=self.params.get('init', 'ssub_B'),
+                            robust_regression=True,
+                            sn_pixel=self.estimates.sn,
+                            zeta=10)
                     if len(self.estimates.C):
                         self.deconvolve()
                         self.estimates.C = self.estimates.C.astype(np.float32)

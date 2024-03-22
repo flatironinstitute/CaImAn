@@ -11,8 +11,10 @@ import logging
 from math import sqrt
 import matplotlib.animation as animation
 import matplotlib.pyplot as plt
-from multiprocessing import current_process
+from multiprocessing import current_process, active_children
+from multiprocessing.pool import ThreadPool
 import numpy as np
+import psutil
 import scipy
 import scipy.ndimage as nd
 from scipy.ndimage import center_of_mass, correlate
@@ -1126,7 +1128,7 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
                    min_corr=None, min_pnr=None, seed_method='auto',
                    min_pixel=3, bd=0, thresh_init=2, ring_size_factor=None, nb=1, options=None,
                    sn=None, save_video=False, video_name='initialization.mp4', ssub=1,
-                   ssub_B=2, init_iter=2):
+                   ssub_B=2, init_iter=2, robust_regression=True, zeta=10):
     """
     initialize neurons based on pixels' local correlations and peak-to-noise ratios.
 
@@ -1172,7 +1174,7 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
     o['s_min'] = None
     if o['p'] > 1:
         o['p'] = 1
-    A, C, _, _, center = init_neurons_corr_pnr(
+    A, C, _, _, center, sn_pixel = init_neurons_corr_pnr(
         Y_ds, max_number=max_number, gSiz=gSiz, gSig=gSig,
         center_psf=center_psf, min_corr=min_corr,
         min_pnr=min_pnr * np.sqrt(np.size(Y) / np.size(Y_ds)),
@@ -1190,7 +1192,8 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
         # background according to ringmodel
         logging.info('Computing ring model background')
         W, b0 = compute_W(Y_ds.reshape((-1, total_frames), order='F'),
-                          A, C, (d1, d2), ring_size_factor * gSiz, ssub=ssub_B)
+                          A, C, (d1, d2), ring_size_factor * gSiz, ssub=ssub_B,
+                          robust_regression=robust_regression, sn_pixel=sn_pixel, zeta=zeta)
 
         def compute_B(b0, W, B):  # actually computes -B to efficiently compute Y-B in place
             if ssub_B == 1:
@@ -1231,7 +1234,7 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
                 if i == init_iter-2 and seed_method.lower()[:4] == 'semi':
                     seed_method, min_corr, min_pnr = 'manual', 0, 0
                 logging.info('Searching for more neurons in the residual')
-                A_R, C_R, _, _, center_R = init_neurons_corr_pnr(
+                A_R, C_R, _, _, center_R, sn_pixel = init_neurons_corr_pnr(
                     (B - A.dot(C)).reshape(Y_ds.shape, order='F'),
                     max_number=max_number, gSiz=gSiz, gSig=gSig,
                     center_psf=center_psf, min_corr=min_corr, min_pnr=min_pnr,
@@ -1266,7 +1269,8 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
         logging.info('Recomputing background')
         # background according to ringmodel
         W, b0 = compute_W(Y_ds.reshape((-1, total_frames), order='F'),
-                          A, C, (d1, d2), ring_size_factor * gSiz, ssub=ssub_B)
+                          A, C, (d1, d2), ring_size_factor * gSiz, ssub=ssub_B,
+                          robust_regression=robust_regression, sn_pixel=sn_pixel, zeta=zeta)
 
         # 2nd iteration on non-decimated data
         K = C.shape[0]
@@ -1407,6 +1411,8 @@ def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
             deconvolved calcium traces of all neurons
         center: np.ndarray
             center locations of all neurons
+        noise_pixel: np.ndarray
+            noise level of each pixel
     """
 
     if swap_dim:
@@ -1801,10 +1807,10 @@ def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
         plt.close()
         writer.finish()
 
-    return A, C, C_raw, S, center
+    return A, C, C_raw, S, center, noise_pixel
 
 
-@profile
+# @profile
 def extract_ac(data_filtered, data_raw, ind_ctr, patch_dims):
     # parameters
     min_corr_neuron = 0.9  # 7
@@ -1864,7 +1870,8 @@ def extract_ac(data_filtered, data_raw, ind_ctr, patch_dims):
 
 
 @profile
-def compute_W(Y, A, C, dims, radius, data_fits_in_memory=True, ssub=1, tsub=1, parallel=False):
+def compute_W(Y, A, C, dims, radius, data_fits_in_memory=True, ssub=1, tsub=1,
+              parallel=False, robust_regression=True, sn_pixel=None, zeta=10):
     """compute background according to ring model
     solves the problem
         min_{W,b0} ||X-W*X|| with X = Y - A*C - b0*1'
@@ -1900,9 +1907,11 @@ def compute_W(Y, A, C, dims, radius, data_fits_in_memory=True, ssub=1, tsub=1, p
             estimate of constant background baselines
     """
 
+     # count siblings if in child process (due to processing patches in parallel)
+    siblings = None
     if current_process().name != 'MainProcess':
-        # no parallelization over pixels if already processing patches in parallel
-        parallel = False
+        parent_pid = psutil.Process().ppid()
+        siblings = len(psutil.Process(parent_pid).children())
 
     T = Y.shape[1]
     d1 = (dims[0] - 1) // ssub + 1
@@ -1927,7 +1936,7 @@ def compute_W(Y, A, C, dims, radius, data_fits_in_memory=True, ssub=1, tsub=1, p
     else:
         ds = lambda x: x
 
-    if data_fits_in_memory:
+    if data_fits_in_memory or robust_regression:
         if ssub == 1 and tsub == 1:
             X = Y - A.dot(C) - b0[:, None]
         else:
@@ -1944,32 +1953,77 @@ def compute_W(Y, A, C, dims, radius, data_fits_in_memory=True, ssub=1, tsub=1, p
             data = pd_solve(tmp, B.dot(tmp2))
             return index, data
     else:
-
+        if ssub > 1:
+            ds_mat_csr = ds_mat.tocsr()
+        if not spr.issparse(A):
+            A = spr.csr_matrix(A)
+        Cds = decimate_last_axis(C, tsub) if tsub > 1 else C
+        
         def process_pixel(p):
             index = get_indices_of_pixels_on_ring(p)
             if ssub == 1 and tsub == 1:
                 B = Y[index] - A[index].dot(C) - b0[index, None]
+            elif ssub == 1:
+                B = decimate_last_axis(Y[index], tsub) - \
+                    (A[index].dot(Cds) if A.size > 0 else 0) - \
+                    b0.reshape((-1, 1), order='F')[index]
             else:
-                B = decimate_last_axis(ds(Y), tsub)[index] - \
-                    (ds(A)[index].dot(decimate_last_axis(C, tsub)) if A.size > 0 else 0) - \
-                    ds(b0).reshape((-1, 1), order='F')[index]
+                dsmi = ds_mat_csr[index]
+                B = decimate_last_axis(dsmi.dot(Y), tsub) - \
+                    (dsmi.dot(A).dot(Cds) if A.size > 0 else 0) - \
+                    dsmi.dot(b0).reshape((-1, 1), order='F')
             tmp = np.array(B.dot(B.T))
             tmp[np.diag_indices(len(tmp))] += np.trace(tmp) * 1e-5
             if ssub == 1 and tsub == 1:
                 tmp2 = Y[p] - A[p].dot(C).ravel() - b0[p]
+            elif ssub == 1:
+                tmp2 = decimate_last_axis(Y[p], tsub) - \
+                    (A[p].dot(Cds) if A.size > 0 else 0) - b0[p]
             else:
-                tmp2 = decimate_last_axis(ds(Y), tsub)[p] - \
-                    (ds(A)[p].dot(decimate_last_axis(C, tsub)) if A.size > 0 else 0) - \
-                    ds(b0).reshape((-1, 1), order='F')[p]
+                dsmp = ds_mat_csr[p]
+                tmp2 = (decimate_last_axis(dsmp.dot(Y), tsub) - 
+                    (dsmp.dot(A).dot(Cds) if A.size > 0 else 0) -  
+                        dsmp.dot(b0)).ravel()
             data = pd_solve(tmp, B.dot(tmp2))
             return index, data
 
-    Q = list((parmap if parallel else map)(process_pixel, range(d1 * d2)))
+    # import pdb;pdb.set_trace()
+    # np.savez("foo.npz", Y=Y,A=A,C=C,X=X,b0=b0,ringidx=ringidx)
+    
+    # Q = list((parmap if parallel else map)(process_pixel, range(d1 * d2)))
+    # totally against intuition, using just 3 was fastest if main process, but more threads if child process
+    good_pool_size = 3 if siblings is None else psutil.cpu_count()
+    Q = list((ThreadPool(good_pool_size).map if parallel else map)(process_pixel, range(d1 * d2)))
     indices, data = np.array(Q, dtype=object).T
     indptr = np.concatenate([[0], np.cumsum(list(map(len, indices)))])
     indices = np.concatenate(indices)
     data = np.concatenate(data)
-    return spr.csr_matrix((data, indices, indptr), dtype='float32'), b0.astype(np.float32)
+    W = spr.csr_matrix((data, indices, indptr), dtype='float32')
+    
+    if robust_regression:
+        # B_ = W.dot(X)
+        # inds_to_clip = (X >= B_ + zeta/ssub/np.sqrt(tsub) * ds(sn_pixel))
+        # X[inds_to_clip] = B_[inds_to_clip]
+        # faster and more memory efficient to do this in batches
+        sn_pixel = ds(sn_pixel.reshape((-1, 1), order='F')) / ssub / np.sqrt(tsub)
+        batch = 256
+        def proc_batch(i):
+            B_ = W[i:i+batch].dot(X)
+            inds_to_clip = (X[i:i+batch] >= B_ + zeta * sn_pixel[i:i+batch])
+            return inds_to_clip, B_[inds_to_clip]
+        sensible_pool_size = max(1, psutil.cpu_count() // (2 if siblings is None else siblings))
+        res = ThreadPool(sensible_pool_size).imap(proc_batch, range(0, len(X), batch))
+        for i, (inds, vals) in enumerate(list(res)): # this only works if transformed to list
+            X[i*batch:(i+1)*batch][inds] = vals
+        
+        Q = list((ThreadPool(good_pool_size).map if parallel else map)(process_pixel, range(d1 * d2)))
+        indices, data = np.array(Q, dtype=object).T
+        indptr = np.concatenate([[0], np.cumsum(list(map(len, indices)))])
+        indices = np.concatenate(indices)
+        data = np.concatenate(data)
+        W = spr.csr_matrix((data, indices, indptr), dtype='float32')
+
+    return W, b0.astype(np.float32)
 
 def nnsvd_init(X, n_components, r_ov=10, eps=1e-6, random_state=42):
     # NNDSVD initialization from scikit learn package (modified)
