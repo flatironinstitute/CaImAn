@@ -746,6 +746,7 @@ class CNMFParams(object):
             'options_local_NMF': options_local_NMF,
             'perc_baseline_snmf': 20,
             'ring_size_factor': ring_size_factor,
+            'robust': False,
             'rolling_length': rolling_length,
             'rolling_sum': rolling_sum,
             'seed_method': 'auto',
@@ -753,6 +754,7 @@ class CNMFParams(object):
             'ssub': ssub,             # spatial downsampling factor
             'ssub_B': ssub_B,
             'tsub': tsub,             # temporal downsampling factor
+            'zeta': 10,
         }
 
         self.spatial = {

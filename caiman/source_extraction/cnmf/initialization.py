@@ -150,7 +150,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
                           min_corr=0.8, min_pnr=10, seed_method='auto', ring_size_factor=1.5,
                           center_psf=False, ssub_B=2, init_iter=2, remove_baseline = True,
                           SC_kernel='heat', SC_sigma=1, SC_thr=0, SC_normalize=True, SC_use_NN=False,
-                          SC_nnn=20, lambda_gnmf=1):
+                          SC_nnn=20, lambda_gnmf=1, robust=False, zeta=10):
     """
     Initialize components. This function initializes the spatial footprints, temporal components,
     and background which are then further refined by the CNMF iterations. There are four
@@ -335,7 +335,8 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
         Ain, Cin, _, b_in, f_in, extra_1p = greedyROI_corr(
             Y, Y_ds, max_number=K, gSiz=gSiz[0], gSig=gSig[0], min_corr=min_corr, min_pnr=min_pnr,
             ring_size_factor=ring_size_factor, center_psf=center_psf, options=options_total,
-            sn=sn, nb=nb, ssub=ssub, ssub_B=ssub_B, init_iter=init_iter, seed_method=seed_method)
+            sn=sn, nb=nb, ssub=ssub, ssub_B=ssub_B, init_iter=init_iter, seed_method=seed_method,
+            robust=robust, zeta=zeta)
 
     elif method == 'sparse_nmf':
         Ain, Cin, _, b_in, f_in = sparseNMF(
@@ -1128,7 +1129,7 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
                    min_corr=None, min_pnr=None, seed_method='auto',
                    min_pixel=3, bd=0, thresh_init=2, ring_size_factor=None, nb=1, options=None,
                    sn=None, save_video=False, video_name='initialization.mp4', ssub=1,
-                   ssub_B=2, init_iter=2, robust_regression=True, zeta=10):
+                   ssub_B=2, init_iter=2, robust=False, zeta=10):
     """
     initialize neurons based on pixels' local correlations and peak-to-noise ratios.
 
@@ -1193,7 +1194,7 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
         logging.info('Computing ring model background')
         W, b0 = compute_W(Y_ds.reshape((-1, total_frames), order='F'),
                           A, C, (d1, d2), ring_size_factor * gSiz, ssub=ssub_B,
-                          robust_regression=robust_regression, sn_pixel=sn_pixel, zeta=zeta)
+                          robust=robust, sn_pixel=sn_pixel, zeta=zeta)
 
         def compute_B(b0, W, B):  # actually computes -B to efficiently compute Y-B in place
             if ssub_B == 1:
@@ -1270,7 +1271,7 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
         # background according to ringmodel
         W, b0 = compute_W(Y_ds.reshape((-1, total_frames), order='F'),
                           A, C, (d1, d2), ring_size_factor * gSiz, ssub=ssub_B,
-                          robust_regression=robust_regression, sn_pixel=sn_pixel, zeta=zeta)
+                          robust=robust, sn_pixel=sn_pixel, zeta=zeta)
 
         # 2nd iteration on non-decimated data
         K = C.shape[0]
@@ -1871,7 +1872,7 @@ def extract_ac(data_filtered, data_raw, ind_ctr, patch_dims):
 
 @profile
 def compute_W(Y, A, C, dims, radius, data_fits_in_memory=True, ssub=1, tsub=1,
-              parallel=False, robust_regression=True, sn_pixel=None, zeta=10):
+              parallel=False, robust=False, sn_pixel=None, zeta=10):
     """compute background according to ring model
     solves the problem
         min_{W,b0} ||X-W*X|| with X = Y - A*C - b0*1'
@@ -1936,7 +1937,7 @@ def compute_W(Y, A, C, dims, radius, data_fits_in_memory=True, ssub=1, tsub=1,
     else:
         ds = lambda x: x
 
-    if data_fits_in_memory or robust_regression:
+    if data_fits_in_memory or robust:
         if ssub == 1 and tsub == 1:
             X = Y - A.dot(C) - b0[:, None]
         else:
@@ -2000,12 +2001,12 @@ def compute_W(Y, A, C, dims, radius, data_fits_in_memory=True, ssub=1, tsub=1,
     data = np.concatenate(data)
     W = spr.csr_matrix((data, indices, indptr), dtype='float32')
     
-    if robust_regression:
+    if robust:
+        sn_pixel = ds(sn_pixel.reshape((-1, 1), order='F')) / ssub / np.sqrt(tsub)
         # B_ = W.dot(X)
-        # inds_to_clip = (X >= B_ + zeta/ssub/np.sqrt(tsub) * ds(sn_pixel))
+        # inds_to_clip = (X >= B_ + zeta * sn_pixel)
         # X[inds_to_clip] = B_[inds_to_clip]
         # faster and more memory efficient to do this in batches
-        sn_pixel = ds(sn_pixel.reshape((-1, 1), order='F')) / ssub / np.sqrt(tsub)
         batch = 256
         def proc_batch(i):
             B_ = W[i:i+batch].dot(X)

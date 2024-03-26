@@ -623,9 +623,9 @@ class CNMF(object):
                             self.params.get('init', 'ring_size_factor') *
                             self.params.get('init', 'gSiz')[0],
                             ssub=self.params.get('init', 'ssub_B'),
-                            robust_regression=True,
+                            robust=self.params.get('init', 'robust'),
                             sn_pixel=self.estimates.sn,
-                            zeta=10)
+                            zeta=self.params.get('init', 'zeta'))
                     if len(self.estimates.C):
                         self.deconvolve()
                         self.estimates.C = self.estimates.C.astype(np.float32)
