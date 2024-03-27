@@ -35,6 +35,7 @@ import caiman.base.traces
 import caiman.mmapping
 import caiman.summary_images
 import caiman.utils.visualization
+from caiman.utils.sbx_utils import sbxread
 
 try:
     cv2.setNumThreads(0)
@@ -1575,17 +1576,7 @@ def load(file_name: Union[str, list[str]],
 
         elif extension == '.sbx':
             logging.debug('sbx')
-            if subindices is not None:
-                input_arr, meta_fromfile = sbxreadskip(file_name[:-4], subindices)
-            else:
-                input_arr, meta_fromfile = sbxread(file_name[:-4], k=0, n_frames=np.inf)
-
-            if meta_data is None:
-                meta_data = meta_fromfile
-            else:
-                meta_data.update(meta_fromfile)
-            if fr <= 0:
-                fr = meta_data['fr']
+            return movie(sbxread(file_name[:-4], subindices), fr=fr).astype(outtype)
 
         elif extension == '.sima':
             raise Exception("movies.py:load(): FATAL: sima support was removed in 1.9.8")
@@ -1649,30 +1640,18 @@ def load_movie_chain(file_list: list[str],
                  var_name_hdf5=var_name_hdf5)
         if channel is not None:
             logging.debug(m.shape)
-            m = m[channel]
+            m = m[channel].squeeze()
             logging.debug(f"Movie shape: {m.shape}")
-        elif (not is3D and m.ndim >= 4) or m.ndim >= 5:  # there must be a channel dimension even though channel is None
-            if m.shape[0] == 1:
-                # automatically select the single channel
-                m = m[0]
-            else:
-                raise Exception('No channel selected for data with multiple channels')
 
         if not is3D:
             if m.ndim == 2:
                 m = m[np.newaxis, :, :]
-            elif m.ndim >= 4:
-                raise Exception('Too many dimensions for non-3D data - is this a z stack?')
 
             _, h, w = np.shape(m)
             m = m[:, top:h - bottom, left:w - right]
         else:
             if m.ndim == 3:
                 m = m[np.newaxis, :, :, :]
-            elif m.ndim < 3:
-                raise Exception('Not enough dimensions for 3D data')
-            elif m.ndim >= 5:
-                raise Exception('Too many dimensions for 3D data')
 
             _, h, w, d = np.shape(m)
             m = m[:, top:h - bottom, left:w - right, z_top:d - z_bottom]
@@ -1724,251 +1703,6 @@ def _load_behavior(file_name:str) -> Any:
                  start_time=start_time,
                  file_name=os.path.split(file_name)[-1],
                  meta_data=meta_data)
-
-####
-# TODO: Consider pulling these functions that work with .mat files into a separate file
-
-
-def loadmat_sbx(filename: str):
-    """
-    this wrapper should be called instead of directly calling spio.loadmat
-
-    It solves the problem of not properly recovering python dictionaries
-    from mat files. It calls the function check keys to fix all entries
-    which are still mat-objects
-    """
-    data_ = scipy.io.loadmat(filename, struct_as_record=False, squeeze_me=True)
-    _check_keys(data_)
-    return data_
-
-
-def _check_keys(checkdict:dict) -> None:
-    """
-    checks if entries in dictionary are mat-objects. If yes todict is called to change them to nested dictionaries.
-    Modifies its parameter in-place.
-    """
-
-    for key in checkdict:
-        if isinstance(checkdict[key], scipy.io.matlab.mio5_params.mat_struct):
-            checkdict[key] = _todict(checkdict[key])
-
-
-def _todict(matobj) -> dict:
-    """
-    A recursive function which constructs from matobjects nested dictionaries
-    """
-
-    ret = {}
-    for strg in matobj._fieldnames:
-        elem = matobj.__dict__[strg]
-        if isinstance(elem, scipy.io.matlab.mio5_params.mat_struct):
-            ret[strg] = _todict(elem)
-        else:
-            ret[strg] = elem
-    return ret
-
-
-def sbxread(filename: str, k: int = 0, n_frames=np.inf) -> tuple[np.ndarray, dict]:
-    """
-    Args:
-        filename: str
-            filename should be full path excluding .sbx
-
-        k: int
-            the frame to start reading
-        
-        n_frames: int | float
-            how many frames to read (inf = read to the end)
-    """
-    return sbxreadskip(filename, slice(k, k + n_frames))
-
-
-def sbxreadskip(filename: str, subindices) -> tuple[np.ndarray, dict]:
-    """
-    Args:
-        filename: str
-            filename should be full path excluding .sbx
-        
-        subindices: slice | array-like
-            which frames to read
-
-    Output: (data, meta_data)
-        meta_data['fr_orig']: original frame rate (full z-stacks/second if applicable)
-        meta_data['dxy']: spatial resolution in x and y (um per pixel), if available
-    """
-    meta_data = dict()
-
-    # Check if contains .sbx and if so just truncate
-    if '.sbx' in filename:
-        filename = filename[:-4]
-
-    # Load info
-    info = loadmat_sbx(filename + '.mat')['info']
-
-    # Get shape (and update info)
-    data_shape = sbxshape(filename, info)  # (chans, X, Y, Z, frames)
-    n_planes = data_shape[3]
-    n_frames = data_shape[4]
-        
-    # Frame rate (to use if not specified)
-    # use uncorrected recordsPerBuffer here b/c we want the actual # of resonant scans per frame
-    meta_data['fr'] = info['resfreq'] / info['recordsPerBuffer'] / n_planes
-
-    # Spatial resolution
-    if 'dycal' in info and 'dxcal' in info:
-        meta_data['dxy'] = (info['dxcal'], info['dycal'])
-    else:
-        try:
-            magidx = info['config']['magnification'] - 1
-            dx = info['calibration'][magidx]['x']
-            dy = info['calibration'][magidx]['y']
-            meta_data['dxy'] = (dx, dy)
-        except (KeyError, TypeError):
-            pass
-
-    if 'scanbox_version' in info and info['scanbox_version'] == 3:
-        n_samples = np.prod(info['sz']) * info['nChan'] * 2 * n_planes
-    else:
-        n_samples = info['sz'][1] * info['recordsPerBuffer'] * 2 * info['nChan'] * n_planes
-    if n_samples <= 0:
-        raise Exception('Invalid scanbox metadata')
-
-    # Parameters
-    if isinstance(subindices, slice):
-        start = 0 if subindices.start is None else subindices.start
-        skip = 1 if subindices.step is None else subindices.step
-        
-        if subindices.stop is None or not np.isfinite(subindices.stop):
-            stop = n_frames
-        elif subindices.stop > n_frames:
-            logging.warning(f'Loading {filename}: only {n_frames} frames available to load ' +
-                            f'(requested up to {subindices.stop})')
-            stop = n_frames
-        else:
-            stop = subindices.stop
-
-        iterable_elements = range(start, stop, skip)
-    else:
-        iterable_elements = subindices
-        skip = 0
-
-    if any([ind < 0 or ind >= n_frames for ind in iterable_elements]):
-        raise Exception(f'Loading {filename}: requested frames out of range')
-    N = len(list(iterable_elements))
-
-    # Open File
-    with open(filename + '.sbx') as fo:
-
-        # Note: SBX files store the values strangely, it's necessary to subtract the values from the max int16 to get the correct ones
-        if skip == 1:
-            
-            fo.seek(start * n_samples, 0)
-            ii16 = np.iinfo(np.uint16)
-            x = ii16.max - np.fromfile(fo, dtype='uint16', count=round(n_samples/2) * N)
-            x = x.reshape(data_shape[:4] + (N,), order='F')
-
-        else:
-            x = np.zeros(data_shape[:4] + (N,), order='F', dtype=np.uint16)
-            # sort indices for fastest access
-            for counter, (k, ind) in enumerate(sorted(zip(iterable_elements, range(N)))):
-                if counter % 100 == 0:
-                    logging.debug(f'Reading iteration: {k}')
-                
-                fo.seek(k * n_samples, 0)
-                ii16 = np.iinfo(np.uint16)
-                tmp = ii16.max - np.fromfile(fo, dtype='uint16', count=round(n_samples/2))
-                x[..., ind] = tmp.reshape(x.shape[:4], order='F')
-    
-    # To (chans, frames, Y, X, Z)
-    # Don't remove channel dim to avoid ambiguity; will be handled by caller if necessary
-    x = x.transpose([0, 4, 2, 1, 3])
-    if n_planes == 1:  # remove singleton z-axis
-        x = x.squeeze(-1)
-
-    return x, meta_data
-
-
-
-def sbxshape(filename: str, info: Optional[dict] = None) -> tuple[int, int, int, int, int]:
-    """
-    Args:
-        filename: str
-            filename should be full path excluding .sbx
-
-        info: Optional[dict]
-            info struct for sbx file (to avoid re-loading)
-
-    Output: tuple (chans, X, Y, Z, frames) representing shape of scanbox data
-    """
-    # Check if contains .sbx and if so just truncate
-    if '.sbx' in filename:
-        filename = filename[:-4]
-
-    # Load info
-    if info is None:
-        info = loadmat_sbx(filename + '.mat')['info']
-
-    # Image size
-    if 'sz' not in info:
-        info['sz'] = np.array([512, 796])
-    
-    # Scan mode (0 indicates bidirectional)
-    if 'scanmode' in info and info['scanmode'] == 0:
-        info['recordsPerBuffer'] *= 2
-
-    # Fold lines (multiple subframes per scan) - basically means the frames are smaller and
-    # there are more of them than is reflected in the info file
-    if 'fold_lines' in info and info['fold_lines'] > 0:
-        if info['recordsPerBuffer'] % info['fold_lines'] != 0:
-            raise Exception('Non-integer folds per frame not supported')
-        n_folds = round(info['recordsPerBuffer'] / info['fold_lines'])
-        info['recordsPerBuffer'] = info['fold_lines']
-        info['sz'][0] = info['fold_lines']
-        if 'bytesPerBuffer' in info:
-            info['bytesPerBuffer'] /= n_folds
-    else:
-        n_folds = 1   
-
-    # Defining number of channels/size factor
-    if 'chan' in info:
-        info['nChan'] = info['chan']['nchan']
-        factor = 1  # should not be used
-    else:
-        if info['channels'] == 1:
-            info['nChan'] = 2
-            factor = 1
-        elif info['channels'] == 2:
-            info['nChan'] = 1
-            factor = 2
-        elif info['channels'] == 3:
-            info['nChan'] = 1
-            factor = 2
-
-    # Determine number of frames in whole file
-    filesize = os.path.getsize(filename + '.sbx')
-    if 'scanbox_version' in info:
-        if info['scanbox_version'] == 2:
-            info['max_idx'] = filesize / info['recordsPerBuffer'] / info['sz'][1] * factor / 4 - 1
-        elif info['scanbox_version'] == 3:
-            info['max_idx'] = filesize / np.prod(info['sz']) / info['nChan'] / 2 - 1
-        else:
-            raise Exception('Invalid Scanbox version')
-    else:
-        info['max_idx'] = filesize / info['bytesPerBuffer'] * factor - 1
-
-    N = info['max_idx'] + 1    # Last frame
-
-    # Determine whether we are looking at a z-stack
-    # Only consider optotune z-stacks - knobby schedules have too many possibilities and
-    # can't determine whether it was actually armed from the saved info.
-    if info['volscan']:
-        nslices = info['otparam'][2]
-    else:
-        nslices = 1
-    N /= nslices
-
-    x = (int(info['nChan']), int(info['sz'][1]), int(info['recordsPerBuffer']), int(nslices), int(N))
-    return x
 
 
 def to_3D(mov2D:np.ndarray, shape:tuple, order='F') -> np.ndarray:
