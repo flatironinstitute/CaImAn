@@ -35,7 +35,7 @@ import caiman.base.traces
 import caiman.mmapping
 import caiman.summary_images
 import caiman.utils.visualization
-from caiman.utils.sbx_utils import sbxread
+import caiman.utils.sbx_utils
 
 try:
     cv2.setNumThreads(0)
@@ -1576,7 +1576,11 @@ def load(file_name: Union[str, list[str]],
 
         elif extension == '.sbx':
             logging.debug('sbx')
-            return movie(sbxread(file_name[:-4], subindices), fr=fr).astype(outtype)
+            meta_data = caiman.utils.sbx_utils.sbx_meta_data(file_name[:-4])
+            input_arr = caiman.utils.sbx_utils.sbxread(file_name[:-4], subindices)
+            return movie(input_arr, fr=fr,
+                         file_name=os.path.split(file_name)[-1],
+                         meta_data=meta_data).astype(outtype)
 
         elif extension == '.sima':
             raise Exception("movies.py:load(): FATAL: sima support was removed in 1.9.8")
@@ -2060,23 +2064,9 @@ def get_file_size(file_name, var_name_hdf5:str='mov') -> tuple[tuple, Union[int,
                     raise Exception('Variable not found. Use one of the above')
                 T, dims = siz[0], siz[1:]
             elif extension in ('.sbx'):
-                info = loadmat_sbx(file_name[:-4]+ '.mat')['info']
-                dims = tuple((info['sz']).astype(int))
-                # Defining number of channels/size factor
-                if info['channels'] == 1:
-                    info['nChan'] = 2
-                    factor = 1
-                elif info['channels'] == 2:
-                    info['nChan'] = 1
-                    factor = 2
-                elif info['channels'] == 3:
-                    info['nChan'] = 1
-                    factor = 2
-            
-                # Determine number of frames in whole file
-                T = int(os.path.getsize(
-                    file_name[:-4] + '.sbx') / info['recordsPerBuffer'] / info['sz'][1] * factor / 4 - 1)
-                
+                shape = caiman.utils.sbx_utils.sbx_shape(file_name[:-4])
+                T = shape[-1]
+                dims = (shape[2], shape[1])                
             else:
                 raise Exception('Unknown file type')
             dims = tuple(dims)
