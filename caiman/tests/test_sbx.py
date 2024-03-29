@@ -1,12 +1,12 @@
 #!/usr/bin/env python
 
-import os
-
 import numpy as np
 import numpy.testing as npt
+import os
+
 import caiman as cm
-from caiman.utils import sbx_utils
 from caiman.paths import caiman_datadir
+from caiman.utils import sbx_utils
 
 testdata_path = os.path.join(caiman_datadir(), 'testdata')
 

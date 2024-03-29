@@ -4,13 +4,12 @@
 Utility functions for Neurolabware Scanbox files (.sbx)
 """
 
-import os
 import logging
-from typing import Iterable
-
 import numpy as np
+import os
 import scipy
 import tifffile
+from typing import Iterable
 
 DimSubindices = Iterable[int] | slice
 FileSubindices = DimSubindices | Iterable[DimSubindices]    # can have inds for just frames or also for y, x, z
@@ -98,8 +97,9 @@ def sbx_to_tif(filename: str, fileout: str | None = None, subindices: FileSubind
             how many frames to load into memory at once (None = load the whole thing)
     """
     # Check filenames
-    if '.sbx' in filename:
-        filename = filename[:-4]
+    basename, ext = os.path.splitext(filename)
+    if ext == '.sbx':
+        filename = basename
 
     if fileout is None:
         fileout = filename + '.tif'
@@ -207,9 +207,9 @@ def sbx_shape(filename: str, info: dict | None = None) -> tuple[int, int, int, i
 
     Output: tuple (chans, X, Y, Z, frames) representing shape of scanbox data
     """
-    # Check if contains .sbx and if so just truncate
-    if '.sbx' in filename:
-        filename = filename[:-4]
+    basename, ext = os.path.splitext(filename)
+    if ext == '.sbx':
+        filename = basename    
 
     # Load info
     if info is None:
@@ -288,8 +288,9 @@ def sbx_meta_data(filename: str):
         filename: str
             filename should be full path excluding .sbx
     """
-    if '.sbx' in filename:
-        filename = filename[:-4]
+    basename, ext = os.path.splitext(filename)
+    if ext == '.sbx':
+        filename = basename
     
     info = loadmat_sbx(filename + '.mat')['info']
 
@@ -380,10 +381,9 @@ def _sbxread_helper(filename: str, subindices: FileSubindices = slice(None), cha
         chunk_size: int | None
             how many frames to load into memory at once (None = load the whole thing)
     """
-
-    # Check if contains .sbx and if so just truncate
-    if '.sbx' in filename:
-        filename = filename[:-4]
+    basename, ext = os.path.splitext(filename)
+    if ext == '.sbx':
+        filename = basename
 
     # Normalize so subindices is a list over dimensions
     if isinstance(subindices, slice) or np.isscalar(subindices[0]):

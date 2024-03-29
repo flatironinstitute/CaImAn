@@ -34,8 +34,8 @@ import caiman.base.timeseries
 import caiman.base.traces
 import caiman.mmapping
 import caiman.summary_images
-import caiman.utils.visualization
 import caiman.utils.sbx_utils
+import caiman.utils.visualization
 
 try:
     cv2.setNumThreads(0)
@@ -1311,7 +1311,7 @@ def load(file_name: Union[str, list[str]],
         logging.error('movies.py:load(): channel parameter is not supported for single movie input')
 
     if os.path.exists(file_name):
-        _, extension = os.path.splitext(file_name)[:2]
+        basename, extension = os.path.splitext(file_name)
 
         extension = extension.lower()
         if extension == '.mat':
@@ -1576,8 +1576,8 @@ def load(file_name: Union[str, list[str]],
 
         elif extension == '.sbx':
             logging.debug('sbx')
-            meta_data = caiman.utils.sbx_utils.sbx_meta_data(file_name[:-4])
-            input_arr = caiman.utils.sbx_utils.sbxread(file_name[:-4], subindices)
+            meta_data = caiman.utils.sbx_utils.sbx_meta_data(basename)
+            input_arr = caiman.utils.sbx_utils.sbxread(basename, subindices)
             return movie(input_arr, fr=fr,
                          file_name=os.path.split(file_name)[-1],
                          meta_data=meta_data).astype(outtype)
