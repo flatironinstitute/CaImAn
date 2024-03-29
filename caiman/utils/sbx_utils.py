@@ -12,7 +12,9 @@ import numpy as np
 import scipy
 import tifffile
 
-Subindices = Iterable[int] | slice
+DimSubindices = Iterable[int] | slice
+FileSubindices = DimSubindices | Iterable[DimSubindices]    # can have inds for just frames or also for y, x, z
+ChainSubindices = FileSubindices | Iterable[FileSubindices] # one to apply to each file, or separate for each file
 
 def loadmat_sbx(filename: str) -> dict:
     """
@@ -53,7 +55,7 @@ def _todict(matobj) -> dict:
     return ret
 
 
-def sbxread(filename: str, subindices: Subindices = slice(None), channel: int | None = None) -> np.ndarray:
+def sbxread(filename: str, subindices: FileSubindices | None = slice(None), channel: int | None = None) -> np.ndarray:
     """
     Load frames of an .sbx file into a new NumPy array
 
@@ -61,16 +63,19 @@ def sbxread(filename: str, subindices: Subindices = slice(None), channel: int | 
         filename: str
             filename should be full path excluding .sbx
 
-        subindices: slice | array-like
+        subindices: slice | array-like | tuple[slice | array-like, ...]
             which frames to read (defaults to all)
+            if a tuple of non-scalars, specifies slices of up to 4 dimensions in the order (frame, Y, X, Z).
 
         channel: int | None
             which channel to save (required if data has >1 channel)
     """
+    if subindices is None:
+        subindices = slice(None)
     return _sbxread_helper(filename, subindices=subindices, channel=channel, chunk_size=None)
 
 
-def sbx_to_tif(filename: str, fileout: str | None = None, subindices: Subindices = slice(None),
+def sbx_to_tif(filename: str, fileout: str | None = None, subindices: FileSubindices | None = slice(None),
                channel: int | None = None, chunk_size: int = 1000):
     """
     Convert a single .sbx file to .tif format
@@ -82,8 +87,9 @@ def sbx_to_tif(filename: str, fileout: str | None = None, subindices: Subindices
         fileout: str | None
             filename to save (defaults to `filename` with .sbx replaced with .tif)
 
-        subindices: slice | array-like
+        subindices: slice | array-like | tuple[slice | array-like, ...]
             which frames to read (defaults to all)
+            if a tuple of non-scalars, specifies slices of up to 4 dimensions in the order (frame, Y, X, Z).
 
         channel: int | None
             which channel to save (required if data has >1 channel)
@@ -103,20 +109,18 @@ def sbx_to_tif(filename: str, fileout: str | None = None, subindices: Subindices
         if extension not in ['.tif', '.tiff', '.btf']:
             fileout = fileout + '.tif'
 
+    if subindices is None:
+        subindices = slice(None)
+
     # Find the shape of the file we need
-    data_shape = sbx_shape(filename)
-    n_chans, n_x, n_y, n_planes, n_frames = data_shape
-    is3D = n_planes > 1
-    iterable_elements = _interpret_subindices(subindices, n_frames)[0]
-    N = len(iterable_elements)
-    save_shape = (N, n_y, n_x, n_planes) if is3D else (N, n_y, n_x)
+    save_shape = _get_output_shape(filename, subindices)[0]
 
     # Open tif as a memmap and copy to it
     memmap_tif = tifffile.memmap(fileout, shape=save_shape, dtype='uint16')
     _sbxread_helper(filename, subindices=subindices, channel=channel, out=memmap_tif, chunk_size=chunk_size)
 
 
-def sbx_chain_to_tif(filenames: list[str], fileout: str, subindices: list[Subindices] | Subindices = slice(None),
+def sbx_chain_to_tif(filenames: list[str], fileout: str, subindices: ChainSubindices | None = slice(None),
                      bigtiff: bool | None = True, imagej: bool = False, to32: bool = False,
                      channel: int | None = None, chunk_size: int = 1000) -> None:
     """
@@ -126,45 +130,56 @@ def sbx_chain_to_tif(filenames: list[str], fileout: str, subindices: list[Subind
             each filename should be full path excluding .sbx
 
         fileout: str
-            filename to save, including the .npy suffix
+            filename to save, including the .tif suffix
         
-        subindices: list[Iterable[int] | slice] | Iterable[int] | slice
-            if a list, each entry is interpreted as in sbx_to_npy for the corresponding file.
-            otherwise, the single argument is broadcast across all files.
+        subindices:  Iterable[int] | slice | Iterable[Iterable[int] | slice | tuple[Iterable[int] | slice, ...]]
+            see subindices for sbx_to_tif
+            can specify separate subindices for each file if nested 2 levels deep; 
+            X, Y, and Z sizes must match for all files after indexing.
         
         to32: bool
             whether to save in float32 format (default is to keep as uint16)
 
         channel, chunk_size: see sbx_to_tif
     """
+    if subindices is None:
+        subindices = slice(None)
+
     # Validate aggressively to avoid failing after waiting to copy a lot of data
     if isinstance(subindices, slice) or np.isscalar(subindices[0]):
+        # One set of subindices to repeat for each file
+        subindices = [(subindices,) for _ in filenames]
+
+    elif isinstance(subindices[0], slice) or np.isscalar(subindices[0][0]):
+        # Interpret this as being an iterable over dimensions to repeat for each file
         subindices = [subindices for _ in filenames]
+
     elif len(subindices) != len(filenames):
+        # Must be a separate subindices for each file; must match number of files
         raise Exception('Length of subindices does not match length of file list')        
 
     # Get the total size of the file
-    all_shapes = np.stack([sbx_shape(file) for file in filenames])
+    all_shapes = [sbx_shape(file) for file in filenames]
+    all_shapes_out = np.stack([_get_output_shape(file, subind)[0] for (file, subind) in zip(filenames, subindices)])
 
     # Check that X, Y, and Z are consistent
-    for kdim, dim in enumerate(['X', 'Y', 'Z']):
-        if np.any(np.diff(all_shapes[:, kdim + 1]) != 0):
-            raise Exception(f'Given files have inconsistent shapes in the {dim} dimension')
+    for dimname, shapes in zip(('Y', 'X', 'Z'), all_shapes_out.T[1:]):
+        if np.any(np.diff(shapes) != 0):
+            raise Exception(f'Given files have inconsistent shapes in the {dimname} dimension')
     
     # Check that all files have the requested channel
     if channel is None:
-        if np.any(all_shapes[:, 0] > 1):
+        if any(shape[0] > 1 for shape in all_shapes):
             raise Exception('At least one file has multiple channels; must specify channel')
         channel = 0
-    elif np.any(all_shapes[:, 0] <= channel):
+    elif any(shape[0] <= channel for shape in all_shapes):
         raise Exception('Not all files have the requested channel')
     
     # Allocate empty tif file with the final shape (do this first to ensure any existing file is overwritten)
-    n_x, n_y, n_planes = map(int, all_shapes[0, 1:4])
-    is3D = n_planes > 1
-    Ns = [len(_interpret_subindices(subind, file_N)[0]) for (subind, file_N) in zip(subindices, all_shapes[:, 4])]
+    common_shape = tuple(map(int, all_shapes_out[0, 1:]))
+    Ns = list(map(int, all_shapes_out[:, 0]))
     N = sum(Ns)
-    save_shape = (N, n_y, n_x, n_planes) if is3D else (N, n_y, n_x)
+    save_shape = (N,) + common_shape
 
     extension = os.path.splitext(fileout)[1].lower()
     if extension not in ['.tif', '.tiff', '.btf']:
@@ -344,7 +359,7 @@ def sbx_meta_data(filename: str):
     return meta_data
 
 
-def _sbxread_helper(filename: str, subindices: Subindices = slice(None), channel: int | None = None,
+def _sbxread_helper(filename: str, subindices: FileSubindices = slice(None), channel: int | None = None,
                      out: np.memmap | None = None, chunk_size: int | None = 1000) -> np.ndarray:
     """
     Load frames of an .sbx file into a new NumPy array, or into the given memory-mapped file.
@@ -370,6 +385,12 @@ def _sbxread_helper(filename: str, subindices: Subindices = slice(None), channel
     if '.sbx' in filename:
         filename = filename[:-4]
 
+    # Normalize so subindices is a list over dimensions
+    if isinstance(subindices, slice) or np.isscalar(subindices[0]):
+        subindices = [subindices]
+    else:
+        subindices = list(subindices)
+
     # Load info
     info = loadmat_sbx(filename + '.mat')['info']
 
@@ -377,6 +398,9 @@ def _sbxread_helper(filename: str, subindices: Subindices = slice(None), channel
     data_shape = sbx_shape(filename, info)  # (chans, X, Y, Z, frames)
     n_chans, n_x, n_y, n_planes, n_frames = data_shape
     is3D = n_planes > 1
+
+    # Fill in missing dimensions in subindices
+    subindices += [slice(None) for _ in range(max(0, 3 + is3D - len(subindices)))]
 
     if channel is None:
         if n_chans > 1:
@@ -392,13 +416,10 @@ def _sbxread_helper(filename: str, subindices: Subindices = slice(None), channel
     if frame_size <= 0:
         raise Exception('Invalid scanbox metadata')
 
-    iterable_elements, skip = _interpret_subindices(subindices, n_frames)
+    save_shape, subindices = _get_output_shape(data_shape, subindices)
+    frame_stride = _interpret_subindices(subindices[0], n_frames)[1]
+    N = save_shape[0]
 
-    if any([ind < 0 or ind >= n_frames for ind in iterable_elements]):
-        raise Exception(f'Loading {filename}: requested frames out of range')
-    N = len(list(iterable_elements))
-
-    save_shape = (N, n_y, n_x, n_planes) if is3D else (N, n_y, n_x)
     if out is not None and out.shape != save_shape:
         raise Exception('Existing memmap is the wrong shape to hold loaded data')
 
@@ -407,14 +428,14 @@ def _sbxread_helper(filename: str, subindices: Subindices = slice(None), channel
         def get_chunk(n: int):
             # Note: SBX files store the values strangely, it's necessary to invert each uint16 value to get the correct ones
             chunk = np.invert(np.fromfile(sbx_file, dtype='uint16', count=frame_size//2 * n))
-            chunk = np.reshape(chunk, data_shape[:4] + (N,), order='F')  # (chans, X, Y, Z, frames)
+            chunk = np.reshape(chunk, data_shape[:4] + (n,), order='F')  # (chans, X, Y, Z, frames)
             chunk = np.transpose(chunk, (0, 4, 2, 1, 3))[channel]  # to (frames, Y, X, Z)
             if not is3D:
                 chunk = np.squeeze(chunk, axis=3)
-            return chunk
+            return chunk[:, *np.ix_(*subindices[1:])]
 
-        if skip == 1:
-            sbx_file.seek(iterable_elements[0] * frame_size, 0)
+        if frame_stride == 1:
+            sbx_file.seek(subindices[0][0] * frame_size, 0)
 
             if chunk_size is None:
                 # load a contiguous block all at once
@@ -442,7 +463,7 @@ def _sbxread_helper(filename: str, subindices: Subindices = slice(None), channel
             if out is None:
                 out = np.empty(save_shape, dtype=np.uint16)
 
-            for counter, (k, ind) in enumerate(sorted(zip(iterable_elements, range(N)))):
+            for counter, (k, ind) in enumerate(sorted(zip(subindices[0], range(N)))):
                 if counter % 100 == 0:
                     logging.debug(f'Reading iteration: {k}')
                 sbx_file.seek(k * frame_size, 0)
@@ -454,27 +475,51 @@ def _sbxread_helper(filename: str, subindices: Subindices = slice(None), channel
     return out
 
 
-def _interpret_subindices(subindices: Subindices, n_frames: int) -> tuple[Iterable[int], int]:
+def _interpret_subindices(subindices: DimSubindices, dim_extent: int) -> tuple[Iterable[int], int]:
     """
-    Given the number of frames in the corresponding recording, obtain an iterable over subindices 
+    Given the extent of a dimension in the corresponding recording, obtain an iterable over subindices 
     and the step size (or 0 if the step size is not uniform).
     """
     if isinstance(subindices, slice):
-        start = 0 if subindices.start is None else subindices.start
-        skip = 1 if subindices.step is None else subindices.step
+        iterable_elements = range(dim_extent)[subindices]
+        skip = iterable_elements.step
 
-        if subindices.stop is None or not np.isfinite(subindices.stop):
-            stop = n_frames
-        elif subindices.stop > n_frames:
-            logging.warning(f'Only {n_frames} frames available to load ' +
+        if subindices.stop is not None and np.isfinite(subindices.stop) and subindices.stop > dim_extent:
+            logging.warning(f'Only {dim_extent} frames or pixels available to load ' +
                             f'(requested up to {subindices.stop})')
-            stop = n_frames
-        else:
-            stop = subindices.stop
-
-        iterable_elements = range(start, stop, skip)
     else:
         iterable_elements = subindices
         skip = 0
 
     return iterable_elements, skip
+
+
+def _get_output_shape(filename_or_shape: str | tuple[int, ...], subindices: FileSubindices
+                      ) -> tuple[tuple[int, ...], FileSubindices]:
+    """
+    Helper to determine what shape will be loaded/saved given subindices
+    Also returns back the subindices with slices transformed to ranges, for convenience
+    """
+    if isinstance(subindices, slice) or np.isscalar(subindices[0]):
+        subindices = (subindices,)
+    
+    n_inds = len(subindices)  # number of dimensions that are indexed
+
+    if isinstance(filename_or_shape, str):
+        data_shape = sbx_shape(filename_or_shape)
+    else:
+        data_shape = filename_or_shape
+    
+    n_x, n_y, n_planes, n_frames = data_shape[1:]
+    is3D = n_planes > 1
+    if n_inds > 3 + is3D:
+        raise Exception('Too many dimensions in subdindices')
+    
+    shape_out = [n_frames, n_y, n_x, n_planes] if is3D else [n_frames, n_y, n_x]
+    subinds_out = []
+    for i, (dim, subind) in enumerate(zip(shape_out, subindices)):
+        iterable_elements = _interpret_subindices(subind, dim)[0]
+        shape_out[i] = len(iterable_elements)
+        subinds_out.append(iterable_elements)
+
+    return tuple(shape_out), tuple(subinds_out)
