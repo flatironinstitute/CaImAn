@@ -432,7 +432,7 @@ def _sbxread_helper(filename: str, subindices: FileSubindices = slice(None), cha
             chunk = np.transpose(chunk, (0, 4, 2, 1, 3))[channel]  # to (frames, Y, X, Z)
             if not is3D:
                 chunk = np.squeeze(chunk, axis=3)
-            return chunk[:, *np.ix_(*subindices[1:])]
+            return chunk[(slice(None),) + np.ix_(*subindices[1:])]
 
         if frame_stride == 1:
             sbx_file.seek(subindices[0][0] * frame_size, 0)
