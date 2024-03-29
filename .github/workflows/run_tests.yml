@@ -29,6 +29,11 @@ jobs:
           environment-file: environment.yml
           activate-environment: caiman
 
+      - name: Install OS Dependencies
+        shell: bash -l {0}
+        run: |
+          sudo apt-get install libglapi-mesa libegl-mesa0 libegl1 libopengl0 libgl1-mesa-glx
+
       - name: Install Dependencies
         shell: bash -l {0}
         run: |
