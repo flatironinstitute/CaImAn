@@ -9,11 +9,11 @@ import numpy as np
 import os
 import scipy
 import tifffile
-from typing import Iterable
+from typing import Iterable, Union, Optional
 
-DimSubindices = Iterable[int] | slice
-FileSubindices = DimSubindices | Iterable[DimSubindices]    # can have inds for just frames or also for y, x, z
-ChainSubindices = FileSubindices | Iterable[FileSubindices] # one to apply to each file, or separate for each file
+DimSubindices = Union[Iterable[int], slice]
+FileSubindices = Union[DimSubindices, Iterable[DimSubindices]]  # can have inds for just frames or also for y, x, z
+ChainSubindices = Union[FileSubindices, Iterable[FileSubindices]]  # one to apply to each file, or separate for each file
 
 def loadmat_sbx(filename: str) -> dict:
     """
@@ -54,7 +54,7 @@ def _todict(matobj) -> dict:
     return ret
 
 
-def sbxread(filename: str, subindices: FileSubindices | None = slice(None), channel: int | None = None) -> np.ndarray:
+def sbxread(filename: str, subindices: Optional[FileSubindices] = slice(None), channel: Optional[int] = None) -> np.ndarray:
     """
     Load frames of an .sbx file into a new NumPy array
 
@@ -74,8 +74,8 @@ def sbxread(filename: str, subindices: FileSubindices | None = slice(None), chan
     return _sbxread_helper(filename, subindices=subindices, channel=channel, chunk_size=None)
 
 
-def sbx_to_tif(filename: str, fileout: str | None = None, subindices: FileSubindices | None = slice(None),
-               channel: int | None = None, chunk_size: int = 1000):
+def sbx_to_tif(filename: str, fileout: Optional[str] = None, subindices: Optional[FileSubindices] = slice(None),
+               channel: Optional[int] = None, chunk_size: int = 1000):
     """
     Convert a single .sbx file to .tif format
 
@@ -120,9 +120,9 @@ def sbx_to_tif(filename: str, fileout: str | None = None, subindices: FileSubind
     _sbxread_helper(filename, subindices=subindices, channel=channel, out=memmap_tif, chunk_size=chunk_size)
 
 
-def sbx_chain_to_tif(filenames: list[str], fileout: str, subindices: ChainSubindices | None = slice(None),
-                     bigtiff: bool | None = True, imagej: bool = False, to32: bool = False,
-                     channel: int | None = None, chunk_size: int = 1000) -> None:
+def sbx_chain_to_tif(filenames: list[str], fileout: str, subindices: Optional[ChainSubindices] = slice(None),
+                     bigtiff: Optional[bool] = True, imagej: bool = False, to32: bool = False,
+                     channel: Optional[int] = None, chunk_size: int = 1000) -> None:
     """
     Concatenate a list of sbx files into one tif file.
     Args:
@@ -196,7 +196,7 @@ def sbx_chain_to_tif(filenames: list[str], fileout: str, subindices: ChainSubind
         offset += file_N
 
 
-def sbx_shape(filename: str, info: dict | None = None) -> tuple[int, int, int, int, int]:
+def sbx_shape(filename: str, info: Optional[dict] = None) -> tuple[int, int, int, int, int]:
     """
     Args:
         filename: str
@@ -360,8 +360,8 @@ def sbx_meta_data(filename: str):
     return meta_data
 
 
-def _sbxread_helper(filename: str, subindices: FileSubindices = slice(None), channel: int | None = None,
-                     out: np.memmap | None = None, chunk_size: int | None = 1000) -> np.ndarray:
+def _sbxread_helper(filename: str, subindices: FileSubindices = slice(None), channel: Optional[int] = None,
+                     out: Optional[np.memmap] = None, chunk_size: Optional[int] = 1000) -> np.ndarray:
     """
     Load frames of an .sbx file into a new NumPy array, or into the given memory-mapped file.
 
@@ -432,7 +432,7 @@ def _sbxread_helper(filename: str, subindices: FileSubindices = slice(None), cha
             chunk = np.transpose(chunk, (0, 4, 2, 1, 3))[channel]  # to (frames, Y, X, Z)
             if not is3D:
                 chunk = np.squeeze(chunk, axis=3)
-            return chunk[:, *np.ix_(*subindices[1:])]
+            return chunk[(slice(None),) + np.ix_(*subindices[1:])]
 
         if frame_stride == 1:
             sbx_file.seek(subindices[0][0] * frame_size, 0)
@@ -494,7 +494,7 @@ def _interpret_subindices(subindices: DimSubindices, dim_extent: int) -> tuple[I
     return iterable_elements, skip
 
 
-def _get_output_shape(filename_or_shape: str | tuple[int, ...], subindices: FileSubindices
+def _get_output_shape(filename_or_shape: Union[str, tuple[int, ...]], subindices: FileSubindices
                       ) -> tuple[tuple[int, ...], FileSubindices]:
     """
     Helper to determine what shape will be loaded/saved given subindices
