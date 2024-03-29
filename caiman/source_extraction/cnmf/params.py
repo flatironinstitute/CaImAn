@@ -1139,6 +1139,7 @@ class CNMFParams(object):
         # When we're ready to remove allow_legacy, this code will get a lot simpler
 
         consumed = {} # Keep track of what parameters in params_dict were used to set something in params (just for legacy API)
+        nagged_once = False # So we don't nag people multiple times in the same call
         for paramkey in params_dict:
             if paramkey in list(self.__dict__.keys()): # Proper pathed part
                 cat_handle = getattr(self, paramkey)
@@ -1163,7 +1164,9 @@ class CNMFParams(object):
                         consumed[paramkey] = True
                         cat_handle[paramkey] = params_dict[paramkey] # Do the update
                 if legacy_used:
-                    logging.warning(f"In setting CNMFParams, non-pathed parameters were used; this is deprecated. allow_legacy will default to False, and then will be removed in future versions of Caiman")
+                    if not nagged_once:
+                        logging.warning(f"In setting CNMFParams, non-pathed parameters were used; this is deprecated. In some future version of Caiman, allow_legacy will default to False (and eventually will be removed)")
+                    nagged_once = True
         # END
         if warn_unused:
             for toplevel_k in params_dict:
