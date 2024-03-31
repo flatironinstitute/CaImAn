@@ -927,8 +927,11 @@ class CNMFParams(object):
         if self.data['dims'] is None and self.data['fnames'] is not None:
             self.data['dims'] = caiman.base.movies.get_file_size(self.data['fnames'], var_name_hdf5=self.data['var_name_hdf5'])[0]
         if self.data['fnames'] is not None:
-            # following handles reloaded data where strings are byte-encoded
-            if not isinstance(self.data['fnames'][0], str):
+            # if fname was stored as string instead of list
+            if isinstance(self.data['fnames'], str):
+                self.data['fnames'] = [self.data['fnames']]
+            # convert reloaded data fnames from byte-encoded to string
+            if isinstance(self.data['fnames'][0], np.bytes_):
                 self.data['fnames'] = [fname.decode('utf-8') for fname in self.data['fnames']]
             T = caiman.base.movies.get_file_size(self.data['fnames'], var_name_hdf5=self.data['var_name_hdf5'])[1]
             if len(self.data['fnames']) > 1:
