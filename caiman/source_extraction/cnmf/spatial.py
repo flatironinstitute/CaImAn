@@ -841,7 +841,7 @@ def determine_search_location(A, dims, method='ellipse', min_size=3, max_size=8,
         Exception 'You cannot pass empty (all zeros) components!'
     """
 
-    from scipy.ndimage.morphology import grey_dilation
+    from scipy.ndimage import grey_dilation
 
     # we initialize the values
     if len(dims) == 2:
