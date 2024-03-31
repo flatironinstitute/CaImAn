@@ -11,10 +11,10 @@ from IPython.display import HTML
 from math import sqrt, ceil
 import matplotlib
 import matplotlib.patches
+import matplotlib.pyplot as plt
 import matplotlib.widgets
 import numpy as np
 from numpy.typing import ArrayLike
-import pylab as pl
 from scipy.ndimage import center_of_mass, median_filter
 from scipy.sparse import issparse, spdiags, coo_matrix, csc_matrix
 from skimage.measure import find_contours
@@ -74,7 +74,7 @@ def view_patches(Yr, A, C, b, f, d1, d2, YrA=None, secs=1):
 
     """
 
-    pl.ion()
+    plt.ion()
     nr, T = C.shape
     nb = f.shape[0]
     A2 = A.copy()
@@ -88,37 +88,37 @@ def view_patches(Yr, A, C, b, f, d1, d2, YrA=None, secs=1):
 
     A = A.todense()
     bkgrnd = np.reshape(b, (d1, d2) + (nb,), order='F')
-    fig = pl.figure()
-    thismanager = pl.get_current_fig_manager()
+    fig = plt.figure()
+    thismanager = plt.get_current_fig_manager()
     thismanager.toolbar.pan()
     print('In order to scroll components you need to click on the plot')
     sys.stdout.flush()
     for i in range(nr + 1):
         if i < nr:
             ax1 = fig.add_subplot(2, 1, 1)
-            pl.imshow(np.reshape(np.array(A[:, i]) / nA2[i],
+            plt.imshow(np.reshape(np.array(A[:, i]) / nA2[i],
                                  (d1, d2), order='F'), interpolation='None')
             ax1.set_title('Spatial component ' + str(i + 1))
             ax2 = fig.add_subplot(2, 1, 2)
-            pl.plot(np.arange(T), np.squeeze(
+            plt.plot(np.arange(T), np.squeeze(
                 np.array(Y_r[i, :])), 'c', linewidth=3)
-            pl.plot(np.arange(T), np.squeeze(
+            plt.plot(np.arange(T), np.squeeze(
                 np.array(C[i, :])), 'r', linewidth=2)
             ax2.set_title('Temporal component ' + str(i + 1))
             ax2.legend(labels=['Filtered raw data', 'Inferred trace'])
 
             if secs > 0:
-                pl.pause(secs)
+                plt.pause(secs)
             else:
-                pl.waitforbuttonpress()
+                plt.waitforbuttonpress()
 
             fig.delaxes(ax2)
         else:
             ax1 = fig.add_subplot(2, 1, 1)
-            pl.imshow(bkgrnd[:, :, i - nr], interpolation='None')
+            plt.imshow(bkgrnd[:, :, i - nr], interpolation='None')
             ax1.set_title('Spatial background ' + str(i - nr + 1))
             ax2 = fig.add_subplot(2, 1, 2)
-            pl.plot(np.arange(T), np.squeeze(np.array(f[i - nr, :])))
+            plt.plot(np.arange(T), np.squeeze(np.array(f[i - nr, :])))
             ax2.set_title('Temporal background ' + str(i - nr + 1))
 
 
@@ -559,7 +559,7 @@ def nb_view_patches3d(Y_r, A, C, dims, image_type='mean', Yr=None,
         coors = [get_contours(proj_[i], tmp[i].shape, thr=thr)
                  for i in range(3)]
 
-        pl.close()
+        plt.close()
         K = np.max([[len(cor['coordinates']) for cor in cc] for cc in coors])
         cc1 = np.nan * np.zeros(np.shape(coors) + (K,))
         cc2 = np.nan * np.zeros(np.shape(coors) + (K,))
@@ -643,7 +643,7 @@ def nb_view_patches3d(Y_r, A, C, dims, image_type='mean', Yr=None,
                                                        for m in colormap(np.arange(colormap.N))])
         cmap.high = image_neurons.max()
         coors = get_contours(A, dims, thr=thr)
-        pl.close()
+        plt.close()
         cc1 = [[(l[:, 0]) for l in n['coordinates']] for n in coors]
         cc2 = [[(l[:, 1]) for l in n['coordinates']] for n in coors]
         length = np.ravel([list(map(len, cc)) for cc in cc1])
@@ -867,9 +867,9 @@ def matrixMontage(spcomps, *args, **kwargs):
     numcomps, _, _ = spcomps.shape
     rowcols = int(np.ceil(np.sqrt(numcomps)))
     for k, comp in enumerate(spcomps):
-        pl.subplot(rowcols, rowcols, k + 1)
-        pl.imshow(comp, *args, **kwargs)
-        pl.axis('off')
+        plt.subplot(rowcols, rowcols, k + 1)
+        plt.imshow(comp, *args, **kwargs)
+        plt.axis('off')
 
 
 VIDEO_TAG = """<video controls>
@@ -889,7 +889,7 @@ def anim_to_html(anim, fps=20):
     return VIDEO_TAG.format(anim._encoded_video.decode('ascii'))
 
 def display_animation(anim, fps=20):
-    pl.close(anim._fig)
+    plt.close(anim._fig)
     return HTML(anim_to_html(anim, fps=fps))
 
 def view_patches_bar(Yr, A, C, b, f, d1, d2, YrA=None, img=None,
@@ -932,7 +932,7 @@ def view_patches_bar(Yr, A, C, b, f, d1, d2, YrA=None, img=None,
             prediction values from the CNN classifier
     """
 
-    pl.ion()
+    plt.ion()
     if 'csc_matrix' not in str(type(A)):
         A = csc_matrix(A)
 
@@ -949,13 +949,13 @@ def view_patches_bar(Yr, A, C, b, f, d1, d2, YrA=None, img=None,
     if img is None:
         img = np.reshape(np.array(A.mean(axis=1)), (d1, d2), order='F')
 
-    fig = pl.figure(figsize=(10, 10))
+    fig = plt.figure(figsize=(10, 10))
 
-    axcomp = pl.axes([0.05, 0.05, 0.9, 0.03])
+    axcomp = plt.axes([0.05, 0.05, 0.9, 0.03])
 
-    ax1 = pl.axes([0.05, 0.55, 0.4, 0.4])
-    ax3 = pl.axes([0.55, 0.55, 0.4, 0.4])
-    ax2 = pl.axes([0.05, 0.1, 0.9, 0.4])
+    ax1 = plt.axes([0.05, 0.55, 0.4, 0.4])
+    ax3 = plt.axes([0.55, 0.55, 0.4, 0.4])
+    ax2 = plt.axes([0.05, 0.1, 0.9, 0.4])
 
     s_comp = matplotlib.widgets.Slider(axcomp, 'Component', 0, nr + nb - 1, valinit=0)
     vmax = np.percentile(img, 95)
@@ -968,7 +968,7 @@ def view_patches_bar(Yr, A, C, b, f, d1, d2, YrA=None, img=None,
 
             ax1.cla()
             imgtmp = np.reshape(A[:, i].toarray(), (d1, d2), order='F')
-            ax1.imshow(imgtmp, interpolation='None', cmap=pl.cm.gray, vmax=np.max(imgtmp)*0.5)
+            ax1.imshow(imgtmp, interpolation='None', cmap=matplotlib.cm.gray, vmax=np.max(imgtmp)*0.5)
             ax1.set_title('Spatial component ' + str(i + 1))
             ax1.axis('off')
 
@@ -985,11 +985,11 @@ def view_patches_bar(Yr, A, C, b, f, d1, d2, YrA=None, img=None,
                         bbox=dict(edgecolor='k', facecolor='w', alpha=.5))
 
             ax3.cla()
-            ax3.imshow(img, interpolation='None', cmap=pl.cm.gray, vmax=vmax)
+            ax3.imshow(img, interpolation='None', cmap=matplotlib.cm.gray, vmax=vmax)
             imgtmp2 = imgtmp.copy()
             imgtmp2[imgtmp2 == 0] = np.nan
             ax3.imshow(imgtmp2, interpolation='None',
-                       alpha=0.5, cmap=pl.cm.hot)
+                       alpha=0.5, cmap=matplotlib.cm.hot)
             ax3.axis('off')
         else:
             ax1.cla()
@@ -1021,7 +1021,7 @@ def view_patches_bar(Yr, A, C, b, f, d1, d2, YrA=None, img=None,
     s_comp.on_changed(update)
     s_comp.set_val(0)
     fig.canvas.mpl_connect('key_release_event', arrow_key_image_control)
-    pl.show()
+    plt.show()
 
 def plot_contours(A, Cn, thr=None, thr_method='max', maxthr=0.2, nrgthr=0.9, display_numbers=True, max_number=None,
                   cmap=None, swap_dim=False, colors='w', vmin=None, vmax=None, coordinates=None,
@@ -1081,13 +1081,13 @@ def plot_contours(A, Cn, thr=None, thr_method='max', maxthr=0.2, nrgthr=0.9, dis
             color = kwargs[key]
             kwargs.pop(key)
 
-    ax = pl.gca()
+    ax = plt.gca()
     if vmax is None and vmin is None:
-        pl.imshow(Cn, interpolation=None, cmap=cmap,
+        plt.imshow(Cn, interpolation=None, cmap=cmap,
                   vmin=np.percentile(Cn[~np.isnan(Cn)], 1),
                   vmax=np.percentile(Cn[~np.isnan(Cn)], 99))
     else:
-        pl.imshow(Cn, interpolation=None, cmap=cmap, vmin=vmin, vmax=vmax)
+        plt.imshow(Cn, interpolation=None, cmap=cmap, vmin=vmin, vmax=vmax)
 
     if coordinates is None:
         coordinates = get_contours(A, np.shape(Cn), thr, thr_method, swap_dim)
@@ -1095,7 +1095,7 @@ def plot_contours(A, Cn, thr=None, thr_method='max', maxthr=0.2, nrgthr=0.9, dis
         v = c['coordinates']
         c['bbox'] = [np.floor(np.nanmin(v[:, 1])), np.ceil(np.nanmax(v[:, 1])),
                      np.floor(np.nanmin(v[:, 0])), np.ceil(np.nanmax(v[:, 0]))]
-        pl.plot(*v.T, c=colors, **contour_args)
+        plt.plot(*v.T, c=colors, **contour_args)
 
     if display_numbers:
         d1, d2 = np.shape(Cn)
@@ -1123,15 +1123,15 @@ def plot_shapes(Ab, dims, num_comps=15, size=(15, 15), comps_per_row=None,
 
     nx = int(sqrt(num_comps) * 1.3) if comps_per_row is None else comps_per_row
     ny = int(ceil(num_comps / float(nx)))
-    pl.figure(figsize=(nx, ny))
+    plt.figure(figsize=(nx, ny))
     for i, a in enumerate(Ab.T[:num_comps]):
-        ax = pl.subplot(ny, nx, i + 1)
+        ax = plt.subplot(ny, nx, i + 1)
         s = a.toarray().reshape(dims, order='F')
         box = GetBox(np.array(center_of_mass(s), dtype=np.int16), size, dims)
-        pl.imshow(smoother(s[list(map(lambda a: slice(*a), box))]),
+        plt.imshow(smoother(s[list(map(lambda a: slice(*a), box))]),
                   cmap=cmap, interpolation='nearest')
         ax.axis('off')
-    pl.subplots_adjust(0, 0, 1, 1, .06, .06)
+    plt.subplots_adjust(0, 0, 1, 1, .06, .06)
 
 
 def nb_inspect_correlation_pnr(corr, pnr, cmap='jet', num_bins=100):
@@ -1192,23 +1192,23 @@ def inspect_correlation_pnr(correlation_image_pnr, pnr_image):
             peak-to-noise image created with caiman.summary_images.correlation_pnr
     """
 
-    fig = pl.figure(figsize=(10, 4))
-    pl.axes([0.05, 0.2, 0.4, 0.7])
-    im_cn = pl.imshow(correlation_image_pnr, cmap='jet')
-    pl.title('correlation image')
-    pl.colorbar()
-    pl.axes([0.5, 0.2, 0.4, 0.7])
-    im_pnr = pl.imshow(pnr_image, cmap='jet')
-    pl.title('PNR')
-    pl.colorbar()
+    fig = plt.figure(figsize=(10, 4))
+    plt.axes([0.05, 0.2, 0.4, 0.7])
+    im_cn = plt.imshow(correlation_image_pnr, cmap='jet')
+    plt.title('correlation image')
+    plt.colorbar()
+    plt.axes([0.5, 0.2, 0.4, 0.7])
+    im_pnr = plt.imshow(pnr_image, cmap='jet')
+    plt.title('PNR')
+    plt.colorbar()
 
-    s_cn_max = matplotlib.widgets.Slider(pl.axes([0.05, 0.01, 0.35, 0.03]), 'vmax',
+    s_cn_max = matplotlib.widgets.Slider(plt.axes([0.05, 0.01, 0.35, 0.03]), 'vmax',
                       correlation_image_pnr.min(), correlation_image_pnr.max(), valinit=correlation_image_pnr.max())
-    s_cn_min = matplotlib.widgets.Slider(pl.axes([0.05, 0.07, 0.35, 0.03]), 'vmin',
+    s_cn_min = matplotlib.widgets.Slider(plt.axes([0.05, 0.07, 0.35, 0.03]), 'vmin',
                       correlation_image_pnr.min(), correlation_image_pnr.max(), valinit=correlation_image_pnr.min())
-    s_pnr_max = matplotlib.widgets.Slider(pl.axes([0.5, 0.01, 0.35, 0.03]), 'vmax',
+    s_pnr_max = matplotlib.widgets.Slider(plt.axes([0.5, 0.01, 0.35, 0.03]), 'vmax',
                        pnr_image.min(), pnr_image.max(), valinit=pnr_image.max())
-    s_pnr_min = matplotlib.widgets.Slider(pl.axes([0.5, 0.07, 0.35, 0.03]), 'vmin',
+    s_pnr_min = matplotlib.widgets.Slider(plt.axes([0.5, 0.07, 0.35, 0.03]), 'vmin',
                        pnr_image.min(), pnr_image.max(), valinit=pnr_image.min())
 
     def update(val):
@@ -1289,7 +1289,7 @@ def rect_draw(row_minmax: ArrayLike,
         rect: matplotlib Rectangle object
     """
     if ax is None:
-        ax = pl.gca()
+        ax = plt.gca()
         
     box_origin = (col_minmax[0], row_minmax[0])
     box_height = row_minmax[1] - row_minmax[0] 
@@ -1350,7 +1350,7 @@ def view_quilt(template_image: np.ndarray,
     patch_rows, patch_cols = get_rectangle_coords(im_dims, stride, overlap)
 
     if ax is None:             
-        f, ax = pl.subplots(figsize=figsize)
+        f, ax = plt.subplots(figsize=figsize)
         
     ax.imshow(template_image, cmap='gray', vmin=vmin, vmax=vmax)
     for patch_row in patch_rows:

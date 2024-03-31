@@ -13,11 +13,11 @@ from IPython.display import display, Image
 import ipywidgets as widgets
 import logging
 import matplotlib
+import matplotlib.pyplot as plt
 import numpy as np
 import os
 import pathlib
 import pims
-import pylab as pl
 import scipy
 import skimage
 import sklearn
@@ -894,8 +894,8 @@ class movie(caiman.base.timeseries.timeseries):
                                             order_mean=order_mean)
                 Cn = np.maximum(Cn, rho)
                 if do_plot:
-                    pl.imshow(Cn, cmap='gray')
-                    pl.pause(.1)
+                    plt.imshow(Cn, cmap='gray')
+                    plt.pause(.1)
 
             logging.debug('number of chunks:' + str(n_chunks - 1) + ' frames: ' +
                           str([(n_chunks - 1) * frames_per_chunk, T]))
@@ -905,8 +905,8 @@ class movie(caiman.base.timeseries.timeseries):
                                         order_mean=order_mean)
             Cn = np.maximum(Cn, rho)
             if do_plot:
-                pl.imshow(Cn, cmap='gray')
-                pl.pause(.1)
+                plt.imshow(Cn, cmap='gray')
+                plt.pause(.1)
 
         return Cn
 
@@ -1118,7 +1118,7 @@ class movie(caiman.base.timeseries.timeseries):
         T = self.shape[0]
         return np.reshape(self, (T, -1), order=order)
 
-    def zproject(self, method: str = 'mean', cmap=pl.cm.gray, aspect='auto', **kwargs) -> np.ndarray:
+    def zproject(self, method: str = 'mean', cmap=matplotlib.cm.gray, aspect='auto', **kwargs) -> np.ndarray:
         """
         Compute and plot projection across time:
 
@@ -1142,7 +1142,7 @@ class movie(caiman.base.timeseries.timeseries):
             zp = np.std(self, axis=0)
         else:
             raise Exception('Method not implemented')
-        pl.imshow(zp, cmap=cmap, aspect=aspect, **kwargs)
+        plt.imshow(zp, cmap=cmap, aspect=aspect, **kwargs)
         return zp
 
     def play(self,
@@ -1176,7 +1176,7 @@ class movie(caiman.base.timeseries.timeseries):
             interpolation:
                 interpolation method for 'opencv' and 'embed_opencv' backends
 
-            backend: 'pylab', 'notebook', 'opencv' or 'embed_opencv'; the latter 2 are much faster
+            backend: 'opencv', 'embed_opencv', 'pyplot', 'notebook': the first two are much faster
 
             do_loop: Whether to loop the video
 
@@ -2128,7 +2128,7 @@ def play_movie(movie,
         interpolation:
             interpolation method for 'opencv' and 'embed_opencv' backends
 
-        backend: 'pylab', 'notebook', 'opencv' or 'embed_opencv'; the latter 2 are much faster
+        backend: 'opencv', 'embed_opencv', 'pyplot', or 'notebook': the first two are much faster
 
         do_loop: Whether to loop the video
 
@@ -2164,8 +2164,8 @@ def play_movie(movie,
     """
     # todo: todocument
     it = True if (isinstance(movie, list) or isinstance(movie, tuple) or isinstance(movie, str)) else False
-    if backend == 'pylab':
-        logging.warning('*** Using pylab. This might be slow. If you can use the opencv backend it may be faster')
+    if backend == 'pyplot':
+        logging.warning('Using pyplot back end: not recommended. Using opencv will yield faster, higher-quality results.')
 
     gain = float(gain)     # convert to float in case we were passed an int
     if q_max < 100:
@@ -2209,26 +2209,26 @@ def play_movie(movie,
                         thickness=1)
         return frame
 
-    if backend == 'pylab':
-        pl.ion()
-        fig = pl.figure(1)
+    if backend == 'pyplot':
+        plt.ion()
+        fig = plt.figure(1)
         ax = fig.add_subplot(111)
         ax.set_title("Play Movie")
         im = ax.imshow((offset + (load(movie, subindices=slice(0,2), var_name_hdf5=var_name_hdf5) if it else movie)[0] - minmov) * gain / (maxmov - minmov + offset),
-                       cmap=pl.cm.gray,
+                       cmap=plt.cm.gray,
                        vmin=0,
                        vmax=1,
-                       interpolation='none')                                            # Blank starting image
+                       interpolation='none')  # Blank starting image
         fig.show()
         im.axes.figure.canvas.draw()
-        pl.pause(1)
+        plt.pause(1)
 
     elif backend == 'notebook':
         # First set up the figure, the axis, and the plot element we want to animate
-        fig = pl.figure()
-        im = pl.imshow(next(load_iter(movie, subindices=slice(0,1), var_name_hdf5=var_name_hdf5))\
-                    if it else movie[0], interpolation='None', cmap=pl.cm.gray)
-        pl.axis('off')
+        fig = plt.figure()
+        im = plt.imshow(next(load_iter(movie, subindices=slice(0,1), var_name_hdf5=var_name_hdf5))\
+                    if it else movie[0], interpolation='None', cmap=matplotlib.cm.gray)
+        plt.axis('off')
 
         if it:
             m_iter = load_iter(movie, subindices, var_name_hdf5)
@@ -2273,7 +2273,7 @@ def play_movie(movie,
                     frame_sum = 0
                     display_handle.update(Image(data=cv2.imencode(
                             '.jpg', np.clip((frame * 255.), 0, 255).astype('u1'))[1].tobytes()))
-                    pl.pause(1. / fr)
+                    plt.pause(1. / fr)
                 if stopButton.value==True:
                     break
         display(stopButton)
@@ -2321,17 +2321,17 @@ def play_movie(movie,
                 elif backend == 'embed_opencv' and not save_movie:
                     break
 
-                elif backend == 'pylab':
+                elif backend == 'pyplot':
                     if bord_px is not None and np.sum(bord_px) > 0:
                         frame = frame[bord_px:-bord_px, bord_px:-bord_px]
                     im.set_data((offset + frame) * gain / maxmov)
                     ax.set_title(str(iddxx))
-                    pl.axis('off')
+                    plt.axis('off')
                     fig.canvas.draw()
-                    pl.pause(1. / fr * .5)
-                    ev = pl.waitforbuttonpress(1. / fr * .5)
+                    plt.pause(1. / fr * .5)
+                    ev = plt.waitforbuttonpress(1. / fr * .5)
                     if ev is not None:
-                        pl.close()
+                        plt.close()
                         break
 
                 elif backend == 'notebook':

@@ -13,7 +13,7 @@ import logging
 import numpy as np
 import os
 import pathlib
-import pylab as pl
+import matplotlib.pyplot as plt
 import scipy
 from scipy.sparse import spdiags, issparse, csc_matrix, csr_matrix
 import scipy.ndimage as ndi
@@ -749,7 +749,7 @@ def manually_refine_components(Y, xxx_todo_changeme, A, C, Cn, thr=0.9, display_
 
     x, y = np.mgrid[0:d1:1, 0:d2:1]
 
-    pl.imshow(Cn, interpolation=None, cmap=cmap)
+    plt.imshow(Cn, interpolation=None, cmap=cmap)
     cm = caiman.base.rois.com(A, d1, d2)
 
     Bmat = np.zeros((np.minimum(nr, max_number), d1, d2))
@@ -763,13 +763,13 @@ def manually_refine_components(Y, xxx_todo_changeme, A, C, Cn, thr=0.9, display_
 
     T = np.shape(Y)[-1]
 
-    pl.close()
-    fig = pl.figure()
-    ax = pl.gca()
+    plt.close()
+    fig = plt.figure()
+    ax = plt.gca()
     ax.imshow(Cn, interpolation=None, cmap=cmap,
               vmin=np.percentile(Cn[~np.isnan(Cn)], 1), vmax=np.percentile(Cn[~np.isnan(Cn)], 99))
     for i in range(np.minimum(nr, max_number)):
-        pl.contour(y, x, Bmat[i], [thr])
+        plt.contour(y, x, Bmat[i], [thr])
 
     if display_numbers:
         for i in range(np.minimum(nr, max_number)):
@@ -812,8 +812,8 @@ def manually_refine_components(Y, xxx_todo_changeme, A, C, Cn, thr=0.9, display_
             Bvec = np.zeros(d)
             Bvec[indx] = cumEn
             bmat = np.reshape(Bvec, np.shape(Cn), order='F')
-            pl.contour(y, x, bmat, [thr])
-            pl.pause(.01)
+            plt.contour(y, x, bmat, [thr])
+            plt.pause(.01)
 
         elif pts == []:
             break
