@@ -54,7 +54,8 @@ def _todict(matobj) -> dict:
     return ret
 
 
-def sbxread(filename: str, subindices: Optional[FileSubindices] = slice(None), channel: Optional[int] = None, keep3d: bool = False) -> np.ndarray:
+def sbxread(filename: str, subindices: Optional[FileSubindices] = slice(None), channel: Optional[int] = None,
+            plane: Optional[int] = None) -> np.ndarray:
     """
     Load frames of an .sbx file into a new NumPy array
 
@@ -67,18 +68,19 @@ def sbxread(filename: str, subindices: Optional[FileSubindices] = slice(None), c
             if a tuple of non-scalars, specifies slices of up to 4 dimensions in the order (frame, Y, X, Z).
 
         channel: int | None
-            which channel to save (required if data has >1 channel)
+            which channel to load (required if data has >1 channel)
 
-        keep3d: bool
-            if indexing a 3D array such that only one z-plane remains, whether to keep the singleton z dimension
+        plane: int | None
+            set to an int to load only the given plane (converts from 3D to 2D data)
+            in the case that len(subindices) == 4, subindices are applied first, then the plane is selected.
     """
     if subindices is None:
         subindices = slice(None)
-    return _sbxread_helper(filename, subindices=subindices, channel=channel, keep3d=keep3d, chunk_size=None)
+    return _sbxread_helper(filename, subindices=subindices, channel=channel, plane=plane, chunk_size=None)
 
 
 def sbx_to_tif(filename: str, fileout: Optional[str] = None, subindices: Optional[FileSubindices] = slice(None),
-               channel: Optional[int] = None, keep3d: bool = False, chunk_size: int = 1000):
+               channel: Optional[int] = None, plane: Optional[int] = None, chunk_size: int = 1000):
     """
     Convert a single .sbx file to .tif format
 
@@ -96,8 +98,9 @@ def sbx_to_tif(filename: str, fileout: Optional[str] = None, subindices: Optiona
         channel: int | None
             which channel to save (required if data has >1 channel)
 
-        keep3d: bool
-            if indexing a 3D array such that only one z-plane remains, whether to keep the singleton z dimension
+        plane: int | None
+            set to an int to save only the given plane (converts from 3D to 2D data)
+            in the case that len(subindices) == 4, subindices are applied first, then the plane is selected.
 
         chunk_size: int | None
             how many frames to load into memory at once (None = load the whole thing)
@@ -120,17 +123,19 @@ def sbx_to_tif(filename: str, fileout: Optional[str] = None, subindices: Optiona
 
     # Find the shape of the file we need
     save_shape = _get_output_shape(filename, subindices)[0]
-    if len(save_shape) == 4 and save_shape[3] == 1 and not keep3d:
+    if plane is not None:
+        if len(save_shape) < 4:
+            raise Exception('Plane cannot be specified for 2D data')
         save_shape = save_shape[:3]
 
     # Open tif as a memmap and copy to it
     memmap_tif = tifffile.memmap(fileout, shape=save_shape, dtype='uint16', photometric='MINISBLACK')
-    _sbxread_helper(filename, subindices=subindices, channel=channel, out=memmap_tif, keep3d=keep3d, chunk_size=chunk_size)
+    _sbxread_helper(filename, subindices=subindices, channel=channel, out=memmap_tif, plane=plane, chunk_size=chunk_size)
 
 
 def sbx_chain_to_tif(filenames: list[str], fileout: str, subindices: Optional[ChainSubindices] = slice(None),
                      bigtiff: Optional[bool] = True, imagej: bool = False, to32: bool = False,
-                     channel: Optional[int] = None, keep3d: bool = False, chunk_size: int = 1000) -> None:
+                     channel: Optional[int] = None, plane: Optional[int] = None, chunk_size: int = 1000) -> None:
     """
     Concatenate a list of sbx files into one tif file.
     Args:
@@ -148,7 +153,7 @@ def sbx_chain_to_tif(filenames: list[str], fileout: str, subindices: Optional[Ch
         to32: bool
             whether to save in float32 format (default is to keep as uint16)
 
-        channel, keep3d, chunk_size: see sbx_to_tif
+        channel, plane, chunk_size: see sbx_to_tif
     """
     if subindices is None:
         subindices = slice(None)
@@ -188,7 +193,10 @@ def sbx_chain_to_tif(filenames: list[str], fileout: str, subindices: Optional[Ch
     Ns = list(map(int, all_shapes_out[:, 0]))
     N = sum(Ns)
     save_shape = (N,) + common_shape
-    if len(save_shape) == 4 and save_shape[3] == 1 and not keep3d:
+
+    if plane is not None:
+        if len(save_shape) < 4:
+            raise Exception('Plane cannot be specified for 2D data')
         save_shape = save_shape[:3]
 
     extension = os.path.splitext(fileout)[1].lower()
@@ -203,7 +211,7 @@ def sbx_chain_to_tif(filenames: list[str], fileout: str, subindices: Optional[Ch
     tif_memmap = tifffile.memmap(fileout, series=0)
     offset = 0
     for filename, subind, file_N in zip(filenames, subindices, Ns):
-        _sbxread_helper(filename, subindices=subind, channel=channel, out=tif_memmap[offset:offset+file_N], keep3d=keep3d, chunk_size=chunk_size)
+        _sbxread_helper(filename, subindices=subind, channel=channel, out=tif_memmap[offset:offset+file_N], plane=plane, chunk_size=chunk_size)
         offset += file_N
 
 
@@ -372,7 +380,7 @@ def sbx_meta_data(filename: str):
 
 
 def _sbxread_helper(filename: str, subindices: FileSubindices = slice(None), channel: Optional[int] = None,
-                     out: Optional[np.memmap] = None, keep3d: bool = False, chunk_size: Optional[int] = 1000) -> np.ndarray:
+                    plane: Optional[int] = None, out: Optional[np.memmap] = None, chunk_size: Optional[int] = 1000) -> np.ndarray:
     """
     Load frames of an .sbx file into a new NumPy array, or into the given memory-mapped file.
 
@@ -389,8 +397,9 @@ def _sbxread_helper(filename: str, subindices: FileSubindices = slice(None), cha
         out: np.memmap | None
             existing memory-mapped file to write into
 
-        keep3d: bool
-            if indexing a 3D array such that only one z-plane remains, whether to keep the singleton z dimension
+        plane: int | None
+            set to an int to load only the given plane (converts from 3D to 2D data)
+            in the case that len(subindices) == 4, subindices are applied first, then the plane is selected.
 
         chunk_size: int | None
             how many frames to load into memory at once (None = load the whole thing)
@@ -432,7 +441,9 @@ def _sbxread_helper(filename: str, subindices: FileSubindices = slice(None), cha
 
     save_shape, subindices = _get_output_shape(data_shape, subindices)
     N = save_shape[0]
-    if len(save_shape) == 4 and save_shape[3] == 1 and not keep3d:
+    if plane is not None:
+        if len(save_shape) < 4:
+            raise Exception('Plane cannot be specified for 2D data')
         save_shape = save_shape[:3]
 
     frame_stride = _interpret_subindices(subindices[0], n_frames)[1]
@@ -451,7 +462,7 @@ def _sbxread_helper(filename: str, subindices: FileSubindices = slice(None), cha
                 chunk = np.squeeze(chunk, axis=3)
             chunk = chunk[(slice(None),) + np.ix_(*subindices[1:])]
             if is3D and len(save_shape) == 3:  # squeeze out plane dim after selecting
-                chunk = np.squeeze(chunk, axis=3)
+                chunk = chunk[:, :, :, plane]
             return chunk
 
         if frame_stride == 1:
