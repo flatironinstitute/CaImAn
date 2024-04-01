@@ -131,6 +131,7 @@ def sbx_to_tif(filename: str, fileout: Optional[str] = None, subindices: Optiona
     # Open tif as a memmap and copy to it
     memmap_tif = tifffile.memmap(fileout, shape=save_shape, dtype='uint16', photometric='MINISBLACK')
     _sbxread_helper(filename, subindices=subindices, channel=channel, out=memmap_tif, plane=plane, chunk_size=chunk_size)
+    memmap_tif._mmap.close()
 
 
 def sbx_chain_to_tif(filenames: list[str], fileout: str, subindices: Optional[ChainSubindices] = slice(None),
@@ -187,7 +188,7 @@ def sbx_chain_to_tif(filenames: list[str], fileout: str, subindices: Optional[Ch
         channel = 0
     elif any(shape[0] <= channel for shape in all_shapes):
         raise Exception('Not all files have the requested channel')
-    
+
     # Allocate empty tif file with the final shape (do this first to ensure any existing file is overwritten)
     common_shape = tuple(map(int, all_shapes_out[0, 1:]))
     Ns = list(map(int, all_shapes_out[:, 0]))
@@ -204,15 +205,17 @@ def sbx_chain_to_tif(filenames: list[str], fileout: str, subindices: Optional[Ch
         fileout = fileout + '.tif'
 
     dtype = np.float32 if to32 else np.uint16
-    tifffile.imwrite(fileout, data=None, mode='w', shape=save_shape, bigtiff=bigtiff, imagej=imagej,
-                     dtype=dtype, photometric='MINISBLACK')
+    with tifffile.TiffWriter(fileout, bigtiff=bigtiff, imagej=imagej) as tif:
+        tif.write(None, shape=save_shape, dtype=dtype, photometric='MINISBLACK')
 
     # Now convert each file
-    tif_memmap = tifffile.memmap(fileout, series=0)
+    memmap_tif = tifffile.memmap(fileout, series=0)
     offset = 0
     for filename, subind, file_N in zip(filenames, subindices, Ns):
-        _sbxread_helper(filename, subindices=subind, channel=channel, out=tif_memmap[offset:offset+file_N], plane=plane, chunk_size=chunk_size)
+        _sbxread_helper(filename, subindices=subind, channel=channel, out=memmap_tif[offset:offset+file_N], plane=plane, chunk_size=chunk_size)
         offset += file_N
+
+    memmap_tif._mmap.close()
 
 
 def sbx_shape(filename: str, info: Optional[dict] = None) -> tuple[int, int, int, int, int]:
