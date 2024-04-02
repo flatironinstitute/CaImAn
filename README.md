@@ -117,7 +117,7 @@ If possible, we'd also ask that you cite the papers where the original algorithm
 # Main developers
 * (emeritus) Eftychios A. Pnevmatikakis, **Flatiron Institute, Simons Foundation** 
 * (emeritus) Andrea Giovannucci, **University of North Carolina, Chapel Hill**
-* Johannes Friedrich, **Allen Institute,Seattle Washington**
+* Johannes Friedrich, **Allen Institute, Seattle Washington**
 * Changjia Cai, **University of North Carolina, Chapel Hill**
 * Pat Gunn, **Flatiron Institute, Simons Foundation**
 * Eric Thomson, **Flatiron Institute, Simons Foundation**

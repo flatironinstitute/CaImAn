@@ -128,10 +128,14 @@ def _test_motion_correct_rigid(D):
     Y, C, S, A, centers, dims, shifts = gen_data(D)
     fname = 'testMovie.tif'
     cm.movie(Y).save(fname)
-    params_dict = {'max_shifts': (4, 4),   # maximum allowed rigid shifts (in pixels)
-                   'pw_rigid': False,      # flag for performing non-rigid motion correction
-                   'border_nan': True,
-                   'is3D': D == 3}
+    params_dict = {
+                   'motion': {
+                             'border_nan': True,
+                             'is3D': D == 3,
+                             'max_shifts': (4, 4), # maximum allowed rigid shifts (in pixels)
+                             'pw_rigid': False,    # flag for performing non-rigid motion correction
+                             }   
+                  }
     opts = cm.source_extraction.cnmf.params.CNMFParams(params_dict=params_dict)
     mc = MotionCorrect(fname, dview=None, **opts.get_group('motion'))
     mc.motion_correct(save_movie=True)
