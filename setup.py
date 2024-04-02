@@ -34,7 +34,7 @@ with open('VERSION', 'r') as verfile:
 extra_dirs = ['bin', 'demos', 'docs', 'model']
 data_files = [('share/caiman', ['LICENSE.txt', 'README.md', 'test_demos.sh', 'VERSION']),
               ('share/caiman/example_movies', ['example_movies/data_endoscope.tif', 'example_movies/demoMovie.tif']),
-              ('share/caiman/testdata', ['testdata/groundtruth.npz', 'testdata/example.npz']),
+              ('share/caiman/testdata', ['testdata/groundtruth.npz', 'testdata/example.npz', 'testdata/2d_sbx.mat', 'testdata/2d_sbx.sbx', 'testdata/3d_sbx_1.mat', 'testdata/3d_sbx_1.sbx', 'testdata/3d_sbx_2.mat', 'testdata/3d_sbx_2.sbx']),
              ]
 for part in extra_dirs:
 	newpart = [("share/caiman/" + d, [os.path.join(d,f) for f in files]) for d, folders, files in os.walk(part)]
