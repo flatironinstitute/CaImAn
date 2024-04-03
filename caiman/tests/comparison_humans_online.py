@@ -210,7 +210,7 @@ for ind_dataset in ID:
                   'show_movie': False,
                   'sniper_mode': global_params['sniper_mode'],
                   'thresh_CNN_noisy': global_params['thresh_CNN_noisy'],
-                  'update_freq': global_params['update_freq']
+                  'update_freq': global_params['update_freq'],
                   'use_dense': False,
                   'use_peak_max': True,
                   },
