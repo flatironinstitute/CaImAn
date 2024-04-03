@@ -128,6 +128,8 @@ def test_sbx_to_tif():
         sbx_utils.sbx_to_tif(file_3d, fileout=tif_file, plane=0)
         plane_data_from_tif = cm.load(tif_file)
         npt.assert_array_almost_equal(data_3d_from_sbx[:, :, :, 0], plane_data_from_tif)
+    except:
+        assert False
 
 def test_sbx_chain_to_tif():
     try:
@@ -165,3 +167,5 @@ def test_sbx_chain_to_tif():
                                         data_3d_2[subinds_to_ix(subinds_2, data_3d_2.shape)]], axis=0)
         npt.assert_array_almost_equal(data_chain_tif, data_chain_gt,
                                       err_msg='Tif from chain with non-matching subindices does not match expected')
+    except:
+        assert False
