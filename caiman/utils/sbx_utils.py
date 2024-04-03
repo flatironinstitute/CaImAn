@@ -204,7 +204,7 @@ def sbx_chain_to_tif(filenames: list[str], fileout: str, subindices: Optional[Ch
         fileout = fileout + '.tif'
 
     dtype = np.float32 if to32 else np.uint16
-    tifffile.imwrite(fileout, data=None, mode='w', shape=save_shape, bigtiff=bigtiff, imagej=imagej,
+    tifffile.imwrite(fileout, data=None, shape=save_shape, bigtiff=bigtiff, imagej=imagej,
                      dtype=dtype, photometric='MINISBLACK')
 
     # Now convert each file
