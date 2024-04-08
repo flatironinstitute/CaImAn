@@ -1204,6 +1204,88 @@ class movie(caiman.base.timeseries.timeseries):
         play_movie(self, gain, fr, magnification, offset, interpolation, backend, do_loop, bord_px,
              q_max, q_min, plot_text, save_movie, opencv_codec, movie_name)
 
+def load_all_purpose_tiff(file_name: str,
+                          subindices: None,
+                          outtype = np.float32):
+    """
+    Load any tiff file, multiseries or multipage. Supports the .tif and .tiff formats
+    
+    Variables:
+        file_name: name of file. Possible extensions are .tif and .tiff
+        subindices: iterable indexes for loading only portion of the movie
+        outtype: Data type for the movie
+        
+    Returns:
+        outputImage: Numpy array of dtype.
+
+    """
+
+    #Check if the filename exists
+    if os.path.exists(file_name):
+        fileExtension = os.path.splitext(file_name)[-1]
+        
+        #Get tiff file otherwise give a warning and return None
+        if(fileExtension == '.tif' or fileExtension == '.tiff'):
+            tffl = tifffile.TiffFile(file_name)
+            
+            # Get the subindices and dimensions that are needed for loading only part of the movie
+            if subindices is not None:
+                if isinstance(subindices,list):
+                    if len(subindices)==1:
+                        subindices = slice(0,subindices[0],1)
+                    elif len(subindices)==2:
+                        subindices = slice(subindices[0],subindices[1],1)
+                    else:
+                        subindices = slice(subindices[0],subindices[1],subindices[2])
+                
+                T,dims = get_file_size(tffl)
+            else:
+                T,dims = get_file_size(tffl)
+                subindices = slice(0,T,1)
+
+
+            #Count variable for the frames
+            f = 0
+            
+            #outputImage varible initialization
+            outputImage = None
+            
+            #For cycle that iterates over the series
+            for seriesNr in range(len(tffl.series)):
+                seriesFrames = len(tffl.series[seriesNr].pages) # Number of frames in the series
+                if seriesFrames + f > subindices.start:
+                    if seriesFrames + f > subindices.stop:
+                        images = tffl.series[seriesNr].asarray(key=range(subindices.start-f,subindices.stop-f,subindices.step))
+                    else:
+                        images = tffl.series[seriesNr].asarray(key=range(subindices.start-f,seriesFrames,subindices.step))
+
+                    #If the images to add are only one frame, change this into an 3Dstack if the output is 3D and vice-versa
+                    if len(images.shape)==2 and len(outputImage.shape)==3: 
+                        images = images[np.newaxis,:, :]
+                    elif len(images.shape)==3 and len(outputImage.shape)==2: 
+                        outputImage = outputImage[np.newaxis,:, :]
+
+                    try:  
+                        outputImage = np.vstack(outputImage,images)
+                    except:
+                        outputImage = images
+
+                #Sum up the frames to which they were iterated
+                f += seriesFrames
+                if f > subindices.stop:
+                    break
+                    
+        else:
+            logging.error("The file: " + os.path.basename(file_name) + " is not a TIFF file")
+            return None
+                
+    else:
+        logging.error('Specified file does not exist')
+        return None
+    
+    outputImage = np.array(outputImage).astype(outtype)
+    
+    return outputImage
 
 def load(file_name: Union[str, list[str]],
          fr: float = 30,
@@ -1329,6 +1411,29 @@ def load(file_name: Union[str, list[str]],
         if extension in ['.tif', '.tiff', '.btf']:  # load tif file
             with tifffile.TiffFile(file_name) as tffl:
                 multi_page = True if tffl.series[0].shape[0] > 1 else False
+
+                # Get multiseries Tiff file
+                if len(tffl.series)>1:
+                    # logging.warning('Your tif file is multiseries. Performance may be affected.')
+                    
+                    if subindices is not None:
+                        if isinstance(subindices,list):
+                            if len(subindices)==1:
+                                subindices = slice(0,subindices[0],1)
+                            elif len(subindices)==2:
+                                subindices = slice(subindices[0],subindices[1],1)
+                            else:
+                                subindices = slice(subindices[0],subindices[1],subindices[2])
+                                
+                        if isinstance(subindices,slice):
+                            input_arr = load_all_purpose_tiff(file_name,subindices)
+                        
+                        else:
+                            raise Exception('Indices should be list (start, stop, step) or slice')
+                    else:
+                        input_arr = load_all_purpose_tiff(file_name)
+
+                # Get any other Tiff file
                 if len(tffl.pages) == 1:
                     logging.warning('Your tif file is saved a single page' +
                                     'file. Performance will be affected')
@@ -1847,43 +1952,74 @@ def load_iter(file_name: Union[str, list[str]], subindices=None, var_name_hdf5: 
     else:
         if os.path.exists(file_name):
             extension = os.path.splitext(file_name)[1].lower()
+            if extension == '.nd2':
+            nd2 = ND2Reader(file_name)
+            if subindices == None:
+                for y in range(0,nd2.shape[0]):
+                    yield nd2[y].astype(outtype)
+            else:
+                for y in range(subindices.start,nd2.shape[0]):
+                    yield nd2[y].astype(outtype)
             if extension in ('.tif', '.tiff', '.btf'):
-                Y = tifffile.TiffFile(file_name).series[0]
-                dims = Y.shape[1:]
-                if len(dims)==3: # volumetric 3D data w/ multiple volumes per file
-                    vol = np.empty(dims, dtype=outtype)
-                    i = 0  # plane counter
+                tffl = tifffile.TiffFile(file_name)
+                if len(tffl.series)>1:
+                #logging.warning('Your tif file is multiseries. Performance may be affected.')
                     if subindices is not None:
-                        if isinstance(subindices, slice):
-                            subindices = range(subindices.start,
-                            len(Y) if subindices.stop is None else subindices.stop,
-                            1 if subindices.step is None else subindices.step)
-                        t = 0  # volume counter
-                        for y in Y:
-                            if t in subindices:
-                                vol[i] = y.asarray()
-                            i += 1
-                            if i == dims[0]:
-                                i = 0
+                        if isinstance(subindices,slice):
+                            f = 0
+                            if subindices.start == None:
+                                subindices.start=0
+                                seriesStart=0
+                            else:
+                                seriesStart=0
+                                for series in tffl.series[:len(tffl.series)]:
+                                    if len(series)<=subindices.start-f:
+                                        f +=len(series)
+                                        seriesStart+=1
+                                    else:
+                                        if (series == tffl.series[seriesStart]):
+                                            for y in series[subindices.start-f:]:
+                                                yield y.asarray().astype(outtype)
+                                        else:
+                                            for y in series:
+                                                yield y.asarray().astype(outtype)
+                else:
+                    Y = tffl.series[0]
+                    dims = Y.shape[1:]
+                    if len(dims)==3: # volumetric 3D data w/ multiple volumes per file
+                        vol = np.empty(dims, dtype=outtype)
+                        i = 0  # plane counter
+                        if subindices is not None:
+                            if isinstance(subindices, slice):
+                                subindices = range(subindices.start,
+                                len(Y) if subindices.stop is None else subindices.stop,
+                                1 if subindices.step is None else subindices.step)
+                            t = 0  # volume counter
+                            for y in Y:
                                 if t in subindices:
+                                    vol[i] = y.asarray()
+                                i += 1
+                                if i == dims[0]:
+                                    i = 0
+                                    if t in subindices:
+                                        yield vol
+                                    t +=1
+                        else:
+                            for y in Y:
+                                vol[i] = y.asarray()
+                                i += 1
+                                if i == dims[0]:
+                                    i = 0
                                     yield vol
-                                t +=1
-                    else:
-                        for y in Y:
-                            vol[i] = y.asarray()
-                            i += 1
-                            if i == dims[0]:
-                                i = 0
-                                yield vol
-                elif len(dims) < 3 and is3D: # volumetric 3D data w/ 1 volume per file
-                    yield load(file_name, subindices=subindices, outtype=outtype, is3D=is3D)
-                else: # 2D data
-                    if subindices is not None:
-                        if isinstance(subindices, range):
-                            subindices = slice(subindices.start, subindices.stop, subindices.step)
-                        Y = Y[subindices]
-                    for frame in Y:
-                        yield frame.asarray().astype(outtype)
+                    elif len(dims) < 3 and is3D: # volumetric 3D data w/ 1 volume per file
+                        yield load(file_name, subindices=subindices, outtype=outtype, is3D=is3D)
+                    else: # 2D data
+                        if subindices is not None:
+                            if isinstance(subindices, range):
+                                subindices = slice(subindices.start, subindices.stop, subindices.step)
+                            Y = Y[subindices]
+                        for frame in Y:
+                            yield frame.asarray().astype(outtype)
             elif extension in ('.avi', '.mkv'):
                 # First, let's see if OpenCV can handle this AVI file
                 if 'CAIMAN_LOAD_AVI_FORCE_FALLBACK' in os.environ: # User requested we don't even try opencv
@@ -2017,13 +2153,23 @@ def get_file_size(file_name, var_name_hdf5:str='mov') -> tuple[tuple, Union[int,
                     extension = '.h5'
             if extension in ['.tif', '.tiff', '.btf']:
                 tffl = tifffile.TiffFile(file_name)
-                siz = tffl.series[0].shape
-                # tiff files written in append mode
-                if len(siz) < 3:
-                    dims = siz
-                    T = len(tffl.pages)
+                # Get file dimensions depending on the number of series and pages.
+                # If len series is more than 1, get the number of frames of all series
+                if len(tffl.series)>1:
+                    T = 0
+                    for series in tffl.series:
+                        T +=len(series.pages)
+                    dims = tffl.series[0].pages[0].shape
                 else:
-                    T, dims = siz[0], siz[1:]
+                    # If the file is single series get the size of all pages or of the 3D array single page.
+                    siz = tffl.series[0].shape
+                    # tiff files written in append mode
+                    if len(siz) < 3:
+                        dims = siz
+                        T = len(tffl.pages)
+                    else:
+                        T, dims = siz[0], siz[1:]
+
             elif extension in ('.avi', '.mkv'):
                 if 'CAIMAN_LOAD_AVI_FORCE_FALLBACK' in os.environ:
                         pims_movie = pims.PyAVReaderTimed(file_name) # duplicated code, but no cleaner way
@@ -2088,9 +2234,7 @@ def get_file_size(file_name, var_name_hdf5:str='mov') -> tuple[tuple, Union[int,
                 dims = dims[0]
     else:
         raise Exception('Unknown input type')
-    return dims, T
-
-################################
+    return dims, T 
 
 def play_movie(movie,
                gain:float = 1.0,
