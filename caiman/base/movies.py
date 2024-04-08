@@ -1951,8 +1951,8 @@ def load_iter(file_name: Union[str, list[str]], subindices=None, var_name_hdf5: 
                             yield frame # was frame[..., 0].astype(outtype)
                         return
                 
-            elif extension in ('.hdf5', '.h5', '.nwb', '.mat', 'n5', 'zarr'):
-                if extension in ('n5', 'zarr'): # Thankfully, the zarr library lines up closely with h5py past the initial open
+            elif extension in ('.hdf5', '.h5', '.nwb', '.mat', '.n5', '.zarr'):
+                if extension in ('.n5', '.zarr'): # Thankfully, the zarr library lines up closely with h5py past the initial open
                     f = zarr.open(file_name, "r")
                 else:
                     f = h5py.File(file_name, "r")
