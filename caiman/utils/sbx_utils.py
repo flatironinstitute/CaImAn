@@ -454,58 +454,40 @@ def _sbxread_helper(filename: str, subindices: FileSubindices = slice(None), cha
 
     # Open File
     with open(filename + '.sbx') as sbx_file:
-        def get_chunk(n: int, step: int):
-            mmap = np.memmap(sbx_file, mode='c', dtype='uint16', shape=data_shape[:4] + (n*step,), order='F')
-            mmap = np.transpose(mmap, (0, 4, 2, 1, 3))  # to (chans, frames, Y, X, Z)
-            inds = (channel, slice(0, None, step)) + np.ix_(*subindices[1:])
-            if not is3D:
-                inds = inds + (0,)  # squeeze out singleton plane dim
+        sbx_mmap = np.memmap(sbx_file, mode='r', dtype='uint16', shape=data_shape, order='F')
+        sbx_mmap = np.transpose(sbx_mmap, (0, 4, 2, 1, 3))  # to (chans, frames, Y, X, Z)
+        sbx_mmap = sbx_mmap[channel]
+        if not is3D:  # squeeze out singleton plane dim
+            sbx_mmap = sbx_mmap[..., 0]
+        elif plane is not None:  # select plane relative to subindices
+            sbx_mmap = sbx_mmap[..., subindices[-1][plane]]
+            subindices = subindices[:-1]
+        inds = np.ix_(*subindices)
+
+        if chunk_size is None:
+            # load a contiguous block all at once
+            chunk_size = N
+        elif out is None:
+            # Pre-allocate destination when loading in chunks
+            out = np.empty(save_shape, dtype=np.uint16)
+
+        n_remaining = N
+        offset = 0
+        while n_remaining > 0:
+            this_chunk_size = min(n_remaining, chunk_size)
             # Note: SBX files store the values strangely, it's necessary to invert each uint16 value to get the correct ones
-            chunk = mmap[inds]
+            chunk = sbx_mmap[(inds[0][offset:offset+this_chunk_size],) + inds[1:]]
             np.invert(chunk, out=chunk)  # avoid copying, may be large
-            if is3D and len(save_shape) == 3:  # squeeze out plane dim after selecting
-                chunk = chunk[:, :, :, plane]
-            return chunk
 
-        if isinstance(subindices[0], range):
-            frame_stride = subindices[0].step
-            sbx_file.seek(subindices[0][0] * frame_size, 0)
-
-            if chunk_size is None:
-                # load a contiguous block all at once
-                if out is None:
-                    # avoid allocating an extra array just to copy into it
-                    out = get_chunk(N, frame_stride)
-                else:
-                    out[:] = get_chunk(N, frame_stride)
-            else:
-                # load a contiguous block of data, but chunk it to not use too much memory at once
-                if out is None:
-                    out = np.empty(save_shape, dtype=np.uint16)
-
-                n_remaining = N
-                offset = 0
-                while n_remaining > 0:
-                    this_chunk_size = min(n_remaining, chunk_size)
-                    chunk = get_chunk(this_chunk_size, frame_stride)
-                    out[offset:offset+this_chunk_size] = chunk
-                    n_remaining -= this_chunk_size
-                    offset += this_chunk_size
-
-        else:
-            # load one frame at a time, sorting indices for fastest access
             if out is None:
-                out = np.empty(save_shape, dtype=np.uint16)
+                out = chunk  # avoid copying when loading all data
+            else:
+                out[offset:offset+this_chunk_size] = chunk
+            n_remaining -= this_chunk_size
+            offset += this_chunk_size
 
-            for counter, (k, ind) in enumerate(sorted(zip(subindices[0], range(N)))):
-                if counter % 100 == 0:
-                    logging.debug(f'Reading iteration: {k}')
-                sbx_file.seek(k * frame_size, 0)
-                out[ind] = get_chunk(1, 1)
-
-        if isinstance(out, np.memmap):
-            out.flush()
-        
+    if isinstance(out, np.memmap):
+        out.flush()    
     return out
 
 

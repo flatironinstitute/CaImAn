@@ -4,6 +4,7 @@ import numpy as np
 import numpy.testing as npt
 import os
 import tifffile
+import tracemalloc
 
 import caiman as cm
 from caiman.paths import caiman_datadir
@@ -88,6 +89,18 @@ def test_load_subind():
     assert data_3d_plane0_3d.shape == SHAPE_3D[:3] + (1,), 'Shape when loading plane with subindices is incorrect'
     assert data_3d_plane0_2d.shape == SHAPE_3D[:3], 'Shape when loading plane with plane argument is incorrect'
     npt.assert_array_equal(data_3d_plane0_3d[:, :, :, 0], data_3d_plane0_2d)
+
+
+def test_load_efficiency():
+    # Make sure that when loading, excess copies are not being made and 
+    # data outside subindices are not being loaded into memory
+    file_2d = os.path.join(TESTDATA_PATH, '2d_sbx.sbx')
+    tracemalloc.start()
+    data_2d_sliced = sbx_utils.sbxread(file_2d, subindices=(slice(None), slice(None, None, 2)))
+    curr_mem, peak_mem = tracemalloc.get_traced_memory()
+    assert peak_mem / curr_mem < 1.1, 'Too much memory allocated when loading'
+    del data_2d_sliced
+    tracemalloc.stop()    
 
 
 def test_sbx_to_tif():
