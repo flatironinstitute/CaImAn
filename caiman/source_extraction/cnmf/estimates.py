@@ -1059,6 +1059,10 @@ class Estimates(object):
             logging.warning('NaN values detected for trace SNR in {}'.format(np.where(np.isnan(SNR_comp))[0]) +
                             '. Changing their value to 0.')
             SNR_comp = np.where(np.isnan(SNR_comp), 0, SNR_comp)
+        if np.any(np.isinf(SNR_comp)):
+            logging.warning('inf values detected for trace SNR in {}'.format(np.where(np.isinf(SNR_comp))[0]) +
+                            '. Changing their value to 0.')
+            SNR_comp = np.where(np.isinf(SNR_comp), 0, SNR_comp)
         self.SNR_comp = SNR_comp
         self.r_values = r_values
         self.cnn_preds = cnn_preds
