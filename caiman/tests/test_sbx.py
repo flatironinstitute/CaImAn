@@ -147,6 +147,11 @@ def test_sbx_to_tif():
         if os.path.isfile(tif_filename):
             os.remove(tif_filename)
 
+    # with plane
+    tif_file = os.path.join(caiman_datadir(), 'temp', 'sbxtest4.tif')
+    sbx_utils.sbx_to_tif(file_3d, fileout=tif_file, plane=0)
+    plane_data_from_tif = cm.load(tif_file)
+    npt.assert_array_almost_equal(data_3d_from_sbx[:, :, :, 0], plane_data_from_tif)
 
 def test_sbx_chain_to_tif():
     tif_filename = os.path.join(caiman_datadir(), 'temp', 'from_sbx.tif')
