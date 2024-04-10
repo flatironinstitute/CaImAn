@@ -983,7 +983,7 @@ def motion_correct_online_lazyLoading(file_name, add_to_movie=0, max_shift_w=25,
 
             buffer_frames.append(new_img)
 
-            if count % 100 == 0 and count>0:
+            if count % buffer_size_frames == 0 and count>0:
                 if count >= (buffer_size_frames):
                     template_old = template.copy()
                     template = bin_median(np.array(buffer_frames))
@@ -1000,7 +1000,6 @@ def motion_correct_online_lazyLoading(file_name, add_to_movie=0, max_shift_w=25,
                     template, template_tmp, t_shift, avg_corr = motion_correct_iteration(
                         template_old, template, count, max_shift_w=max_shift_w, max_shift_h=max_shift_h, bilateral_blur=bilateral_blur)
                     template_shift_tmp.append(t_shift)
-
                     if (save_base_name is not None) and not (save_as_memmap):
                         if append is None:
                             append = False if count >buffer_size_frames else True
