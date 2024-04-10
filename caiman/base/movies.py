@@ -1238,9 +1238,9 @@ def load_all_purpose_tiff(file_name: str,
                     else:
                         subindices = slice(subindices[0],subindices[1],subindices[2])
                 
-                T,dims = get_file_size(tffl)
+                dims,T = get_file_size(file_name)
             else:
-                T,dims = get_file_size(tffl)
+                dims,T = get_file_size(file_name)
                 subindices = slice(0,T,1)
 
 
@@ -1252,23 +1252,24 @@ def load_all_purpose_tiff(file_name: str,
             
             #For cycle that iterates over the series
             for seriesNr in range(len(tffl.series)):
+                print(seriesNr)
                 seriesFrames = len(tffl.series[seriesNr].pages) # Number of frames in the series
-                if seriesFrames + f > subindices.start:
-                    if seriesFrames + f > subindices.stop:
+                if seriesFrames + f > int(subindices.start):
+                    if seriesFrames + f > int(subindices.stop):
                         images = tffl.series[seriesNr].asarray(key=range(subindices.start-f,subindices.stop-f,subindices.step))
                     else:
                         images = tffl.series[seriesNr].asarray(key=range(subindices.start-f,seriesFrames,subindices.step))
 
                     #If the images to add are only one frame, change this into an 3Dstack if the output is 3D and vice-versa
-                    if len(images.shape)==2 and len(outputImage.shape)==3: 
-                        images = images[np.newaxis,:, :]
-                    elif len(images.shape)==3 and len(outputImage.shape)==2: 
-                        outputImage = outputImage[np.newaxis,:, :]
-
                     try:  
-                        outputImage = np.vstack(outputImage,images)
+                        outputImage = np.vstack((outputImage,images))
                     except:
-                        outputImage = images
+                        if outputImage is None:
+                            outputImage = images
+                        elif len(images.shape)==2 and len(outputImage.shape)==3: 
+                            images = images[np.newaxis,:, :]
+                        elif len(images.shape)==3 and len(outputImage.shape)==2: 
+                            outputImage = outputImage[np.newaxis,:, :]  
 
                 #Sum up the frames to which they were iterated
                 f += seriesFrames
@@ -1431,45 +1432,46 @@ def load(file_name: Union[str, list[str]],
                         else:
                             raise Exception('Indices should be list (start, stop, step) or slice')
                     else:
-                        input_arr = load_all_purpose_tiff(file_name)
+                        input_arr = load_all_purpose_tiff(file_name,subindices)
 
                 # Get any other Tiff file
-                if len(tffl.pages) == 1:
-                    logging.warning('Your tif file is saved a single page' +
-                                    'file. Performance will be affected')
-                    multi_page = False
-                if subindices is not None:
-                    # if isinstance(subindices, (list, tuple)): # is list or tuple:
-                    if isinstance(subindices, list):  # is list or tuple:
-                        if multi_page:
-                            if len(tffl.series[0].shape) < 4:
-                                input_arr = tffl.asarray(key=subindices[0])[:, subindices[1], subindices[2]]
-                            else:  # 3D
-                                shape = tffl.series[0].shape
-                                ts = np.arange(shape[0])[subindices[0]]
-                                input_arr = tffl.asarray(key=np.ravel(ts[:, None] * shape[1] +
-                                                                      np.arange(shape[1]))
-                                                         ).reshape((len(ts),) + shape[1:])[
-                                    :, subindices[1], subindices[2], subindices[3]]
+                else:
+                    if len(tffl.pages) == 1:
+                        logging.warning('Your tif file is saved a single page' +
+                                        'file. Performance will be affected')
+                        multi_page = False
+                    if subindices is not None:
+                        # if isinstance(subindices, (list, tuple)): # is list or tuple:
+                        if isinstance(subindices, list):  # is list or tuple:
+                            if multi_page:
+                                if len(tffl.series[0].shape) < 4:
+                                    input_arr = tffl.asarray(key=subindices[0])[:, subindices[1], subindices[2]]
+                                else:  # 3D
+                                    shape = tffl.series[0].shape
+                                    ts = np.arange(shape[0])[subindices[0]]
+                                    input_arr = tffl.asarray(key=np.ravel(ts[:, None] * shape[1] +
+                                                                        np.arange(shape[1]))
+                                                            ).reshape((len(ts),) + shape[1:])[
+                                        :, subindices[1], subindices[2], subindices[3]]
+                            else:
+                                input_arr = tffl.asarray()[tuple(subindices)]
+
                         else:
-                            input_arr = tffl.asarray()[tuple(subindices)]
+                            if multi_page:
+                                if len(tffl.series[0].shape) < 4:
+                                    input_arr = tffl.asarray(key=subindices)
+                                else:  # 3D
+                                    shape = tffl.series[0].shape
+                                    ts = np.arange(shape[0])[subindices]
+                                    input_arr = tffl.asarray(key=np.ravel(ts[:, None] * shape[1] +
+                                                                        np.arange(shape[1]))
+                                                            ).reshape((len(ts),) + shape[1:])
+                            else:
+                                input_arr = tffl.asarray(out='memmap')
+                                input_arr = input_arr[subindices]
 
                     else:
-                        if multi_page:
-                            if len(tffl.series[0].shape) < 4:
-                                input_arr = tffl.asarray(key=subindices)
-                            else:  # 3D
-                                shape = tffl.series[0].shape
-                                ts = np.arange(shape[0])[subindices]
-                                input_arr = tffl.asarray(key=np.ravel(ts[:, None] * shape[1] +
-                                                                      np.arange(shape[1]))
-                                                         ).reshape((len(ts),) + shape[1:])
-                        else:
-                            input_arr = tffl.asarray(out='memmap')
-                            input_arr = input_arr[subindices]
-
-                else:
-                    input_arr = tffl.asarray()
+                        input_arr = tffl.asarray()
 
                 input_arr = np.squeeze(input_arr)
 
@@ -1953,13 +1955,13 @@ def load_iter(file_name: Union[str, list[str]], subindices=None, var_name_hdf5: 
         if os.path.exists(file_name):
             extension = os.path.splitext(file_name)[1].lower()
             if extension == '.nd2':
-            nd2 = ND2Reader(file_name)
-            if subindices == None:
-                for y in range(0,nd2.shape[0]):
-                    yield nd2[y].astype(outtype)
-            else:
-                for y in range(subindices.start,nd2.shape[0]):
-                    yield nd2[y].astype(outtype)
+                nd2 = ND2Reader(file_name)
+                if subindices == None:
+                    for y in range(0,nd2.shape[0]):
+                        yield nd2[y].astype(outtype)
+                else:
+                    for y in range(subindices.start,nd2.shape[0]):
+                        yield nd2[y].astype(outtype)
             if extension in ('.tif', '.tiff', '.btf'):
                 tffl = tifffile.TiffFile(file_name)
                 if len(tffl.series)>1:
