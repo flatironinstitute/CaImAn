@@ -51,6 +51,8 @@ from typing import Optional
 from skimage.transform import resize as resize_sk
 from skimage.transform import warp as warp_sk
 
+from tqdm import tqdm
+
 import caiman
 import caiman.base.movies
 import caiman.mmapping
@@ -746,7 +748,48 @@ def motion_correct_oneP_nonrigid(
     mc.motion_correct_pwrigid(save_movie=True, template=new_templ)
     return mc
 
-def motion_correct_online_multifile(list_files, add_to_movie, order='C', **kwargs):
+def get_optimal_gSig_filt(file_name,min_gSig_filt, max_gSig_filt, init_frames = 100, max_shift_w=25, max_shift_h=25, window = [0.5,0.5]):
+
+    init_mov = caiman.base.movies.load(file_name,subindices=(slice(0,init_frames,1)))
+
+    if window!=None:
+        dims = init_mov.shape
+        if len(window) !=2:
+            logging.error("Window size has to be a 2 value list!")
+        else:
+            if window[0]<1 and window[0]>0:
+                window[0] = int(dims[1]*window[0])
+            if window[1]<1 and window[1]>0:
+                window[1] = int(dims[2]*window[1])
+
+            if window[0] > dims[1] or window[1] > dims[2]:
+                logging.error("Window's dimensions have to be smaller than image size")
+            else:
+                init_mov = init_mov[:,int(dims[1]/2-window[0]/2):int(dims[1]/2+window[0]/2),int(dims[2]/2-window[1]/2):int(dims[2]/2+window[1]/2)]
+                window_dims = (init_mov.shape[1],init_mov.shape[2])
+
+    init_template = bin_median(init_mov)
+    minimum = 1
+
+    for n in range(min_gSig_filt,max_gSig_filt+1):
+        for m in range(min_gSig_filt,max_gSig_filt+1):
+            template = high_pass_filter_space(init_template.copy(), (n,m))
+
+            init_mov_filt = np.stack([high_pass_filter_space(f, (n,m)) for f in init_mov], axis=0)
+            init_mov_filt = caiman.movie(init_mov_filt)
+            mc = init_mov_filt.motion_correct(30, 30, template = template)
+
+            init_move_shifted = init_mov.copy().apply_shifts(mc[1])
+            template = bin_median(init_move_shifted)
+            
+            MSE = np.sum((init_move_shifted-template) ** 2,axis=0)
+            MSE /= (init_move_shifted[0].shape[0] * init_move_shifted[0].shape[1])
+            if np.mean(MSE)<minimum:
+                minimum = np.mean(MSE)
+                gsig = (n,m)
+    return gsig
+
+def motion_correct_online_multifile(list_files, save_base_names= None, lazy_loading = False, add_to_movie=0, order='C', **kwargs):
     # todo todocument
 
     kwargs['order'] = order
@@ -758,20 +801,280 @@ def motion_correct_online_multifile(list_files, add_to_movie, order='C', **kwarg
     kwargs_ = kwargs.copy()
     kwargs_['order'] = order
     total_frames = 0
+    n = 0
+
+
     for file_ in list_files:
         logging.info(('Processing:' + file_))
         kwargs_['template'] = template
-        kwargs_['save_base_name'] = os.path.splitext(file_)[0]
-        tffl = tifffile.TiffFile(file_)
-        shifts, xcorrs, template, fname_tot = motion_correct_online(
-            tffl, add_to_movie, **kwargs_)[0:4]
+        
+        #Join tiffiles into one large file
+        if not kwargs_['save_as_memmap'] and len(save_base_names)>1: 
+            if 'save_base_names' in kwargs_.keys() and kwargs_['save_base_names']==save_base_names[n]:
+                kwargs['append']=True
+            else:
+                kwargs['append']=False
+
+        #Define save names if they were not previously defined
+        if save_base_names is None:
+            kwargs_['save_base_name'] = os.path.splitext(file_)[0]
+        elif isinstance(save_base_names,str):
+            kwargs_['save_base_name']=save_base_names
+        else:
+            kwargs_['save_base_name'] = save_base_names[n]
+
+        if lazy_loading:
+            shifts, template_shifts, xcorrs, template, fname_tot = motion_correct_online_lazyLoading(
+            file_, add_to_movie, **kwargs_)[0:4]
+        else:
+            tffl = tifffile.TiffFile(file_)
+            shifts, xcorrs, template, fname_tot = motion_correct_online(
+                tffl, add_to_movie, **kwargs_)[0:4]
         all_names.append(fname_tot)
         all_shifts.append(shifts)
         all_xcorrs.append(xcorrs)
         all_templates.append(template)
         total_frames = total_frames + len(shifts)
+        n+=1
 
     return all_names, all_shifts, all_xcorrs, all_templates
+
+def motion_correct_online_lazyLoading(file_name, add_to_movie=0, max_shift_w=25, max_shift_h=25, gSig_filt = None, save_base_name=None, save_as_memmap = False, order='C',
+                          init_frames_template=100, show_movie=False, bilateral_blur=False, template=None, refine_template = False, min_count=1000,
+                          border_to_0=0, n_iter=1, remove_blanks=False, show_template=False, return_mov=False,
+                          use_median_as_template=False, window = None, append = False, outtype = np.float32):
+    # todo todocument
+
+    shifts = []  # store the amount of shift in each frame
+    templates_shifts = [] # store the amount of shift in each template.
+    xcorrs = []
+    if remove_blanks and n_iter == 1:
+        raise Exception(
+            'In order to remove blanks you need at least two iterations n_iter=2')
+    
+    if use_median_as_template:
+        template = bin_median(movie_iterable)
+    
+    #Get a template if one was not provided
+    if template is None:
+        # Try to get initial frames and dimensions of
+        try:
+            init_mov = caiman.base.movies.load(file_name,subindices=(slice(0,init_frames_template,1)))
+            dims,T = caiman.base.movies.get_file_size(file_name)
+            dims = (T,dims[0],dims[1])
+            logging.debug("dimensions:" + str(dims))
+        except:
+            raise Exception('File could not be opened. Check the file name: '+file_name)
+
+        if window!=None:
+            # dims = Y.shape[1:]
+            if len(window) !=2:
+                logging.error("Window size has to be a 2 value list!")
+                return
+            else:
+                if window[0]<1 and window[0]>0:
+                    window[0] = int(dims[1]*window[0])
+                if window[1]<1 and window[1]>0:
+                    window[1] = int(dims[2]*window[1])
+
+                if window[0] > dims[1] or window[1] > dims[2]:
+                    logging.error("Window's dimensions have to be smaller than image size")
+                else:
+                    init_mov = init_mov[:,int(dims[1]/2-window[0]/2):int(dims[1]/2+window[0]/2),int(dims[2]/2-window[1]/2):int(dims[2]/2+window[1]/2)]
+                    window_dims = (init_mov.shape[1],init_mov.shape[2])
+
+        #Create initial template and filter it with gaussian filter if wanted
+        template = bin_median(init_mov)
+        if not gSig_filt is None:
+            template = high_pass_filter_space(template.copy(), gSig_filt)
+
+        #Refine initial template by running motion correction on initial frames and redo the template
+        if refine_template:
+            if not gSig_filt is None:
+                init_mov_filt = np.stack([high_pass_filter_space(m, gSig_filt) for m in init_mov], axis=0)
+                init_mov_filt = caiman.movie(init_mov_filt)
+                mc = init_mov_filt.motion_correct(max_shift_w, max_shift_h, template = template)
+            else:
+                mc = init_mov.motion_correct(max_shift_w, max_shift_h, template = template)
+            init_mov = init_mov.apply_shifts(mc[1])
+            template = bin_median(init_mov)
+            template = high_pass_filter_space(template, gSig_filt)
+        
+        #Correct for movies that are too negative
+        if np.percentile(template, 1) + add_to_movie < - 10:
+            raise Exception(
+                'Movie too negative, You need to add a larger value to the movie (add_to_movie)')
+        template = np.array(template + add_to_movie, dtype=np.float32)
+    else:
+        if np.percentile(template, 1) < - 10:
+            raise Exception(
+                'Movie too negative, You need to add a larger value to the movie (add_to_movie)')
+        count = min_count
+
+    min_mov = 0
+    buffer_size_frames = 500
+    buffer_size_template = 500
+    buffer_frames:collections.deque = collections.deque(maxlen=buffer_size_frames)
+    buffer_templates:collections.deque = collections.deque(maxlen=buffer_size_template)
+    max_w, max_h, min_w, min_h = 0, 0, 0, 0
+
+    big_mov = None
+    if return_mov:
+        mov:Optional[list] = []
+    else:
+        mov = None
+
+    for n in range(n_iter):
+        if n > 0:
+            count = init_frames_template
+
+        if (save_base_name is not None) and (big_mov is None) and (n_iter == (n + 1)):
+
+            if remove_blanks:
+                dims = (dims[0], dims[1] + min_h -
+                        max_h, dims[2] + min_w - max_w)
+
+            if save_as_memmap:
+                fname_tot:Optional[str] = caiman.paths.memmap_frames_filename(save_base_name, dims[1:], dims[0], order)
+                big_mov = np.memmap(fname_tot, mode='w+', dtype=outtype,
+                                    shape=caiman.mmapping.prepare_shape((np.prod(dims[1:]), dims[0])), order=order)
+
+        else:
+            fname_tot = None
+
+        shifts_tmp = []
+        template_shift_tmp = []
+        xcorr_tmp = []
+
+        # Start iterator
+        iterator = caiman.base.movies.load_iter(
+            file_name,subindices=slice(0,T,1))
+        
+        count = 0 #Counter for frames
+        logging.info('Start processing all frames')
+
+        for c in tqdm(range(T)):
+            
+            frame_orig = next(iterator)
+            
+            frame = frame_orig.copy()
+
+            if window!=None:
+                frame = frame[int(dims[1]/2-window[0]/2):int(dims[1]/2+window[0]/2),
+                                  int(dims[2]/2-window[1]/2):int(dims[2]/2+window[1]/2)]
+
+            if not gSig_filt is None:
+                frame = high_pass_filter_space(frame.copy(), gSig_filt)
+
+            frame = frame + add_to_movie
+
+            new_img, template_tmp, shift, avg_corr = motion_correct_iteration(
+                frame, template, count, max_shift_w=max_shift_w, max_shift_h=max_shift_h, bilateral_blur=bilateral_blur)
+            
+            if not gSig_filt is None:
+                M = np.float32([[1, 0, shift[1]], [0, 1, shift[0]]])
+                new_img = cv2.warpAffine(frame_orig, M, frame_orig.shape[::-1],
+                                            flags=cv2.INTER_CUBIC, borderMode=cv2.BORDER_REFLECT)
+
+            max_h, max_w = np.ceil(np.maximum(
+                (max_h, max_w), shift)).astype(int)
+            min_h, min_w = np.floor(np.minimum(
+                (min_h, min_w), shift)).astype(int)
+
+            buffer_frames.append(new_img)
+
+            if count % 100 == 0 and count>0:
+                if count >= (buffer_size_frames):
+                    template_old = template.copy()
+                    template = bin_median(np.array(buffer_frames))
+
+                    if not gSig_filt is None:
+                        template = high_pass_filter_space(template.copy(), gSig_filt)
+                    if window!=None:
+                        template = template[int(dims[1]/2-window[0]/2):int(dims[1]/2+window[0]/2),
+                                  int(dims[2]/2-window[1]/2):int(dims[2]/2+window[1]/2)]
+
+                    buffer_templates.append(template)
+
+                    #Calculate shift between old and new template 
+                    template, template_tmp, t_shift, avg_corr = motion_correct_iteration(
+                        template_old, template, count, max_shift_w=max_shift_w, max_shift_h=max_shift_h, bilateral_blur=bilateral_blur)
+                    template_shift_tmp.append(t_shift)
+
+                    if (save_base_name is not None) and not (save_as_memmap):
+                        if append is None:
+                            append = False if count >buffer_size_frames else True
+                        tifffile.imwrite(save_base_name, 
+                                            np.array(buffer_frames).astype(outtype),
+                                    append = append, 
+                                    contiguous = True,
+                                    bigtiff = True)
+                        tifffile.imwrite(os.path.join(os.path.dirname(save_base_name), 'Templates.tif'), 
+                                            np.array(template).astype(outtype),
+                                    append = append, 
+                                    contiguous = True,
+                                    bigtiff = True)
+                        append = True
+
+                if show_template:
+                    plt.cla()
+                    plt.imshow(template, cmap='gray', 
+                            #    vmin=250,vmax=350, 
+                               interpolation='none')
+                    plt.pause(.001)
+
+                # logging.debug('Relative change in template:' + str(
+                #     np.sum(np.abs(template - template_old)) / np.sum(np.abs(template))))
+                # logging.debug('Iteration:' + str(count))
+
+            if border_to_0 > 0:
+                new_img[:border_to_0, :] = min_mov
+                new_img[:, :border_to_0] = min_mov
+                new_img[:, -border_to_0:] = min_mov
+                new_img[-border_to_0:, :] = min_mov
+
+            shifts_tmp.append(shift)
+            xcorr_tmp.append(avg_corr)
+
+            if remove_blanks and n > 0 and (n_iter == (n + 1)):
+
+                new_img = new_img[max_h:, :]
+                if min_h < 0:
+                    new_img = new_img[:min_h, :]
+                new_img = new_img[:, max_w:]
+                if min_w < 0:
+                    new_img = new_img[:, :min_w]
+
+            if (save_base_name is not None) and (n_iter == (n + 1)):
+                if save_as_memmap:
+                    big_mov[:, count] = np.reshape(new_img.astype(outtype), np.prod(dims[1:]), order='F') # type: ignore
+                                                                                          # mypy cannot prove that big_mov is not still None
+
+            if mov is not None and (n_iter == (n + 1)):
+                mov.append(new_img)
+
+            if show_movie:
+                cv2.imshow('frame', new_img / 500)
+                logging.info(shift)
+                if not np.any(np.remainder(shift, 1) == (0, 0)):
+                    cv2.waitKey(int(1. / 500 * 1000))
+
+            count += 1
+        shifts.append(shifts_tmp)
+        template_shift.append(template_shift_tmp)
+        xcorrs.append(xcorr_tmp)
+
+    if save_base_name is not None:
+        logging.debug('Flushing memory')
+        big_mov.flush() # type: ignore # mypy cannot prove big_mov is not still None
+        del big_mov
+        gc.collect()
+
+    if mov is not None:
+        mov = np.dstack(mov).transpose([2, 0, 1])
+
+    return shifts, templates_shifts, xcorrs, template, fname_tot, mov
+
 
 def motion_correct_online(movie_iterable, add_to_movie, max_shift_w=25, max_shift_h=25, save_base_name=None, order='C',
                           init_frames_template=100, show_movie=False, bilateral_blur=False, template=None, min_count=1000,
