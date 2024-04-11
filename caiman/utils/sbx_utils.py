@@ -205,17 +205,17 @@ def sbx_chain_to_tif(filenames: list[str], fileout: str, subindices: Optional[Ch
         fileout = fileout + '.tif'
 
     dtype = np.float32 if to32 else np.uint16
-    with tifffile.TiffWriter(fileout, bigtiff=bigtiff, imagej=imagej) as tif:
-        tif.write(None, shape=save_shape, dtype=dtype, photometric='MINISBLACK')
+    tifffile.imwrite(fileout, data=None, shape=save_shape, bigtiff=bigtiff, imagej=imagej,
+                     dtype=dtype, photometric='MINISBLACK')
 
     # Now convert each file
-    memmap_tif = tifffile.memmap(fileout, series=0)
+    tif_memmap = tifffile.memmap(fileout, series=0)
     offset = 0
     for filename, subind, file_N in zip(filenames, subindices, Ns):
-        _sbxread_helper(filename, subindices=subind, channel=channel, out=memmap_tif[offset:offset+file_N], plane=plane, chunk_size=chunk_size)
+        _sbxread_helper(filename, subindices=subind, channel=channel, out=tif_memmap[offset:offset+file_N], plane=plane, chunk_size=chunk_size)
         offset += file_N
 
-    memmap_tif._mmap.close()
+    tif_memmap._mmap.close()
 
 
 def sbx_shape(filename: str, info: Optional[dict] = None) -> tuple[int, int, int, int, int]:
