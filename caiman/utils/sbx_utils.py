@@ -177,9 +177,9 @@ def sbx_chain_to_tif(filenames: list[str], fileout: str, subindices: Optional[Ch
 
     # Allocate empty tif file with the final shape (do this first to ensure any existing file is overwritten)
     common_shape = tuple(map(int, all_shapes_out[0, 1:]))
-    Ns = list(map(int, all_shapes_out[:, 0]))
-    N = sum(Ns)
-    save_shape = (N,) + common_shape
+    all_n_frames_out = list(map(int, all_shapes_out[:, 0]))
+    n_frames_out = sum(all_n_frames_out)
+    save_shape = (n_frames_out,) + common_shape
 
     if plane is not None:
         if len(save_shape) < 4:
@@ -199,7 +199,7 @@ def sbx_chain_to_tif(filenames: list[str], fileout: str, subindices: Optional[Ch
     # Now convert each file
     tif_memmap = tifffile.memmap(fileout, series=0)
     offset = 0
-    for filename, subind, file_N in zip(filenames, subindices, Ns):
+    for filename, subind, file_N in zip(filenames, subindices, all_n_frames_out):
         _sbxread_helper(filename, subindices=subind, channel=channel, out=tif_memmap[offset:offset+file_N], plane=plane, chunk_size=chunk_size)
         offset += file_N
 
@@ -273,7 +273,7 @@ def sbx_shape(filename: str, info: Optional[dict] = None) -> tuple[int, int, int
     else:
         info['max_idx'] = filesize / info['bytesPerBuffer'] * factor - 1
 
-    N = info['max_idx'] + 1    # Last frame
+    n_frames = info['max_idx'] + 1    # Last frame
 
     # Determine whether we are looking at a z-stack
     # Only consider optotune z-stacks - knobby schedules have too many possibilities and
@@ -282,9 +282,9 @@ def sbx_shape(filename: str, info: Optional[dict] = None) -> tuple[int, int, int
         n_planes = info['otparam'][2]
     else:
         n_planes = 1
-    N //= n_planes
+    n_frames //= n_planes
 
-    x = (int(info['nChan']), int(info['sz'][1]), int(info['recordsPerBuffer']), int(n_planes), int(N))
+    x = (int(info['nChan']), int(info['sz'][1]), int(info['recordsPerBuffer']), int(n_planes), int(n_frames))
     return x
 
 
@@ -431,7 +431,7 @@ def _sbxread_helper(filename: str, subindices: FileSubindices = slice(None), cha
         raise Exception('Invalid scanbox metadata')
 
     save_shape, subindices = _get_output_shape(data_shape, subindices)
-    N = save_shape[0]
+    n_frames_out = save_shape[0]
     if plane is not None:
         if len(save_shape) < 4:
             raise Exception('Plane cannot be specified for 2D data')
@@ -453,17 +453,19 @@ def _sbxread_helper(filename: str, subindices: FileSubindices = slice(None), cha
 
     if chunk_size is None:
         # load a contiguous block all at once
-        chunk_size = N
+        chunk_size = n_frames_out
     elif out is None:
         # Pre-allocate destination when loading in chunks
         out = np.empty(save_shape, dtype=np.uint16)
 
-    n_remaining = N
+    n_remaining = n_frames_out
     offset = 0
     while n_remaining > 0:
         this_chunk_size = min(n_remaining, chunk_size)
-        # Note: SBX files store the values strangely, it's necessary to invert each uint16 value to get the correct ones
+        # Note: important to copy the data here instead of making a view,
+        # so the memmap can be closed (achieved by advanced indexing)
         chunk = sbx_mmap[(inds[0][offset:offset+this_chunk_size],) + inds[1:]]
+        # Note: SBX files store the values strangely, it's necessary to invert each uint16 value to get the correct ones
         np.invert(chunk, out=chunk)  # avoid copying, may be large
 
         if out is None:
