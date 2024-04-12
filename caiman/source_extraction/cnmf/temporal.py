@@ -284,9 +284,6 @@ def update_iteration(parrllcomp, len_parrllcomp, nb, C, S, bl, nr,
             You should start the cluster (install ipyparallel and then type
             ipcluster -n 6, where 6 is the number of processes).
 
-        memory_efficient: Bool
-            whether or not to optimize for memory usage (longer running times). necessary with very large datasets
-
         **kwargs: dict
             all parameters passed to constrained_foopsi except bl,c1,g,sn (see documentation).
              Some useful parameters are
