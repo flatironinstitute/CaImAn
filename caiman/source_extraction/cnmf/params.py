@@ -361,9 +361,6 @@ class CNMFParams(object):
             optimize_g: bool, default: False
                 flag for optimizing time constants
 
-            memory_efficient:
-                (undocumented)
-
             method_deconvolution: 'oasis'|'cvxpy'|'oasis', default: 'oasis'
                 method for solving the constrained deconvolution problem ('oasis','cvx' or 'cvxpy')
                 if method cvxpy, primary and secondary (if problem unfeasible for approx solution)
@@ -793,7 +790,6 @@ class CNMFParams(object):
             # number of autocovariance lags to be considered for time constant estimation
             'lags': 5,
             'optimize_g': False,         # flag for optimizing time constants
-            'memory_efficient': False,
             # method for solving the constrained deconvolution problem ('oasis','cvx' or 'cvxpy')
             # if method cvxpy, primary and secondary (if problem unfeasible for approx
             # solution) solvers to be used with cvxpy, can be 'ECOS','SCS' or 'CVXOPT'
