@@ -80,6 +80,7 @@ def sbxread(filename: str, subindices: Optional[FileSubindices] = slice(None), c
 
 
 def sbx_to_tif(filename: str, fileout: Optional[str] = None, subindices: Optional[FileSubindices] = slice(None),
+               bigtiff: Optional[bool] = True, imagej: bool = False, to32: bool = False,
                channel: Optional[int] = None, plane: Optional[int] = None, chunk_size: int = 1000):
     """
     Convert a single .sbx file to .tif format
@@ -95,6 +96,9 @@ def sbx_to_tif(filename: str, fileout: Optional[str] = None, subindices: Optiona
             which frames to read (defaults to all)
             if a tuple of non-scalars, specifies slices of up to 4 dimensions in the order (frame, Y, X, Z).
 
+        to32: bool
+            whether to save in float32 format (default is to keep as uint16)
+
         channel: int | None
             which channel to save (required if data has >1 channel)
 
@@ -106,32 +110,17 @@ def sbx_to_tif(filename: str, fileout: Optional[str] = None, subindices: Optiona
             how many frames to load into memory at once (None = load the whole thing)
     """
     # Check filenames
-    basename, ext = os.path.splitext(filename)
-    if ext == '.sbx':
-        filename = basename
-
     if fileout is None:
+        basename, ext = os.path.splitext(filename)
+        if ext == '.sbx':
+            filename = basename
         fileout = filename + '.tif'
-    else:
-        # Add a '.tif' extension if not already present
-        extension = os.path.splitext(fileout)[1].lower()
-        if extension not in ['.tif', '.tiff', '.btf']:
-            fileout = fileout + '.tif'
 
     if subindices is None:
         subindices = slice(None)
 
-    # Find the shape of the file we need
-    save_shape = _get_output_shape(filename, subindices)[0]
-    if plane is not None:
-        if len(save_shape) < 4:
-            raise Exception('Plane cannot be specified for 2D data')
-        save_shape = save_shape[:3]
-
-    # Open tif as a memmap and copy to it
-    memmap_tif = tifffile.memmap(fileout, shape=save_shape, dtype='uint16', photometric='MINISBLACK')
-    _sbxread_helper(filename, subindices=subindices, channel=channel, out=memmap_tif, plane=plane, chunk_size=chunk_size)
-    memmap_tif._mmap.close()
+    sbx_chain_to_tif([filename], fileout, [subindices], bigtiff=bigtiff, imagej=imagej, to32=to32,
+                     channel=channel, plane=plane, chunk_size=chunk_size)
 
 
 def sbx_chain_to_tif(filenames: list[str], fileout: str, subindices: Optional[ChainSubindices] = slice(None),
@@ -150,11 +139,8 @@ def sbx_chain_to_tif(filenames: list[str], fileout: str, subindices: Optional[Ch
             see subindices for sbx_to_tif
             can specify separate subindices for each file if nested 2 levels deep; 
             X, Y, and Z sizes must match for all files after indexing.
-        
-        to32: bool
-            whether to save in float32 format (default is to keep as uint16)
 
-        channel, plane, chunk_size: see sbx_to_tif
+        to32, channel, plane, chunk_size: see sbx_to_tif
     """
     if subindices is None:
         subindices = slice(None)
@@ -200,13 +186,15 @@ def sbx_chain_to_tif(filenames: list[str], fileout: str, subindices: Optional[Ch
             raise Exception('Plane cannot be specified for 2D data')
         save_shape = save_shape[:3]
 
+    # Add a '.tif' extension if not already present
     extension = os.path.splitext(fileout)[1].lower()
     if extension not in ['.tif', '.tiff', '.btf']:
         fileout = fileout + '.tif'
 
     dtype = np.float32 if to32 else np.uint16
+    # Make the file first so we can pass in bigtiff and imagej options; otherwise could create using tifffile.memmap directly
     tifffile.imwrite(fileout, data=None, shape=save_shape, bigtiff=bigtiff, imagej=imagej,
-                     dtype=dtype, photometric='MINISBLACK')
+                     dtype=dtype, photometric='MINISBLACK', align=tifffile.TIFF.ALLOCATIONGRANULARITY)
 
     # Now convert each file
     tif_memmap = tifffile.memmap(fileout, series=0)
@@ -215,7 +203,7 @@ def sbx_chain_to_tif(filenames: list[str], fileout: str, subindices: Optional[Ch
         _sbxread_helper(filename, subindices=subind, channel=channel, out=tif_memmap[offset:offset+file_N], plane=plane, chunk_size=chunk_size)
         offset += file_N
 
-    tif_memmap._mmap.close()
+    del tif_memmap  # important to make sure file is closed (on Windows)
 
 
 def sbx_shape(filename: str, info: Optional[dict] = None) -> tuple[int, int, int, int, int]:
@@ -452,39 +440,40 @@ def _sbxread_helper(filename: str, subindices: FileSubindices = slice(None), cha
     if out is not None and out.shape != save_shape:
         raise Exception('Existing memmap is the wrong shape to hold loaded data')
 
-    # Open File
-    with open(filename + '.sbx') as sbx_file:
-        sbx_mmap = np.memmap(sbx_file, mode='r', dtype='uint16', shape=data_shape, order='F')
-        sbx_mmap = np.transpose(sbx_mmap, (0, 4, 2, 1, 3))  # to (chans, frames, Y, X, Z)
-        sbx_mmap = sbx_mmap[channel]
-        if not is3D:  # squeeze out singleton plane dim
-            sbx_mmap = sbx_mmap[..., 0]
-        elif plane is not None:  # select plane relative to subindices
-            sbx_mmap = sbx_mmap[..., subindices[-1][plane]]
-            subindices = subindices[:-1]
-        inds = np.ix_(*subindices)
+    # Read from .sbx file, using memmap to avoid loading until necessary
+    sbx_mmap = np.memmap(filename + '.sbx', mode='r', dtype='uint16', shape=data_shape, order='F')
+    sbx_mmap = np.transpose(sbx_mmap, (0, 4, 2, 1, 3))  # to (chans, frames, Y, X, Z)
+    sbx_mmap = sbx_mmap[channel]
+    if not is3D:  # squeeze out singleton plane dim
+        sbx_mmap = sbx_mmap[..., 0]
+    elif plane is not None:  # select plane relative to subindices
+        sbx_mmap = sbx_mmap[..., subindices[-1][plane]]
+        subindices = subindices[:-1]
+    inds = np.ix_(*subindices)
 
-        if chunk_size is None:
-            # load a contiguous block all at once
-            chunk_size = N
-        elif out is None:
-            # Pre-allocate destination when loading in chunks
-            out = np.empty(save_shape, dtype=np.uint16)
+    if chunk_size is None:
+        # load a contiguous block all at once
+        chunk_size = N
+    elif out is None:
+        # Pre-allocate destination when loading in chunks
+        out = np.empty(save_shape, dtype=np.uint16)
 
-        n_remaining = N
-        offset = 0
-        while n_remaining > 0:
-            this_chunk_size = min(n_remaining, chunk_size)
-            # Note: SBX files store the values strangely, it's necessary to invert each uint16 value to get the correct ones
-            chunk = sbx_mmap[(inds[0][offset:offset+this_chunk_size],) + inds[1:]]
-            np.invert(chunk, out=chunk)  # avoid copying, may be large
+    n_remaining = N
+    offset = 0
+    while n_remaining > 0:
+        this_chunk_size = min(n_remaining, chunk_size)
+        # Note: SBX files store the values strangely, it's necessary to invert each uint16 value to get the correct ones
+        chunk = sbx_mmap[(inds[0][offset:offset+this_chunk_size],) + inds[1:]]
+        np.invert(chunk, out=chunk)  # avoid copying, may be large
 
-            if out is None:
-                out = chunk  # avoid copying when loading all data
-            else:
-                out[offset:offset+this_chunk_size] = chunk
-            n_remaining -= this_chunk_size
-            offset += this_chunk_size
+        if out is None:
+            out = chunk  # avoid copying when loading all data
+        else:
+            out[offset:offset+this_chunk_size] = chunk
+        n_remaining -= this_chunk_size
+        offset += this_chunk_size
+
+    del sbx_mmap  # Important to close file (on Windows)
 
     if isinstance(out, np.memmap):
         out.flush()    
