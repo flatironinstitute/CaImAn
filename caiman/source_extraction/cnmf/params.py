@@ -97,12 +97,6 @@ class CNMFParams(object):
             last_commit: str
                 hash of last commit in the caiman repo. Pleaes do not override this.
 
-            mmap_F: list[str]
-                paths to F-order memory mapped files after motion correction
-
-            mmap_C: str
-                path to C-order memory mapped file after motion correction
-
           CNMFParams.patch (these control how the data is divided into patches):
             border_pix: int, default: 0
                 Number of pixels to exclude around each border.
@@ -674,9 +668,7 @@ class CNMFParams(object):
             'dxy': dxy,
             'var_name_hdf5': var_name_hdf5,
             'caiman_version': pkg_resources.get_distribution('caiman').version,
-            'last_commit': None,
-            'mmap_F': None,
-            'mmap_C': None
+            'last_commit': None
         }
 
         self.patch = {
