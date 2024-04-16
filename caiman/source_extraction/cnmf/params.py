@@ -136,7 +136,7 @@ class CNMFParams(object):
                 If list, it should be a list of two elements corresponding to the height and width of patches
 
             skip_refinement: bool, default: False
-                Whether to skip refinement of components (deprecated?)
+                Whether to skip refinement of components
 
             p_ssub: float, default: 2
                 Spatial downsampling factor
@@ -151,7 +151,7 @@ class CNMFParams(object):
             check_nan: bool, default: True
                 whether to check for NaNs
 
-            compute_g': bool, default: False
+            compute_g: bool, default: False
                 whether to estimate global time constant
 
             include_noise: bool, default: False
@@ -185,7 +185,7 @@ class CNMFParams(object):
             K: int, default: 30
                 number of components to be found (per patch or whole FOV depending on whether rf=None)
 
-            SC_kernel: {'heat', 'cos', binary'}, default: 'heat'
+            SC_kernel: {'heat', 'cos', 'binary'}, default: 'heat'
                 kernel for graph affinity matrix
 
             SC_sigma: float, default: 1
@@ -705,7 +705,7 @@ class CNMFParams(object):
         }
 
         self.init = {
-            'K': k,                   # number of components,
+            'K': k,                      # number of components,
             'SC_kernel': 'heat',         # kernel for graph affinity matrix
             'SC_sigma' : 1,              # std for SC kernel
             'SC_thr': 0,                 # threshold for affinity matrix

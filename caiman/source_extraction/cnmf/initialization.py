@@ -657,7 +657,7 @@ def graphNMF(Y_ds, nr, max_iter_snmf=500, lambda_gnmf=1,
     C = mdl.fit_transform(yr).T
     A = mdl.components_.T
     W = caiman.source_extraction.cnmf.utilities.fast_graph_Laplacian_patches(
-            [np.reshape(m, [T, d], order='F').T, [], 'heat', SC_sigma, SC_thr,
+            [np.reshape(m, [T, d], order='F').T, [], SC_kernel, SC_sigma, SC_thr,
              SC_nnn, SC_normalize, SC_use_NN])
     D = scipy.sparse.spdiags(W.sum(0), 0, W.shape[0], W.shape[0])
     for it in range(max_iter_snmf):
