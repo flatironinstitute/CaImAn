@@ -282,7 +282,6 @@ class CNMFParams(object):
                 temporal downsampling factor
 
           CNMFParams.spatial (these control how the algorithms handle spatial components):
-
             dist: float, default: 3
                 expansion factor of ellipse
 
@@ -390,9 +389,6 @@ class CNMFParams(object):
 
             merge_parallel: bool, default: False
                 Perform merging in parallel
-
-            max_merge_area: int or None, default: None
-                maximum area (in pixels) of merged components, used to determine whether to merge components during fitting process
 
           CNMFParams.quality (these control how quality of traces are evaluated):
             SNR_lowest: float, default: 0.5
@@ -796,8 +792,7 @@ class CNMFParams(object):
         self.merging = {
             'do_merge': do_merge,
             'merge_thr': merge_thresh,
-            'merge_parallel': False,
-            'max_merge_area': max_merge_area
+            'merge_parallel': False
         }
 
         self.quality = {
