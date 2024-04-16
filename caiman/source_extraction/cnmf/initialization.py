@@ -288,7 +288,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
     gSig = np.asarray(gSig, dtype=float) / ssub
     gSiz = np.round(np.asarray(gSiz) / ssub).astype(int)
 
-    if normalize_init is True:
+    if normalize_init:
         logging.info('Variance Normalization')
         if img is None:
             img = np.mean(Y, axis=-1)
@@ -403,7 +403,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
         Cin = np.empty((K, T), dtype=np.float32)
         center = []
 
-    if normalize_init is True:
+    if normalize_init:
         if Ain.size > 0:
             Ain = Ain * np.reshape(img, (np.prod(d), -1), order='F')
         if sparse_b:
