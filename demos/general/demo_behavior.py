@@ -56,9 +56,16 @@ def main():
     # TODO: todocument
     m = cm._load_behavior(fname[0])
 
+<<<<<<< HEAD
     #%% load, rotate and eliminate useless pixels
     m = m.transpose([0, 2, 1])
     m = m[:, 150:, :]
+=======
+    plt.ion()
+
+    # TODO: todocument
+    m = cm._load_behavior(fnames[0])
+>>>>>>> 7f972213 (demo_behavior: pull some changes from dev)
 
     #%% visualize movie
     m.play()
