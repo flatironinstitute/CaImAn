@@ -37,14 +37,14 @@ def main():
 
     if cfg.logfile:
         logging.basicConfig(format=
-            "%(relativeCreated)12d [%(filename)s:%(funcName)20s():%(lineno)s][%(process)d] %(message)s",
-            level=logging.WARNING,
+            "[%(filename)s:%(funcName)20s():%(lineno)s] %(message)s",
+            level=logging.INFO,
             filename=cfg.logfile)
         # You can make the output more or less verbose by setting level to logging.DEBUG, logging.INFO, logging.WARNING, or logging.ERROR
     else:
         logging.basicConfig(format=
-            "%(relativeCreated)12d [%(filename)s:%(funcName)20s():%(lineno)s][%(process)d] %(message)s",
-            level=logging.WARNING)
+            "[%(filename)s:%(funcName)20s():%(lineno)s] %(message)s",
+            level=logging.INFO)
 
     if cfg.input is None:
         # If no input is specified, use sample data, downloading if necessary
