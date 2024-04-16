@@ -29,7 +29,7 @@ class CNMFParams(object):
                  min_pnr=20, gnb=1, normalize_init=True, options_local_NMF=None,
                  ring_size_factor=1.5, rolling_length=100, rolling_sum=True,
                  ssub=2, ssub_B=2, tsub=2,
-                 block_size_spat=5000, num_blocks_per_run_spat=20,
+                 num_blocks_per_run_spat=20,
                  block_size_temp=5000, num_blocks_per_run_temp=20,
                  update_background_components=True,
                  method_deconvolution='oasis', p=2, s_min=None,
@@ -282,8 +282,6 @@ class CNMFParams(object):
                 temporal downsampling factor
 
           CNMFParams.spatial (these control how the algorithms handle spatial components):
-            block_size_spat : int, default: 5000
-                Number of pixels to process at the same time for dot product. Reduce if you face memory problems
 
             dist: float, default: 3
                 expansion factor of ellipse
@@ -745,7 +743,6 @@ class CNMFParams(object):
         }
 
         self.spatial = {
-            'block_size_spat': block_size_spat, # number of pixels to parallelize residual computation ** DECREASE IF MEMORY ISSUES
             'dist': 3,                       # expansion factor of ellipse
             'expandCore': iterate_structure(generate_binary_structure(2, 1), 2).astype(int),
             # Flag to extract connected components (might want to turn to False for dendritic imaging)

@@ -40,7 +40,7 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
                               se=np.ones((3, 3), dtype=int),
                               ss=np.ones((3, 3), dtype=int), nb=1,
                               method_ls='lasso_lars', update_background_components=True,
-                              low_rank_background=True, block_size_spat=1000,
+                              low_rank_background=True,
                               num_blocks_per_run_spat=20):
     """update spatial footprints and background through Basis Pursuit Denoising
 
