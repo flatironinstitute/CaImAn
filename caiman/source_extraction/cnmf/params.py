@@ -804,7 +804,7 @@ class CNMFParams(object):
             'rval_lowest': -1,         # minimum accepted space correlation
             'rval_thr': rval_thr,      # space correlation threshold
             'use_cnn': True,           # use CNN based classifier
-            'use_ecc': False,          # flag for eccentricity based filtering
+            'use_ecc': False,          # flag for eccentricity based filtering (2D only)
             'max_ecc': 3
         }
 
