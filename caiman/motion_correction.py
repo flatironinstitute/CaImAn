@@ -167,9 +167,12 @@ class MotionCorrect(object):
 
         """
         if 'ndarray' in str(type(fname)) or isinstance(fname, caiman.base.movies.movie):
-            logging.info('Creating file for motion correction "tmp_mov_mot_corr.hdf5"')
-            caiman.movie(fname).save('tmp_mov_mot_corr.hdf5')
-            fname = ['tmp_mov_mot_corr.hdf5']
+            mc_tempfile = os.path.join(caiman.paths.get_tempdir(), 'tmp_mov_mot_corr.hdf5')
+            if os.path.isfile(mc_tempfile):
+                os.remove(mc_tempfile) # Eventually get_tempdir() will keep jobs separate and make this safer
+            logging.info(f"Creating file for motion correction: {mc_tempfile}")
+            caiman.movie(fname).save(mc_tempfile)
+            fname = [mc_tempfile]
 
         if not isinstance(fname, list):
             fname = [fname]
