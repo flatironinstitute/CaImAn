@@ -147,6 +147,7 @@ class timeseries(np.ndarray):
         Args:
             file_name: str
                 name of file. Possible formats are tif, avi, npz, mmap and hdf5
+                If a path is not part of the filename, it will be saved into a temporary directory under caiman_data
 
             to32: Bool
                 whether to transform to 32 bits
@@ -164,6 +165,9 @@ class timeseries(np.ndarray):
             compress: int
                 if saving as .tif, specifies the compression level
                 if saving as .avi or .mkv, compress=0 uses the IYUV codec, otherwise the FFV1 codec is used
+
+        Returns:
+            generated_filename: The full filename, path included, where the data was saved
 
         Raises:
             Exception 'Extension Unknown'
