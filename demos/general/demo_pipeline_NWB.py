@@ -25,7 +25,7 @@ except:
 
 import caiman
 from caiman.motion_correction import MotionCorrect
-from caiman.paths import caiman_datadir
+from caiman.paths import caiman_datadir, get_tempdir
 from caiman.source_extraction.cnmf import cnmf as cnmf
 from caiman.source_extraction.cnmf import params as params
 from caiman.utils.utils import download_demo
@@ -58,7 +58,7 @@ def main():
         # The convert target is the original fn, with the extension swapped to nwb.
         fr = float(15)      # imaging rate in frames per second
         pre_convert    = download_demo('Sue_2x_3000_40_-46.tif')
-        convert_target = os.path.join(caiman_datadir(), 'Sue_2x_3000_40_-46.nwb')
+        convert_target = os.path.join(get_tempdir(), 'Sue_2x_3000_40_-46.nwb')
 
         orig_movie = caiman.load(pre_convert, fr=fr)
         # save file in NWB format with various additional info

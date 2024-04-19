@@ -167,9 +167,9 @@ class MotionCorrect(object):
 
         """
         if 'ndarray' in str(type(fname)) or isinstance(fname, caiman.base.movies.movie):
-            mc_tempfile = os.path.join(caiman.paths.get_tempdir(), 'tmp_mov_mot_corr.hdf5')
+            mc_tempfile = caiman.paths.fn_relocated('tmp_mov_mot_corr.hdf5')
             if os.path.isfile(mc_tempfile):
-                os.remove(mc_tempfile) # Eventually get_tempdir() will keep jobs separate and make this safer
+                os.remove(mc_tempfile)
             logging.info(f"Creating file for motion correction: {mc_tempfile}")
             caiman.movie(fname).save(mc_tempfile)
             fname = [mc_tempfile]
@@ -3123,12 +3123,7 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
         if base_name is None:
             base_name = os.path.splitext(os.path.split(fname)[1])[0]
         base_name = caiman.paths.fn_relocated(base_name)
-
         fname_tot:Optional[str] = caiman.paths.memmap_frames_filename(base_name, dims, T, order)
-        if isinstance(fname, tuple):
-            fname_tot = os.path.join(os.path.split(fname[0])[0], fname_tot)
-        else:
-            fname_tot = os.path.join(os.path.split(fname)[0], fname_tot)
 
         np.memmap(fname_tot, mode='w+', dtype=np.float32,
                   shape=caiman.mmapping.prepare_shape(shape_mov), order=order)
