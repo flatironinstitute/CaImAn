@@ -7,7 +7,7 @@ dependencies:
 - bokeh >=3.1.1
 - coverage
 - cython
-- h5py
+- h5py >=3.4.0
 - holoviews >=1.16.2
 - ipykernel
 - ipython
