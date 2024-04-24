@@ -18,7 +18,7 @@ dependencies:
 - moviepy
 - mypy
 - nose
-- numpy <2.0.0
+- numpy <2.0.0,>=1.20
 - numpydoc
 - opencv
 - panel >=1.0.2
