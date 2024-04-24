@@ -9,6 +9,7 @@ dependencies:
 - h5py
 - holoviews >=1.16.2
 - ipyparallel
+- ipywidgets
 - matplotlib
 - moviepy
 - numpy <2.0.0
