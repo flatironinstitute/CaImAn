@@ -5,13 +5,14 @@ dependencies:
 - python <=3.12
 - av
 - cython
-- future
 - h5py
 - holoviews >=1.16.2
+- ipython
 - ipyparallel
 - ipywidgets
 - matplotlib
 - moviepy
+- nose
 - numpy <2.0.0
 - numpydoc
 - opencv
