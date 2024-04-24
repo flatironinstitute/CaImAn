@@ -13,7 +13,7 @@ dependencies:
 - matplotlib
 - moviepy
 - nose
-- numpy <2.0.0,>=1.20
+- numpy <2.0.0,>=1.26
 - numpydoc
 - opencv
 - peakutils
