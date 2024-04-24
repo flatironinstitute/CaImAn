@@ -26,7 +26,7 @@ jobs:
         with:
           auto-update-conda: true
           python-version: ${{ matrix.python-version }}
-          environment-file: environment.yml
+          environment-file: environment-minimal.yml
           activate-environment: caiman
 
       - name: Install OS Dependencies
