@@ -1144,8 +1144,8 @@ class CNMFParams(object):
 
         consumed = {} # Keep track of what parameters in params_dict were used to set something in params (just for legacy API)
         nagged_once = False # So we don't nag people multiple times in the same call
-        for paramkey in params_dict and isinstance(params_dict[paramkey], dict): # Latter half is because of scoped keys with the same name as categories, because we apparently have those. ring_CNN is an example.
-            if paramkey in list(self.__dict__.keys()): # Proper pathed part
+        for paramkey in params_dict:
+            if paramkey in list(self.__dict__.keys()) and isinstance(params_dict[paramkey], dict): # Handle proper pathed part. Latter half of the conditional is because of scoped keys with the same name as categories, because we apparently have those. ring_CNN is an example.
                 cat_handle = getattr(self, paramkey)
                 for k, v in params_dict[paramkey].items():
                     if k == 'nb' and paramkey != 'init':
