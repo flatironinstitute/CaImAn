@@ -2711,6 +2711,10 @@ def compute_metrics_motion_correction(fname, final_size_x, final_size_y, swap_di
     if play_flow and opencv:
         cv2.destroyAllWindows()
 
+    # FIXME: This generates a metrics dump potentially right next to the datafiles it was generated from;
+    #        We will need to fix this in some future revision of the code, ideally returning the filename we used to the caller
+    #        or abstracting the path handling logic into some kind of a policy-aware getpath function for specific uses.
+    #        This should be fixed with future work to have separate runs have separate workdirs.
     np.savez(os.path.splitext(fname)[0] + '_metrics', flows=flows, norms=norms, correlations=correlations, smoothness=smoothness,
              tmpl=tmpl, smoothness_corr=smoothness_corr, img_corr=img_corr)
     return tmpl, correlations, flows, norms, smoothness
