@@ -15,7 +15,7 @@ Notes for specific formats follow:
 
 Matlab (\*.mat)
 ---------------
-Caiman may be able to handle Matlab's mat files, although it is not a desirable format. We rely on the scipy.io.matlab functions to handle files of this type, except for certain versions of the format which are actually hdf5 files
+Caiman can handle Matlab's V2 mat files (which are HDF5 files in a certain format). If you need old-style support, reach out and we can consider adding it.
 
 TIFF (\*.tiff, \*.tif, \*.btf)
 ------------------------------
