@@ -1512,7 +1512,13 @@ def load(file_name: Union[str, list[str]],
             if extension in ('n5', 'zarr'): # Thankfully, the zarr library lines up closely with h5py past the initial open
                 f = zarr.open(file_name, "r")
             else:
-                f = h5py.File(file_name, "r")
+                try:
+                    f = h5py.File(file_name, "r")
+                except:
+                    if extension == '.mat':
+                        raise Exception(f"Problem loading {file_name}: Unknown format. This may be in the original version 1 (non-hdf5) mat format; please convert it first")
+                    else:
+                        raise Exception(f"Problem in loading {file_name}: Unknown format.")
             ignore_keys = ['__DATA_TYPES__'] # Known metadata that tools provide, add to this as needed. Sync with get_file_size() !!
             fkeys = list(filter(lambda x: x not in ignore_keys, f.keys()))
             if len(fkeys) == 1: # If the file we're parsing has only one dataset inside it,
@@ -1939,7 +1945,13 @@ def load_iter(file_name: Union[str, list[str]], subindices=None, var_name_hdf5: 
                 if extension in ('.n5', '.zarr'): # Thankfully, the zarr library lines up closely with h5py past the initial open
                     f = zarr.open(file_name, "r")
                 else:
-                    f = h5py.File(file_name, "r")
+                    try:
+                        f = h5py.File(file_name, "r")
+                    except:
+                        if extension == '.mat':
+                            raise Exception(f"Problem loading {file_name}: Unknown format. This may be in the original version 1 (non-hdf5) mat format; please convert it first")
+                        else:
+                            raise Exception(f"Problem in loading {file_name}: Unknown format.")
                 ignore_keys = ['__DATA_TYPES__'] # Known metadata that tools provide, add to this as needed.
                 fkeys = list(filter(lambda x: x not in ignore_keys, f.keys()))
                 if len(fkeys) == 1: # If the hdf5 file we're parsing has only one dataset inside it,
@@ -2027,7 +2039,13 @@ def get_file_size(file_name, var_name_hdf5:str='mov') -> tuple[tuple, Union[int,
                 if extension in ('n5', 'zarr'): # Thankfully, the zarr library lines up closely with h5py past the initial open
                     f = zarr.open(file_name, "r")
                 else:
-                    f = h5py.File(file_name, "r")
+                    try:
+                        f = h5py.File(file_name, "r")
+                    except:
+                        if extension == '.mat':
+                            raise Exception(f"Problem loading {file_name}: Unknown format. This may be in the original version 1 (non-hdf5) mat format; please convert it first")
+                        else:
+                            raise Exception(f"Problem in loading {file_name}: Unknown format.")
                 ignore_keys = ['__DATA_TYPES__'] # Known metadata that tools provide, add to this as needed. Sync with movies.my:load() !!
                 kk = list(filter(lambda x: x not in ignore_keys, f.keys()))
                 if len(kk) == 1: # TODO: Consider recursing into a group to find a dataset
