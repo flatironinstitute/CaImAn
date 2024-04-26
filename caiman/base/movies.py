@@ -1244,7 +1244,8 @@ def load(file_name: Union[str, list[str]],
             dimension of the movie along x and y if loading from a two dimensional numpy array
 
         var_name_hdf5: str
-            if loading from hdf5/n5 name of the dataset inside the file to load (ignored if the file only has one dataset)
+            if loading from hdf5/n5 name of the dataset inside the file to load (ignored if the file only has one dataset).
+            This is also used for (new-style) mat files
 
         in_memory: bool=False
             This changes the behaviour of the function for npy files to be a readwrite rather than readonly memmap,
@@ -1314,17 +1315,6 @@ def load(file_name: Union[str, list[str]],
         basename, extension = os.path.splitext(file_name)
 
         extension = extension.lower()
-        if extension == '.mat':
-            logging.warning('Loading a *.mat file. x- and y- dimensions ' +
-                            'might have been swapped.')
-            try: # scipy >= 1.8
-                byte_stream, file_opened = scipy.io.matlab._mio._open_file(file_name, appendmat=False)
-                mjv, mnv = scipy.io.matlab.miobase.get_matfile_version(byte_stream)
-            except: # scipy <= 1.7
-                byte_stream, file_opened = scipy.io.matlab.mio._open_file(file_name, appendmat=False)
-                mjv, mnv = scipy.io.matlab.mio.get_matfile_version(byte_stream)
-            if mjv == 2:
-                extension = '.h5'
 
         if extension in ['.tif', '.tiff', '.btf']:  # load tif file
             with tifffile.TiffFile(file_name) as tffl:
@@ -1512,19 +1502,13 @@ def load(file_name: Union[str, list[str]],
                 else:
                     input_arr = input_arr[np.newaxis, :, :]
 
-        elif extension == '.mat':      # load npy file
-            input_arr = scipy.io.loadmat(file_name)['data']
-            input_arr = np.rollaxis(input_arr, 2, -3)
-            if subindices is not None:
-                input_arr = input_arr[subindices]
-
         elif extension == '.npz':      # load movie from saved file
             if subindices is not None:
                 raise Exception('Subindices not implemented')
             with np.load(file_name) as f:
                 return movie(**f).astype(outtype)
 
-        elif extension in ('.hdf5', '.h5', '.nwb', 'n5', 'zarr'):
+        elif extension in ('.hdf5', '.h5', '.mat', '.nwb', 'n5', 'zarr'):
             if extension in ('n5', 'zarr'): # Thankfully, the zarr library lines up closely with h5py past the initial open
                 f = zarr.open(file_name, "r")
             else:
@@ -2010,11 +1994,7 @@ def get_file_size(file_name, var_name_hdf5:str='mov') -> tuple[tuple, Union[int,
         if os.path.exists(file_name):
             _, extension = os.path.splitext(file_name)[:2]
             extension = extension.lower()
-            if extension == '.mat':
-                byte_stream, file_opened = scipy.io.matlab.mio._open_file(file_name, appendmat=False)
-                mjv, mnv = scipy.io.matlab.mio.get_matfile_version(byte_stream)
-                if mjv == 2:
-                    extension = '.h5'
+
             if extension in ['.tif', '.tiff', '.btf']:
                 tffl = tifffile.TiffFile(file_name)
                 siz = tffl.series[0].shape
@@ -2042,7 +2022,7 @@ def get_file_size(file_name, var_name_hdf5:str='mov') -> tuple[tuple, Union[int,
                 filename = os.path.split(file_name)[-1]
                 Yr, dims, T = caiman.mmapping.load_memmap(os.path.join(
                         os.path.split(file_name)[0], filename))
-            elif extension in ('.h5', '.hdf5', '.nwb', 'n5', 'zarr'):
+            elif extension in ('.h5', '.hdf5', '.mat', '.nwb', 'n5', 'zarr'):
                 # FIXME this doesn't match the logic in load()
                 if extension in ('n5', 'zarr'): # Thankfully, the zarr library lines up closely with h5py past the initial open
                     f = zarr.open(file_name, "r")
