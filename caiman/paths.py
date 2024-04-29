@@ -19,8 +19,8 @@ def caiman_datadir() -> str:
     if "CAIMAN_DATA" in os.environ:
         return os.environ["CAIMAN_DATA"]
     else:
-        return os.path.join(os.path.expanduser("~"), "caiman_data")
-
+        #return os.path.join(os.path.expanduser("~"), "caiman_data")
+        return '/home/groups/tolias/frank/git_repos/CaImAn/'
 
 def caiman_datadir_exists() -> bool:
     return os.path.isdir(caiman_datadir())

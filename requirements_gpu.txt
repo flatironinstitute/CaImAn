@@ -10,7 +10,7 @@ jupyter
 keras
 matplotlib
 mypy
-numpy
+numpy==1.24.2
 numpydoc
 opencv-python
 peakutils
@@ -20,10 +20,12 @@ pynwb
 scikit-image
 scikit-learn
 scipy
-tensorflow
+tensorflow[and-gpu]==2.10.0
 tensorflow-addons
 tifffile
 tk
 tqdm
 yapf
 zarr
+bokeh
+holoviews
