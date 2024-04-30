@@ -6,6 +6,9 @@ Demonstrate Caiman functions relating to behavioral experiments and optical flow
 This demo requires a GUI; it does not make sense to run it noninteractively.
 """
 
+# If this demo crashes right after making it past the initial play of the mouse movie,
+# you may need to switch your build of opencv+libopencv+py-opencv to a qt6 build of the
+# same (in conda, these have a qt6_ prefix to their build id). 
 
 import argparse
 import cv2
