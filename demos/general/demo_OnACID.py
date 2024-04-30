@@ -10,6 +10,7 @@ For a more complete demo check the script demo_OnACID_mesoscope.py
 import argparse
 #import code
 import logging
+import matplotlib
 import numpy as np
 import os
 
@@ -69,11 +70,14 @@ def main():
     
     # plot results
     cnm.estimates.view_components(img=Cn, idx=cnm.estimates.idx_components)
+    if not cfg.no_play:
+        matplotlib.pyplot.show(block=True)
 
 def handle_args():
     parser = argparse.ArgumentParser(description="Demonstrate basic Caiman Online functionality with CNMF initialization")
     parser.add_argument("--configfile", default=os.path.join(caiman_datadir(), 'demos', 'general', 'params_demo_OnACID.json'), help="JSON Configfile for Caiman parameters")
     parser.add_argument("--input", action="append", help="File(s) to work on, provide multiple times for more files")
+    parser.add_argument("--no_play",    action="store_true", help="Do not display results")
     parser.add_argument("--logfile",    help="If specified, log to the named file")
     return parser.parse_args()
 
