@@ -14,7 +14,7 @@ import argparse
 import cv2
 import logging
 import numpy as np
-import matplotlib.pyplot as plt
+import matplotlib.pyplot as pl
 
 try:
     cv2.setNumThreads(0)
@@ -48,7 +48,7 @@ def main():
     # If you prefer to hardcode filenames, you could do something like this:
     # fnames = ["/path/to/myfile1.avi", "/path/to/myfile2.avi"]
 
-    plt.ion()
+    pl.ion()
 
     # TODO: todocument
     m = cm._load_behavior(fnames[0])
@@ -103,6 +103,7 @@ def main():
         pl.plot(dirct, 'r-', linewidth=2)
 
         idd += 1
+    pl.show(block=True)
 
 def handle_args():
     parser = argparse.ArgumentParser(description="Demonstrate behavioural/optic flow functions")
