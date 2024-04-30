@@ -69,12 +69,12 @@ def main():
     # number of standard deviations above mean for the magnitude that are considered enough to measure the angle in polar coordinates
     num_std_mag_for_angle = .6
     only_magnitude = False  # if onlu interested in factorizing over the magnitude
-    method_factorization = 'dict_learn'  # could also use nmf
+    method_factorization = 'nmf'
     # number of iterations for the dictionary learning algorithm (Marial et al, 2010)
     max_iter_DL = -30
 
     spatial_filter_, time_trace_, of_or = cm.behavior.behavior.extract_motor_components_OF(m, n_components, mask=mask,
-                                                                                           resize_fact=resize_fact, only_magnitude=only_magnitude, verbose=True, method_factorization='dict_learn', max_iter_DL=max_iter_DL)
+                                                                                           resize_fact=resize_fact, only_magnitude=only_magnitude, verbose=True, method_factorization='nmf', max_iter_DL=max_iter_DL)
 
 
     mags, dircts, dircts_thresh, spatial_masks_thrs = cm.behavior.behavior.extract_magnitude_and_angle_from_OF(

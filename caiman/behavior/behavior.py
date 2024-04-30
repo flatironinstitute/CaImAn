@@ -130,8 +130,8 @@ def extract_magnitude_and_angle_from_OF(spatial_filter_,
             x, y = scipy.signal.medfilt(time_trace, kernel_size=[1, 1]).T
             x = scipy.signal.savgol_filter(x.squeeze(), sav_filter_size, 1)
             y = scipy.signal.savgol_filter(y.squeeze(), sav_filter_size, 1)
-            mag, dirct = to_polar(x - caiman.components_evaluation.mode_robust(x),
-                                  y - caiman.components_evaluation.mode_robust(y))
+            mag, dirct = to_polar(x - caiman.utils.stats.mode_robust(x),
+                                  y - caiman.utils.stats.mode_robust(y))
             dirct = scipy.signal.medfilt(dirct.squeeze(), kernel_size=1).T
 
         # normalize to pixel units
