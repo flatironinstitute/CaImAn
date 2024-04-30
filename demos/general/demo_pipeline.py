@@ -19,6 +19,7 @@ import argparse
 import cv2
 import glob
 import logging
+import matplotlib
 import numpy as np
 import os
 
@@ -176,6 +177,7 @@ def main():
 
     # Stop the cluster and clean up log files
     caiman.stop_server(dview=dview)
+    matplotlib.pyplot.show(block=True)
 
     if not cfg.keep_logs:
         log_files = glob.glob('*_LOG_*')
