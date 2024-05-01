@@ -347,7 +347,6 @@ for params_movie in np.array(params_movies)[ID]:
                                 'p': global_params['p'],
                                 },
                   'spatial':   {
-                               'block_size_spat': block_size,
                                'nb': global_params['gnb'],
                                'num_blocks_per_run_spat': num_blocks_per_run,
                                'n_pixels_per_process': n_pixels_per_process,

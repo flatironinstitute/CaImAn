@@ -19,7 +19,7 @@ from caiman.source_extraction.cnmf.utilities import update_order_greedy
 def merge_components(Y, A, b, C, R, f, S, sn_pix, temporal_params,
                      spatial_params, dview=None, thr=0.85, fast_merge=True,
                      mx=1000, bl=None, c1=None, sn=None, g=None,
-                     merge_parallel=False, max_merge_area=None) -> tuple[scipy.sparse.csc_matrix, np.ndarray, int, list, np.ndarray, float, float, float, float, list, np.ndarray]:
+                     merge_parallel=False) -> tuple[scipy.sparse.csc_matrix, np.ndarray, int, list, np.ndarray, float, float, float, float, list, np.ndarray]:
 
     """ Merging of spatially overlapping components that have highly correlated temporal activity
 
@@ -82,10 +82,6 @@ def merge_components(Y, A, b, C, R, f, S, sn_pix, temporal_params,
 
         merge_parallel: bool
              perform merging in parallel
-
-        max_merge_area: int
-            maximum area (in pixels) of merged components,
-            used to determine whether to merge
 
     Returns:
         A:     sparse matrix

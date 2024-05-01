@@ -20,6 +20,7 @@ import logging
 from math import sqrt
 from multiprocessing import cpu_count
 import numpy as np
+import os
 from scipy.ndimage import percentile_filter
 from scipy.sparse import coo_matrix, csc_matrix, spdiags, hstack
 from scipy.stats import norm
@@ -958,8 +959,9 @@ class OnACID(object):
                 self.estimates = cnm.estimates
 
             else:
-                Y.save(caiman.paths.fn_relocated('init_file.hdf5'))
-                f_new = caiman.mmapping.save_memmap(['init_file.hdf5'], base_name='Yr', order='C',
+                temp_init_file = os.path.join(caiman.paths.get_tempdir(), 'init_file.hdf5')
+                Y.save(temp_init_file)
+                f_new = caiman.mmapping.save_memmap([temp_init_file], base_name='Yr', order='C',
                                              slices=[slice(0, opts['init_batch']), None, None])
 
                 Yrm, dims_, T_ = caiman.mmapping.load_memmap(f_new)

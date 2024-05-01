@@ -673,69 +673,6 @@ class movie(caiman.base.timeseries.timeseries):
 
         return space_components, time_components
 
-    def online_NMF(self,
-                   n_components: int = 30,
-                   method: str = 'nnsc',
-                   lambda1: int = 100,
-                   iterations: int = -5,
-                   model=None,
-                   **kwargs) -> tuple[np.ndarray, np.ndarray]:
-        """ Method performing online matrix factorization and using the spams
-
-        (http://spams-devel.gforge.inria.fr/doc-python/html/index.html) package from Inria.
-        Implements bith the nmf and nnsc methods
-
-        Args:
-            n_components: int
-
-            method: 'nnsc' or 'nmf' (see http://spams-devel.gforge.inria.fr/doc-python/html/index.html)
-
-            lambda1: see http://spams-devel.gforge.inria.fr/doc-python/html/index.html
-
-            iterations: see http://spams-devel.gforge.inria.fr/doc-python/html/index.html
-
-            batchsize: see http://spams-devel.gforge.inria.fr/doc-python/html/index.html
-
-            model: see http://spams-devel.gforge.inria.fr/doc-python/html/index.html
-
-            **kwargs: more arguments to be passed to nmf or nnsc
-
-        Returns:
-            time_comps
-
-            space_comps
-        """
-        try:
-            import spams       # XXX consider moving this to the head of the file
-        except:
-            logging.error("You need to install the SPAMS package")
-            raise
-
-        T, d1, d2 = np.shape(self)
-        d = d1 * d2
-        X = np.asfortranarray(np.reshape(self, [T, d], order='F'))
-
-        if method == 'nmf':
-            (time_comps, V) = spams.nmf(X, return_lasso=True, K=n_components, numThreads=4, iter=iterations, **kwargs)
-
-        elif method == 'nnsc':
-            (time_comps, V) = spams.nnsc(X,
-                                         return_lasso=True,
-                                         K=n_components,
-                                         lambda1=lambda1,
-                                         iter=iterations,
-                                         model=model,
-                                         **kwargs)
-        else:
-            raise Exception('Method unknown')
-
-        space_comps = []
-
-        for _, mm in enumerate(V):
-            space_comps.append(np.reshape(mm.todense(), (d1, d2), order='F'))
-
-        return time_comps, np.array(space_comps)
-
     def IPCA(self, components: int = 50, batch: int = 1000) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         Iterative Principal Component analysis, see sklearn.decomposition.incremental_pca

@@ -126,8 +126,7 @@ def gen_data(D=2, noise=.01, T=300, framerate=30, firerate=2., motion=True):
 
 def _test_motion_correct_rigid(D):
     Y, C, S, A, centers, dims, shifts = gen_data(D)
-    fname = 'testMovie.tif'
-    cm.movie(Y).save(fname)
+    fname = cm.movie(Y).save('testMovie.tif')
     params_dict = {
                    'motion': {
                              'border_nan': True,

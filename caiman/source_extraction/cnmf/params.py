@@ -29,7 +29,7 @@ class CNMFParams(object):
                  min_pnr=20, gnb=1, normalize_init=True, options_local_NMF=None,
                  ring_size_factor=1.5, rolling_length=100, rolling_sum=True,
                  ssub=2, ssub_B=2, tsub=2,
-                 block_size_spat=5000, num_blocks_per_run_spat=20,
+                 num_blocks_per_run_spat=20,
                  block_size_temp=5000, num_blocks_per_run_temp=20,
                  update_background_components=True,
                  method_deconvolution='oasis', p=2, s_min=None,
@@ -97,12 +97,6 @@ class CNMFParams(object):
             last_commit: str
                 hash of last commit in the caiman repo. Pleaes do not override this.
 
-            mmap_F: list[str]
-                paths to F-order memory mapped files after motion correction
-
-            mmap_C: str
-                path to C-order memory mapped file after motion correction
-
           CNMFParams.patch (these control how the data is divided into patches):
             border_pix: int, default: 0
                 Number of pixels to exclude around each border.
@@ -142,7 +136,7 @@ class CNMFParams(object):
                 If list, it should be a list of two elements corresponding to the height and width of patches
 
             skip_refinement: bool, default: False
-                Whether to skip refinement of components (deprecated?)
+                Whether to skip refinement of components
 
             p_ssub: float, default: 2
                 Spatial downsampling factor
@@ -157,7 +151,7 @@ class CNMFParams(object):
             check_nan: bool, default: True
                 whether to check for NaNs
 
-            compute_g': bool, default: False
+            compute_g: bool, default: False
                 whether to estimate global time constant
 
             include_noise: bool, default: False
@@ -191,7 +185,7 @@ class CNMFParams(object):
             K: int, default: 30
                 number of components to be found (per patch or whole FOV depending on whether rf=None)
 
-            SC_kernel: {'heat', 'cos', binary'}, default: 'heat'
+            SC_kernel: {'heat', 'cos', 'binary'}, default: 'heat'
                 kernel for graph affinity matrix
 
             SC_sigma: float, default: 1
@@ -288,9 +282,6 @@ class CNMFParams(object):
                 temporal downsampling factor
 
           CNMFParams.spatial (these control how the algorithms handle spatial components):
-            block_size_spat : int, default: 5000
-                Number of pixels to process at the same time for dot product. Reduce if you face memory problems
-
             dist: float, default: 3
                 expansion factor of ellipse
 
@@ -318,7 +309,7 @@ class CNMFParams(object):
                 number of pixels to be processed by each worker
 
             nb: int, default: 1
-                number of global background components
+                number of global background components. Do not set this directly; modify it in init.
 
             normalize_yyt_one: bool, default: True
                 Whether to normalize the C and A matrices so that diag(C*C.T) = 1 during update spatial
@@ -361,15 +352,12 @@ class CNMFParams(object):
             optimize_g: bool, default: False
                 flag for optimizing time constants
 
-            memory_efficient:
-                (undocumented)
-
             method_deconvolution: 'oasis'|'cvxpy'|'oasis', default: 'oasis'
                 method for solving the constrained deconvolution problem ('oasis','cvx' or 'cvxpy')
                 if method cvxpy, primary and secondary (if problem unfeasible for approx solution)
 
             nb: int, default: 1
-                number of global background components
+                number of global background components. Do not set this directly; modify it in init.
 
             noise_method: 'mean'|'median'|'logmexp', default: 'mean'
                 PSD averaging method for computing the noise std
@@ -401,9 +389,6 @@ class CNMFParams(object):
 
             merge_parallel: bool, default: False
                 Perform merging in parallel
-
-            max_merge_area: int or None, default: None
-                maximum area (in pixels) of merged components, used to determine whether to merge components during fitting process
 
           CNMFParams.quality (these control how quality of traces are evaluated):
             SNR_lowest: float, default: 0.5
@@ -677,9 +662,7 @@ class CNMFParams(object):
             'dxy': dxy,
             'var_name_hdf5': var_name_hdf5,
             'caiman_version': pkg_resources.get_distribution('caiman').version,
-            'last_commit': None,
-            'mmap_F': None,
-            'mmap_C': None
+            'last_commit': None
         }
 
         self.patch = {
@@ -716,7 +699,7 @@ class CNMFParams(object):
         }
 
         self.init = {
-            'K': k,                   # number of components,
+            'K': k,                      # number of components,
             'SC_kernel': 'heat',         # kernel for graph affinity matrix
             'SC_sigma' : 1,              # std for SC kernel
             'SC_thr': 0,                 # threshold for affinity matrix
@@ -756,7 +739,6 @@ class CNMFParams(object):
         }
 
         self.spatial = {
-            'block_size_spat': block_size_spat, # number of pixels to parallelize residual computation ** DECREASE IF MEMORY ISSUES
             'dist': 3,                       # expansion factor of ellipse
             'expandCore': iterate_structure(generate_binary_structure(2, 1), 2).astype(int),
             # Flag to extract connected components (might want to turn to False for dendritic imaging)
@@ -793,7 +775,6 @@ class CNMFParams(object):
             # number of autocovariance lags to be considered for time constant estimation
             'lags': 5,
             'optimize_g': False,         # flag for optimizing time constants
-            'memory_efficient': False,
             # method for solving the constrained deconvolution problem ('oasis','cvx' or 'cvxpy')
             # if method cvxpy, primary and secondary (if problem unfeasible for approx
             # solution) solvers to be used with cvxpy, can be 'ECOS','SCS' or 'CVXOPT'
@@ -811,8 +792,7 @@ class CNMFParams(object):
         self.merging = {
             'do_merge': do_merge,
             'merge_thr': merge_thresh,
-            'merge_parallel': False,
-            'max_merge_area': max_merge_area
+            'merge_parallel': False
         }
 
         self.quality = {
@@ -824,7 +804,7 @@ class CNMFParams(object):
             'rval_lowest': -1,         # minimum accepted space correlation
             'rval_thr': rval_thr,      # space correlation threshold
             'use_cnn': True,           # use CNN based classifier
-            'use_ecc': False,          # flag for eccentricity based filtering
+            'use_ecc': False,          # flag for eccentricity based filtering (2D only)
             'max_ecc': 3
         }
 
@@ -957,8 +937,6 @@ class CNMFParams(object):
         if self.patch['rf'] is not None:
             if np.any(np.array(self.patch['rf']) <= self.init['gSiz'][0]):
                 logging.warning(f"Changing rf from {self.patch['rf']} to {2 * self.init['gSiz'][0]} because the constraint rf > gSiz was not satisfied.")
-#        if self.motion['gSig_filt'] is None:
-#            self.motion['gSig_filt'] = self.init['gSig']
         if self.init['nb'] <= 0 and (self.patch['nb_patch'] != self.init['nb'] or
                                      self.patch['low_rank_background'] is not None):
             logging.warning(f"gnb={self.init['nb']}, hence setting keys nb_patch and low_rank_background in group patch automatically.")
