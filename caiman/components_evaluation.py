@@ -692,7 +692,8 @@ def estimate_components_quality(traces,
                                 robust_std=False,
                                 Athresh=0.1,
                                 thresh_C=0.3,
-                                num_traces_per_group=20) -> tuple[np.ndarray, ...]:
+                                num_traces_per_group=20,
+                                timeout=10*60) -> tuple[np.ndarray, ...]:
     """ Define a metric and order components according to the probability of some "exceptional events" (like a spike).
 
     Such probability is defined as the likelihood of observing the actual trace value over N samples given an estimated noise distribution.
@@ -784,7 +785,7 @@ def estimate_components_quality(traces,
             else:
                 logging.info('Component evaluation in parallel')
                 if 'multiprocessing' in str(type(dview)):
-                    res = dview.map_async(evaluate_components_placeholder, params).get(4294967)
+                    res = dview.map_async(evaluate_components_placeholder, params).get(timeout)
                 else:
                     res = dview.map_sync(evaluate_components_placeholder, params)
 

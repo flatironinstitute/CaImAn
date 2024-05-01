@@ -80,7 +80,8 @@ def save_memmap_each(fnames: list[str],
                      add_to_movie: float = 0,
                      border_to_0: int = 0,
                      order: str = 'C',
-                     slices=None) -> list[str]:
+                     slices=None,
+                     timeout=10*60) -> list[str]:
     """
     Create several memory mapped files using parallel processing
 
@@ -149,7 +150,7 @@ def save_memmap_each(fnames: list[str],
     # Perform the job using whatever computing framework we're set to use
     if dview is not None:
         if 'multiprocessing' in str(type(dview)):
-            fnames_new = dview.map_async(save_place_holder, pars).get(4294967)
+            fnames_new = dview.map_async(save_place_holder, pars).get(timeout)
         else:
             fnames_new = my_map(dview, save_place_holder, pars)
     else:
@@ -158,7 +159,7 @@ def save_memmap_each(fnames: list[str],
     return fnames_new
 
 def save_memmap_join(mmap_fnames:list[str], base_name: str = None, n_chunks: int = 20, dview=None,
-                     add_to_mov=0) -> str:
+                     add_to_mov=0, timeout=10*60) -> str:
     """
     Makes a large file memmap from a number of smaller files
 
@@ -211,7 +212,7 @@ def save_memmap_join(mmap_fnames:list[str], base_name: str = None, n_chunks: int
 
     if dview is not None:
         if 'multiprocessing' in str(type(dview)):
-            dview.map_async(save_portion, pars).get(4294967)
+            dview.map_async(save_portion, pars).get(timeout)
         else:
             my_map(dview, save_portion, pars)
 
@@ -538,7 +539,7 @@ def save_memmap(filenames:list[str],
     return fname_new
 
 def parallel_dot_product(A: np.ndarray, b, block_size: int = 5000, dview=None, transpose=False,
-                         num_blocks_per_run=20) -> np.ndarray:
+                         num_blocks_per_run=20, timeout=10*60) -> np.ndarray:
     # todo: todocument
     """ Chunk matrix product between matrix and column vectors
 
@@ -591,7 +592,7 @@ def parallel_dot_product(A: np.ndarray, b, block_size: int = 5000, dview=None, t
         for itera in range(0, len(pars), num_blocks_per_run):
 
             if 'multiprocessing' in str(type(dview)):
-                results = dview.map_async(dot_place_holder, pars[itera:itera + num_blocks_per_run]).get(4294967)
+                results = dview.map_async(dot_place_holder, pars[itera:itera + num_blocks_per_run]).get(timeout)
             else:
                 results = dview.map_sync(dot_place_holder, pars[itera:itera + num_blocks_per_run])
 

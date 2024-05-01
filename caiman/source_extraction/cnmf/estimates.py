@@ -1161,7 +1161,7 @@ class Estimates(object):
 
         return self
 
-    def deconvolve(self, params, dview=None, dff_flag=False):
+    def deconvolve(self, params, dview=None, dff_flag=False, timeout=10*60):
         ''' performs deconvolution on the estimated traces using the parameters
         specified in params. Deconvolution on detrended and normalized (DF/F)
         traces can be performed by setting dff_flag=True. In this case the
@@ -1193,7 +1193,7 @@ class Estimates(object):
 
         if 'multiprocessing' in str(type(dview)):
             results = dview.map_async(
-                constrained_foopsi_parallel, args_in).get(4294967)
+                constrained_foopsi_parallel, args_in).get(timeout)
         elif dview is not None:
             results = dview.map_sync(constrained_foopsi_parallel, args_in)
         else:
@@ -1222,7 +1222,7 @@ class Estimates(object):
 
                 if 'multiprocessing' in str(type(dview)):
                     results = dview.map_async(
-                        constrained_foopsi_parallel, args_in).get(4294967)
+                        constrained_foopsi_parallel, args_in).get(timeout)
                 elif dview is not None:
                     results = dview.map_sync(constrained_foopsi_parallel,
                                              args_in)

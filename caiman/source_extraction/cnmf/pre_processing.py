@@ -192,7 +192,7 @@ def get_noise_fft(Y, noise_range=[0.25, 0.5], noise_method='logmexp', max_num_sa
     return sn, psdx
 
 
-def get_noise_fft_parallel(Y, n_pixels_per_process=100, dview=None, **kwargs):
+def get_noise_fft_parallel(Y, n_pixels_per_process=100, dview=None, timeout=10*60, **kwargs):
     """parallel version of get_noise_fft.
 
     Args:
@@ -243,7 +243,7 @@ def get_noise_fft_parallel(Y, n_pixels_per_process=100, dview=None, **kwargs):
     else:
         if 'multiprocessing' in str(type(dview)):
             results = dview.map_async(
-                fft_psd_multithreading, argsin).get(4294967)
+                fft_psd_multithreading, argsin).get(timeout)
         else:
             ne = len(dview)
             print(('Running on %d engines.' % (ne)))

@@ -712,7 +712,7 @@ class CNMF(object):
 
 
     def deconvolve(self, p=None, method_deconvolution=None, bas_nonneg=None,
-                   noise_method=None, optimize_g=0, s_min=None, **kwargs):
+                   noise_method=None, optimize_g=0, s_min=None, timeout=10*60, **kwargs):
         """Performs deconvolution on already extracted traces using
         constrained foopsi.
         """
@@ -742,7 +742,7 @@ class CNMF(object):
 
         if 'multiprocessing' in str(type(self.dview)):
             results = self.dview.map_async(
-                constrained_foopsi_parallel, args_in).get(4294967)
+                constrained_foopsi_parallel, args_in).get(timeout)
         elif self.dview is not None:
             results = self.dview.map_sync(constrained_foopsi_parallel, args_in)
         else:

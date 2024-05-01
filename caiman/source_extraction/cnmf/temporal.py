@@ -61,7 +61,7 @@ def constrained_foopsi_parallel(arg_in):
 
     return C_, Sp_, Ytemp_, cb_, c1_, sn_, gn_, jj_, lam_
 
-def update_temporal_components(Y, A, b, Cin, fin, bl=None, c1=None, g=None, sn=None, nb=1, ITER=2, block_size_temp=5000, num_blocks_per_run_temp=20, debug=False, dview=None, **kwargs):
+def update_temporal_components(Y, A, b, Cin, fin, bl=None, c1=None, g=None, sn=None, nb=1, ITER=2, block_size_temp=5000, num_blocks_per_run_temp=20, debug=False, dview=None, timeout=5*60, **kwargs):
     """Update temporal components and background given spatial components using a block coordinate descent approach.
 
     Args:
@@ -216,7 +216,7 @@ def update_temporal_components(Y, A, b, Cin, fin, bl=None, c1=None, g=None, sn=N
     parrllcomp, len_parrllcomp = caiman.source_extraction.cnmf.utilities.update_order_greedy(AA[:nr, :][:, :nr])
     logging.info("entering the deconvolution ")
     C, S, bl, YrA, c1, sn, g, lam = update_iteration(parrllcomp, len_parrllcomp, nb, C, S, bl, nr,
-                                                     ITER, YrA, c1, sn, g, Cin, T, nA, dview, debug, AA, kwargs)
+                                                     ITER, YrA, c1, sn, g, Cin, T, nA, dview, debug, AA, timeout, kwargs)
     ff = np.where(np.sum(C, axis=1) == 0)  # remove empty components
     if np.size(ff) > 0:  # Eliminating empty temporal components
         ff = ff[0]
@@ -247,7 +247,7 @@ def update_temporal_components(Y, A, b, Cin, fin, bl=None, c1=None, g=None, sn=N
 
 
 def update_iteration(parrllcomp, len_parrllcomp, nb, C, S, bl, nr,
-                     ITER, YrA, c1, sn, g, Cin, T, nA, dview, debug, AA, kwargs):
+                     ITER, YrA, c1, sn, g, Cin, T, nA, dview, debug, AA, timeout=5*60, kwargs):
     """Update temporal components and background given spatial components using a block coordinate descent approach.
 
     Args:
@@ -348,7 +348,7 @@ def update_iteration(parrllcomp, len_parrllcomp, nb, C, S, bl, nr,
             # computing the most likely discretized spike train underlying a fluorescence trace
             if 'multiprocessing' in str(type(dview)):
                 results = dview.map_async(
-                    constrained_foopsi_parallel, args_in).get(4294967)
+                    constrained_foopsi_parallel, args_in).get(timeout)
 
             elif dview is not None and platform.system() != 'Darwin':
                 if debug:

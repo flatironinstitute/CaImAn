@@ -662,7 +662,8 @@ def local_correlations_movie_offline(file_name,
                                      remove_baseline: bool = False,
                                      winSize_baseline: int = 50,
                                      quantil_min_baseline: float = 8,
-                                     gaussian_blur: bool=False):
+                                     gaussian_blur: bool=False,
+                                     timeout=10*60):
     """
     Efficient (parallel) computation of correlation image in shifting windows 
     with option for prior baseline removal
@@ -728,7 +729,7 @@ def local_correlations_movie_offline(file_name,
     else:
         #TODO phrase better
         if 'multiprocessing' in str(type(dview)):
-            parallel_result = dview.map_async(local_correlations_movie_parallel, params).get(4294967)
+            parallel_result = dview.map_async(local_correlations_movie_parallel, params).get(timeout)
         else:
             parallel_result = dview.map_sync(local_correlations_movie_parallel, params)
             dview.results.clear()
@@ -756,7 +757,8 @@ def mean_image(file_name,
                  Tot_frames=None,
                  fr: float = 10.,
                  window: int = 100,
-                 dview=None):
+                 dview=None,
+                 timeout=10*60):
     """
     Efficient (parallel) computation of mean image in chunks
 
@@ -795,7 +797,7 @@ def mean_image(file_name,
         parallel_result = list(map(mean_image_parallel, params))
     else:
         if 'multiprocessing' in str(type(dview)):
-            parallel_result = dview.map_async(mean_image_parallel, params).get(4294967)
+            parallel_result = dview.map_async(mean_image_parallel, params).get(timeout)
         else:
             parallel_result = dview.map_sync(mean_image_parallel, params)
             dview.results.clear()
