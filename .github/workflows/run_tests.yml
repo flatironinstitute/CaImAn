@@ -19,15 +19,16 @@ jobs:
       fail-fast: false
 
     steps:
-      - uses: actions/checkout@v3
+      - uses: actions/checkout@v4
 
       - name: Set up Conda
-        uses: conda-incubator/setup-miniconda@v2
+        uses: conda-incubator/setup-miniconda@v3
         with:
           auto-update-conda: true
           python-version: ${{ matrix.python-version }}
           environment-file: environment-minimal.yml
           activate-environment: caiman
+          conda-solver: libmamba
 
       - name: Install OS Dependencies
         shell: bash -l {0}
