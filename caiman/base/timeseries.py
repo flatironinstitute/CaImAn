@@ -147,6 +147,7 @@ class timeseries(np.ndarray):
         Args:
             file_name: str
                 name of file. Possible formats are tif, avi, npz, mmap and hdf5
+                If a path is not part of the filename, it will be saved into a temporary directory under caiman_data
 
             to32: Bool
                 whether to transform to 32 bits
@@ -164,6 +165,9 @@ class timeseries(np.ndarray):
             compress: int
                 if saving as .tif, specifies the compression level
                 if saving as .avi or .mkv, compress=0 uses the IYUV codec, otherwise the FFV1 codec is used
+
+        Returns:
+            generated_filename: The full filename, path included, where the data was saved
 
         Raises:
             Exception 'Extension Unknown'
@@ -197,6 +201,8 @@ class timeseries(np.ndarray):
                         if to32 and not ('float32' in str(self.dtype)):
                             curfr = curfr.astype(np.float32)
                         tif.save(curfr, compress=compress)
+            return file_name
+
         elif extension == '.npz':
             if to32 and not ('float32' in str(self.dtype)):
                 input_arr = self.astype(np.float32)
@@ -209,6 +215,8 @@ class timeseries(np.ndarray):
                      fr=self.fr,
                      meta_data=self.meta_data,
                      file_name=self.file_name)
+            return file_name
+
         elif extension in ('.avi', '.mkv'):
             codec = None
             if compress == 0:
@@ -241,6 +249,7 @@ class timeseries(np.ndarray):
             for d in data:
                 vw.write(cv2.cvtColor(d, cv2.COLOR_GRAY2BGR))
             vw.release()
+            return file_name
 
         elif extension == '.mat':
             if self.file_name[0] is not None:
@@ -271,6 +280,7 @@ class timeseries(np.ndarray):
                         'meta_data': self.meta_data,
                         'file_name': f_name
                     })
+            return file_name
 
         elif extension in ('.hdf5', '.h5'):
             with h5py.File(file_name, "w") as f:
@@ -289,6 +299,7 @@ class timeseries(np.ndarray):
                 if self.meta_data[0] is not None:
                     logging.debug("Metadata for saved file: " + str(self.meta_data))
                     dset.attrs["meta_data"] = cpk.dumps(self.meta_data)
+            return file_name
         elif extension == '.mmap':
             base_name = name
 

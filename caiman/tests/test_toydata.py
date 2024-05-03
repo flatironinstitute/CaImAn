@@ -44,7 +44,6 @@ def pipeline(D):
                                                              gSig=[2, 2, 2][:D],
                                                              p=1,
                                                              n_pixels_per_process=np.prod(dims),
-                                                             block_size_spat=np.prod(dims),
                                                              block_size_temp=np.prod(dims))
     params.spatial['thr_method'] = 'nrg'
     params.spatial['extract_cc'] = False

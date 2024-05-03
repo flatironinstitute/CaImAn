@@ -1,0 +1,27 @@
+{
+"data": {
+	"fr": 10,
+	"decay_time": 5.0
+	},
+"init": {
+	"gSig": [6, 6],
+	"K": 30,
+	"nb": 2
+	},
+"merging": {
+	"merge_thr": 0.80
+	},
+"preprocess": {
+	"p": 2
+	},
+"temporal": {
+	"p": 2
+	},
+"quality": {
+	"min_SNR": 2,
+	"rval_thr": 0.85,
+	"use_cnn": true,
+	"min_cnn_thr": 0.99,
+	"cnn_lowest": 0.1
+	}
+}

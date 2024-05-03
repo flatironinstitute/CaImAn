@@ -1,19 +1,23 @@
 channels:
 - conda-forge
+- defaults
 dependencies:
 - python <=3.12
 - av
 - cython
-- future
-- h5py
+- h5py >=3.4.0
 - holoviews >=1.16.2
+- ipython
 - ipyparallel
+- ipywidgets
 - matplotlib
 - moviepy
-- numpy <2.0.0
+- nose
+- numpy <2.0.0,>=1.26
 - numpydoc
 - opencv
 - peakutils
+- pims
 - psutil
 - pynwb
 - scikit-image >=0.19.0

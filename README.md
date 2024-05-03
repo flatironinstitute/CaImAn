@@ -62,6 +62,8 @@ The main use cases and notebooks are listed in the following table:
 
 A comprehensive list of references, where you can find detailed discussion of the methods and their development, can be found [here](https://caiman.readthedocs.io/en/master/CaImAn_features_and_references.html#references). 
 
+# CLI demos
+Caiman also provides commandline demos, similar to the notebooks, demonstrating how to work with the codebase outside of Jupyter. They take their configuration primarily from json files (which you will want to modify to work with your data and its specifics) and should be reasonably easy to modify if they don't already do what you want them to do (in particular, saving things; a standard output format for Caiman is something intended for future releases). To run them, activate your environment, and find the demos in demos/general under your caiman data directory; you can run them like you would any other python application, or edit them with your code editor. Each demo comes with a json configuration file that you can customise. There is a README in the demos directory that covers some of this.
 
 # How to get help
 - [Online documentation](https://caiman.readthedocs.io/en/latest/) contains a lot of general information about Caiman, the parameters, how to interpret its outputs, and more.

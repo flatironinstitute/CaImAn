@@ -4,6 +4,7 @@ import numpy as np
 import numpy.testing as npt
 import os
 import tifffile
+import tracemalloc
 
 import caiman as cm
 from caiman.paths import caiman_datadir
@@ -90,37 +91,61 @@ def test_load_subind():
     npt.assert_array_equal(data_3d_plane0_3d[:, :, :, 0], data_3d_plane0_2d)
 
 
-def test_sbx_to_tif():
-    tif_file = os.path.join(caiman_datadir(), 'temp', 'sbxtest1.tif')
+def test_load_efficiency():
+    # Make sure that when loading, excess copies are not being made and 
+    # data outside subindices are not being loaded into memory
     file_2d = os.path.join(TESTDATA_PATH, '2d_sbx.sbx')
-    data_2d_from_sbx = cm.load(file_2d)
-    sbx_utils.sbx_to_tif(file_2d, fileout=tif_file)
-    data_2d_from_tif = cm.load(tif_file)
-    npt.assert_array_almost_equal(data_2d_from_sbx, data_2d_from_tif,
-                                  err_msg='Data do not match when loaded from .sbx vs. .tif')
+    tracemalloc.start()
+    data_2d_sliced = sbx_utils.sbxread(file_2d, subindices=(slice(None), slice(None, None, 2)))
+    curr_mem, peak_mem = tracemalloc.get_traced_memory()
+    assert peak_mem / curr_mem < 1.1, 'Too much memory allocated when loading'
+    del data_2d_sliced
+    tracemalloc.stop()    
 
-    tif_file = os.path.join(caiman_datadir(), 'temp', 'sbxtest2.tif')
-    file_3d = os.path.join(TESTDATA_PATH, '3d_sbx_1.sbx')
-    data_3d_from_sbx = cm.load(file_3d, is3D=True)
-    sbx_utils.sbx_to_tif(file_3d, fileout=tif_file)
-    data_3d_from_tif = cm.load(tif_file, is3D=True)
-    npt.assert_array_almost_equal(data_3d_from_sbx, data_3d_from_tif,
-                                  err_msg='3D data do not match when loaded from .sbx vs. .tif')
-    # make sure individual planes are not saved as 3D (i.e. RGB)
-    Y = tifffile.TiffFile(tif_file).series[0]
-    assert Y.shape == SHAPE_3D, 'Shape of data in tif file is wrong'
-    if Y[0].shape != SHAPE_3D[2:]:
-        if Y[0].shape == SHAPE_3D[1:]:
-            assert False, 'Tif "plane" is 3-dimensional (i.e., has channel dimension)'
-        else:
-            assert False, 'Shape of tif plane is wrong'
-    
-    # with subindices
-    tif_file = os.path.join(caiman_datadir(), 'temp', 'sbxtest3.tif')
-    subinds = (slice(0, None, 2), [0, 1, 3], slice(None))
-    sbx_utils.sbx_to_tif(file_2d, fileout=tif_file, subindices=subinds)
-    sub_data_from_tif = cm.load(tif_file)
-    npt.assert_array_almost_equal(data_2d_from_sbx[subinds_to_ix(subinds, data_2d_from_sbx.shape)], sub_data_from_tif)
+
+def test_sbx_to_tif():
+    tif_filename = os.path.join(caiman_datadir(), 'temp', 'from_sbx.tif')
+    tif_file = None
+
+    try:
+        file_2d = os.path.join(TESTDATA_PATH, '2d_sbx.sbx')
+        data_2d_from_sbx = cm.load(file_2d)
+        sbx_utils.sbx_to_tif(file_2d, fileout=tif_filename)
+        data_2d_from_tif = cm.load(tif_filename)
+        npt.assert_array_almost_equal(data_2d_from_sbx, data_2d_from_tif,
+                                      err_msg='Data do not match when loaded from .sbx vs. .tif')
+
+        file_3d = os.path.join(TESTDATA_PATH, '3d_sbx_1.sbx')
+        data_3d_from_sbx = cm.load(file_3d, is3D=True)
+        sbx_utils.sbx_to_tif(file_3d, fileout=tif_filename)
+        data_3d_from_tif = cm.load(tif_filename, is3D=True)
+        npt.assert_array_almost_equal(data_3d_from_sbx, data_3d_from_tif,
+                                      err_msg='3D data do not match when loaded from .sbx vs. .tif')
+        # make sure individual planes are not saved as 3D (i.e. RGB)
+        with tifffile.TiffFile(tif_filename) as tif_file:
+            Y = tif_file.series[0]
+            assert Y.shape == SHAPE_3D, 'Shape of data in tif file is wrong'
+            if Y[0].shape != SHAPE_3D[2:]:
+                if Y[0].shape == SHAPE_3D[1:]:
+                    assert False, 'Tif "plane" is 3-dimensional (i.e., has channel dimension)'
+                else:
+                    assert False, 'Shape of tif plane is wrong'
+
+        # with subindices
+        subinds = (slice(0, None, 2), [0, 1, 3], slice(None))
+        sbx_utils.sbx_to_tif(file_2d, fileout=tif_filename, subindices=subinds)
+        sub_data_from_tif = cm.load(tif_filename)
+        npt.assert_array_almost_equal(data_2d_from_sbx[subinds_to_ix(subinds, data_2d_from_sbx.shape)], sub_data_from_tif)
+
+        # with plane
+        sbx_utils.sbx_to_tif(file_3d, fileout=tif_filename, plane=0)
+        plane_data_from_tif = cm.load(tif_filename)
+        npt.assert_array_almost_equal(data_3d_from_sbx[:, :, :, 0], plane_data_from_tif)
+
+    finally:
+        # cleanup
+        if os.path.isfile(tif_filename):
+            os.remove(tif_filename)
 
     # with plane
     tif_file = os.path.join(caiman_datadir(), 'temp', 'sbxtest4.tif')
@@ -129,37 +154,41 @@ def test_sbx_to_tif():
     npt.assert_array_almost_equal(data_3d_from_sbx[:, :, :, 0], plane_data_from_tif)
 
 def test_sbx_chain_to_tif():
-    tif_file = os.path.join(caiman_datadir(), 'temp', 'sbxtest5.tif')
-    file_3d_1 = os.path.join(TESTDATA_PATH, '3d_sbx_1.sbx')
-    data_3d_1 = sbx_utils.sbxread(file_3d_1)
-    file_3d_2 = os.path.join(TESTDATA_PATH, '3d_sbx_2.sbx')
-    data_3d_2 = sbx_utils.sbxread(file_3d_2)
+    tif_filename = os.path.join(caiman_datadir(), 'temp', 'from_sbx.tif')
+    try:
+        file_3d_1 = os.path.join(TESTDATA_PATH, '3d_sbx_1.sbx')
+        data_3d_1 = sbx_utils.sbxread(file_3d_1)
+        file_3d_2 = os.path.join(TESTDATA_PATH, '3d_sbx_2.sbx')
+        data_3d_2 = sbx_utils.sbxread(file_3d_2)
 
-    # normal chain
-    tif_file = os.path.join(caiman_datadir(), 'temp', 'sbxtest6.tif')
-    sbx_utils.sbx_chain_to_tif([file_3d_1, file_3d_2], fileout=tif_file)
-    data_chain_tif = cm.load(tif_file, is3D=True)
-    data_chain_gt = np.concatenate([data_3d_1, data_3d_2], axis=0)
-    npt.assert_array_almost_equal(data_chain_tif, data_chain_gt,
-                                  err_msg='Tif from chain does not match expected')
+        # normal chain
+        sbx_utils.sbx_chain_to_tif([file_3d_1, file_3d_2], fileout=tif_filename)
+        data_chain_tif = cm.load(tif_filename, is3D=True)
+        data_chain_gt = np.concatenate([data_3d_1, data_3d_2], axis=0)
+        npt.assert_array_almost_equal(data_chain_tif, data_chain_gt,
+                                      err_msg='Tif from chain does not match expected')
 
-    # matching subindices
-    tif_file = os.path.join(caiman_datadir(), 'temp', 'sbxtest7.tif')
-    sbx_utils.sbx_chain_to_tif([file_3d_1, file_3d_2], fileout=tif_file,
-                               subindices=(slice(None), slice(0, None, 2)))
-    data_chain_tif = cm.load(tif_file, is3D=True)
-    data_chain_gt = data_chain_gt[:, ::2]
-    npt.assert_array_almost_equal(data_chain_tif, data_chain_gt,
-                                  err_msg='Tif from chain with subindices does not match expected')
+        # matching subindices
+        sbx_utils.sbx_chain_to_tif([file_3d_1, file_3d_2], fileout=tif_filename,
+                                   subindices=(slice(None), slice(0, None, 2)))
+        data_chain_tif = cm.load(tif_filename, is3D=True)
+        data_chain_gt = data_chain_gt[:, ::2]
+        npt.assert_array_almost_equal(data_chain_tif, data_chain_gt,
+                                      err_msg='Tif from chain with subindices does not match expected')
+        
+        # non-matching subindices with compatible shapes
+        subinds_1 = (slice(None), [0, 1, 3], slice(0, None, 2), [0, 2])
+        subinds_2 = (slice(1, None), [-4, -2, -1], slice(1, None, 2), [1, 3])
+        sbx_utils.sbx_chain_to_tif([file_3d_1, file_3d_2], fileout=tif_filename,
+                                    subindices=[subinds_1, subinds_2])
+        data_chain_tif = cm.load(tif_filename, is3D=True)
+        data_chain_gt = np.concatenate([data_3d_1[subinds_to_ix(subinds_1, data_3d_1.shape)],
+                                        data_3d_2[subinds_to_ix(subinds_2, data_3d_2.shape)]], axis=0)
+        npt.assert_array_almost_equal(data_chain_tif, data_chain_gt,
+                                      err_msg='Tif from chain with non-matching subindices does not match expected')
+
+    finally:
+        # cleanup
+        if os.path.isfile(tif_filename):
+            os.remove(tif_filename)
     
-    # non-matching subindices with compatible shapes
-    tif_file = os.path.join(caiman_datadir(), 'temp', 'sbxtest8.tif')
-    subinds_1 = (slice(None), [0, 1, 3], slice(0, None, 2), [0, 2])
-    subinds_2 = (slice(1, None), [-4, -2, -1], slice(1, None, 2), [1, 3])
-    sbx_utils.sbx_chain_to_tif([file_3d_1, file_3d_2], fileout=tif_file,
-                                subindices=[subinds_1, subinds_2])
-    data_chain_tif = cm.load(tif_file, is3D=True)
-    data_chain_gt = np.concatenate([data_3d_1[subinds_to_ix(subinds_1, data_3d_1.shape)],
-                                    data_3d_2[subinds_to_ix(subinds_2, data_3d_2.shape)]], axis=0)
-    npt.assert_array_almost_equal(data_chain_tif, data_chain_gt,
-                                  err_msg='Tif from chain with non-matching subindices does not match expected')

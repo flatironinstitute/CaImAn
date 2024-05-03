@@ -1235,7 +1235,7 @@ class Estimates(object):
                 self.S_dff = np.stack([results[1][i] for i in order])
 
     def merge_components(self, Y, params, mx=50, fast_merge=True,
-                         dview=None, max_merge_area=None):
+                         dview=None):
             """merges components
             """
             # FIXME This method shares its name with a function elsewhere in the codebase (which it wraps)
@@ -1247,8 +1247,7 @@ class Estimates(object):
                                  params.get_group('spatial'), dview=dview,
                                  bl=self.bl, c1=self.c1, sn=self.neurons_sn,
                                  g=self.g, thr=params.get('merging', 'merge_thr'), mx=mx,
-                                 fast_merge=fast_merge, merge_parallel=params.get('merging', 'merge_parallel'),
-                                 max_merge_area=max_merge_area)
+                                 fast_merge=fast_merge, merge_parallel=params.get('merging', 'merge_parallel'))
 
     def manual_merge(self, components, params):
         ''' merge a given list of components. The indices

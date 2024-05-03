@@ -673,69 +673,6 @@ class movie(caiman.base.timeseries.timeseries):
 
         return space_components, time_components
 
-    def online_NMF(self,
-                   n_components: int = 30,
-                   method: str = 'nnsc',
-                   lambda1: int = 100,
-                   iterations: int = -5,
-                   model=None,
-                   **kwargs) -> tuple[np.ndarray, np.ndarray]:
-        """ Method performing online matrix factorization and using the spams
-
-        (http://spams-devel.gforge.inria.fr/doc-python/html/index.html) package from Inria.
-        Implements bith the nmf and nnsc methods
-
-        Args:
-            n_components: int
-
-            method: 'nnsc' or 'nmf' (see http://spams-devel.gforge.inria.fr/doc-python/html/index.html)
-
-            lambda1: see http://spams-devel.gforge.inria.fr/doc-python/html/index.html
-
-            iterations: see http://spams-devel.gforge.inria.fr/doc-python/html/index.html
-
-            batchsize: see http://spams-devel.gforge.inria.fr/doc-python/html/index.html
-
-            model: see http://spams-devel.gforge.inria.fr/doc-python/html/index.html
-
-            **kwargs: more arguments to be passed to nmf or nnsc
-
-        Returns:
-            time_comps
-
-            space_comps
-        """
-        try:
-            import spams       # XXX consider moving this to the head of the file
-        except:
-            logging.error("You need to install the SPAMS package")
-            raise
-
-        T, d1, d2 = np.shape(self)
-        d = d1 * d2
-        X = np.asfortranarray(np.reshape(self, [T, d], order='F'))
-
-        if method == 'nmf':
-            (time_comps, V) = spams.nmf(X, return_lasso=True, K=n_components, numThreads=4, iter=iterations, **kwargs)
-
-        elif method == 'nnsc':
-            (time_comps, V) = spams.nnsc(X,
-                                         return_lasso=True,
-                                         K=n_components,
-                                         lambda1=lambda1,
-                                         iter=iterations,
-                                         model=model,
-                                         **kwargs)
-        else:
-            raise Exception('Method unknown')
-
-        space_comps = []
-
-        for _, mm in enumerate(V):
-            space_comps.append(np.reshape(mm.todense(), (d1, d2), order='F'))
-
-        return time_comps, np.array(space_comps)
-
     def IPCA(self, components: int = 50, batch: int = 1000) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         Iterative Principal Component analysis, see sklearn.decomposition.incremental_pca
@@ -1244,7 +1181,8 @@ def load(file_name: Union[str, list[str]],
             dimension of the movie along x and y if loading from a two dimensional numpy array
 
         var_name_hdf5: str
-            if loading from hdf5/n5 name of the dataset inside the file to load (ignored if the file only has one dataset)
+            if loading from hdf5/n5 name of the dataset inside the file to load (ignored if the file only has one dataset).
+            This is also used for (new-style) mat files
 
         in_memory: bool=False
             This changes the behaviour of the function for npy files to be a readwrite rather than readonly memmap,
@@ -1314,17 +1252,6 @@ def load(file_name: Union[str, list[str]],
         basename, extension = os.path.splitext(file_name)
 
         extension = extension.lower()
-        if extension == '.mat':
-            logging.warning('Loading a *.mat file. x- and y- dimensions ' +
-                            'might have been swapped.')
-            try: # scipy >= 1.8
-                byte_stream, file_opened = scipy.io.matlab._mio._open_file(file_name, appendmat=False)
-                mjv, mnv = scipy.io.matlab.miobase.get_matfile_version(byte_stream)
-            except: # scipy <= 1.7
-                byte_stream, file_opened = scipy.io.matlab.mio._open_file(file_name, appendmat=False)
-                mjv, mnv = scipy.io.matlab.mio.get_matfile_version(byte_stream)
-            if mjv == 2:
-                extension = '.h5'
 
         if extension in ['.tif', '.tiff', '.btf']:  # load tif file
             with tifffile.TiffFile(file_name) as tffl:
@@ -1512,23 +1439,23 @@ def load(file_name: Union[str, list[str]],
                 else:
                     input_arr = input_arr[np.newaxis, :, :]
 
-        elif extension == '.mat':      # load npy file
-            input_arr = scipy.io.loadmat(file_name)['data']
-            input_arr = np.rollaxis(input_arr, 2, -3)
-            if subindices is not None:
-                input_arr = input_arr[subindices]
-
         elif extension == '.npz':      # load movie from saved file
             if subindices is not None:
                 raise Exception('Subindices not implemented')
             with np.load(file_name) as f:
                 return movie(**f).astype(outtype)
 
-        elif extension in ('.hdf5', '.h5', '.nwb', 'n5', 'zarr'):
+        elif extension in ('.hdf5', '.h5', '.mat', '.nwb', 'n5', 'zarr'):
             if extension in ('n5', 'zarr'): # Thankfully, the zarr library lines up closely with h5py past the initial open
                 f = zarr.open(file_name, "r")
             else:
-                f = h5py.File(file_name, "r")
+                try:
+                    f = h5py.File(file_name, "r")
+                except:
+                    if extension == '.mat':
+                        raise Exception(f"Problem loading {file_name}: Unknown format. This may be in the original version 1 (non-hdf5) mat format; please convert it first")
+                    else:
+                        raise Exception(f"Problem loading {file_name}: Unknown format.")
             ignore_keys = ['__DATA_TYPES__'] # Known metadata that tools provide, add to this as needed. Sync with get_file_size() !!
             fkeys = list(filter(lambda x: x not in ignore_keys, f.keys()))
             if len(fkeys) == 1: # If the file we're parsing has only one dataset inside it,
@@ -1951,11 +1878,17 @@ def load_iter(file_name: Union[str, list[str]], subindices=None, var_name_hdf5: 
                             yield frame # was frame[..., 0].astype(outtype)
                         return
                 
-            elif extension in ('.hdf5', '.h5', '.nwb', '.mat', 'n5', 'zarr'):
-                if extension in ('n5', 'zarr'): # Thankfully, the zarr library lines up closely with h5py past the initial open
+            elif extension in ('.hdf5', '.h5', '.nwb', '.mat', '.n5', '.zarr'):
+                if extension in ('.n5', '.zarr'): # Thankfully, the zarr library lines up closely with h5py past the initial open
                     f = zarr.open(file_name, "r")
                 else:
-                    f = h5py.File(file_name, "r")
+                    try:
+                        f = h5py.File(file_name, "r")
+                    except:
+                        if extension == '.mat':
+                            raise Exception(f"Problem loading {file_name}: Unknown format. This may be in the original version 1 (non-hdf5) mat format; please convert it first")
+                        else:
+                            raise Exception(f"Problem loading {file_name}: Unknown format.")
                 ignore_keys = ['__DATA_TYPES__'] # Known metadata that tools provide, add to this as needed.
                 fkeys = list(filter(lambda x: x not in ignore_keys, f.keys()))
                 if len(fkeys) == 1: # If the hdf5 file we're parsing has only one dataset inside it,
@@ -2010,11 +1943,7 @@ def get_file_size(file_name, var_name_hdf5:str='mov') -> tuple[tuple, Union[int,
         if os.path.exists(file_name):
             _, extension = os.path.splitext(file_name)[:2]
             extension = extension.lower()
-            if extension == '.mat':
-                byte_stream, file_opened = scipy.io.matlab.mio._open_file(file_name, appendmat=False)
-                mjv, mnv = scipy.io.matlab.mio.get_matfile_version(byte_stream)
-                if mjv == 2:
-                    extension = '.h5'
+
             if extension in ['.tif', '.tiff', '.btf']:
                 tffl = tifffile.TiffFile(file_name)
                 siz = tffl.series[0].shape
@@ -2042,12 +1971,18 @@ def get_file_size(file_name, var_name_hdf5:str='mov') -> tuple[tuple, Union[int,
                 filename = os.path.split(file_name)[-1]
                 Yr, dims, T = caiman.mmapping.load_memmap(os.path.join(
                         os.path.split(file_name)[0], filename))
-            elif extension in ('.h5', '.hdf5', '.nwb', 'n5', 'zarr'):
+            elif extension in ('.h5', '.hdf5', '.mat', '.nwb', 'n5', 'zarr'):
                 # FIXME this doesn't match the logic in load()
                 if extension in ('n5', 'zarr'): # Thankfully, the zarr library lines up closely with h5py past the initial open
                     f = zarr.open(file_name, "r")
                 else:
-                    f = h5py.File(file_name, "r")
+                    try:
+                        f = h5py.File(file_name, "r")
+                    except:
+                        if extension == '.mat':
+                            raise Exception(f"Problem loading {file_name}: Unknown format. This may be in the original version 1 (non-hdf5) mat format; please convert it first")
+                        else:
+                            raise Exception(f"Problem loading {file_name}: Unknown format.")
                 ignore_keys = ['__DATA_TYPES__'] # Known metadata that tools provide, add to this as needed. Sync with movies.my:load() !!
                 kk = list(filter(lambda x: x not in ignore_keys, f.keys()))
                 if len(kk) == 1: # TODO: Consider recursing into a group to find a dataset

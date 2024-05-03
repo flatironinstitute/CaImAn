@@ -528,7 +528,7 @@ def nb_view_patches3d(Y_r, A, C, dims, image_type='mean', Yr=None,
 
     if max_projection:
         if image_type == 'corr':
-            tmp = [(local_correlations(
+            tmp = [(caiman.summary_images.local_correlations(
                 Yr[index_permut].reshape(dims + (-1,), order='F'))[:, ::-1]).max(i)
                 for i in range(3)]
 

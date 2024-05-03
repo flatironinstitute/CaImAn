@@ -167,9 +167,12 @@ class MotionCorrect(object):
 
         """
         if 'ndarray' in str(type(fname)) or isinstance(fname, caiman.base.movies.movie):
-            logging.info('Creating file for motion correction "tmp_mov_mot_corr.hdf5"')
-            caiman.movie(fname).save('tmp_mov_mot_corr.hdf5')
-            fname = ['tmp_mov_mot_corr.hdf5']
+            mc_tempfile = caiman.paths.fn_relocated('tmp_mov_mot_corr.hdf5')
+            if os.path.isfile(mc_tempfile):
+                os.remove(mc_tempfile)
+            logging.info(f"Creating file for motion correction: {mc_tempfile}")
+            caiman.movie(fname).save(mc_tempfile)
+            fname = [mc_tempfile]
 
         if not isinstance(fname, list):
             fname = [fname]
@@ -2711,6 +2714,10 @@ def compute_metrics_motion_correction(fname, final_size_x, final_size_y, swap_di
     if play_flow and opencv:
         cv2.destroyAllWindows()
 
+    # FIXME: This generates a metrics dump potentially right next to the datafiles it was generated from;
+    #        We will need to fix this in some future revision of the code, ideally returning the filename we used to the caller
+    #        or abstracting the path handling logic into some kind of a policy-aware getpath function for specific uses.
+    #        This should be fixed with future work to have separate runs have separate workdirs.
     np.savez(os.path.splitext(fname)[0] + '_metrics', flows=flows, norms=norms, correlations=correlations, smoothness=smoothness,
              tmpl=tmpl, smoothness_corr=smoothness_corr, img_corr=img_corr)
     return tmpl, correlations, flows, norms, smoothness
@@ -3120,12 +3127,7 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
         if base_name is None:
             base_name = os.path.splitext(os.path.split(fname)[1])[0]
         base_name = caiman.paths.fn_relocated(base_name)
-
         fname_tot:Optional[str] = caiman.paths.memmap_frames_filename(base_name, dims, T, order)
-        if isinstance(fname, tuple):
-            fname_tot = os.path.join(os.path.split(fname[0])[0], fname_tot)
-        else:
-            fname_tot = os.path.join(os.path.split(fname)[0], fname_tot)
 
         np.memmap(fname_tot, mode='w+', dtype=np.float32,
                   shape=caiman.mmapping.prepare_shape(shape_mov), order=order)
