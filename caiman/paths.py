@@ -38,7 +38,7 @@ def get_tempdir() -> str:
         if os.path.isdir(os.environ['CAIMAN_TEMP']):
             return os.environ['CAIMAN_TEMP']
         else:
-            logging.warning(f"CAIMAN_TEMP is set to nonexistent directory {os.environment['CAIMAN_TEMP']}. Ignoring")
+            logging.warning(f"CAIMAN_TEMP is set to nonexistent directory {os.environ['CAIMAN_TEMP']}. Ignoring")
     temp_under_data = os.path.join(caiman_datadir(), "temp")
     if not os.path.isdir(temp_under_data):
         logging.warning(f"Default temporary dir {temp_under_data} does not exist, creating")
