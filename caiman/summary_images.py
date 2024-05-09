@@ -663,7 +663,7 @@ def local_correlations_movie_offline(file_name,
                                      winSize_baseline: int = 50,
                                      quantil_min_baseline: float = 8,
                                      gaussian_blur: bool=False,
-                                     timeout=10*60):
+                                     timeout=30*60):
     """
     Efficient (parallel) computation of correlation image in shifting windows 
     with option for prior baseline removal
@@ -758,7 +758,7 @@ def mean_image(file_name,
                  fr: float = 10.,
                  window: int = 100,
                  dview=None,
-                 timeout=10*60):
+                 timeout=30*60):
     """
     Efficient (parallel) computation of mean image in chunks
 
