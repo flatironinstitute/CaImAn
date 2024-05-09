@@ -712,7 +712,7 @@ class CNMF(object):
 
 
     def deconvolve(self, p=None, method_deconvolution=None, bas_nonneg=None,
-                   noise_method=None, optimize_g=0, s_min=None, timeout=10*60, **kwargs):
+                   noise_method=None, optimize_g=0, s_min=None, timeout=30*60, **kwargs):
         """Performs deconvolution on already extracted traces using
         constrained foopsi.
         """
