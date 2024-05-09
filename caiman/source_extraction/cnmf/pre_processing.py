@@ -192,7 +192,7 @@ def get_noise_fft(Y, noise_range=[0.25, 0.5], noise_method='logmexp', max_num_sa
     return sn, psdx
 
 
-def get_noise_fft_parallel(Y, n_pixels_per_process=100, dview=None, timeout=10*60, **kwargs):
+def get_noise_fft_parallel(Y, n_pixels_per_process=100, dview=None, timeout=30*60, **kwargs):
     """parallel version of get_noise_fft.
 
     Args:
