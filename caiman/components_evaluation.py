@@ -693,7 +693,7 @@ def estimate_components_quality(traces,
                                 Athresh=0.1,
                                 thresh_C=0.3,
                                 num_traces_per_group=20,
-                                timeout=10*60) -> tuple[np.ndarray, ...]:
+                                timeout=30*60) -> tuple[np.ndarray, ...]:
     """ Define a metric and order components according to the probability of some "exceptional events" (like a spike).
 
     Such probability is defined as the likelihood of observing the actual trace value over N samples given an estimated noise distribution.
