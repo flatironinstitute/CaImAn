@@ -81,7 +81,7 @@ def save_memmap_each(fnames: list[str],
                      border_to_0: int = 0,
                      order: str = 'C',
                      slices=None,
-                     timeout=10*60) -> list[str]:
+                     timeout=30*60) -> list[str]:
     """
     Create several memory mapped files using parallel processing
 
@@ -159,7 +159,7 @@ def save_memmap_each(fnames: list[str],
     return fnames_new
 
 def save_memmap_join(mmap_fnames:list[str], base_name: str = None, n_chunks: int = 20, dview=None,
-                     add_to_mov=0, timeout=10*60) -> str:
+                     add_to_mov=0, timeout=30*60) -> str:
     """
     Makes a large file memmap from a number of smaller files
 
@@ -539,7 +539,7 @@ def save_memmap(filenames:list[str],
     return fname_new
 
 def parallel_dot_product(A: np.ndarray, b, block_size: int = 5000, dview=None, transpose=False,
-                         num_blocks_per_run=20, timeout=10*60) -> np.ndarray:
+                         num_blocks_per_run=20, timeout=30*60) -> np.ndarray:
     # todo: todocument
     """ Chunk matrix product between matrix and column vectors
 
