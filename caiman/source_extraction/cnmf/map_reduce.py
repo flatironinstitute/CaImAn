@@ -121,7 +121,7 @@ def cnmf_patches(args_in):
 
 def run_CNMF_patches(file_name, shape, params, gnb=1, dview=None,
                      memory_fact=1, border_pix=0, low_rank_background=True,
-                     del_duplicates=False, indices=[slice(None)]*3, timeout=10*60):
+                     del_duplicates=False, indices=[slice(None)]*3, timeout=30*60):
     """Function that runs CNMF in patches
 
      Either in parallel or sequentially, and return the result for each.
