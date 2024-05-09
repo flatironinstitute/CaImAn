@@ -288,7 +288,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
     gSig = np.asarray(gSig, dtype=float) / ssub
     gSiz = np.round(np.asarray(gSiz) / ssub).astype(int)
 
-    if normalize_init is True:
+    if normalize_init:
         logging.info('Variance Normalization')
         if img is None:
             img = np.mean(Y, axis=-1)
@@ -403,7 +403,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
         Cin = np.empty((K, T), dtype=np.float32)
         center = []
 
-    if normalize_init is True:
+    if normalize_init:
         if Ain.size > 0:
             Ain = Ain * np.reshape(img, (np.prod(d), -1), order='F')
         if sparse_b:
@@ -657,7 +657,7 @@ def graphNMF(Y_ds, nr, max_iter_snmf=500, lambda_gnmf=1,
     C = mdl.fit_transform(yr).T
     A = mdl.components_.T
     W = caiman.source_extraction.cnmf.utilities.fast_graph_Laplacian_patches(
-            [np.reshape(m, [T, d], order='F').T, [], 'heat', SC_sigma, SC_thr,
+            [np.reshape(m, [T, d], order='F').T, [], SC_kernel, SC_sigma, SC_thr,
              SC_nnn, SC_normalize, SC_use_NN])
     D = scipy.sparse.spdiags(W.sum(0), 0, W.shape[0], W.shape[0])
     for it in range(max_iter_snmf):

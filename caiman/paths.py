@@ -45,7 +45,7 @@ def get_tempdir() -> str:
         os.makedirs(temp_under_data)
     return temp_under_data
 
-def fn_relocated(fn:str) -> str:
+def fn_relocated(fn:str, force_temp:bool=False) -> str:
     """ If the provided filename does not contain any path elements, this returns what would be its absolute pathname
         as located in get_tempdir(). Otherwise it just returns what it is passed.
 
@@ -53,10 +53,10 @@ def fn_relocated(fn:str) -> str:
         but if all they think about is filenames, they go under CaImAn's notion of its temporary dir. This is under the
         principle of "sensible defaults, but users can override them".
     """
-    if not 'CAIMAN_NEW_TEMPFILE' in os.environ: # XXX We will ungate this in a future version of caiman
-        return fn
-    if str(os.path.basename(fn)) == str(fn): # No path stuff
+    if os.path.split(fn)[0] == '': # No path stuff
         return os.path.join(get_tempdir(), fn)
+    elif force_temp:
+        return os.path.join(get_tempdir(), os.path.split(fn)[1])
     else:
         return fn
 
@@ -124,4 +124,5 @@ def generate_fname_tot(base_name:str, dims:list[int], order:str) -> str:
         d1, d2, d3 = dims[0], dims[1], dims[2]
     ret = '_'.join([base_name, 'd1', str(d1), 'd2', str(d2), 'd3', str(d3), 'order', order])
     ret = re.sub(r'(_)+', '_', ret) # Turn repeated underscores into just one
-    return ret
+    return fn_relocated(ret, force_temp=True)
+

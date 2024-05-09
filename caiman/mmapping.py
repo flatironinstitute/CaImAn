@@ -406,7 +406,7 @@ def save_memmap(filenames:list[str],
                 recompute_each_memmap = True
 
 
-        if recompute_each_memmap or (remove_init>0) or (idx_xy is not None)\
+        if recompute_each_memmap or (remove_init > 0) or (idx_xy is not None)\
                 or (xy_shifts is not None) or (add_to_movie != 0) or (border_to_0>0)\
                 or slices is not None:
 
@@ -528,7 +528,7 @@ def save_memmap(filenames:list[str],
             sys.stdout.flush()
             Ttot = Ttot + T
 
-        fname_new = caiman.paths.fn_relocated(fname_tot + f'_frames_{Ttot}.mmap')
+        fname_new = os.path.join(caiman.paths.get_tempdir(), caiman.paths.fn_relocated(f'{fname_tot}_frames_{Ttot}.mmap'))
         try:
             # need to explicitly remove destination on windows
             os.unlink(fname_new)

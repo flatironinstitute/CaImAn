@@ -1,0 +1,45 @@
+{
+    "data": {
+	"fr": 15.0,
+	"decay_time": 0.4,
+	"dxy": [2.0, 2.0]
+    },
+    "init": {
+	"nb": 2,
+	"K": 4,
+	"gSig": [4, 4],
+	"method_init": "greedy_roi",
+	"rolling_sum": true,
+	"ssub": 2,
+	"tsub": 2
+    },
+    "motion": {
+	"pw_rigid": true,
+	"max_shifts": [6, 6],
+	"strides": [50, 50],
+	"overlaps": [24, 24],
+	"max_deviation_rigid": 3,
+	"border_nan": "copy"
+    },
+    "preprocess": {
+	"p": 1
+    },
+    "temporal": {
+	"p": 1
+    },
+    "patch": {
+	"rf": 15,
+	"stride": 6,
+	"only_init": true
+    },
+    "merging": {
+	"merge_thr": 0.85
+    },
+    "quality": {
+	"min_SNR": 2,
+	"rval_thr": 0.85,
+	"use_cnn": true,
+	"min_cnn_thr": 0.99,
+	"cnn_lowest": 0.1
+	}
+}
