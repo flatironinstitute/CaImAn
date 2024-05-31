@@ -55,6 +55,7 @@ def do_install_to(targdir: str, inplace: bool = False, force: bool = False) -> N
     global sourcedir_base
 
     try:
+        print("If you did an editable install (with -e), the install must happen within the source tree; otherwise, it must not")
         import importlib_metadata
         # A lot can change upstream with this code; I hope the APIs are stable, but just in case, make this best-effort
         if json.loads(importlib_metadata.Distribution.from_name('caiman').read_text('direct_url.json'))['dir_info']['editable']:
