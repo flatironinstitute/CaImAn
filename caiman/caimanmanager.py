@@ -1,7 +1,6 @@
 #!/usr/bin/env python
 
 import argparse
-import distutils.dir_util
 import filecmp
 import glob
 import os
@@ -11,8 +10,8 @@ import shutil
 import string
 import subprocess
 import sys     # for sys.prefix
-from typing import Dict, List, Tuple
 
+import caiman
 from caiman.paths import caiman_datadir
 
 sourcedir_base = os.path.join(sys.prefix, "share", "caiman")   # Setuptools will drop our datadir off here
@@ -53,26 +52,30 @@ standard_movies = [
 
 def do_install_to(targdir: str, inplace: bool = False, force: bool = False) -> None:
     global sourcedir_base
+    ignore_pycache=shutil.ignore_patterns('__pycache__')
     if os.path.isdir(targdir) and not force:
         raise Exception(targdir + " already exists. You may move it out of the way, remove it, or use --force")
     if not inplace:    # In this case we rely on what setup.py put in the share directory for the module
         if not force:
-            shutil.copytree(sourcedir_base, targdir)
+            shutil.copytree(sourcedir_base, targdir, ignore=ignore_pycache)
         else:
-            distutils.dir_util.copy_tree(sourcedir_base, targdir)
+            shutil.copytree(sourcedir_base, targdir, ignore=ignore_pycache, dirs_exist_ok=True)
         os.makedirs(os.path.join(targdir, 'temp'          ), exist_ok=True)
     else:          # here we recreate the other logical path here. Maintenance concern: Keep these reasonably in sync with what's in setup.py
         for copydir in extra_dirs:
             if not force:
-                shutil.copytree(copydir, os.path.join(targdir, copydir))
+                shutil.copytree(copydir, os.path.join(targdir, copydir), ignore=ignore_pycache)
             else:
-                distutils.dir_util.copy_tree(copydir, os.path.join(targdir, copydir))
+                shutil.copytree(copydir, os.path.join(targdir, copydir), ignore=ignore_pycache, dirs_exist_ok=True)
         os.makedirs(os.path.join(targdir, 'example_movies'), exist_ok=True)
         os.makedirs(os.path.join(targdir, 'temp'          ), exist_ok=True)
         for stdmovie in standard_movies:
             shutil.copy(stdmovie, os.path.join(targdir, 'example_movies'))
         for extrafile in extra_files:
             shutil.copy(extrafile, targdir)
+    if 'CAIMAN_RELEASE' in os.environ:
+        with open(os.path.join(targdir, 'RELEASE'), 'w') as verfile_fh:
+            print(f"Version:{caiman.__version__}", file=verfile_fh)
     print("Installed " + targdir)
 
 
@@ -209,7 +212,7 @@ def system_diagnose() -> None:
 ###############
 
 
-def runcmd(cmdlist: List[str], ignore_error: bool = False, verbose: bool = True) -> Tuple[str, str, int]:
+def runcmd(cmdlist:list[str], ignore_error: bool = False, verbose: bool = True) -> tuple[str, str, int]:
     # In most of my codebases, runcmd saves and returns the output.
     # Here I've modified it to send right to stdout, because nothing
     # uses the output and because the demos sometimes have issues

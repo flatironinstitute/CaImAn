@@ -6,40 +6,23 @@ We put arrays on disk as raw bytes, extending along the first dimension.
 Alongside each array x we ensure the value x.dtype which stores the string
 description of the array's dtype.
 
-See Also:
-------------
-
-@url
-.. image::
-@author  epnev
 """
 
-# \package caiman/source_extraction/cnmf
-# \version   1.0
-# \copyright GNU General Public License v2.0
-# \date Created on Sat Sep 12 15:52:53 2015
-
 import cv2
-import h5py
 import logging
 import numpy as np
 import os
 import pathlib
-import pims
-import pylab as pl
+import matplotlib.pyplot as plt
 import scipy
 from scipy.sparse import spdiags, issparse, csc_matrix, csr_matrix
 import scipy.ndimage as ndi
-import tifffile
-from typing import List
-# https://github.com/constantinpape/z5/issues/146
-#import z5py
 
-from .initialization import greedyROI
-from ...base.rois import com
-from ...mmapping import parallel_dot_product, load_memmap
-from ...cluster import extract_patch_coordinates
-from ...utils.stats import df_percentile
+import caiman.base.rois
+import caiman.cluster
+import caiman.mmapping
+import caiman.source_extraction.cnmf.initialization
+import caiman.utils.stats
 
 
 def get_border_type(mode):
@@ -433,7 +416,7 @@ def extract_DF_F(Yr, A, C, bl, quantileMin=8, frames_window=200, block_size=400,
             print('Using thread. If memory issues set block_size larger than 500')
             dview_res = dview
 
-        AY = parallel_dot_product(Yr, A, dview=dview_res, block_size=block_size,
+        AY = caiman.mmapping.parallel_dot_product(Yr, A, dview=dview_res, block_size=block_size,
                                   transpose=True).T
     else:
         AY = A.T.dot(Yr)
@@ -533,7 +516,7 @@ def detrend_df_f(A, b, C, f, YrA=None, quantileMin=8, frames_window=500,
     T = C.shape[-1]
 
     if flag_auto:
-        data_prct, val = df_percentile(F[:, :frames_window], axis=1)
+        data_prct, val = caiman.utils.stats.df_percentile(F[:, :frames_window], axis=1)
         if frames_window is None or frames_window > T:
             Fd = np.stack([np.percentile(f, prctileMin) for f, prctileMin in
                            zip(F, data_prct)])
@@ -597,7 +580,7 @@ def fast_prct_filt(input_data, level=8, frames_window=1000):
     padafter = int(np.ceil(elm_missing / 2.))
     tr_tmp = np.pad(data.T, ((padbefore, padafter), (0, 0)), mode='reflect')
     numFramesNew, num_traces = np.shape(tr_tmp)
-    #% compute baseline quickly
+    # compute baseline quickly
 
     tr_BL = np.reshape(tr_tmp, (downsampfact, int(numFramesNew / downsampfact),
                                 num_traces), order='F')
@@ -613,7 +596,7 @@ def fast_prct_filt(input_data, level=8, frames_window=1000):
         data -= tr_BL[padbefore:-padafter].T
 
     return data.squeeze()
-#%%
+
 def detrend_df_f_auto(A, b, C, f, dims=None, YrA=None, use_annulus = True, 
                       dist1 = 7, dist2 = 5, frames_window=1000, 
                       use_fast = False):
@@ -689,7 +672,7 @@ def detrend_df_f_auto(A, b, C, f, dims=None, YrA=None, use_annulus = True,
     B = A_ann.T.dot(b).dot(f)
     T = C.shape[-1]
 
-    data_prct, val = df_percentile(F[:, :frames_window], axis=1)
+    data_prct, val = caiman.utils.stats.df_percentile(F[:, :frames_window], axis=1)
 
     if frames_window is None or frames_window > T:
         Fd = np.stack([np.percentile(f, prctileMin) for f, prctileMin in
@@ -715,9 +698,6 @@ def detrend_df_f_auto(A, b, C, f, dims=None, YrA=None, use_annulus = True,
         F_df = (F - Fd) / (Df + Fd)
 
     return F_df
-
-#%%
-
 
 def manually_refine_components(Y, xxx_todo_changeme, A, C, Cn, thr=0.9, display_numbers=True,
                                max_number=None, cmap=None, **kwargs):
@@ -769,8 +749,8 @@ def manually_refine_components(Y, xxx_todo_changeme, A, C, Cn, thr=0.9, display_
 
     x, y = np.mgrid[0:d1:1, 0:d2:1]
 
-    pl.imshow(Cn, interpolation=None, cmap=cmap)
-    cm = com(A, d1, d2)
+    plt.imshow(Cn, interpolation=None, cmap=cmap)
+    cm = caiman.base.rois.com(A, d1, d2)
 
     Bmat = np.zeros((np.minimum(nr, max_number), d1, d2))
     for i in range(np.minimum(nr, max_number)):
@@ -783,13 +763,13 @@ def manually_refine_components(Y, xxx_todo_changeme, A, C, Cn, thr=0.9, display_
 
     T = np.shape(Y)[-1]
 
-    pl.close()
-    fig = pl.figure()
-    ax = pl.gca()
+    plt.close()
+    fig = plt.figure()
+    ax = plt.gca()
     ax.imshow(Cn, interpolation=None, cmap=cmap,
               vmin=np.percentile(Cn[~np.isnan(Cn)], 1), vmax=np.percentile(Cn[~np.isnan(Cn)], 99))
     for i in range(np.minimum(nr, max_number)):
-        pl.contour(y, x, Bmat[i], [thr])
+        plt.contour(y, x, Bmat[i], [thr])
 
     if display_numbers:
         for i in range(np.minimum(nr, max_number)):
@@ -816,7 +796,7 @@ def manually_refine_components(Y, xxx_todo_changeme, A, C, Cn, thr=0.9, display_
             a2_tiny = np.reshape(a3_tiny, (dx_sz * dy_sz, nr), order='F')
             y2_res = y2_tiny - a2_tiny.dot(C)
             y3_res = np.reshape(y2_res, (dy_sz, dx_sz, T), order='F')
-            a__, c__, center__, b_in__, f_in__ = greedyROI(
+            a__, c__, center__, b_in__, f_in__ = caiman.source_extraction.cnmf.initialization.greedyROI(
                 y3_res, nr=1, gSig=[dx_sz//2, dy_sz//2], gSiz=[dx_sz, dy_sz])
 
             a_f = np.zeros((d, 1))
@@ -832,8 +812,8 @@ def manually_refine_components(Y, xxx_todo_changeme, A, C, Cn, thr=0.9, display_
             Bvec = np.zeros(d)
             Bvec[indx] = cumEn
             bmat = np.reshape(Bvec, np.shape(Cn), order='F')
-            pl.contour(y, x, bmat, [thr])
-            pl.pause(.01)
+            plt.contour(y, x, bmat, [thr])
+            plt.pause(.01)
 
         elif pts == []:
             break
@@ -1012,7 +992,7 @@ def update_order_greedy(A, flag_AA=True):
         Eftychios A. Pnevmatikakis, Simons Foundation, 2017
     """
     K = np.shape(A)[-1]
-    parllcomp:List = []
+    parllcomp:list = []
     for i in range(K):
         new_list = True
         for ls in parllcomp:
@@ -1031,8 +1011,6 @@ def update_order_greedy(A, flag_AA=True):
             parllcomp.append([i])
     len_parrllcomp = [len(ls) for ls in parllcomp]
     return parllcomp, len_parrllcomp
-#%%
-
 
 def compute_residuals(Yr_mmap_file, A_, b_, C_, f_, dview=None, block_size=1000, num_blocks_per_run=5):
     '''compute residuals from memory mapped file and output of CNMF
@@ -1044,7 +1022,7 @@ def compute_residuals(Yr_mmap_file, A_, b_, C_, f_, dview=None, block_size=1000,
                 number of pixels processed together
 
             num_blocks_per_run: int
-                nnumber of parallel blocks processes
+                number of parallel blocks processes
 
         Returns:
             YrA: ndarray
@@ -1060,7 +1038,7 @@ def compute_residuals(Yr_mmap_file, A_, b_, C_, f_, dview=None, block_size=1000,
     nA = np.ravel(Ab.power(2).sum(axis=0))
 
     if 'mmap' in str(type(Yr_mmap_file)):
-        YA = parallel_dot_product(Yr_mmap_file, Ab, dview=dview, block_size=block_size,
+        YA = caiman.mmapping.parallel_dot_product(Yr_mmap_file, Ab, dview=dview, block_size=block_size,
                                   transpose=True, num_blocks_per_run=num_blocks_per_run) * \
                                   scipy.sparse.spdiags(1./nA, 0, Ab.shape[-1], Ab.shape[-1])
     else:
@@ -1115,152 +1093,6 @@ def normalize_AC(A, C, YrA, b, f, neurons_sn):
         neurons_sn *= nA
 
     return csc_matrix(A), C, YrA, b, f, neurons_sn
-
-
-def get_file_size(file_name, var_name_hdf5='mov'):
-    """ Computes the dimensions of a file or a list of files without loading
-    it/them in memory. An exception is thrown if the files have FOVs with
-    different sizes
-        Args:
-            file_name: str/filePath or various list types
-                locations of file(s)
-
-            var_name_hdf5: 'str'
-                if loading from hdf5 name of the dataset to load
-
-        Returns:
-            dims: tuple
-                dimensions of FOV
-
-            T: int or tuple of int
-                number of timesteps in each file
-    """
-    # TODO There is a lot of redundant code between this and caiman.base.movies.load() that should be unified somehow
-    if isinstance(file_name, pathlib.Path):
-        # We want to support these as input, but str has a broader set of operations that we'd like to use, so let's just convert.
-        # (specifically, filePath types don't support subscripting)
-        file_name = str(file_name)
-    if isinstance(file_name, str):
-        if os.path.exists(file_name):
-            _, extension = os.path.splitext(file_name)[:2]
-            extension = extension.lower()
-            if extension == '.mat':
-                byte_stream, file_opened = scipy.io.matlab.mio._open_file(file_name, appendmat=False)
-                mjv, mnv = scipy.io.matlab.mio.get_matfile_version(byte_stream)
-                if mjv == 2:
-                    extension = '.h5'
-            if extension in ['.tif', '.tiff', '.btf']:
-                tffl = tifffile.TiffFile(file_name)
-                siz = tffl.series[0].shape
-                # tiff files written in append mode
-                if len(siz) < 3:
-                    dims = siz
-                    T = len(tffl.pages)
-                else:
-                    T, dims = siz[0], siz[1:]
-            elif extension in ('.avi', '.mkv'):
-                if 'CAIMAN_LOAD_AVI_FORCE_FALLBACK' in os.environ:
-                        pims_movie = pims.PyAVReaderTimed(file_name) # duplicated code, but no cleaner way
-                        T = len(pims_movie)
-                        dims = pims_movie.frame_shape[0:2]
-                else:
-                    cap = cv2.VideoCapture(file_name) # try opencv
-                    dims = [int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)), int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))]
-                    T = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
-                    cap.release()
-                    if dims[0] <= 0 or dims[1] <= 0 or T <= 0: # if no opencv, do pims instead. See also load()
-                        pims_movie = pims.PyAVReaderTimed(file_name)
-                        T = len(pims_movie)
-                        dims[0], dims[1] = pims_movie.frame_shape[0:2]
-            elif extension == '.mmap':
-                filename = os.path.split(file_name)[-1]
-                Yr, dims, T = load_memmap(os.path.join(
-                        os.path.split(file_name)[0], filename))
-            elif extension in ('.h5', '.hdf5', '.nwb'):
-                # FIXME this doesn't match the logic in movies.py:load()
-                # Consider pulling a lot of the "data source" code out into one place
-                with h5py.File(file_name, "r") as f:
-                    ignore_keys = ['__DATA_TYPES__'] # Known metadata that tools provide, add to this as needed. Sync with movies.my:load() !!
-                    kk = list(filter(lambda x: x not in ignore_keys, f.keys()))
-                    if len(kk) == 1 and 'Dataset' in str(type(f[kk[0]])): # TODO: Consider recursing into a group to find a dataset
-                        siz = f[kk[0]].shape
-                    elif var_name_hdf5 in f:
-                        if extension == '.nwb':
-                            siz = f[var_name_hdf5]['data'].shape
-                        else:
-                            siz = f[var_name_hdf5].shape
-                    elif var_name_hdf5 in f['acquisition']:
-                        siz = f['acquisition'][var_name_hdf5]['data'].shape
-                    else:
-                        logging.error('The file does not contain a variable' +
-                                      'named {0}'.format(var_name_hdf5))
-                        raise Exception('Variable not found. Use one of the above')
-                T, dims = siz[0], siz[1:]
-            elif extension in ('.n5', '.zarr'):
-                try:
-                    import z5py
-                except:
-                    raise Exception("z5py not available; if you need this use the conda-based setup")
-
-                with z5py.File(file_name, "r") as f:
-                    kk = list(f.keys())
-                    if len(kk) == 1:
-                        siz = f[kk[0]].shape
-                    elif var_name_hdf5 in f:
-                        if extension == '.nwb':
-                            siz = f[var_name_hdf5]['data'].shape
-                        else:
-                            siz = f[var_name_hdf5].shape
-                    elif var_name_hdf5 in f['acquisition']:
-                        siz = f['acquisition'][var_name_hdf5]['data'].shape
-                    else:
-                        logging.error('The file does not contain a variable' +
-                                      'named {0}'.format(var_name_hdf5))
-                        raise Exception('Variable not found. Use one of the above')
-                T, dims = siz[0], siz[1:]
-            elif extension in ('.sbx'):
-                from ...base.movies import loadmat_sbx
-                info = loadmat_sbx(file_name[:-4]+ '.mat')['info']
-                dims = tuple((info['sz']).astype(int))
-                # Defining number of channels/size factor
-                if info['channels'] == 1:
-                    info['nChan'] = 2
-                    factor = 1
-                elif info['channels'] == 2:
-                    info['nChan'] = 1
-                    factor = 2
-                elif info['channels'] == 3:
-                    info['nChan'] = 1
-                    factor = 2
-            
-                # Determine number of frames in whole file
-                T = int(os.path.getsize(
-                    file_name[:-4] + '.sbx') / info['recordsPerBuffer'] / info['sz'][1] * factor / 4 - 1)
-                
-            else:
-                raise Exception('Unknown file type')
-            dims = tuple(dims)
-        else:
-            raise Exception('File not found!')
-    elif isinstance(file_name, tuple):
-        from ...base.movies import load
-        dims = load(file_name[0], var_name_hdf5=var_name_hdf5).shape
-        T = len(file_name)
-
-    elif isinstance(file_name, list):
-        if len(file_name) == 1:
-            dims, T = get_file_size(file_name[0], var_name_hdf5=var_name_hdf5)
-        else:
-            dims, T = zip(*[get_file_size(fn, var_name_hdf5=var_name_hdf5)
-                for fn in file_name])
-            if len(set(dims)) > 1:
-                raise Exception('Files have FOVs with different sizes')
-            else:
-                dims = dims[0]
-    else:
-        raise Exception('Unknown input type')
-    return dims, T
-
 
 def fast_graph_Laplacian(mmap_file, dims, max_radius=10, kernel='heat',
                          dview=None, sigma=1, thr=0.05, p=10, normalize=True,
@@ -1317,13 +1149,13 @@ def fast_graph_Laplacian(mmap_file, dims, max_radius=10, kernel='heat',
         else:
             res = dview.map(fast_graph_Laplacian_pixel, pars, chunksize=128)
         indptr = np.cumsum(np.array([0] + [len(r[0]) for r in res]))
-        indeces = [item for sublist in res for item in sublist[0]]
+        indices = [item for sublist in res for item in sublist[0]]
         data = [item for sublist in res for item in sublist[1]]
-        W = scipy.sparse.csr_matrix((data, indeces, indptr), shape=[Np, Np])
+        W = scipy.sparse.csr_matrix((data, indices, indptr), shape=[Np, Np])
         D = scipy.sparse.spdiags(W.sum(0), 0, Np, Np)
         L = D - W
     else:
-        indices, _ = extract_patch_coordinates(dims, rf, strides)
+        indices, _ = caiman.cluster.extract_patch_coordinates(dims, rf, strides)
         pars = []
         for i in range(len(indices)):
             pars.append([mmap_file, indices[i], kernel, sigma, thr, p,
@@ -1346,7 +1178,7 @@ def fast_graph_Laplacian_patches(pars):
     if type(mmap_file) not in {'str', 'list'}:
         Yind = mmap_file
     else:
-        Y = load_memmap(mmap_file)[0]
+        Y = caiman.mmapping.load_memmap(mmap_file)[0]
         Yind = np.array(Y[indices])
     if normalize:
         Yind -= Yind.mean(1)[:, np.newaxis]
@@ -1378,9 +1210,9 @@ def fast_graph_Laplacian_pixel(pars):
     [XX, YY] = np.meshgrid(xx, yy)
     R = np.sqrt(XX**2 + YY**2)
     R = R.flatten('F')
-    indeces = np.where(R < max_radius)[0]
-    Y = load_memmap(mmap_file)[0]
-    Yind = np.array(Y[indeces])
+    indices = np.where(R < max_radius)[0]
+    Y = caiman.mmapping.load_memmap(mmap_file)[0]
+    Yind = np.array(Y[indices])
     y = np.array(Y[i, :])
     if normalize:
         Yind -= Yind.mean(1)[:, np.newaxis]
@@ -1401,4 +1233,4 @@ def fast_graph_Laplacian_pixel(pars):
     else:
         ind = np.where(w>0)[0]
 
-    return indeces[ind].tolist(), w[ind].tolist()
+    return indices[ind].tolist(), w[ind].tolist()

@@ -1,10 +1,7 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
-"""Extract neural activity from a fluorescence trace using a constrained deconvolution approach
-
-Created on Tue Sep  1 16:11:25 2015
-@author: Eftychios A. Pnevmatikakis, based on an implementation by T. Machado,  Andrea Giovannucci & Ben Deverett
+"""
+Extract neural activity from a fluorescence trace using a constrained deconvolution approach
 """
 
 import numpy as np
@@ -15,8 +12,6 @@ from warnings import warn
 from math import log, sqrt, exp
 
 import sys
-#%%
-
 
 def constrained_foopsi(fluor, bl=None,  c1=None, g=None,  sn=None, p=None, method_deconvolution='oasis', bas_nonneg=True,
                        noise_range=[.25, .5], noise_method='logmexp', lags=5, fudge_factor=1.,
@@ -104,9 +99,6 @@ def constrained_foopsi(fluor, bl=None,  c1=None, g=None,  sn=None, p=None, metho
     References:
         * Pnevmatikakis et al. 2016. Neuron, in press, http://dx.doi.org/10.1016/j.neuron.2015.11.037
         * Machado et al. 2015. Cell 162(2):338-350
-
-    \image: docs/img/deconvolution.png
-    \image: docs/img/evaluationcomponent.png
     """
 
     if p is None:
@@ -151,7 +143,7 @@ def constrained_foopsi(fluor, bl=None,  c1=None, g=None,  sn=None, p=None, metho
 
                 c1 = c[0]
 
-                # remove intial calcium to align with the other foopsi methods
+                # remove initial calcium to align with the other foopsi methods
                 # it is added back in function constrained_foopsi_parallel of temporal.py
                 c -= c1 * g**np.arange(len(fluor))
             elif p == 2:
@@ -323,7 +315,7 @@ def cvxpy_foopsi(fluor, g, sn, b=None, c1=None, bas_nonneg=True, solvers=None):
             should the baseline be estimated
 
         solvers: tuple of two strings
-            primary and secondary solvers to be used. Can be choosen between ECOS, SCS, CVXOPT
+            primary and secondary solvers to be used. Can be chosen between ECOS, SCS, CVXOPT
 
     Returns:
         c: estimated calcium trace
@@ -332,7 +324,7 @@ def cvxpy_foopsi(fluor, g, sn, b=None, c1=None, bas_nonneg=True, solvers=None):
 
         c1: esimtated initial calcium value
 
-        g: esitmated parameters of the autoregressive model
+        g: estimated parameters of the autoregressive model
 
         sn: estimated noise level
 
@@ -501,7 +493,7 @@ def _nnls(KK, Ky, s=None, mask=None, tol=1e-9, max_iter=None):
         w = np.argmax(l)
         P[w] = True
 
-        try:  # likely unnnecessary try-except-clause for robustness sake
+        try:  # likely unnecessary try-except-clause for robustness sake
             #mu = np.linalg.inv(KK[P][:, P]).dot(Ky[P])
             mu = np.linalg.solve(KK[P][:, P], Ky[P])
         except:
@@ -552,7 +544,7 @@ def onnls(y, g, lam=0, shift=100, window=None, mask=None, tol=1e-9, max_iter=Non
         shift : int, optional, default 100
             Number of frames by which to shift window from on run of NNLS to the next.
     
-        window : int, optional, default None (200 or larger dependend on g)
+        window : int, optional, default None (200 or larger dependent on g)
             Window size.
     
         mask : array of bool, shape (n,), optional, default (True,)*n
@@ -671,7 +663,7 @@ def constrained_oasisAR2(y, g, sn, optimize_b=True, b_nonneg=True, optimize_g=0,
         shift : int, optional, default 100
             Number of frames by which to shift window from on run of NNLS to the next.
     
-        window : int, optional, default None (200 or larger dependend on g)
+        window : int, optional, default None (200 or larger dependent on g)
             Window size.
     
         tol : float, optional, default 1e-9
@@ -685,7 +677,7 @@ def constrained_oasisAR2(y, g, sn, optimize_b=True, b_nonneg=True, optimize_g=0,
 
         s_min : float, optional, default 0
             Minimal non-zero activity within each bin (minimal 'spike size').
-            For negative values the threshold is |s_min| * sn * sqrt(1-decay_constant)
+            For negative values the threshold is abs(s_min) * sn * sqrt(1 - decay_constant)
             If 0 the threshold is determined automatically such that RSS <= sn^2 T
 
     Returns:

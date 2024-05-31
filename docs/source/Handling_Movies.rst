@@ -2,7 +2,7 @@ Handling movies
 ================
 
 This page gives a basic intro on the movie object for loading, manipulating,
-displaying and saving movies within CaImAn.
+displaying and saving movies.
 
 Loading movies
 --------------

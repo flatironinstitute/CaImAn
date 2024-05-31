@@ -12,12 +12,14 @@ Contents:
    :maxdepth: 3
 
    Overview
+   CaImAn_features_and_references
    Installation
-   news
    Getting_Started
    Handling_Movies
+   performance_guide
    CaImAn_Tips
-   On_file_types_and_sizes
+   file_formats
    GUI
-   CaImAn_features_and_references
+   readme-gpu
+   cluster
    core_functions

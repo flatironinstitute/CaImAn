@@ -1,25 +1,24 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
-"""
-author: agiovann
-"""
-#%%
+
 import cv2
 import logging
 import numpy as np
-import pylab as pl
-pl.ion()
-from . import timeseries as ts
+import matplotlib
+import matplotlib.pyplot as plt
+plt.ion()
+
+import caiman.base.timeseries
 
 try:
     cv2.setNumThreads(0)
 except:
     pass
 
-#%%
+################
+# This holds the trace class, which is a specialised Caiman timeseries class.
 
 
-class trace(ts.timeseries):
+class trace(caiman.base.timeseries.timeseries):
     """
     Class representing a trace.
 
@@ -82,7 +81,7 @@ class trace(ts.timeseries):
     def resample(self, fx=1, fy=1, fz=1, interpolation=cv2.INTER_AREA):
         raise Exception('Not Implemented. Look at movie resize')
 
-    def plot(self, stacked=True, subtract_minimum=False, cmap=pl.cm.jet, **kwargs):
+    def plot(self, stacked=True, subtract_minimum=False, cmap=matplotlib.cm.jet, **kwargs):
         """Plot the data
 
         author: ben deverett
@@ -93,7 +92,7 @@ class trace(ts.timeseries):
             subtract_minimum : bool
                 subtract minimum from each individual trace
             cmap : matplotlib.LinearSegmentedColormap
-                color map for display. Options are found in pl.colormaps(), and are accessed as pl.cm.my_favourite_map
+                color map for display. Options are found in matplotlib.colormaps(), and are accessed as matplotlib.cm.my_favourite_map
             kwargs : dict
                 any arguments accepted by matplotlib.plot
 
@@ -106,7 +105,7 @@ class trace(ts.timeseries):
         if len(d.shape) > 1:
             n = d.shape[1]
 
-        ax = pl.gca()
+        ax = plt.gca()
 
         colors = cmap(np.linspace(0, 1, n))
         ax.set_color_cycle(colors)
@@ -124,13 +123,9 @@ class trace(ts.timeseries):
         ax2.set_yticklabels([str(i) for i in range(n)], weight='bold')
         [l.set_color(c) for l, c in zip(ax2.get_yticklabels(), colors)]
 
-        pl.gcf().canvas.draw()
+        plt.gcf().canvas.draw()
         return ax
 
     def extract_epochs(self, trigs=None, tb=1, ta=1):
         raise Exception('Not Implemented. Look at movie resize')
 
-
-if __name__ == "__main__":
-    tracedata = trace(3 + np.random.random((2000, 4)), fr=30, start_time=0)
-    tracedata_dff = tracedata.computeDFF()

@@ -43,7 +43,7 @@ cdef class OASIS:
     s_min : float, optional, default 0
         Minimal non-zero activity within each bin (minimal 'spike size').
     b : float, optional, default 0
-        Baseline that is substracted.
+        Baseline that is subtracted.
     num_empty_samples : int
         Number of elapsed frames until neuron is added and OASIS initialized
     g2 : float
@@ -65,7 +65,7 @@ cdef class OASIS:
     r : float
         Rise factor. Only for AR(2).
     g12, g11g11, g11g12 : arrays of float
-        Precomputed quantitites related to the calcium kernel. Only for AR(2).
+        Precomputed quantities related to the calcium kernel. Only for AR(2).
 
     References
     ----------

@@ -1,18 +1,10 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 """ Initialize the component for the CNMF
 
 contain a list of functions to initialize the neurons and the corresponding traces with
 different set of methods like ICA PCA, greedy roi
-
-
 """
-#\package Caiman/source_extraction/cnmf/
-#\version   1.0
-#\copyright GNU General Public License v2.0
-#\date Created on Tue Jun 30 21:01:17 2015
-#\author: Eftychios A. Pnevmatikakis
 
 import cv2
 import logging
@@ -23,30 +15,33 @@ from multiprocessing import current_process
 import numpy as np
 import scipy
 import scipy.ndimage as nd
-from scipy.ndimage.measurements import center_of_mass
-from scipy.ndimage.filters import correlate
+from scipy.ndimage import center_of_mass, correlate
 import scipy.sparse as spr
 from skimage.morphology import disk
 from sklearn.decomposition import NMF, FastICA
 from sklearn.exceptions import ConvergenceWarning
 from sklearn.utils.extmath import randomized_svd, squared_norm, randomized_range_finder
 import sys
-from typing import List
 import warnings
 
 import caiman
-from .deconvolution import constrained_foopsi
-#from .utilities import fast_graph_Laplacian_patches
-from .pre_processing import get_noise_fft, get_noise_welch
-from .spatial import circular_constraint, connectivity_constraint
-from ...utils.utils import parmap
-from ...utils.stats import pd_solve, compressive_nmf
+from caiman.source_extraction.cnmf.deconvolution import constrained_foopsi
+from caiman.source_extraction.cnmf.pre_processing import get_noise_fft, get_noise_welch
+from caiman.source_extraction.cnmf.spatial import circular_constraint, connectivity_constraint
+from caiman.utils.stats import pd_solve, compressive_nmf
+from caiman.utils.utils import parmap
 
 try:
     cv2.setNumThreads(0)
 except:
     pass
 
+try:
+    profile
+except:
+    def profile(a): return a
+
+#FIXME review this and find a better way to do it
 warnings.filterwarnings(action='ignore', category=ConvergenceWarning)
 
 def resize(Y, size, interpolation=cv2.INTER_LINEAR):
@@ -67,7 +62,6 @@ def resize(Y, size, interpolation=cv2.INTER_LINEAR):
     else:  # TODO deal with ndim=4
         raise NotImplementedError
 
-#%%
 def decimate_last_axis(y, sub):
     q = y.shape[-1] // sub
     r = y.shape[-1] % sub
@@ -146,14 +140,6 @@ def downscale(Y, ds, opencv=False):
                                           .mean(1).mean(2).mean(2))
     return Y_ds if d == 3 else Y_ds[:, :, 0]
 
-
-
-#%%
-try:
-    profile
-except:
-    def profile(a): return a
-
 def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter=5, maxIter=5, nb=1,
                           kernel=None, use_hals=True, normalize_init=True, img=None, method_init='greedy_roi',
                           max_iter_snmf=500, alpha_snmf=0.5, sigma_smooth_snmf=(.5, .5, .5),
@@ -164,13 +150,14 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
                           SC_kernel='heat', SC_sigma=1, SC_thr=0, SC_normalize=True, SC_use_NN=False,
                           SC_nnn=20, lambda_gnmf=1):
     """
-    Initalize components. This function initializes the spatial footprints, temporal components,
+    Initialize components. This function initializes the spatial footprints, temporal components,
     and background which are then further refined by the CNMF iterations. There are four
     different initialization methods depending on the data you're processing:
-        'greedy_roi': GreedyROI method used in standard 2p processing (default)
-        'corr_pnr': GreedyCorr method used for processing 1p data
-        'sparse_nmf': Sparse NMF method suitable for dendritic/axonal imaging
-        'graph_nmf': Graph NMF method also suitable for dendritic/axonal imaging
+
+    greedy_roi: GreedyROI method used in standard 2p processing (default)
+    corr_pnr:   GreedyCorr method used for processing 1p data
+    sparse_nmf: Sparse NMF method suitable for dendritic/axonal imaging
+    graph_nmf:  Graph NMF method also suitable for dendritic/axonal imaging
 
     The GreedyROI method by default is not using the RollingGreedyROI method. This can
     be changed through the binary flag 'rolling_sum'.
@@ -283,7 +270,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
             (d1 * d2 [ * d3]) x nb, initialization of spatial background.
 
         fin: np.ndarray
-            nb x T matrix, initalization of temporal background
+            nb x T matrix, initialization of temporal background
 
     Raises:
         Exception "Unsupported method"
@@ -292,11 +279,6 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
 
     """
     method = method_init
-    if method == 'local_nmf':
-        tsub_lnmf = tsub
-        ssub_lnmf = ssub
-        tsub = 1
-        ssub = 1
 
     if gSiz is None:
         gSiz = 2 * (np.asarray(gSig) + .5).astype(int) + 1
@@ -306,7 +288,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
     gSig = np.asarray(gSig, dtype=float) / ssub
     gSiz = np.round(np.asarray(gSiz) / ssub).astype(int)
 
-    if normalize_init is True:
+    if normalize_init:
         logging.info('Variance Normalization')
         if img is None:
             img = np.mean(Y, axis=-1)
@@ -324,14 +306,12 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
 
         if method == 'corr_pnr':
             logging.info("Spatial/Temporal downsampling 1-photon")
-            # this icrements the performance against ground truth and solves border problems
+            # this increments the performance against ground truth and solves border problems
             Y_ds = downscale(Y, tuple([ssub] * len(d) + [tsub]), opencv=False)
         else:
             logging.info("Spatial/Temporal downsampling 2-photon")
-            # this icrements the performance against ground truth and solves border problems
+            # this increments the performance against ground truth and solves border problems
             Y_ds = downscale(Y, tuple([ssub] * len(d) + [tsub]), opencv=True)
-#            mean_val = np.mean(Y)
-#            Y_ds = downscale_local_mean(Y, tuple([ssub] * len(d) + [tsub]), cval=mean_val)
     else:
         Y_ds = Y
 
@@ -378,36 +358,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
             Y_ds, nr=K, sigma_smooth=sigma_smooth_snmf, truncate=2, fun='logcosh', tol=1e-10,
             max_iter=max_iter_snmf, remove_baseline=True, perc_baseline=perc_baseline_snmf, nb=nb)
 
-    elif method == 'local_nmf':
-        # todo check this unresolved reference
-        from SourceExtraction.CNMF4Dendrites import CNMF4Dendrites
-        from SourceExtraction.AuxilaryFunctions import GetCentersData
-        # Get initialization for components center
-        # print(Y_ds.transpose([2, 0, 1]).shape)
-        if options_local_NMF is None:
-            raise Exception('You need to define arguments for local NMF')
-        else:
-            NumCent = options_local_NMF.pop('NumCent', None)
-            # Max number of centers to import from Group Lasso intialization - if 0,
-            # we don't run group lasso
-            cent = GetCentersData(Y_ds.transpose([2, 0, 1]), NumCent)
-            sig = Y_ds.shape[:-1]
-            # estimate size of neuron - bounding box is 3 times this size. If larger
-            # then data, we have no bounding box.
-            cnmf_obj = CNMF4Dendrites(
-                sig=sig, verbose=True, adaptBias=True, **options_local_NMF)
-
-        # Define CNMF parameters
-        _, _, _ = cnmf_obj.fit(
-            np.array(Y_ds.transpose([2, 0, 1]), dtype=float), cent)
-
-        Ain = cnmf_obj.A
-        Cin = cnmf_obj.C
-        b_in = cnmf_obj.b
-        f_in = cnmf_obj.f
-
     else:
-
         print(method)
         raise Exception("Unsupported initialization method")
 
@@ -452,7 +403,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
         Cin = np.empty((K, T), dtype=np.float32)
         center = []
 
-    if normalize_init is True:
+    if normalize_init:
         if Ain.size > 0:
             Ain = Ain * np.reshape(img, (np.prod(d), -1), order='F')
         if sparse_b:
@@ -464,8 +415,6 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
     else:
         return scipy.sparse.csc_matrix(Ain), Cin, b_in, f_in, center
 
-
-#%%
 def ICA_PCA(Y_ds, nr, sigma_smooth=(.5, .5, .5), truncate=2, fun='logcosh',
             max_iter=1000, tol=1e-10, remove_baseline=True, perc_baseline=20, nb=1):
     """ Initialization using ICA and PCA. DOES NOT WORK WELL WORK IN PROGRESS"
@@ -556,7 +505,7 @@ def sparseNMF(Y_ds, nr, max_iter_snmf=200, alpha=0.5, sigma_smooth=(.5, .5, .5),
             smoothing along z,x, and y (.5,.5,.5)
 
         perc_baseline_snmf:
-            percentile to remove frmo movie before NMF
+            percentile to remove from movie before NMF
 
         nb: int
             Number of background components
@@ -669,7 +618,7 @@ def compressedNMF(Y_ds, nr, r_ov=10, max_iter_snmf=500,
         A /= nA
         C *= nA[:, np.newaxis]
         if (np.linalg.norm(C - C__)/np.linalg.norm(C__) < tol) & (np.linalg.norm(A - A__)/np.linalg.norm(A__) < tol):
-            logging.info('Graph NMF converged after {} iterations'.format(it+1))
+            logging.info(f'Graph NMF converged after {it + 1} iterations')
             break
     A_in = A
     C_in = C
@@ -708,7 +657,7 @@ def graphNMF(Y_ds, nr, max_iter_snmf=500, lambda_gnmf=1,
     C = mdl.fit_transform(yr).T
     A = mdl.components_.T
     W = caiman.source_extraction.cnmf.utilities.fast_graph_Laplacian_patches(
-            [np.reshape(m, [T, d], order='F').T, [], 'heat', SC_sigma, SC_thr,
+            [np.reshape(m, [T, d], order='F').T, [], SC_kernel, SC_sigma, SC_thr,
              SC_nnn, SC_normalize, SC_use_NN])
     D = scipy.sparse.spdiags(W.sum(0), 0, W.shape[0], W.shape[0])
     for it in range(max_iter_snmf):
@@ -720,7 +669,7 @@ def graphNMF(Y_ds, nr, max_iter_snmf=500, lambda_gnmf=1,
         A /= nA
         C *= nA[:, np.newaxis]
         if (np.linalg.norm(C - C_)/np.linalg.norm(C_) < tol) & (np.linalg.norm(A - A_)/np.linalg.norm(A_) < tol):
-            logging.info('Graph NMF converged after {} iterations'.format(it+1))
+            logging.info(f'Graph NMF converged after {it + 1} iterations')
             break
     A_in = A
     C_in = C
@@ -830,7 +779,7 @@ def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1,
             # we define a squared size around it
             ijSig = [[np.maximum(ij[c] - gHalf[c], 0), np.minimum(ij[c] + gHalf[c] + 1, d[c])]
                      for c in range(len(ij))]
-            # we create an array of it (fl like) and compute the trace like the pixel ij trough time
+            # we create an array of it (fl like) and compute the trace like the pixel ij through time
             dataTemp = np.array(
                 Y[tuple([slice(*a) for a in ijSig])].copy(), dtype=np.float32)
             traceTemp = np.array(np.squeeze(rho[ij]), dtype=np.float32)
@@ -929,7 +878,7 @@ def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1,
                 # we define a squared size around it
                 ijSig = [[np.maximum(ij[c] - gHalf[c], 0), np.minimum(ij[c] + gHalf[c] + 1, d[c])]
                          for c in range(len(ij))]
-                # we create an array of it (fl like) and compute the trace like the pixel ij trough time
+                # we create an array of it (fl like) and compute the trace like the pixel ij through time
                 dataTemp = np.array(
                     Y[tuple([slice(*a) for a in ijSig])].copy(), dtype=np.float32)
                 traceTemp = np.array(np.squeeze(rho[tuple(ij)]), dtype=np.float32)
@@ -977,9 +926,6 @@ def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1,
 
     return A, C, np.array(center, dtype='uint16'), b_in, f_in
 
-#%%
-
-
 def finetune(Y, cin, nIter=5):
     """compute a initialized version of A and C
 
@@ -987,7 +933,7 @@ def finetune(Y, cin, nIter=5):
         Y:  D1*d2*T*K patches
 
         c: array T*K
-            the inital calcium traces
+            the initial calcium traces
 
         nIter: int
             True indicates that time is listed in the last axis of Y (matlab format)
@@ -1010,7 +956,7 @@ def finetune(Y, cin, nIter=5):
     for _ in range(nIter):
         a = np.maximum(np.dot(Y, cin), 0)
         a = a / np.sqrt(np.sum(a**2) + np.finfo(np.float32).eps)  # compute the l2/a
-        # c as the variation of thoses patches
+        # c as the variation of those patches
         cin = np.sum(Y * a[..., np.newaxis], tuple(np.arange(Y.ndim - 1)))
 
     return a, cin
@@ -1222,7 +1168,7 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
             'Either min_corr or min_pnr are None. Both of them must be real numbers.')
 
     logging.info('One photon initialization (GreedyCorr)')
-    o = options['temporal_params'].copy()
+    o = options['temporal'].copy()
     o['s_min'] = None
     if o['p'] > 1:
         o['p'] = 1
@@ -1268,7 +1214,7 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
             sn=np.sqrt(downscale((sn**2).reshape(dims, order='F'),
                                  tuple([ssub] * len(dims))).ravel() / tsub) / ssub,
             b_in=np.zeros((d1 * d2, 0), np.float32),
-            dview=None, dims=(d1, d2), **options['spatial_params'])
+            dview=None, dims=(d1, d2), **options['spatial'])
         logging.info('Updating temporal components')
         C, A = caiman.source_extraction.cnmf.temporal.update_temporal_components(
             B, spr.csc_matrix(A, dtype=np.float32),
@@ -1298,7 +1244,7 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
         # 1st iteration on decimated data
         logging.info('Merging components')
         A, C = caiman.source_extraction.cnmf.merging.merge_components(
-            B, A, [], C, None, [], C, [], o, options['spatial_params'],
+            B, A, [], C, None, [], C, [], o, options['spatial'],
             dview=None, thr=options['merging']['merge_thr'], mx=np.Inf, fast_merge=True)[:2]
         A = A.astype(np.float32)
         C = C.astype(np.float32)
@@ -1308,7 +1254,7 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
             sn=np.sqrt(downscale((sn**2).reshape(dims, order='F'),
                                  tuple([ssub] * len(dims))).ravel() / tsub) / ssub,
             b_in=np.zeros((d1 * d2, 0), np.float32),
-            dview=None, dims=(d1, d2), **options['spatial_params'])
+            dview=None, dims=(d1, d2), **options['spatial'])
         A = A.astype(np.float32)
         logging.info('Updating temporal components')
         C, A = caiman.source_extraction.cnmf.temporal.update_temporal_components(
@@ -1347,22 +1293,22 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
 
         logging.info('Merging components')
         A, C = caiman.source_extraction.cnmf.merging.merge_components(
-            B, A, [], C, None, [], C, [], o, options['spatial_params'],
+            B, A, [], C, None, [], C, [], o, options['spatial'],
             dview=None, thr=options['merging']['merge_thr'], mx=np.Inf, fast_merge=True)[:2]
         A = A.astype(np.float32)
         C = C.astype(np.float32)
         logging.info('Updating spatial components')
-        options['spatial_params']['se'] = np.ones((1,) * len((d1, d2)), dtype=np.uint8)
+        options['spatial']['se'] = np.ones((1,) * len((d1, d2)), dtype=np.uint8)
         A, _, C, _ = caiman.source_extraction.cnmf.spatial.update_spatial_components(
             B, C=C, f=np.zeros((0, T), np.float32), A_in=A, sn=sn,
             b_in=np.zeros((np.prod(dims), 0), np.float32),
-            dview=None, dims=dims, **options['spatial_params'])
+            dview=None, dims=dims, **options['spatial'])
         logging.info('Updating temporal components')
         C, A, b__, f__, S, bl, c1, neurons_sn, g1, YrA, lam__ = \
             caiman.source_extraction.cnmf.temporal.update_temporal_components(
                 B, spr.csc_matrix(A, dtype=np.float32),
                 np.zeros((np.prod(dims), 0), np.float32), C, np.zeros((0, T), np.float32),
-                dview=None, bl=None, c1=None, sn=None, g=None, **options['temporal_params'])
+                dview=None, bl=None, c1=None, sn=None, g=None, **options['temporal'])
 
         A = A.toarray()
         if nb > 0 or nb == -1:
@@ -1374,7 +1320,7 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
         b_in = spr.eye(len(B), dtype='float32')
         f_in = B
     elif nb > 0:
-        logging.info('Estimate low rank background (rank = {0})'.format(nb))
+        logging.info(f'Estimate low rank background (rank = {nb})')
         print(nb)
         if use_NMF:
             model = NMF(n_components=nb, init='nndsvdar')
@@ -1460,7 +1406,7 @@ def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
         S: np.ndarray (K*T)
             deconvolved calcium traces of all neurons
         center: np.ndarray
-            center localtions of all neurons
+            center locations of all neurons
     """
 
     if swap_dim:
@@ -1841,9 +1787,9 @@ def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
                     break
                 else:
                     if num_neurons % 100 == 1:
-                        logging.info('{0} neurons have been initialized'.format(num_neurons - 1))
+                        logging.info(f'{num_neurons - 1} neurons have been initialized')
 
-    logging.info('In total, {0} neurons were initialized.'.format(num_neurons))
+    logging.info(f'In total, {num_neurons} neurons were initialized.')
     # A = np.reshape(Ain[:num_neurons], (-1, d1 * d2)).transpose()
     A = np.reshape(Ain[:num_neurons], (-1, d1 * d2), order='F').transpose()
     C = Cin[:num_neurons]
@@ -2025,7 +1971,6 @@ def compute_W(Y, A, C, dims, radius, data_fits_in_memory=True, ssub=1, tsub=1, p
     data = np.concatenate(data)
     return spr.csr_matrix((data, indices, indptr), dtype='float32'), b0.astype(np.float32)
 
-#%%
 def nnsvd_init(X, n_components, r_ov=10, eps=1e-6, random_state=42):
     # NNDSVD initialization from scikit learn package (modified)
     U, S, V = randomized_svd(X, n_components + r_ov, random_state=random_state)
@@ -2069,7 +2014,7 @@ def nnsvd_init(X, n_components, r_ov=10, eps=1e-6, random_state=42):
     C = W.T
     A = H.T
     return A[:, 1:n_components], C[:n_components], (U, S, V) #
-#%%
+
 def norm(x):
     """Dot product-based Euclidean norm implementation
     See: http://fseoane.net/blog/2011/computing-the-vector-norm/

@@ -1,15 +1,10 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
+
 """ Suite of functions that help manage movie data
 
 Contains the movie class.
 
 """
-
-# \package caiman/source_ectraction/cnmf
-# \version   1.0
-# \copyright GNU General Public License v2.0
-# \date Created on Tue Jun 30 20:56:07 2015 , Updated on Fri Aug 19 17:30:11 2016
 
 import cv2
 from functools import partial
@@ -17,49 +12,37 @@ import h5py
 from IPython.display import display, Image
 import ipywidgets as widgets
 import logging
-from matplotlib import animation
+import matplotlib
+import matplotlib.pyplot as plt
 import numpy as np
 import os
+import pathlib
 import pims
-import pylab as pl
-import scipy.ndimage
 import scipy
-from scipy.io import loadmat
-from skimage.transform import warp, AffineTransform
-from skimage.feature import match_template
+import skimage
 import sklearn
-from sklearn.cluster import KMeans
-from sklearn.decomposition import NMF, IncrementalPCA, FastICA
-from sklearn.metrics.pairwise import euclidean_distances
 import sys
 import threading
 import tifffile
 from tqdm import tqdm
-from typing import Any, Dict, List, Tuple, Union
+from typing import Any, Optional, Union
 import warnings
-# Flip to normal import if this is ever resolved: https://github.com/constantinpape/z5/issues/146
-# import z5py
+import zarr
 from zipfile import ZipFile
 
-import caiman as cm
-
-from . import timeseries
+import caiman.base.timeseries
+import caiman.base.traces
+import caiman.mmapping
+import caiman.summary_images
+import caiman.utils.sbx_utils
+import caiman.utils.visualization
 
 try:
     cv2.setNumThreads(0)
 except:
     pass
 
-from . import timeseries as ts
-from .traces import trace
-
-from ..mmapping import load_memmap
-from ..utils import visualization
-from .. import summary_images as si
-from ..motion_correction import apply_shift_online, motion_correct_online
-
-
-class movie(ts.timeseries):
+class movie(caiman.base.timeseries.timeseries):
     """
     Class representing a movie. This class subclasses timeseries,
     that in turn subclasses ndarray
@@ -118,7 +101,7 @@ class movie(ts.timeseries):
                        template=None,
                        method: str = 'opencv',
                        remove_blanks: bool = False,
-                       interpolation: str = 'cubic') -> Tuple[Any, Tuple, Any, Any]:
+                       interpolation: str = 'cubic') -> tuple[Any, tuple, Any, Any]:
         """
         Extract shifts and motion corrected movie automatically,
 
@@ -140,7 +123,7 @@ class movie(ts.timeseries):
 
 
         Returns:
-            self: motion corected movie, it might change the object itself
+            self: motion corrected movie, it might change the object itself
 
             shifts : tuple, contains x & y shifts and correlation with template
 
@@ -219,7 +202,7 @@ class movie(ts.timeseries):
 
 
         Returns:
-            self: motion corected movie, it might change the object itself
+            self: motion corrected movie, it might change the object itself
 
             shifts : tuple, contains x, y, and z shifts and correlation with template
 
@@ -315,7 +298,7 @@ class movie(ts.timeseries):
                             axis=0)
 
     def extract_shifts(self, max_shift_w: int = 5, max_shift_h: int = 5, template=None,
-                       method: str = 'opencv') -> Tuple[List, List]:
+                       method: str = 'opencv') -> tuple[list, list]:
         """
         Performs motion correction using the opencv matchtemplate function. At every iteration a template is built by taking the median of all frames and then used to align the other frames.
 
@@ -361,7 +344,7 @@ class movie(ts.timeseries):
 
         template = template[ms_h:h_i - ms_h, ms_w:w_i - ms_w].astype(np.float32)
 
-        #% run algorithm, press q to stop it
+        # run algorithm, press q to stop it
         shifts = []    # store the amount of shift in each frame
         xcorrs = []
 
@@ -372,7 +355,7 @@ class movie(ts.timeseries):
                 res = cv2.matchTemplate(frame, template, cv2.TM_CCORR_NORMED)
                 top_left = cv2.minMaxLoc(res)[3]
             elif method == 'skimage':
-                res = match_template(frame, template)
+                res = skimage.feature.match_template(frame, template)
                 top_left = np.unravel_index(np.argmax(res), res.shape)
                 top_left = top_left[::-1]
             else:
@@ -479,8 +462,8 @@ class movie(ts.timeseries):
 
             elif method == 'skimage':
 
-                tform = AffineTransform(translation=(-sh_y_n, -sh_x_n))
-                self[i] = warp(frame, tform, preserve_range=True, order=interpolation)
+                tform = skimage.transform.AffineTransform(translation=(-sh_y_n, -sh_x_n))
+                self[i] = skimage.transform.warp(frame, tform, preserve_range=True, order=interpolation)
 
             else:
                 raise Exception('Unknown shift application method')
@@ -509,7 +492,7 @@ class movie(ts.timeseries):
             return a * x + b
 
         try:
-            p0: Tuple = (y[0] - y[-1], 1e-6, y[-1])
+            p0:tuple = (y[0] - y[-1], 1e-6, y[-1])
             popt, _ = scipy.optimize.curve_fit(expf, x, y, p0=p0)
             y_fit = expf(x, *popt)
         except:
@@ -546,7 +529,7 @@ class movie(ts.timeseries):
                 window size over which to compute the baseline (the larger the faster the algorithm and the less granular
 
             quantilMin: float
-                percentil to be used as baseline value
+                percentile to be used as baseline value
             in_place: bool
                 update movie in place
             returnBL:
@@ -560,11 +543,11 @@ class movie(ts.timeseries):
         myperc = partial(np.percentile, q=quantilMin, axis=-1)
         res = np.array(list(map(myperc,iter_win))).T
         if returnBL:
-                return cm.movie(cv2.resize(res,pixs.shape[::-1]),fr=self.fr).to3DFromPixelxTime(self.shape)
+                return caiman.movie(cv2.resize(res,pixs.shape[::-1]),fr=self.fr).to3DFromPixelxTime(self.shape)
         if (not in_place):            
             return (pixs-cv2.resize(res,pixs.shape[::-1])).to3DFromPixelxTime(self.shape)
         else:
-            self -= cm.movie(cv2.resize(res,pixs.shape[::-1]),fr=self.fr).to3DFromPixelxTime(self.shape) 
+            self -= caiman.movie(cv2.resize(res,pixs.shape[::-1]),fr=self.fr).to3DFromPixelxTime(self.shape) 
             return self
     
     def to2DPixelxTime(self, order='F'):
@@ -580,7 +563,7 @@ class movie(ts.timeseries):
         return to_3D(self,shape[::-1],order=order).transpose([2,1,0])
     
     def computeDFF(self, secsWindow: int = 5, quantilMin: int = 8, method: str = 'only_baseline', in_place: bool = False,
-                   order: str = 'F') -> Tuple[Any, Any]:
+                   order: str = 'F') -> tuple[Any, Any]:
         """
         compute the DFF of the movie or remove baseline
 
@@ -622,7 +605,7 @@ class movie(ts.timeseries):
                         **self.__dict__)
         numFramesNew, linePerFrame, pixPerLine = np.shape(mov_out)
 
-        #% compute baseline quickly
+        # compute baseline quickly
         logging.debug("binning data ...")
         sys.stdout.flush()
         
@@ -645,7 +628,7 @@ class movie(ts.timeseries):
                                    cval=0.0,
                                    prefilter=False)
 
-        #% compute DF/F
+        # compute DF/F
         if not in_place:
             if method == 'delta_f_over_sqrt_f':
                 mov_out = (mov_out - movBL) / np.sqrt(movBL)
@@ -672,7 +655,7 @@ class movie(ts.timeseries):
                                        beta: int = 1,
                                        tol=5e-7,
                                        sparseness: str = 'components',
-                                       **kwargs) -> Tuple[np.ndarray, np.ndarray]:
+                                       **kwargs) -> tuple[np.ndarray, np.ndarray]:
         """
         See documentation for scikit-learn NMF
         """
@@ -683,77 +666,14 @@ class movie(ts.timeseries):
         Y = np.reshape(self, (T, h * w))
         Y = Y - np.percentile(Y, 1)
         Y = np.clip(Y, 0, np.Inf)
-        estimator = NMF(n_components=n_components, init=init, tol=tol, **kwargs)
+        estimator = sklearn.decomposition.NMF(n_components=n_components, init=init, tol=tol, **kwargs)
         time_components = estimator.fit_transform(Y)
         components_ = estimator.components_
         space_components = np.reshape(components_, (n_components, h, w))
 
         return space_components, time_components
 
-    def online_NMF(self,
-                   n_components: int = 30,
-                   method: str = 'nnsc',
-                   lambda1: int = 100,
-                   iterations: int = -5,
-                   model=None,
-                   **kwargs) -> Tuple[np.ndarray, np.ndarray]:
-        """ Method performing online matrix factorization and using the spams
-
-        (http://spams-devel.gforge.inria.fr/doc-python/html/index.html) package from Inria.
-        Implements bith the nmf and nnsc methods
-
-        Args:
-            n_components: int
-
-            method: 'nnsc' or 'nmf' (see http://spams-devel.gforge.inria.fr/doc-python/html/index.html)
-
-            lambda1: see http://spams-devel.gforge.inria.fr/doc-python/html/index.html
-
-            iterations: see http://spams-devel.gforge.inria.fr/doc-python/html/index.html
-
-            batchsize: see http://spams-devel.gforge.inria.fr/doc-python/html/index.html
-
-            model: see http://spams-devel.gforge.inria.fr/doc-python/html/index.html
-
-            **kwargs: more arguments to be passed to nmf or nnsc
-
-        Returns:
-            time_comps
-
-            space_comps
-        """
-        try:
-            import spams       # XXX consider moving this to the head of the file
-        except:
-            logging.error("You need to install the SPAMS package")
-            raise
-
-        T, d1, d2 = np.shape(self)
-        d = d1 * d2
-        X = np.asfortranarray(np.reshape(self, [T, d], order='F'))
-
-        if method == 'nmf':
-            (time_comps, V) = spams.nmf(X, return_lasso=True, K=n_components, numThreads=4, iter=iterations, **kwargs)
-
-        elif method == 'nnsc':
-            (time_comps, V) = spams.nnsc(X,
-                                         return_lasso=True,
-                                         K=n_components,
-                                         lambda1=lambda1,
-                                         iter=iterations,
-                                         model=model,
-                                         **kwargs)
-        else:
-            raise Exception('Method unknown')
-
-        space_comps = []
-
-        for _, mm in enumerate(V):
-            space_comps.append(np.reshape(mm.todense(), (d1, d2), order='F'))
-
-        return time_comps, np.array(space_comps)
-
-    def IPCA(self, components: int = 50, batch: int = 1000) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+    def IPCA(self, components: int = 50, batch: int = 1000) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         Iterative Principal Component analysis, see sklearn.decomposition.incremental_pca
 
@@ -775,8 +695,8 @@ class movie(ts.timeseries):
         frame_size = h * w
         frame_samples = np.reshape(self, (num_frames, frame_size)).T
 
-        # run IPCA to approxiate the SVD
-        ipca_f = IncrementalPCA(n_components=components, batch_size=batch)
+        # run IPCA to approximate the SVD
+        ipca_f = sklearn.decomposition.IncrementalPCA(n_components=components, batch_size=batch)
         ipca_f.fit(frame_samples)
 
         # construct the reduced version of the movie vectors using only the
@@ -838,7 +758,7 @@ class movie(ts.timeseries):
 
         eigenstuff = np.concatenate([n_eigenframes, n_eigenseries])
 
-        ica = FastICA(n_components=componentsICA, fun=ICAfun, **kwargs)
+        ica = sklearn.decomposition.FastICA(n_components=componentsICA, fun=ICAfun, **kwargs)
         joint_ics = ica.fit_transform(eigenstuff)
 
         # extract the independent frames
@@ -856,28 +776,6 @@ class movie(ts.timeseries):
         _, _, clean_vectors = self.IPCA(components, batch)
         self = self.__class__(np.reshape(np.float32(clean_vectors.T), np.shape(self)), **self.__dict__)
         return self
-
-    def IPCA_io(self, n_components: int = 50, fun: str = 'logcosh', max_iter: int = 1000, tol=1e-20) -> np.ndarray:
-        """ DO NOT USE STILL UNDER DEVELOPMENT
-        """
-        pca_comp = n_components
-        [T, d1, d2] = self.shape
-        M = np.reshape(self, (T, d1 * d2))
-        [U, S, V] = scipy.sparse.linalg.svds(M, pca_comp)
-        S = np.diag(S)
-        #        whiteningMatrix = np.dot(scipy.linalg.inv(np.sqrt(S)),U.T)
-        #        dewhiteningMatrix = np.dot(U,np.sqrt(S))
-        whiteningMatrix = np.dot(scipy.linalg.inv(S), U.T)
-        dewhiteningMatrix = np.dot(U, S)
-        whitesig = np.dot(whiteningMatrix, M)
-        wsigmask = np.reshape(whitesig.T, (d1, d2, pca_comp))
-        f_ica = sklearn.decomposition.FastICA(whiten=False, fun=fun, max_iter=max_iter, tol=tol)
-        S_ = f_ica.fit_transform(whitesig.T)
-        A_ = f_ica.mixing_
-        A = np.dot(A_, whitesig)
-        mask = np.reshape(A.T, (d1, d2, pca_comp)).transpose([2, 0, 1])
-
-        return mask
 
     def local_correlations(self,
                            eight_neighbours: bool = False,
@@ -917,7 +815,7 @@ class movie(ts.timeseries):
         T = self.shape[0]
         Cn = np.zeros(self.shape[1:])
         if T <= 3000:
-            Cn = si.local_correlations(np.array(self),
+            Cn = caiman.summary_images.local_correlations(np.array(self),
                                        eight_neighbours=eight_neighbours,
                                        swap_dim=swap_dim,
                                        order_mean=order_mean)
@@ -927,25 +825,25 @@ class movie(ts.timeseries):
             for jj, mv in enumerate(range(n_chunks - 1)):
                 logging.debug('number of chunks:' + str(jj) + ' frames: ' +
                               str([mv * frames_per_chunk, (mv + 1) * frames_per_chunk]))
-                rho = si.local_correlations(np.array(self[mv * frames_per_chunk:(mv + 1) * frames_per_chunk]),
+                rho = caiman.summary_images.local_correlations(np.array(self[mv * frames_per_chunk:(mv + 1) * frames_per_chunk]),
                                             eight_neighbours=eight_neighbours,
                                             swap_dim=swap_dim,
                                             order_mean=order_mean)
                 Cn = np.maximum(Cn, rho)
                 if do_plot:
-                    pl.imshow(Cn, cmap='gray')
-                    pl.pause(.1)
+                    plt.imshow(Cn, cmap='gray')
+                    plt.pause(.1)
 
             logging.debug('number of chunks:' + str(n_chunks - 1) + ' frames: ' +
                           str([(n_chunks - 1) * frames_per_chunk, T]))
-            rho = si.local_correlations(np.array(self[(n_chunks - 1) * frames_per_chunk:]),
+            rho = caiman.summary_images.local_correlations(np.array(self[(n_chunks - 1) * frames_per_chunk:]),
                                         eight_neighbours=eight_neighbours,
                                         swap_dim=swap_dim,
                                         order_mean=order_mean)
             Cn = np.maximum(Cn, rho)
             if do_plot:
-                pl.imshow(Cn, cmap='gray')
-                pl.pause(.1)
+                plt.imshow(Cn, cmap='gray')
+                plt.pause(.1)
 
         return Cn
 
@@ -954,7 +852,7 @@ class movie(ts.timeseries):
                              fx: float = .25,
                              fy: float = .25,
                              n_clusters: int = 4,
-                             max_iter: int = 500) -> Tuple[np.ndarray, np.ndarray, np.ndarray]:
+                             max_iter: int = 500) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
         Partition the FOV in clusters that are grouping pixels close in space and in mutual correlation
 
@@ -980,16 +878,16 @@ class movie(ts.timeseries):
 
         idxA, idxB = np.meshgrid(list(range(w)), list(range(h)))
         coordmat = np.vstack((idxA.flatten(), idxB.flatten()))
-        distanceMatrix = euclidean_distances(coordmat.T)
+        distanceMatrix = sklearn.metrics.pairwise.euclidean_distances(coordmat.T)
         distanceMatrix = distanceMatrix / np.max(distanceMatrix)
-        estim = KMeans(n_clusters=n_clusters, max_iter=max_iter)
+        estim = sklearn.cluster.KMeans(n_clusters=n_clusters, max_iter=max_iter)
         kk = estim.fit(tradeoff_weight * mcoef - (1 - tradeoff_weight) * distanceMatrix)
         labs = kk.labels_
         fovs = np.reshape(labs, (h, w))
         fovs = cv2.resize(np.uint8(fovs), (w1, h1), 1. / fx, 1. / fy, interpolation=cv2.INTER_NEAREST)
         return np.uint8(fovs), mcoef, distanceMatrix
 
-    def extract_traces_from_masks(self, masks: np.ndarray) -> trace:
+    def extract_traces_from_masks(self, masks: np.ndarray) -> caiman.base.traces.trace:
         """
         Args:
             masks: array, 3D with each 2D slice bein a mask (integer or fractional)
@@ -1008,7 +906,7 @@ class movie(ts.timeseries):
 
         pixelsA = np.sum(A, axis=1)
         A = A / pixelsA[:, None]       # obtain average over ROI
-        traces = trace(np.dot(A, np.transpose(Y)).T, **self.__dict__)
+        traces = caiman.base.traces.trace(np.dot(A, np.transpose(Y)).T, **self.__dict__)
         return traces
 
     def resize(self, fx=1, fy=1, fz=1, interpolation=cv2.INTER_AREA):
@@ -1037,7 +935,7 @@ class movie(ts.timeseries):
         max_els = 2**61 - 1    # the bug for sizes >= 2**31 is appears to be fixed now
         if elm > max_els:
             chunk_size = max_els // d
-            new_m: List = []
+            new_m:list = []
             logging.debug('Resizing in chunks because of opencv bug')
             for chunk in range(0, T, chunk_size):
                 logging.debug([chunk, np.minimum(chunk + chunk_size, T)])
@@ -1046,7 +944,7 @@ class movie(ts.timeseries):
                 if len(new_m) == 0:
                     new_m = m_tmp
                 else:
-                    new_m = timeseries.concatenate([new_m, m_tmp], axis=0)
+                    new_m = caiman.base.timeseries.concatenate([new_m, m_tmp], axis=0)
 
             return new_m
         else:
@@ -1157,7 +1055,7 @@ class movie(ts.timeseries):
         T = self.shape[0]
         return np.reshape(self, (T, -1), order=order)
 
-    def zproject(self, method: str = 'mean', cmap=pl.cm.gray, aspect='auto', **kwargs) -> np.ndarray:
+    def zproject(self, method: str = 'mean', cmap=matplotlib.cm.gray, aspect='auto', **kwargs) -> np.ndarray:
         """
         Compute and plot projection across time:
 
@@ -1181,7 +1079,7 @@ class movie(ts.timeseries):
             zp = np.std(self, axis=0)
         else:
             raise Exception('Method not implemented')
-        pl.imshow(zp, cmap=cmap, aspect=aspect, **kwargs)
+        plt.imshow(zp, cmap=cmap, aspect=aspect, **kwargs)
         return zp
 
     def play(self,
@@ -1215,7 +1113,7 @@ class movie(ts.timeseries):
             interpolation:
                 interpolation method for 'opencv' and 'embed_opencv' backends
 
-            backend: 'pylab', 'notebook', 'opencv' or 'embed_opencv'; the latter 2 are much faster
+            backend: 'opencv', 'embed_opencv', 'pyplot', 'notebook': the first two are much faster
 
             do_loop: Whether to loop the video
 
@@ -1244,12 +1142,12 @@ class movie(ts.timeseries):
              q_max, q_min, plot_text, save_movie, opencv_codec, movie_name)
 
 
-def load(file_name: Union[str, List[str]],
+def load(file_name: Union[str, list[str]],
          fr: float = 30,
          start_time: float = 0,
-         meta_data: Dict = None,
+         meta_data:dict = None,
          subindices=None,
-         shape: Tuple[int, int] = None,
+         shape: tuple[int, int] = None,
          var_name_hdf5: str = 'mov',
          in_memory: bool = False,
          is_behavior: bool = False,
@@ -1283,7 +1181,8 @@ def load(file_name: Union[str, List[str]],
             dimension of the movie along x and y if loading from a two dimensional numpy array
 
         var_name_hdf5: str
-            if loading from hdf5/n5 name of the dataset inside the file to load (ignored if the file only has one dataset)
+            if loading from hdf5/n5 name of the dataset inside the file to load (ignored if the file only has one dataset).
+            This is also used for (new-style) mat files
 
         in_memory: bool=False
             This changes the behaviour of the function for npy files to be a readwrite rather than readonly memmap,
@@ -1350,20 +1249,9 @@ def load(file_name: Union[str, List[str]],
         logging.error('movies.py:load(): channel parameter is not supported for single movie input')
 
     if os.path.exists(file_name):
-        _, extension = os.path.splitext(file_name)[:2]
+        basename, extension = os.path.splitext(file_name)
 
         extension = extension.lower()
-        if extension == '.mat':
-            logging.warning('Loading a *.mat file. x- and y- dimensions ' +
-                            'might have been swapped.')
-            try: # scipy >= 1.8
-                byte_stream, file_opened = scipy.io.matlab._mio._open_file(file_name, appendmat=False)
-                mjv, mnv = scipy.io.matlab.miobase.get_matfile_version(byte_stream)
-            except: # scipy <= 1.7
-                byte_stream, file_opened = scipy.io.matlab.mio._open_file(file_name, appendmat=False)
-                mjv, mnv = scipy.io.matlab.mio.get_matfile_version(byte_stream)
-            if mjv == 2:
-                extension = '.h5'
 
         if extension in ['.tif', '.tiff', '.btf']:  # load tif file
             with tifffile.TiffFile(file_name) as tffl:
@@ -1551,81 +1439,55 @@ def load(file_name: Union[str, List[str]],
                 else:
                     input_arr = input_arr[np.newaxis, :, :]
 
-        elif extension == '.mat':      # load npy file
-            input_arr = loadmat(file_name)['data']
-            input_arr = np.rollaxis(input_arr, 2, -3)
-            if subindices is not None:
-                input_arr = input_arr[subindices]
-
         elif extension == '.npz':      # load movie from saved file
             if subindices is not None:
                 raise Exception('Subindices not implemented')
             with np.load(file_name) as f:
                 return movie(**f).astype(outtype)
 
-        elif extension in ('.hdf5', '.h5', '.nwb'):
-           # TODO: Merge logic here with utilities.py:get_file_size()
-           with h5py.File(file_name, "r") as f:
-                ignore_keys = ['__DATA_TYPES__'] # Known metadata that tools provide, add to this as needed. Sync with utils.py:get_file_size() !!
-                fkeys = list(filter(lambda x: x not in ignore_keys, f.keys()))
-                if len(fkeys) == 1 and 'Dataset' in str(type(f[fkeys[0]])): # If the hdf5 file we're parsing has only one dataset inside it,
-                                                                            # ignore the arg and pick that dataset
-                                                                            # TODO: Consider recursing into a group to find a dataset
-                    var_name_hdf5 = fkeys[0]
-
-                if extension == '.nwb': # Apparently nwb files are specially-formatted hdf5 files
-                    try:
-                        fgroup = f[var_name_hdf5]['data']
-                    except:
-                        fgroup = f['acquisition'][var_name_hdf5]['data']
-                else:
-                    fgroup = f[var_name_hdf5]
-
-                if var_name_hdf5 in f or var_name_hdf5 in f['acquisition']:
-                    if subindices is None:
-                        images = np.array(fgroup).squeeze()
+        elif extension in ('.hdf5', '.h5', '.mat', '.nwb', 'n5', 'zarr'):
+            if extension in ('n5', 'zarr'): # Thankfully, the zarr library lines up closely with h5py past the initial open
+                f = zarr.open(file_name, "r")
+            else:
+                try:
+                    f = h5py.File(file_name, "r")
+                except:
+                    if extension == '.mat':
+                        raise Exception(f"Problem loading {file_name}: Unknown format. This may be in the original version 1 (non-hdf5) mat format; please convert it first")
                     else:
-                        if type(subindices).__module__ == 'numpy':
-                            subindices = subindices.tolist()
-                        if len(fgroup.shape) > 3:
-                            logging.warning(f'fgroup.shape has dimensionality greater than 3 {fgroup.shape} in load')
-                        images = np.array(fgroup[subindices]).squeeze()
-
-                    return movie(images.astype(outtype))
-                else:
-                    logging.debug('KEYS:' + str(f.keys()))
-                    raise Exception('Key not found in hdf5 file')
-
-        elif extension in ('.n5', '.zarr'):
-           try:
-               import z5py
-           except ImportError:
-               raise Exception("z5py library not available; if you need this functionality use the conda package")
-           with z5py.File(file_name, "r") as f:
-                fkeys = list(f.keys())
-                if len(fkeys) == 1: # If the n5/zarr file we're parsing has only one dataset inside it, ignore the arg and pick that dataset
-                    var_name_hdf5 = fkeys[0]
-
+                        raise Exception(f"Problem loading {file_name}: Unknown format.")
+            ignore_keys = ['__DATA_TYPES__'] # Known metadata that tools provide, add to this as needed. Sync with get_file_size() !!
+            fkeys = list(filter(lambda x: x not in ignore_keys, f.keys()))
+            if len(fkeys) == 1: # If the file we're parsing has only one dataset inside it,
+                                # ignore the arg and pick that dataset
+                                # TODO: Consider recursing into a group to find a dataset
+                var_name_hdf5 = fkeys[0]
+            if extension == '.nwb': # Apparently nwb files are specially-formatted hdf5 files
+                try:
+                    fgroup = f[var_name_hdf5]['data']
+                except:
+                    fgroup = f['acquisition'][var_name_hdf5]['data']
+            else:
                 fgroup = f[var_name_hdf5]
 
-                if var_name_hdf5 in f or var_name_hdf5 in f['acquisition']:
-                    if subindices is None:
-                        images = np.array(fgroup).squeeze()
-                    else:
-                        if type(subindices).__module__ == 'numpy':
-                            subindices = subindices.tolist()
-                        if len(fgroup.shape) > 3:
-                            logging.warning(f'fgroup.shape has dimensionality greater than 3 {fgroup.shape} in load')
-                        images = np.array(fgroup[subindices]).squeeze()
-
-                    return movie(images.astype(outtype))
+            if var_name_hdf5 in f or var_name_hdf5 in f['acquisition']:
+                if subindices is None:
+                    images = np.array(fgroup).squeeze()
                 else:
-                    logging.debug('KEYS:' + str(f.keys()))
-                    raise Exception('Key not found in n5 or zarr file')
+                    if type(subindices).__module__ == 'numpy':
+                        subindices = subindices.tolist()
+                    if len(fgroup.shape) > 3:
+                        logging.warning(f'fgroup.shape has dimensionality greater than 3 {fgroup.shape} in load')
+                    images = np.array(fgroup[subindices]).squeeze()
+
+                return movie(images.astype(outtype))
+            else:
+                logging.debug('KEYS:' + str(f.keys()))
+                raise Exception('Key not found in hdf5 file')
 
         elif extension == '.mmap':
             filename = os.path.split(file_name)[-1]
-            Yr, dims, T = load_memmap(
+            Yr, dims, T = caiman.mmapping.load_memmap(
                 os.path.join(                  # type: ignore # same dims typing issue as above
                     os.path.split(file_name)[0], filename))
             images = np.reshape(Yr.T, [T] + list(dims), order='F')
@@ -1641,10 +1503,11 @@ def load(file_name: Union[str, List[str]],
 
         elif extension == '.sbx':
             logging.debug('sbx')
-            if subindices is not None:
-                return movie(sbxreadskip(file_name[:-4], subindices), fr=fr).astype(outtype)
-            else:
-                return movie(sbxread(file_name[:-4], k=0, n_frames=np.inf), fr=fr).astype(outtype)
+            meta_data = caiman.utils.sbx_utils.sbx_meta_data(basename)
+            input_arr = caiman.utils.sbx_utils.sbxread(basename, subindices)
+            return movie(input_arr, fr=fr,
+                         file_name=os.path.split(file_name)[-1],
+                         meta_data=meta_data).astype(outtype)
 
         elif extension == '.sima':
             raise Exception("movies.py:load(): FATAL: sima support was removed in 1.9.8")
@@ -1662,7 +1525,7 @@ def load(file_name: Union[str, List[str]],
                  meta_data=meta_data)
 
 
-def load_movie_chain(file_list: List[str],
+def load_movie_chain(file_list: list[str],
                      fr: float = 30,
                      start_time=0,
                      meta_data=None,
@@ -1725,10 +1588,10 @@ def load_movie_chain(file_list: List[str],
             m = m[:, top:h - bottom, left:w - right, z_top:d - z_bottom]
 
         mov.append(m)
-    return ts.concatenate(mov, axis=0)
+    return caiman.base.timeseries.concatenate(mov, axis=0)
 
 ####
-# This is only used for demo_behavior, and used to be part of cm.load(), activated with the
+# This is only used for demo_behavior, and used to be part of caiman.load(), activated with the
 # 'is_behavior' boolean flag.
 
 def _load_behavior(file_name:str) -> Any:
@@ -1772,238 +1635,15 @@ def _load_behavior(file_name:str) -> Any:
                  file_name=os.path.split(file_name)[-1],
                  meta_data=meta_data)
 
-####
-# TODO: Consider pulling these functions that work with .mat files into a separate file
 
-
-def loadmat_sbx(filename: str):
-    """
-    this wrapper should be called instead of directly calling spio.loadmat
-
-    It solves the problem of not properly recovering python dictionaries
-    from mat files. It calls the function check keys to fix all entries
-    which are still mat-objects
-    """
-    data_ = loadmat(filename, struct_as_record=False, squeeze_me=True)
-    _check_keys(data_)
-    return data_
-
-
-def _check_keys(checkdict: Dict) -> None:
-    """
-    checks if entries in dictionary are mat-objects. If yes todict is called to change them to nested dictionaries.
-    Modifies its parameter in-place.
-    """
-
-    for key in checkdict:
-        if isinstance(checkdict[key], scipy.io.matlab.mio5_params.mat_struct):
-            checkdict[key] = _todict(checkdict[key])
-
-
-def _todict(matobj) -> Dict:
-    """
-    A recursive function which constructs from matobjects nested dictionaries
-    """
-
-    ret = {}
-    for strg in matobj._fieldnames:
-        elem = matobj.__dict__[strg]
-        if isinstance(elem, scipy.io.matlab.mio5_params.mat_struct):
-            ret[strg] = _todict(elem)
-        else:
-            ret[strg] = elem
-    return ret
-
-
-def sbxread(filename: str, k: int = 0, n_frames=np.inf) -> np.ndarray:
-    """
-    Args:
-        filename: str
-            filename should be full path excluding .sbx
-    """
-    # Check if contains .sbx and if so just truncate
-    if '.sbx' in filename:
-        filename = filename[:-4]
-
-    # Load info
-    info = loadmat_sbx(filename + '.mat')['info']
-
-    # Defining number of channels/size factor
-    if info['channels'] == 1:
-        info['nChan'] = 2
-        factor = 1
-    elif info['channels'] == 2:
-        info['nChan'] = 1
-        factor = 2
-    elif info['channels'] == 3:
-        info['nChan'] = 1
-        factor = 2
-
-    # Determine number of frames in whole file
-    max_idx = os.path.getsize(filename + '.sbx') / info['recordsPerBuffer'] / info['sz'][1] * factor / 4 - 1
-
-    # Paramters
-    N = max_idx + 1    # Last frame
-    N = np.minimum(N, n_frames)
-
-    nSamples = info['sz'][1] * info['recordsPerBuffer'] * 2 * info['nChan']
-
-    # Open File
-    fo = open(filename + '.sbx')
-
-    # Note: SBX files store the values strangely, its necessary to subtract the values from the max int16 to get the correct ones
-    fo.seek(k * nSamples, 0)
-    ii16 = np.iinfo(np.uint16)
-    x = ii16.max - np.fromfile(fo, dtype='uint16', count=int(nSamples / 2 * N))
-    x = x.reshape((int(info['nChan']), int(info['sz'][1]), int(info['recordsPerBuffer']), int(N)), order='F')
-
-    x = x[0, :, :, :]
-
-    fo.close()
-
-    return x.transpose([2, 1, 0])
-
-
-def sbxreadskip(filename: str, subindices: slice) -> np.ndarray:
-    """
-    Args:
-        filename: str
-            filename should be full path excluding .sbx
-
-        slice: pass a slice to slice along the last dimension
-    """
-    # Check if contains .sbx and if so just truncate
-    if '.sbx' in filename:
-        filename = filename[:-4]
-
-    # Load info
-    info = loadmat_sbx(filename + '.mat')['info']
-
-    # Defining number of channels/size factor
-    if info['channels'] == 1:
-        info['nChan'] = 2
-        factor = 1
-    elif info['channels'] == 2:
-        info['nChan'] = 1
-        factor = 2
-    elif info['channels'] == 3:
-        info['nChan'] = 1
-        factor = 2
-
-    # Determine number of frames in whole file
-    max_idx = int(os.path.getsize(filename + '.sbx') / info['recordsPerBuffer'] / info['sz'][1] * factor / 4 - 1)
-
-    # Paramters
-    if isinstance(subindices, slice):
-        if subindices.start is None:
-            start = 0
-        else:
-            start = subindices.start
-
-        if subindices.stop is None:
-            N = max_idx + 1    # Last frame
-        else:
-            N = np.minimum(subindices.stop, max_idx + 1).astype(int)
-
-        if subindices.step is None:
-            skip = 1
-        else:
-            skip = subindices.step
-
-        iterable_elements = range(start, N, skip)
-
-    else:
-
-        N = len(subindices)
-        iterable_elements = subindices
-        skip = 0
-
-    N_time = len(list(iterable_elements))
-
-    nSamples = info['sz'][1] * info['recordsPerBuffer'] * 2 * info['nChan']
-    assert nSamples >= 0
-
-    # Open File
-    fo = open(filename + '.sbx')
-
-    # Note: SBX files store the values strangely, its necessary to subtract the values from the max int16 to get the correct ones
-
-    counter = 0
-
-    if skip == 1:
-        # Note: SBX files store the values strangely, its necessary to subtract the values from the max int16 to get the correct ones
-        assert start * nSamples > 0
-        fo.seek(start * nSamples, 0)
-        ii16 = np.iinfo(np.uint16)
-        x = ii16.max - np.fromfile(fo, dtype='uint16', count=int(nSamples / 2 * (N - start)))
-        x = x.reshape((int(info['nChan']), int(info['sz'][1]), int(info['recordsPerBuffer']), int(N - start)),
-                      order='F')
-
-        x = x[0, :, :, :]
-
-    else:
-        for k in iterable_elements:
-            assert k >= 0
-            if counter % 100 == 0:
-                logging.debug(f'Reading Iteration: {k}')
-            fo.seek(k * nSamples, 0)
-            ii16 = np.iinfo(np.uint16)
-            tmp = ii16.max - \
-                np.fromfile(fo, dtype='uint16', count=int(nSamples / 2 * 1))
-
-            tmp = tmp.reshape((int(info['nChan']), int(info['sz'][1]), int(info['recordsPerBuffer'])), order='F')
-            if counter == 0:
-                x = np.zeros((tmp.shape[0], tmp.shape[1], tmp.shape[2], N_time))
-
-            x[:, :, :, counter] = tmp
-            counter += 1
-
-        x = x[0, :, :, :]
-    fo.close()
-
-    return x.transpose([2, 1, 0])
-
-
-def sbxshape(filename: str) -> Tuple[int, int, int]:
-    """
-    Args:
-        filename should be full path excluding .sbx
-    """
-    # TODO: Document meaning of return values
-
-    # Check if contains .sbx and if so just truncate
-    if '.sbx' in filename:
-        filename = filename[:-4]
-
-    # Load info
-    info = loadmat_sbx(filename + '.mat')['info']
-
-    # Defining number of channels/size factor
-    if info['channels'] == 1:
-        info['nChan'] = 2
-        factor = 1
-    elif info['channels'] == 2:
-        info['nChan'] = 1
-        factor = 2
-    elif info['channels'] == 3:
-        info['nChan'] = 1
-        factor = 2
-
-    # Determine number of frames in whole file
-    max_idx = os.path.getsize(filename + '.sbx') / info['recordsPerBuffer'] / info['sz'][1] * factor / 4 - 1
-    N = max_idx + 1    # Last frame
-    x = (int(info['sz'][1]), int(info['recordsPerBuffer']), int(N))
-    return x
-
-
-def to_3D(mov2D: np.ndarray, shape: Tuple, order='F') -> np.ndarray:
+def to_3D(mov2D:np.ndarray, shape:tuple, order='F') -> np.ndarray:
     """
     transform a vectorized movie into a 3D shape
     """
     return np.reshape(mov2D, shape, order=order)
 
 
-def from_zip_file_to_movie(zipfile_name: str, start_end: Tuple = None) -> Any:
+def from_zip_file_to_movie(zipfile_name: str, start_end:Optional[tuple] = None) -> Any:
     '''
     Read/convert a movie from a zipfile.
 
@@ -2013,7 +1653,7 @@ def from_zip_file_to_movie(zipfile_name: str, start_end: Tuple = None) -> Any:
     Returns:
         movie
     '''
-    mov: List = []
+    mov:list = []
     logging.info('unzipping file into movie object')
     if start_end is not None:
         num_frames = start_end[1] - start_end[0]
@@ -2035,11 +1675,11 @@ def from_zip_file_to_movie(zipfile_name: str, start_end: Tuple = None) -> Any:
 
                     counter += 1
 
-    return cm.movie(mov[:counter])
+    return caiman.movie(mov[:counter])
 
 
 def from_zipfiles_to_movie_lists(zipfile_name: str, max_frames_per_movie: int = 3000,
-                                 binary: bool = False) -> List[str]:
+                                 binary: bool = False) -> list[str]:
     '''
     Transform zip file into set of tif movies
     Args:
@@ -2096,7 +1736,7 @@ def rolling_window(ndarr, window_size, stride):
            yield ndarr[:, i + stride:]
 
 
-def load_iter(file_name: Union[str, List[str]], subindices=None, var_name_hdf5: str='mov',
+def load_iter(file_name: Union[str, list[str]], subindices=None, var_name_hdf5: str='mov',
               outtype=np.float32, is3D: bool=False):
     """
     load iterator over movie from file. Supports a variety of formats. tif, hdf5, avi.
@@ -2238,25 +1878,35 @@ def load_iter(file_name: Union[str, List[str]], subindices=None, var_name_hdf5: 
                             yield frame # was frame[..., 0].astype(outtype)
                         return
                 
-            elif extension in ('.hdf5', '.h5', '.nwb', '.mat'):
-                with h5py.File(file_name, "r") as f:
-                    ignore_keys = ['__DATA_TYPES__'] # Known metadata that tools provide, add to this as needed.
-                    fkeys = list(filter(lambda x: x not in ignore_keys, f.keys()))
-                    if len(fkeys) == 1 and 'Dataset' in str(type(f[fkeys[0]])): # If the hdf5 file we're parsing has only one dataset inside it,
-                                                                                # ignore the arg and pick that dataset
-                        var_name_hdf5 = fkeys[0]
-                    Y = f.get('acquisition/' + var_name_hdf5 + '/data'
-                            if extension == '.nwb' else var_name_hdf5)
-                    if subindices is None:
-                        for y in Y:
-                            yield y.astype(outtype)
-                    else:
-                        if isinstance(subindices, slice):
-                            subindices = range(subindices.start,
-                                            len(Y) if subindices.stop is None else subindices.stop,
-                                            1 if subindices.step is None else subindices.step)
-                        for ind in subindices:
-                            yield Y[ind].astype(outtype)
+            elif extension in ('.hdf5', '.h5', '.nwb', '.mat', '.n5', '.zarr'):
+                if extension in ('.n5', '.zarr'): # Thankfully, the zarr library lines up closely with h5py past the initial open
+                    f = zarr.open(file_name, "r")
+                else:
+                    try:
+                        f = h5py.File(file_name, "r")
+                    except:
+                        if extension == '.mat':
+                            raise Exception(f"Problem loading {file_name}: Unknown format. This may be in the original version 1 (non-hdf5) mat format; please convert it first")
+                        else:
+                            raise Exception(f"Problem loading {file_name}: Unknown format.")
+                ignore_keys = ['__DATA_TYPES__'] # Known metadata that tools provide, add to this as needed.
+                fkeys = list(filter(lambda x: x not in ignore_keys, f.keys()))
+                if len(fkeys) == 1: # If the hdf5 file we're parsing has only one dataset inside it,
+                                    # ignore the arg and pick that dataset
+                    var_name_hdf5 = fkeys[0]
+                Y = f.get('acquisition/' + var_name_hdf5 + '/data'
+                        if extension == '.nwb' else var_name_hdf5)
+                if subindices is None:
+                    for y in Y:
+                        yield y.astype(outtype)
+                else:
+                    if isinstance(subindices, slice):
+                        subindices = range(subindices.start,
+                                        len(Y) if subindices.stop is None else subindices.stop,
+                                        1 if subindices.step is None else subindices.step)
+                    for ind in subindices:
+                        yield Y[ind].astype(outtype)
+                # zarr doesn't have a close(), but falling out of scope causes both h5py and zarr to clean up
             else:  # fall back to memory inefficient version
                 for y in load(file_name, var_name_hdf5=var_name_hdf5,
                             subindices=subindices, outtype=outtype, is3D=is3D):
@@ -2265,23 +1915,134 @@ def load_iter(file_name: Union[str, List[str]], subindices=None, var_name_hdf5: 
             logging.error(f"File request:[{file_name}] not found!")
             raise Exception('File not found!')
 
+def get_file_size(file_name, var_name_hdf5:str='mov') -> tuple[tuple, Union[int, tuple]]:
+    """
+    Computes the dimensions of a file or a list of files without loading
+    it/them in memory. An exception is thrown if the files have FOVs with
+    different sizes
+
+    Args:
+        file_name:
+            locations of file(s)
+        var_name_hdf5:
+            if loading from hdf5 name of the dataset to load
+
+    Returns:
+        dims: tuple
+            dimensions of FOV
+        T: int or tuple of int
+            number of timesteps in each file
+
+    """
+    # TODO There is a lot of redundant code between this, load(), and load_iter() that should be unified somehow
+    if isinstance(file_name, pathlib.Path):
+        # We want to support these as input, but str has a broader set of operations that we'd like to use, so let's just convert.
+        # (specifically, filePath types don't support subscripting)
+        file_name = str(file_name)
+    if isinstance(file_name, str):
+        if os.path.exists(file_name):
+            _, extension = os.path.splitext(file_name)[:2]
+            extension = extension.lower()
+
+            if extension in ['.tif', '.tiff', '.btf']:
+                tffl = tifffile.TiffFile(file_name)
+                siz = tffl.series[0].shape
+                # tiff files written in append mode
+                if len(siz) < 3:
+                    dims = siz
+                    T = len(tffl.pages)
+                else:
+                    T, dims = siz[0], siz[1:]
+            elif extension in ('.avi', '.mkv'):
+                if 'CAIMAN_LOAD_AVI_FORCE_FALLBACK' in os.environ:
+                        pims_movie = pims.PyAVReaderTimed(file_name) # duplicated code, but no cleaner way
+                        T = len(pims_movie)
+                        dims = pims_movie.frame_shape[0:2]
+                else:
+                    cap = cv2.VideoCapture(file_name) # try opencv
+                    dims = [int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT)), int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))]
+                    T = int(cap.get(cv2.CAP_PROP_FRAME_COUNT))
+                    cap.release()
+                    if dims[0] <= 0 or dims[1] <= 0 or T <= 0: # if no opencv, do pims instead. See also load()
+                        pims_movie = pims.PyAVReaderTimed(file_name)
+                        T = len(pims_movie)
+                        dims[0], dims[1] = pims_movie.frame_shape[0:2]
+            elif extension == '.mmap':
+                filename = os.path.split(file_name)[-1]
+                Yr, dims, T = caiman.mmapping.load_memmap(os.path.join(
+                        os.path.split(file_name)[0], filename))
+            elif extension in ('.h5', '.hdf5', '.mat', '.nwb', 'n5', 'zarr'):
+                # FIXME this doesn't match the logic in load()
+                if extension in ('n5', 'zarr'): # Thankfully, the zarr library lines up closely with h5py past the initial open
+                    f = zarr.open(file_name, "r")
+                else:
+                    try:
+                        f = h5py.File(file_name, "r")
+                    except:
+                        if extension == '.mat':
+                            raise Exception(f"Problem loading {file_name}: Unknown format. This may be in the original version 1 (non-hdf5) mat format; please convert it first")
+                        else:
+                            raise Exception(f"Problem loading {file_name}: Unknown format.")
+                ignore_keys = ['__DATA_TYPES__'] # Known metadata that tools provide, add to this as needed. Sync with movies.my:load() !!
+                kk = list(filter(lambda x: x not in ignore_keys, f.keys()))
+                if len(kk) == 1: # TODO: Consider recursing into a group to find a dataset
+                    siz = f[kk[0]].shape
+                elif var_name_hdf5 in f:
+                    if extension == '.nwb':
+                        siz = f[var_name_hdf5]['data'].shape
+                    else:
+                        siz = f[var_name_hdf5].shape
+                elif var_name_hdf5 in f['acquisition']:
+                    siz = f['acquisition'][var_name_hdf5]['data'].shape
+                else:
+                    logging.error(f'The file does not contain a variable named {var_name_hdf5}')
+                    raise Exception('Variable not found. Use one of the above')
+                T, dims = siz[0], siz[1:]
+            elif extension in ('.sbx'):
+                shape = caiman.utils.sbx_utils.sbx_shape(file_name[:-4])
+                T = shape[-1]
+                dims = (shape[2], shape[1])                
+            else:
+                raise Exception('Unknown file type')
+            dims = tuple(dims)
+        else:
+            raise Exception('File not found!')
+    elif isinstance(file_name, tuple):
+        dims = caiman.base.movies.load(file_name[0], var_name_hdf5=var_name_hdf5).shape
+        T = len(file_name)
+
+    elif isinstance(file_name, list):
+        if len(file_name) == 1:
+            dims, T = get_file_size(file_name[0], var_name_hdf5=var_name_hdf5)
+        else:
+            dims, T = zip(*[get_file_size(fn, var_name_hdf5=var_name_hdf5)
+                for fn in file_name])
+            if len(set(dims)) > 1:
+                raise Exception('Files have FOVs with different sizes')
+            else:
+                dims = dims[0]
+    else:
+        raise Exception('Unknown input type')
+    return dims, T
+
+################################
 
 def play_movie(movie,
-               gain: float = 1.0,
+               gain:float = 1.0,
                fr=None,
-               magnification: float = 1.0,
-               offset: float = 0.0,
+               magnification:float = 1.0,
+               offset:float = 0.0,
                interpolation=cv2.INTER_LINEAR,
-               backend: str = 'opencv',
-               do_loop: bool = False,
+               backend:str = 'opencv',
+               do_loop:bool = False,
                bord_px=None,
-               q_max: float = 99.75,
-               q_min: float = 1,
-               plot_text: bool = False,
-               save_movie: bool = False,
-               opencv_codec: str = 'H264',
-               movie_name: str = 'movie.avi',
-               var_name_hdf5: str = 'mov',
+               q_max:float = 99.75,
+               q_min:float = 1.0,
+               plot_text:bool = False,
+               save_movie:bool = False,
+               opencv_codec:str = 'H264',
+               movie_name:str = 'movie.avi', # why?
+               var_name_hdf5:str = 'mov',
                subindices = slice(None),
                tsub: int = 1) -> None:
     """
@@ -2302,7 +2063,7 @@ def play_movie(movie,
         interpolation:
             interpolation method for 'opencv' and 'embed_opencv' backends
 
-        backend: 'pylab', 'notebook', 'opencv' or 'embed_opencv'; the latter 2 are much faster
+        backend: 'opencv', 'embed_opencv', 'pyplot', or 'notebook': the first two are much faster
 
         do_loop: Whether to loop the video
 
@@ -2338,10 +2099,10 @@ def play_movie(movie,
     """
     # todo: todocument
     it = True if (isinstance(movie, list) or isinstance(movie, tuple) or isinstance(movie, str)) else False
-    if backend == 'pylab':
-        logging.warning('*** WARNING *** SPEED MIGHT BE LOW. USE opencv backend if available')
+    if backend == 'pyplot':
+        logging.warning('Using pyplot back end: not recommended. Using opencv will yield faster, higher-quality results.')
 
-    gain *= 1.     # convert to float in case we were passed an int
+    gain = float(gain)     # convert to float in case we were passed an int
     if q_max < 100:
         maxmov = np.nanpercentile(load(movie, subindices=slice(0,10), var_name_hdf5=var_name_hdf5) if it else movie[0:10], q_max)
     else:
@@ -2383,26 +2144,26 @@ def play_movie(movie,
                         thickness=1)
         return frame
 
-    if backend == 'pylab':
-        pl.ion()
-        fig = pl.figure(1)
+    if backend == 'pyplot':
+        plt.ion()
+        fig = plt.figure(1)
         ax = fig.add_subplot(111)
         ax.set_title("Play Movie")
         im = ax.imshow((offset + (load(movie, subindices=slice(0,2), var_name_hdf5=var_name_hdf5) if it else movie)[0] - minmov) * gain / (maxmov - minmov + offset),
-                       cmap=pl.cm.gray,
+                       cmap=plt.cm.gray,
                        vmin=0,
                        vmax=1,
-                       interpolation='none')                                            # Blank starting image
+                       interpolation='none')  # Blank starting image
         fig.show()
         im.axes.figure.canvas.draw()
-        pl.pause(1)
+        plt.pause(1)
 
     elif backend == 'notebook':
         # First set up the figure, the axis, and the plot element we want to animate
-        fig = pl.figure()
-        im = pl.imshow(next(load_iter(movie, subindices=slice(0,1), var_name_hdf5=var_name_hdf5))\
-                    if it else movie[0], interpolation='None', cmap=pl.cm.gray)
-        pl.axis('off')
+        fig = plt.figure()
+        im = plt.imshow(next(load_iter(movie, subindices=slice(0,1), var_name_hdf5=var_name_hdf5))\
+                    if it else movie[0], interpolation='None', cmap=matplotlib.cm.gray)
+        plt.axis('off')
 
         if it:
             m_iter = load_iter(movie, subindices, var_name_hdf5)
@@ -2421,12 +2182,12 @@ def play_movie(movie,
                 return im,
 
         # call the animator.  blit=True means only re-draw the parts that have changed.
-        frames = cm.source_extraction.cnmf.utilities.get_file_size(movie)[-1] if it else movie.shape[0]
+        frames = get_file_size(movie)[-1] if it else movie.shape[0]
         frames = int(np.ceil(frames / tsub))
-        anim = animation.FuncAnimation(fig, animate, frames=frames, interval=1, blit=True)
+        anim = matplotlib.animation.FuncAnimation(fig, animate, frames=frames, interval=1, blit=True)
 
         # call our new function to display the animation
-        return visualization.display_animation(anim, fps=fr)
+        return caiman.utils.visualization.display_animation(anim, fps=fr)
 
     elif backend == 'embed_opencv':
         stopButton = widgets.ToggleButton(
@@ -2447,7 +2208,7 @@ def play_movie(movie,
                     frame_sum = 0
                     display_handle.update(Image(data=cv2.imencode(
                             '.jpg', np.clip((frame * 255.), 0, 255).astype('u1'))[1].tobytes()))
-                    pl.pause(1. / fr)
+                    plt.pause(1. / fr)
                 if stopButton.value==True:
                     break
         display(stopButton)
@@ -2471,7 +2232,6 @@ def play_movie(movie,
         out = cv2.VideoWriter(movie_name, fourcc, 30.,
                               tuple([int(magnification * s) for s in frame_in.shape[1::-1]]))
     while looping:
-
         frame_sum = 0
         for iddxx, frame in enumerate(load_iter(movie, subindices, var_name_hdf5) if it else movie[subindices]):
             frame_sum += frame
@@ -2486,7 +2246,7 @@ def play_movie(movie,
                     if save_movie:
                         if frame.ndim < 3:
                             frame = np.repeat(frame[:, :, None], 3, axis=-1)
-                        frame = np.minimum((frame * 255.), 255).astype('u1')
+                        frame = frame.astype('u1') 
                         out.write(frame)
                     if backend == 'opencv' and (cv2.waitKey(int(1. / fr * 1000)) & 0xFF == ord('q')):
                         looping = False
@@ -2496,21 +2256,20 @@ def play_movie(movie,
                 elif backend == 'embed_opencv' and not save_movie:
                     break
 
-                elif backend == 'pylab':
+                elif backend == 'pyplot':
                     if bord_px is not None and np.sum(bord_px) > 0:
                         frame = frame[bord_px:-bord_px, bord_px:-bord_px]
                     im.set_data((offset + frame) * gain / maxmov)
                     ax.set_title(str(iddxx))
-                    pl.axis('off')
+                    plt.axis('off')
                     fig.canvas.draw()
-                    pl.pause(1. / fr * .5)
-                    ev = pl.waitforbuttonpress(1. / fr * .5)
+                    plt.pause(1. / fr * .5)
+                    ev = plt.waitforbuttonpress(1. / fr * .5)
                     if ev is not None:
-                        pl.close()
+                        plt.close()
                         break
 
                 elif backend == 'notebook':
-                    logging.debug('Animated via MP4')
                     break
 
                 else:

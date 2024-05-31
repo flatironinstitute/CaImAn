@@ -22,8 +22,7 @@
 ###########################################################################
 
 import numpy as np
-from scipy.ndimage.interpolation import zoom
-from scipy.ndimage.morphology import binary_fill_holes
+from scipy.ndimage import zoom, binary_fill_holes
 
 
 def coord_polar_to_cart(r, theta, center):

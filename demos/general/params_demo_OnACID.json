@@ -1,0 +1,25 @@
+{
+"data": {
+	"decay_time": 0.75,
+	"fr": 10
+	},
+"init": {
+	"gSig": [6, 6],
+	"K": 4,
+	"nb": 2
+	},
+"online": {
+	"init_batch": 400,
+	"init_method": "cnmf",
+	"min_SNR": 1,
+	"sniper_mode": true,
+	"thresh_CNN_noisy": 0.65
+	},
+"patch":{
+	"rf": 16,
+	"stride": 3
+        },
+"preprocess": {
+        "p": 1
+	}
+}

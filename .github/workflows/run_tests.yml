@@ -1,0 +1,47 @@
+name: Linux Conda test
+
+on:
+  pull_request:
+    branches:
+      - main
+      - dev
+  push:
+    branches:
+      - main
+
+jobs:
+  build-linux-conda:
+    runs-on: ubuntu-latest
+    strategy:
+      max-parallel: 5
+      matrix:
+        python-version: ['3.9', '3.10', '3.11']
+      fail-fast: false
+
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Conda
+        uses: conda-incubator/setup-miniconda@v2
+        with:
+          auto-update-conda: true
+          python-version: ${{ matrix.python-version }}
+          environment-file: environment-minimal.yml
+          activate-environment: caiman
+
+      - name: Install OS Dependencies
+        shell: bash -l {0}
+        run: |
+          sudo apt-get install libglapi-mesa libegl-mesa0 libegl1 libopengl0 libgl1-mesa-glx
+
+      - name: Install Dependencies
+        shell: bash -l {0}
+        run: |
+          conda install pip
+          pip install -e .
+          caimanmanager install --inplace
+
+      - name: Test
+        shell: bash -l {0}
+        run: |
+          caimanmanager test

@@ -1,44 +1,37 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
+
 
 """ List of plotting functions to visualize what's happening in the code """
 
-#\package Caiman/utils
-#\version   1.0
-#\copyright GNU General Public License v2.0
-#\date Created on Tue Jun 30 21:01:17 2016
-#\author: andrea giovannucci
-
 import base64
 import cv2
+import functools as fct
+import holoviews
 from IPython.display import HTML
 from math import sqrt, ceil
-import matplotlib as mpl
-import matplotlib.cm as cm
-from matplotlib.patches import Rectangle
-from matplotlib.widgets import Slider
+import matplotlib
+import matplotlib.patches
+import matplotlib.pyplot as plt
+import matplotlib.widgets
 import numpy as np
 from numpy.typing import ArrayLike
-import pylab as pl
-from scipy.ndimage.measurements import center_of_mass
-from scipy.ndimage.filters import median_filter
+from scipy.ndimage import center_of_mass, median_filter
 from scipy.sparse import issparse, spdiags, coo_matrix, csc_matrix
 from skimage.measure import find_contours
 import sys
 from tempfile import NamedTemporaryFile
-from typing import Any, Dict, Optional, Tuple
+from typing import Any, Optional
 from warnings import warn
-import holoviews as hv
-import functools as fct
 
-from ..base.rois import com
-from ..summary_images import local_correlations
+import caiman.base.rois
+import caiman.summary_images
 
 try:
     cv2.setNumThreads(0)
 except:
     pass
 
+# FIXME Look into converting this into a standard import
 try:
     import bokeh
     import bokeh.plotting as bpl
@@ -47,7 +40,6 @@ except:
     print("Bokeh could not be loaded. Either it is not installed or you are not running within a notebook")
 
 
-#%%
 def view_patches(Yr, A, C, b, f, d1, d2, YrA=None, secs=1):
     """view spatial and temporal components (secs=0 interactive)
 
@@ -82,7 +74,7 @@ def view_patches(Yr, A, C, b, f, d1, d2, YrA=None, secs=1):
 
     """
 
-    pl.ion()
+    plt.ion()
     nr, T = C.shape
     nb = f.shape[0]
     A2 = A.copy()
@@ -96,37 +88,37 @@ def view_patches(Yr, A, C, b, f, d1, d2, YrA=None, secs=1):
 
     A = A.todense()
     bkgrnd = np.reshape(b, (d1, d2) + (nb,), order='F')
-    fig = pl.figure()
-    thismanager = pl.get_current_fig_manager()
+    fig = plt.figure()
+    thismanager = plt.get_current_fig_manager()
     thismanager.toolbar.pan()
     print('In order to scroll components you need to click on the plot')
     sys.stdout.flush()
     for i in range(nr + 1):
         if i < nr:
             ax1 = fig.add_subplot(2, 1, 1)
-            pl.imshow(np.reshape(np.array(A[:, i]) / nA2[i],
+            plt.imshow(np.reshape(np.array(A[:, i]) / nA2[i],
                                  (d1, d2), order='F'), interpolation='None')
             ax1.set_title('Spatial component ' + str(i + 1))
             ax2 = fig.add_subplot(2, 1, 2)
-            pl.plot(np.arange(T), np.squeeze(
+            plt.plot(np.arange(T), np.squeeze(
                 np.array(Y_r[i, :])), 'c', linewidth=3)
-            pl.plot(np.arange(T), np.squeeze(
+            plt.plot(np.arange(T), np.squeeze(
                 np.array(C[i, :])), 'r', linewidth=2)
             ax2.set_title('Temporal component ' + str(i + 1))
             ax2.legend(labels=['Filtered raw data', 'Inferred trace'])
 
             if secs > 0:
-                pl.pause(secs)
+                plt.pause(secs)
             else:
-                pl.waitforbuttonpress()
+                plt.waitforbuttonpress()
 
             fig.delaxes(ax2)
         else:
             ax1 = fig.add_subplot(2, 1, 1)
-            pl.imshow(bkgrnd[:, :, i - nr], interpolation='None')
+            plt.imshow(bkgrnd[:, :, i - nr], interpolation='None')
             ax1.set_title('Spatial background ' + str(i - nr + 1))
             ax2 = fig.add_subplot(2, 1, 2)
-            pl.plot(np.arange(T), np.squeeze(np.array(f[i - nr, :])))
+            plt.plot(np.arange(T), np.squeeze(np.array(f[i - nr, :])))
             ax2.set_title('Temporal background ' + str(i - nr + 1))
 
 
@@ -162,8 +154,8 @@ def nb_view_patches(Yr, A, C, b, f, d1, d2, YrA=None, image_neurons=None, thr=0.
             name of colormap (e.g. 'viridis') used to plot image_neurons
     """
 
-    colormap = cm.get_cmap(cmap)
-    grayp = [mpl.colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
+    colormap = matplotlib.colormaps.get_cmap(cmap)
+    grayp = [matplotlib.colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
     nr, T = C.shape
     nA2 = np.ravel(np.power(A, 2).sum(0)) if isinstance(A, np.ndarray) else np.ravel(A.power(2).sum(0))
     b = np.squeeze(b)
@@ -336,9 +328,9 @@ def hv_view_patches(Yr, A, C, b, f, d1, d2, YrA=None, image_neurons=None, denois
         Y_r = C + YrA
     if image_neurons is None:
         image_neurons = A.mean(1).reshape((d1, d2), order='F')
-    smp = cm.ScalarMappable(cmap=cmap)
+    smp = matplotlib.cm.ScalarMappable(cmap=cmap)
     im_rgb = smp.to_rgba(image_neurons)[:, :, :3]
-    im_hsv = mpl.colors.rgb_to_hsv(im_rgb)
+    im_hsv = matplotlib.colors.rgb_to_hsv(im_rgb)
 
     def norm(a, rg=(0, 1)):
         a_norm = (a - a.min()) / (a.max() - a.min())
@@ -354,23 +346,23 @@ def hv_view_patches(Yr, A, C, b, f, d1, d2, YrA=None, image_neurons=None, denois
         else:
             metrics = ''
         trace = (
-            hv.Curve(Y_r[uid, :], kdims='frame #').opts(framewise=True)
-            * (hv.Curve(C[uid, :], kdims='frame #')
+            holoviews.Curve(Y_r[uid, :], kdims='frame #').opts(framewise=True)
+            * (holoviews.Curve(C[uid, :], kdims='frame #')
                .opts(color=denoised_color, framewise=True))
-            * hv.Text(.03*Y_r.shape[1], Y_r[uid].max(), metrics, halign='left', valign='top', fontsize=10)
+            * holoviews.Text(.03*Y_r.shape[1], Y_r[uid].max(), metrics, halign='left', valign='top', fontsize=10)
             ).opts(aspect=3, frame_height=200)
         A_scl = norm(Ad[:, :, uid], (scl, 1))
         im_hsv_scl = im_hsv.copy()
         im_hsv_scl[:, :, 2] = im_hsv[:, :, 2] * A_scl
-        im_u = (hv.HSV(im_hsv_scl, kdims=['height', 'width'])
+        im_u = (holoviews.HSV(im_hsv_scl, kdims=['height', 'width'])
                 .opts(aspect='equal', frame_height=200))
-        return hv.Layout([im_u] + [trace]).cols(1) #im_u + trace
+        return holoviews.Layout([im_u] + [trace]).cols(1) #im_u + trace
 
     if nr==1:
-        return (hv.DynamicMap(lambda scl: plot_unit(0, scl), kdims=['scale'])
+        return (holoviews.DynamicMap(lambda scl: plot_unit(0, scl), kdims=['scale'])
                 .redim.range(scale=(0.0, 1.0)))
     else:
-        return (hv.DynamicMap(plot_unit, kdims=['unit_id', 'scale'])
+        return (holoviews.DynamicMap(plot_unit, kdims=['unit_id', 'scale'])
                 .redim.range(unit_id=(0, nr-1), scale=(0.0, 1.0)))
 
 
@@ -411,11 +403,11 @@ def get_contours(A, dims, thr=0.9, thr_method='nrg', swap_dim=False):
     coordinates = []
 
     # get the center of mass of neurons( patches )
-    cm = com(A, *dims)
+    cm = caiman.base.rois.com(A, *dims)
 
     # for each patches
     for i in range(nr):
-        pars:Dict = dict()
+        pars:dict = dict()
         # we compute the cumulative sum of the energy of the Ath component that has been ordered from least to highest
         patch_data = A.data[A.indptr[i]:A.indptr[i + 1]]
         indx = np.argsort(patch_data)[::-1]
@@ -489,7 +481,7 @@ def nb_view_patches3d(Y_r, A, C, dims, image_type='mean', Yr=None,
 
         image_type: 'mean', 'max' or 'corr'
             image to be overlaid to neurons
-            (average of shapes, maximum of shapes or nearest neigbor correlation of raw data)
+            (average of shapes, maximum of shapes or nearest neighbor correlation of raw data)
 
         Yr: np.ndarray
             movie, only required if image_type=='corr' to calculate correlation image
@@ -524,8 +516,8 @@ def nb_view_patches3d(Y_r, A, C, dims, image_type='mean', Yr=None,
     A = csc_matrix(A)[index_permut, :]
     dims = tuple(np.array(dims)[order[:3]])
     d1, d2, d3 = dims
-    colormap = cm.get_cmap(cmap)
-    grayp = [mpl.colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
+    colormap = matplotlib.colormaps.get_cmap(cmap)
+    grayp = [matplotlib.colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
     nr, T = C.shape
 
     x = np.arange(T)
@@ -536,7 +528,7 @@ def nb_view_patches3d(Y_r, A, C, dims, image_type='mean', Yr=None,
 
     if max_projection:
         if image_type == 'corr':
-            tmp = [(local_correlations(
+            tmp = [(caiman.summary_images.local_correlations(
                 Yr[index_permut].reshape(dims + (-1,), order='F'))[:, ::-1]).max(i)
                 for i in range(3)]
 
@@ -567,7 +559,7 @@ def nb_view_patches3d(Y_r, A, C, dims, image_type='mean', Yr=None,
         coors = [get_contours(proj_[i], tmp[i].shape, thr=thr)
                  for i in range(3)]
 
-        pl.close()
+        plt.close()
         K = np.max([[len(cor['coordinates']) for cor in cc] for cc in coors])
         cc1 = np.nan * np.zeros(np.shape(coors) + (K,))
         cc2 = np.nan * np.zeros(np.shape(coors) + (K,))
@@ -635,7 +627,7 @@ def nb_view_patches3d(Y_r, A, C, dims, image_type='mean', Yr=None,
     else:
 
         if image_type == 'corr':
-            image_neurons = local_correlations(
+            image_neurons = caiman.summary_images.local_correlations(
                 Yr[index_permut].reshape(dims + (-1,), order='F'))
 
         elif image_type == 'mean':
@@ -647,11 +639,11 @@ def nb_view_patches3d(Y_r, A, C, dims, image_type='mean', Yr=None,
         else:
             raise ValueError('image_type must be mean, max or corr')
 
-        cmap = bokeh.models.mappers.LinearColorMapper([mpl.colors.rgb2hex(m)
+        cmap = bokeh.models.mappers.LinearColorMapper([matplotlib.colors.rgb2hex(m)
                                                        for m in colormap(np.arange(colormap.N))])
         cmap.high = image_neurons.max()
         coors = get_contours(A, dims, thr=thr)
-        pl.close()
+        plt.close()
         cc1 = [[(l[:, 0]) for l in n['coordinates']] for n in coors]
         cc2 = [[(l[:, 1]) for l in n['coordinates']] for n in coors]
         length = np.ravel([list(map(len, cc)) for cc in cc1])
@@ -788,8 +780,8 @@ def nb_imshow(image, cmap='jet'):
     """
     Interactive equivalent of imshow for ipython notebook
     """
-    colormap = cm.get_cmap(cmap)  # choose any matplotlib colormap here
-    grayp = [mpl.colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
+    colormap = matplotlib.colormaps.get_cmap(cmap)  # choose any matplotlib colormap here
+    grayp = [matplotlib.colors.rgb2hex(m) for m in colormap(np.arange(colormap.N))]
     xr = Range1d(start=0, end=image.shape[1])
     yr = Range1d(start=image.shape[0], end=0)
     p = bpl.figure(x_range=xr, y_range=yr)
@@ -843,7 +835,7 @@ def nb_plot_contour(image, A, d1, d2, thr=None, thr_method='max', maxthr=0.2, nr
     p = nb_imshow(image, cmap=cmap)
     p.width = 600
     p.height = 600 * d1 // d2
-    center = com(A, d1, d2)
+    center = caiman.base.rois.com(A, d1, d2)
     p.circle(center[:, 1], center[:, 0], size=10, color="black",
              fill_color=None, line_width=2, alpha=1)
     if coordinates is None:
@@ -875,9 +867,9 @@ def matrixMontage(spcomps, *args, **kwargs):
     numcomps, _, _ = spcomps.shape
     rowcols = int(np.ceil(np.sqrt(numcomps)))
     for k, comp in enumerate(spcomps):
-        pl.subplot(rowcols, rowcols, k + 1)
-        pl.imshow(comp, *args, **kwargs)
-        pl.axis('off')
+        plt.subplot(rowcols, rowcols, k + 1)
+        plt.imshow(comp, *args, **kwargs)
+        plt.axis('off')
 
 
 VIDEO_TAG = """<video controls>
@@ -896,14 +888,9 @@ def anim_to_html(anim, fps=20):
 
     return VIDEO_TAG.format(anim._encoded_video.decode('ascii'))
 
-#%%
-
-
 def display_animation(anim, fps=20):
-    pl.close(anim._fig)
+    plt.close(anim._fig)
     return HTML(anim_to_html(anim, fps=fps))
-#%%
-
 
 def view_patches_bar(Yr, A, C, b, f, d1, d2, YrA=None, img=None,
                      r_values=None, SNR=None, cnn_preds=None):
@@ -945,7 +932,7 @@ def view_patches_bar(Yr, A, C, b, f, d1, d2, YrA=None, img=None,
             prediction values from the CNN classifier
     """
 
-    pl.ion()
+    plt.ion()
     if 'csc_matrix' not in str(type(A)):
         A = csc_matrix(A)
 
@@ -962,15 +949,15 @@ def view_patches_bar(Yr, A, C, b, f, d1, d2, YrA=None, img=None,
     if img is None:
         img = np.reshape(np.array(A.mean(axis=1)), (d1, d2), order='F')
 
-    fig = pl.figure(figsize=(10, 10))
+    fig = plt.figure(figsize=(10, 10))
 
-    axcomp = pl.axes([0.05, 0.05, 0.9, 0.03])
+    axcomp = plt.axes([0.05, 0.05, 0.9, 0.03])
 
-    ax1 = pl.axes([0.05, 0.55, 0.4, 0.4])
-    ax3 = pl.axes([0.55, 0.55, 0.4, 0.4])
-    ax2 = pl.axes([0.05, 0.1, 0.9, 0.4])
+    ax1 = plt.axes([0.05, 0.55, 0.4, 0.4])
+    ax3 = plt.axes([0.55, 0.55, 0.4, 0.4])
+    ax2 = plt.axes([0.05, 0.1, 0.9, 0.4])
 
-    s_comp = Slider(axcomp, 'Component', 0, nr + nb - 1, valinit=0)
+    s_comp = matplotlib.widgets.Slider(axcomp, 'Component', 0, nr + nb - 1, valinit=0)
     vmax = np.percentile(img, 95)
 
     def update(val):
@@ -981,7 +968,7 @@ def view_patches_bar(Yr, A, C, b, f, d1, d2, YrA=None, img=None,
 
             ax1.cla()
             imgtmp = np.reshape(A[:, i].toarray(), (d1, d2), order='F')
-            ax1.imshow(imgtmp, interpolation='None', cmap=pl.cm.gray, vmax=np.max(imgtmp)*0.5)
+            ax1.imshow(imgtmp, interpolation='None', cmap=matplotlib.cm.gray, vmax=np.max(imgtmp)*0.5)
             ax1.set_title('Spatial component ' + str(i + 1))
             ax1.axis('off')
 
@@ -998,11 +985,11 @@ def view_patches_bar(Yr, A, C, b, f, d1, d2, YrA=None, img=None,
                         bbox=dict(edgecolor='k', facecolor='w', alpha=.5))
 
             ax3.cla()
-            ax3.imshow(img, interpolation='None', cmap=pl.cm.gray, vmax=vmax)
+            ax3.imshow(img, interpolation='None', cmap=matplotlib.cm.gray, vmax=vmax)
             imgtmp2 = imgtmp.copy()
             imgtmp2[imgtmp2 == 0] = np.nan
             ax3.imshow(imgtmp2, interpolation='None',
-                       alpha=0.5, cmap=pl.cm.hot)
+                       alpha=0.5, cmap=matplotlib.cm.hot)
             ax3.axis('off')
         else:
             ax1.cla()
@@ -1034,9 +1021,7 @@ def view_patches_bar(Yr, A, C, b, f, d1, d2, YrA=None, img=None,
     s_comp.on_changed(update)
     s_comp.set_val(0)
     fig.canvas.mpl_connect('key_release_event', arrow_key_image_control)
-    pl.show()
-#%%
-
+    plt.show()
 
 def plot_contours(A, Cn, thr=None, thr_method='max', maxthr=0.2, nrgthr=0.9, display_numbers=True, max_number=None,
                   cmap=None, swap_dim=False, colors='w', vmin=None, vmax=None, coordinates=None,
@@ -1096,13 +1081,13 @@ def plot_contours(A, Cn, thr=None, thr_method='max', maxthr=0.2, nrgthr=0.9, dis
             color = kwargs[key]
             kwargs.pop(key)
 
-    ax = pl.gca()
+    ax = plt.gca()
     if vmax is None and vmin is None:
-        pl.imshow(Cn, interpolation=None, cmap=cmap,
+        plt.imshow(Cn, interpolation=None, cmap=cmap,
                   vmin=np.percentile(Cn[~np.isnan(Cn)], 1),
                   vmax=np.percentile(Cn[~np.isnan(Cn)], 99))
     else:
-        pl.imshow(Cn, interpolation=None, cmap=cmap, vmin=vmin, vmax=vmax)
+        plt.imshow(Cn, interpolation=None, cmap=cmap, vmin=vmin, vmax=vmax)
 
     if coordinates is None:
         coordinates = get_contours(A, np.shape(Cn), thr, thr_method, swap_dim)
@@ -1110,12 +1095,12 @@ def plot_contours(A, Cn, thr=None, thr_method='max', maxthr=0.2, nrgthr=0.9, dis
         v = c['coordinates']
         c['bbox'] = [np.floor(np.nanmin(v[:, 1])), np.ceil(np.nanmax(v[:, 1])),
                      np.floor(np.nanmin(v[:, 0])), np.ceil(np.nanmax(v[:, 0]))]
-        pl.plot(*v.T, c=colors, **contour_args)
+        plt.plot(*v.T, c=colors, **contour_args)
 
     if display_numbers:
         d1, d2 = np.shape(Cn)
         d, nr = np.shape(A)
-        cm = com(A, d1, d2)
+        cm = caiman.base.rois.com(A, d1, d2)
         if max_number is None:
             max_number = A.shape[1]
         for i in range(np.minimum(nr, max_number)):
@@ -1138,20 +1123,20 @@ def plot_shapes(Ab, dims, num_comps=15, size=(15, 15), comps_per_row=None,
 
     nx = int(sqrt(num_comps) * 1.3) if comps_per_row is None else comps_per_row
     ny = int(ceil(num_comps / float(nx)))
-    pl.figure(figsize=(nx, ny))
+    plt.figure(figsize=(nx, ny))
     for i, a in enumerate(Ab.T[:num_comps]):
-        ax = pl.subplot(ny, nx, i + 1)
+        ax = plt.subplot(ny, nx, i + 1)
         s = a.toarray().reshape(dims, order='F')
         box = GetBox(np.array(center_of_mass(s), dtype=np.int16), size, dims)
-        pl.imshow(smoother(s[list(map(lambda a: slice(*a), box))]),
+        plt.imshow(smoother(s[list(map(lambda a: slice(*a), box))]),
                   cmap=cmap, interpolation='nearest')
         ax.axis('off')
-    pl.subplots_adjust(0, 0, 1, 1, .06, .06)
+    plt.subplots_adjust(0, 0, 1, 1, .06, .06)
 
 
-def nb_inspect_correlation_pnr(corr, pnr):
+def nb_inspect_correlation_pnr(corr, pnr, cmap='jet', num_bins=100):
     """
-    inspect correlation and pnr images to infer the min_corr, min_pnr
+    inspect correlation and pnr images to infer the min_corr, min_pnr for cnmfe
 
     Args:
         corr: ndarray
@@ -1159,23 +1144,40 @@ def nb_inspect_correlation_pnr(corr, pnr):
 
         pnr: ndarray
             peak-to-noise image created with caiman.summary_images.correlation_pnr
+
+        cmap: string
+            colormap used for plotting corr and pnr images 
+            For valid colormaps see https://holoviews.org/user_guide/Colormaps.html
+
+        num_bins: int
+            number of bins to use for plotting histogram of corr/pnr values
+
+    Returns:
+        Holoviews plot layout (Side effect: generates plots in notebook)
     """
-    hv_corr = hv.Image(corr, vdims='corr', label='correlation')
-    hv_pnr = hv.Image(pnr, vdims='pnr', label='pnr')
 
-    def hist(im, rx, ry):
+    hv_corr = holoviews.Image(corr, 
+                       vdims='corr', 
+                       label='correlation').opts(cmap=cmap)
+    hv_pnr = holoviews.Image(pnr, 
+                      vdims='pnr', 
+                      label='pnr').opts(cmap=cmap)
+
+    def hist(im, rx, ry, num_bins=num_bins):
         obj = im.select(x=rx, y=ry) if rx and ry else im
-        return hv.operation.histogram(obj)
+        return holoviews.operation.histogram(obj, num_bins=num_bins)
 
-    str_corr = (hv.streams.RangeXY(source=hv_corr)
-                .rename(x_range='rx', y_range='ry'))
-    str_pnr = (hv.streams.RangeXY(source=hv_pnr)
-               .rename(x_range='rx', y_range='ry'))
-    hist_corr = hv.DynamicMap(
+    str_corr = (holoviews.streams.RangeXY(source=hv_corr).rename(x_range='rx', y_range='ry'))
+    str_pnr = (holoviews.streams.RangeXY(source=hv_pnr).rename(x_range='rx', y_range='ry'))
+    
+    hist_corr = holoviews.DynamicMap(
         fct.partial(hist, im=hv_corr), streams=[str_corr])
-    hist_pnr = hv.DynamicMap(
+    hist_pnr = holoviews.DynamicMap(
         fct.partial(hist, im=hv_pnr), streams=[str_pnr])
-    return (hv_corr << hist_corr) + (hv_pnr << hist_pnr)
+    
+    hv_layout = (hv_corr << hist_corr) + (hv_pnr << hist_pnr)
+
+    return hv_layout
 
 
 def inspect_correlation_pnr(correlation_image_pnr, pnr_image):
@@ -1190,23 +1192,23 @@ def inspect_correlation_pnr(correlation_image_pnr, pnr_image):
             peak-to-noise image created with caiman.summary_images.correlation_pnr
     """
 
-    fig = pl.figure(figsize=(10, 4))
-    pl.axes([0.05, 0.2, 0.4, 0.7])
-    im_cn = pl.imshow(correlation_image_pnr, cmap='jet')
-    pl.title('correlation image')
-    pl.colorbar()
-    pl.axes([0.5, 0.2, 0.4, 0.7])
-    im_pnr = pl.imshow(pnr_image, cmap='jet')
-    pl.title('PNR')
-    pl.colorbar()
+    fig = plt.figure(figsize=(10, 4))
+    plt.axes([0.05, 0.2, 0.4, 0.7])
+    im_cn = plt.imshow(correlation_image_pnr, cmap='jet')
+    plt.title('correlation image')
+    plt.colorbar()
+    plt.axes([0.5, 0.2, 0.4, 0.7])
+    im_pnr = plt.imshow(pnr_image, cmap='jet')
+    plt.title('PNR')
+    plt.colorbar()
 
-    s_cn_max = Slider(pl.axes([0.05, 0.01, 0.35, 0.03]), 'vmax',
+    s_cn_max = matplotlib.widgets.Slider(plt.axes([0.05, 0.01, 0.35, 0.03]), 'vmax',
                       correlation_image_pnr.min(), correlation_image_pnr.max(), valinit=correlation_image_pnr.max())
-    s_cn_min = Slider(pl.axes([0.05, 0.07, 0.35, 0.03]), 'vmin',
+    s_cn_min = matplotlib.widgets.Slider(plt.axes([0.05, 0.07, 0.35, 0.03]), 'vmin',
                       correlation_image_pnr.min(), correlation_image_pnr.max(), valinit=correlation_image_pnr.min())
-    s_pnr_max = Slider(pl.axes([0.5, 0.01, 0.35, 0.03]), 'vmax',
+    s_pnr_max = matplotlib.widgets.Slider(plt.axes([0.5, 0.01, 0.35, 0.03]), 'vmax',
                        pnr_image.min(), pnr_image.max(), valinit=pnr_image.max())
-    s_pnr_min = Slider(pl.axes([0.5, 0.07, 0.35, 0.03]), 'vmin',
+    s_pnr_min = matplotlib.widgets.Slider(plt.axes([0.5, 0.07, 0.35, 0.03]), 'vmin',
                        pnr_image.min(), pnr_image.max(), valinit=pnr_image.min())
 
     def update(val):
@@ -1222,11 +1224,11 @@ def inspect_correlation_pnr(correlation_image_pnr, pnr_image):
 
 def get_rectangle_coords(im_dims: ArrayLike, 
                          stride: int, 
-                         overlap: int) -> Tuple[np.ndarray, np.ndarray]:
+                         overlap: int) -> tuple[np.ndarray, np.ndarray]:
     """
     Extract rectangle (patch) coordinates: a helper function used by view_quilt().
     
-    Given dimensions of summary image (rows x colums), stride between patches, and overlap
+    Given dimensions of summary image (rows x columns), stride between patches, and overlap
     between patches, returns row coordinates of the patches in patch_rows, and column 
     coordinates patches in patch_cols. This is meant to be used by view_quilt().
        
@@ -1266,7 +1268,7 @@ def rect_draw(row_minmax: ArrayLike,
               col_minmax: ArrayLike, 
               color: Optional[str]='white', 
               alpha: Optional[float]=0.2, 
-              ax: Optional[Any]=None) -> Tuple[Any, Any]:
+              ax: Optional[Any]=None) -> tuple[Any, Any]:
     """
     Draw a single rectangle on given axes object.
     
@@ -1287,17 +1289,17 @@ def rect_draw(row_minmax: ArrayLike,
         rect: matplotlib Rectangle object
     """
     if ax is None:
-        ax = pl.gca()
+        ax = plt.gca()
         
     box_origin = (col_minmax[0], row_minmax[0])
     box_height = row_minmax[1] - row_minmax[0] 
     box_width = col_minmax[1] - col_minmax[0]
 
-    rect = Rectangle(box_origin, 
-                     width=box_width, 
-                     height=box_height,
-                     color=color, 
-                     alpha=alpha)
+    rect = matplotlib.patches.Rectangle(box_origin, 
+        width=box_width, 
+        height=box_height,
+        color=color, 
+        alpha=alpha)
     ax.add_patch(rect)
 
     return ax, rect
@@ -1310,7 +1312,8 @@ def view_quilt(template_image: np.ndarray,
                alpha: Optional[float]=0.2, 
                vmin: Optional[float]=None, 
                vmax: Optional[float]=None, 
-               figsize: Optional[Tuple[float,float]]=(6.,6.)) -> Any:
+               figsize: Optional[tuple[float,float]]=(6.,6.),
+               ax: Optional[Any]=None) -> Any:
     """
     Plot patches on template image given stride and overlap parameters on template image.
     This can be useful for checking motion correction and cnmf spatial parameters. 
@@ -1323,10 +1326,11 @@ def view_quilt(template_image: np.ndarray,
         overlap (int) overlap between patches in pixels
         color: matplotlib color
             Any acceptable matplotlib color (r,g,b), string, etc., default 'white' 
-        alpha (float) : patch transparency (0. to 1.: higher is more opaque), default 0.2
-        vmin (float) : vmin for plotting underlying template image, default None
-        vmax (float) : vmax for plotting underlying template image, default None
-        figsize (tuple) : fig size in inches (width, height), default (6.,6.)
+        alpha: patch transparency (0. to 1.: higher is more opaque), default 0.2
+        vmin: vmin for plotting underlying template image, default None
+        vmax: vmax for plotting underlying template image, default None
+        figsize: fig size in inches (width, height). Only used if ax is None, default (6.,6.)
+        ax (pyplot.Axes object): axes object in case user wants to plot quilt on pre-existing axes, default None
     
     Returns:
         ax: pyplot.Axes object
@@ -1336,7 +1340,7 @@ def view_quilt(template_image: np.ndarray,
         patch_width = 2*cnm.params.patch['rf'] + 1
         patch_overlap = cnm.params.patch['stride'] + 1
         patch_stride = patch_width - patch_overlap
-        ax = plot_patches(corr_image, patch_stride, patch_overlap, vmin=0.0, vmax=0.6);
+        ax = view_quilt(corr_image, patch_stride, patch_overlap, vmin=0.0, vmax=0.6);
         
     Note: 
         Currently assumes square patches so takes in a single number for stride/overlap.
@@ -1344,8 +1348,10 @@ def view_quilt(template_image: np.ndarray,
     """
     im_dims = template_image.shape
     patch_rows, patch_cols = get_rectangle_coords(im_dims, stride, overlap)
-    
-    f, ax = pl.subplots(figsize=figsize)
+
+    if ax is None:             
+        f, ax = plt.subplots(figsize=figsize)
+        
     ax.imshow(template_image, cmap='gray', vmin=vmin, vmax=vmax)
     for patch_row in patch_rows:
         for patch_col in patch_cols:

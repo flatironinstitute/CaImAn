@@ -94,7 +94,7 @@ Check console output at $BUILD_URL to view full results.
 Building $BRANCH_NAME for $CAUSE
 $JOB_DESCRIPTION
 
-Chages:
+Changes:
 $CHANGES
 
 End of build log:

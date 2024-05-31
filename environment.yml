@@ -1,12 +1,13 @@
 channels:
 - conda-forge
+- defaults
 dependencies:
-- python >=3.10
+- python <=3.12
 - av
 - bokeh >=3.1.1
 - coverage
 - cython
-- h5py
+- h5py >=3.4.0
 - holoviews >=1.16.2
 - ipykernel
 - ipython
@@ -17,7 +18,7 @@ dependencies:
 - moviepy
 - mypy
 - nose
-- numpy <2.0.0
+- numpy <2.0.0,>=1.26
 - numpydoc
 - opencv
 - panel >=1.0.2
@@ -34,4 +35,4 @@ dependencies:
 - tk
 - tqdm
 - yapf
-- z5py >= 2.0.15
+- zarr

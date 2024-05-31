@@ -6,8 +6,6 @@
 import logging
 import os
 import re
-from typing import Dict, List, Tuple
-
 
 #######
 # datadir
@@ -47,7 +45,7 @@ def get_tempdir() -> str:
         os.makedirs(temp_under_data)
     return temp_under_data
 
-def fn_relocated(fn:str) -> str:
+def fn_relocated(fn:str, force_temp:bool=False) -> str:
     """ If the provided filename does not contain any path elements, this returns what would be its absolute pathname
         as located in get_tempdir(). Otherwise it just returns what it is passed.
 
@@ -55,10 +53,10 @@ def fn_relocated(fn:str) -> str:
         but if all they think about is filenames, they go under CaImAn's notion of its temporary dir. This is under the
         principle of "sensible defaults, but users can override them".
     """
-    if not 'CAIMAN_NEW_TEMPFILE' in os.environ: # XXX We will ungate this in a future version of caiman
-        return fn
-    if str(os.path.basename(fn)) == str(fn): # No path stuff
+    if os.path.split(fn)[0] == '': # No path stuff
         return os.path.join(get_tempdir(), fn)
+    elif force_temp:
+        return os.path.join(get_tempdir(), os.path.split(fn)[1])
     else:
         return fn
 
@@ -69,7 +67,7 @@ def fn_relocated(fn:str) -> str:
 # In the future we may consistently store these somewhere under the caiman_datadir
 
 
-def memmap_frames_filename(basename: str, dims: Tuple, frames: int, order: str = 'F') -> str:
+def memmap_frames_filename(basename: str, dims: tuple, frames: int, order: str = 'F') -> str:
     # Some functions calling this have the first part of *their* dims Tuple be the number of frames.
     # They *must* pass a slice to this so dims is only X, Y, and optionally Z. Frames is passed separately.
     dimfield_0 = dims[0]
@@ -93,7 +91,7 @@ def fname_derived_presuffix(basename:str, addition:str, swapsuffix:str = None) -
     else:
         return fn_base + addition + fn_ext
 
-def decode_mmap_filename_dict(basename:str) -> Dict:
+def decode_mmap_filename_dict(basename:str) -> dict:
     # For a mmap file we (presumably) made, return a dict with the information encoded in its
     # filename. This will usually be params like d1, d2, T, and order.
     # This function is not general; it knows the fields it wants to extract.
@@ -118,7 +116,7 @@ def decode_mmap_filename_dict(basename:str) -> Dict:
         ret['T'] = ret['frames']
     return ret
 
-def generate_fname_tot(base_name:str, dims:List[int], order:str) -> str:
+def generate_fname_tot(base_name:str, dims:list[int], order:str) -> str:
     # Generate a "fname_tot" style filename, decoded by the above
     if len(dims) == 2:
         d1, d2, d3 = dims[0], dims[1], 1
@@ -126,4 +124,5 @@ def generate_fname_tot(base_name:str, dims:List[int], order:str) -> str:
         d1, d2, d3 = dims[0], dims[1], dims[2]
     ret = '_'.join([base_name, 'd1', str(d1), 'd2', str(d2), 'd3', str(d3), 'order', order])
     ret = re.sub(r'(_)+', '_', ret) # Turn repeated underscores into just one
-    return ret
+    return fn_relocated(ret, force_temp=True)
+

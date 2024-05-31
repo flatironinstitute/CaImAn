@@ -1,21 +1,20 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 import ipyparallel as parallel
 from itertools import chain
 import logging
 import numpy as np
 import os
+import pathlib
 import pickle
 import sys
 import tifffile
-from typing import Any, Dict, List, Optional, Tuple, Union
-import pathlib
+from typing import Any, Optional, Union
 
-import caiman as cm
+import caiman
 import caiman.paths
 
-def prepare_shape(mytuple: Tuple) -> Tuple:
+def prepare_shape(mytuple:tuple) -> tuple:
     """ This promotes the elements inside a shape into np.uint64. It is intended to prevent overflows
         with some numpy operations that are sensitive to it, e.g. np.memmap """
     if not isinstance(mytuple, tuple):
@@ -69,7 +68,7 @@ def load_memmap(filename: str, mode: str = 'r', output_dir: str = '') -> Tuple[A
     else:
         return (Yr, (d1, d2, d3), T)
 
-def save_memmap_each(fnames: List[str],
+def save_memmap_each(fnames: list[str],
                      dview=None,
                      base_name: str = None,
                      resize_fact=(1, 1, 1),
@@ -81,7 +80,7 @@ def save_memmap_each(fnames: List[str],
                      add_to_movie: float = 0,
                      border_to_0: int = 0,
                      order: str = 'C',
-                     slices=None) -> List[str]:
+                     slices=None) -> list[str]:
     """
     Create several memory mapped files using parallel processing
 
@@ -90,7 +89,7 @@ def save_memmap_each(fnames: List[str],
             list of path to the filenames
 
         dview: ipyparallel dview
-            used to perform computation in parallel. If none it will be signle thread
+            used to perform computation in parallel. If none it will be single thread
 
         base_name str
             BaseName for the file to be creates. If not given the file itself is used
@@ -158,7 +157,7 @@ def save_memmap_each(fnames: List[str],
 
     return fnames_new
 
-def save_memmap_join(mmap_fnames: List[str], base_name: str = None, n_chunks: int = 20, dview=None,
+def save_memmap_join(mmap_fnames:list[str], base_name: str = None, n_chunks: int = 20, dview=None,
                      add_to_mov=0) -> str:
     """
     Makes a large file memmap from a number of smaller files
@@ -228,7 +227,7 @@ def save_memmap_join(mmap_fnames: List[str], base_name: str = None, n_chunks: in
     return fname_tot
 
 
-def my_map(dv, func, args) -> List:
+def my_map(dv, func, args) -> list:
     v = dv
     rc = v.client
     # scatter 'id', so id=0,1,2 on engines 0,1,2
@@ -237,7 +236,7 @@ def my_map(dv, func, args) -> List:
     amr = v.map(func, args)
 
     pending = set(amr.msg_ids)
-    results_all: Dict = dict()
+    results_all:dict = dict()
     counter = 0
     while pending:
         try:
@@ -312,7 +311,7 @@ def save_portion(pars) -> int:
     logging.debug('done')
     return Ttot
 
-def save_place_holder(pars: List) -> str:
+def save_place_holder(pars:list) -> str:
     """ To use map reduce
     """
     # todo: todocument
@@ -332,14 +331,14 @@ def save_place_holder(pars: List) -> str:
                        border_to_0=border_to_0,
                        slices=slices)
 
-def save_memmap(filenames: List[str],
-                base_name: str = 'Yr',
-                resize_fact: Tuple = (1, 1, 1),
-                remove_init: int = 0,
-                idx_xy: Tuple = None,
+def save_memmap(filenames:list[str],
+                base_name:str = 'Yr',
+                resize_fact:tuple = (1, 1, 1),
+                remove_init:int = 0,
+                idx_xy:tuple = None,
                 order: str = 'F',
                 var_name_hdf5: str = 'mov',
-                xy_shifts: Optional[List] = None,
+                xy_shifts: Optional[list] = None,
                 is_3D: bool = False,
                 add_to_movie: float = 0,
                 border_to_0=0,
@@ -359,7 +358,7 @@ def save_memmap(filenames: List[str],
             x,y, and z downsampling factors (0.5 means downsampled by a factor 2)
 
         remove_init: int
-            number of frames to remove at the begining of each tif file
+            number of frames to remove at the beginning of each tif file
             (used for resonant scanning images if laser in rutned on trial by trial)
 
         idx_xy: tuple size 2 [or 3 for 3D data]
@@ -407,13 +406,13 @@ def save_memmap(filenames: List[str],
                 recompute_each_memmap = True
 
 
-        if recompute_each_memmap or (remove_init>0) or (idx_xy is not None)\
+        if recompute_each_memmap or (remove_init > 0) or (idx_xy is not None)\
                 or (xy_shifts is not None) or (add_to_movie != 0) or (border_to_0>0)\
                 or slices is not None:
 
             logging.debug('Distributing memory map over many files')
             # Here we make a bunch of memmap files in the right order. Same parameters
-            fname_parts = cm.save_memmap_each(filenames,
+            fname_parts = caiman.save_memmap_each(filenames,
                                               base_name=base_name,
                                               order=order,
                                               border_to_0=border_to_0,
@@ -433,7 +432,7 @@ def save_memmap(filenames: List[str],
         if order == 'F':
             raise Exception('You cannot merge files in F order, they must be in C order')
 
-        fname_new = cm.save_memmap_join(fname_parts, base_name=base_name,
+        fname_new = caiman.save_memmap_join(fname_parts, base_name=base_name,
                                         dview=dview, n_chunks=n_chunks)
 
     else:
@@ -450,18 +449,18 @@ def save_memmap(filenames: List[str],
                 if slices is not None:
                     Yr = Yr[tuple(slices)]
                 else:
-                    if idx_xy is None:         #todo remove if not used, superceded by the slices parameter
+                    if idx_xy is None:         #todo remove if not used, superseded by the slices parameter
                         Yr = Yr[remove_init:]
-                    elif len(idx_xy) == 2:     #todo remove if not used, superceded by the slices parameter
+                    elif len(idx_xy) == 2:     #todo remove if not used, superseded by the slices parameter
                         Yr = Yr[remove_init:, idx_xy[0], idx_xy[1]]
-                    else:                      #todo remove if not used, superceded by the slices parameter
+                    else:                      #todo remove if not used, superseded by the slices parameter
                         Yr = Yr[remove_init:, idx_xy[0], idx_xy[1], idx_xy[2]]
 
             else:
                 if isinstance(f, (str, list)):
-                    Yr = cm.load(caiman.paths.fn_relocated(f), fr=1, in_memory=True, var_name_hdf5=var_name_hdf5)
+                    Yr = caiman.load(caiman.paths.fn_relocated(f), fr=1, in_memory=True, var_name_hdf5=var_name_hdf5)
                 else:
-                    Yr = cm.movie(f)
+                    Yr = caiman.movie(f)
                 if xy_shifts is not None:
                     Yr = Yr.apply_shifts(xy_shifts, interpolation='cubic', remove_blanks=False)
 
@@ -493,7 +492,7 @@ def save_memmap(filenames: List[str],
             fx, fy, fz = resize_fact
             if fx != 1 or fy != 1 or fz != 1:
                 if 'movie' not in str(type(Yr)):
-                    Yr = cm.movie(Yr, fr=1)
+                    Yr = caiman.movie(Yr, fr=1)
                 Yr = Yr.resize(fx=fx, fy=fy, fz=fz)
 
             T, dims = Yr.shape[0], Yr.shape[1:]
@@ -502,7 +501,7 @@ def save_memmap(filenames: List[str],
             Yr = np.ascontiguousarray(Yr, dtype=np.float32) + np.float32(0.0001) + np.float32(add_to_movie)
 
             if idx == 0:
-                fname_tot = cm.paths.generate_fname_tot(base_name, dims, order)
+                fname_tot = caiman.paths.generate_fname_tot(base_name, dims, order)
                 if isinstance(f, str):
                     fname_tot = caiman.paths.fn_relocated(os.path.join(os.path.split(f)[0], fname_tot))
                 if len(filenames) > 1:
@@ -529,7 +528,7 @@ def save_memmap(filenames: List[str],
             sys.stdout.flush()
             Ttot = Ttot + T
 
-        fname_new = caiman.paths.fn_relocated(fname_tot + f'_frames_{Ttot}.mmap')
+        fname_new = os.path.join(caiman.paths.get_tempdir(), caiman.paths.fn_relocated(f'{fname_tot}_frames_{Ttot}.mmap'))
         try:
             # need to explicitly remove destination on windows
             os.unlink(fname_new)
@@ -615,7 +614,7 @@ def parallel_dot_product(A: np.ndarray, b, block_size: int = 5000, dview=None, t
 
     return output
 
-def dot_place_holder(par: List) -> Tuple:
+def dot_place_holder(par:list) -> tuple:
     # todo: todocument
 
     A_name, idx_to_pass, b_, transpose = par
@@ -644,7 +643,7 @@ def save_tif_to_mmap_online(movie_iterable, save_base_name='YrOL_', order='C', a
 
     if isinstance(movie_iterable, str):         # Allow specifying a filename rather than its data rep
         with tifffile.TiffFile(movie_iterable) as tf:  # And load it if that happens
-            movie_iterable = cm.movie(tf)
+            movie_iterable = caiman.movie(tf)
 
     count = 0
     new_mov = []

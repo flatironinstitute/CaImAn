@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+
 """
 Demo pipeline for processing voltage imaging data. The processing pipeline
 includes motion correction, memory mapping, segmentation, denoising and source
@@ -7,11 +8,11 @@ objects and call the relevant functions. See inside for detail.
 Dataset courtesy of Karel Svoboda Lab (Janelia Research Campus).
 author: @caichangjia
 """
-#%%
+
+import argparse
 import cv2
 import glob
 import h5py
-from IPython import get_ipython
 import logging
 import matplotlib.pyplot as plt
 import numpy as np
@@ -22,45 +23,41 @@ try:
 except:
     pass
 
-try:
-    if __IPYTHON__:
-        ipython = get_ipython()
-        ipython.run_line_magic('load_ext', 'autoreload')
-        ipython.run_line_magic('autoreload', '2')
-        ipython.run_line_magic('matplotlib', 'qt')
-except NameError:
-    pass
-
-import caiman as cm
+import caiman
 from caiman.motion_correction import MotionCorrect
 from caiman.paths import caiman_datadir
 from caiman.source_extraction.volpy import utils
 from caiman.source_extraction.volpy.volparams import volparams
 from caiman.source_extraction.volpy.volpy import VOLPY
-from caiman.summary_images import local_correlations_movie_offline
-from caiman.summary_images import mean_image
+from caiman.summary_images import local_correlations_movie_offline, mean_image
 from caiman.utils.utils import download_demo, download_model
 
-# %%
-# Set up the logger (optional); change this if you like.
-# You can log to a file using the filename parameter, or make the output more
-# or less verbose by setting level to logging.DEBUG, logging.INFO,
-# logging.WARNING, or logging.ERROR
-logging.basicConfig(format=
-                    "%(relativeCreated)12d [%(filename)s:%(funcName)20s():%(lineno)s]" \
-                    "[%(process)d] %(message)s",
-                    level=logging.INFO)
 
-# %%
 def main():
-    pass  # For compatibility between running using an IDE and the CLI
+    cfg = handle_args()
 
-    # %%  Load demo movie and ROIs
-    fnames = download_demo('demo_voltage_imaging.hdf5', 'volpy')  # file path to movie file (will download if not present)
-    path_ROIs = download_demo('demo_voltage_imaging_ROIs.hdf5', 'volpy')  # file path to ROIs file (will download if not present)
+    if cfg.logfile:
+        logging.basicConfig(format=
+            "[%(filename)s:%(funcName)20s():%(lineno)s] %(message)s",
+            level=logging.INFO,
+            filename=cfg.logfile)
+        # You can make the output more or less verbose by setting level to logging.DEBUG, logging.INFO, logging.WARNING, or logging.ERROR
+    else:
+        logging.basicConfig(format=
+            "[%(filename)s:%(funcName)20s():%(lineno)s] %(message)s",
+            level=logging.INFO)
+
+    if cfg.input is None:
+        # If no input is specified, use sample data, downloading if necessary
+        fnames    = [download_demo('demo_voltage_imaging.hdf5', 'volpy')] # XXX do we need to use a separate directory?
+        path_ROIs = [download_demo('demo_voltage_imaging_ROIs.hdf5', 'volpy')]
+    else:
+        fnames = cfg.input
+        path_ROIs = cfg.pathinput
+
+    #  Load demo movie and ROIs
     file_dir = os.path.split(fnames)[0]
     
-    #%% dataset dependent parameters
     # dataset dependent parameters
     fr = 400                                        # sample rate of the movie
 
@@ -70,37 +67,33 @@ def main():
                                                     # change this one if algorithm does not work
     max_shifts = (5, 5)                             # maximum allowed rigid shift
     strides = (48, 48)                              # start a new patch for pw-rigid motion correction every x pixels
-    overlaps = (24, 24)                             # overlap between pathes (size of patch strides+overlaps)
+    overlaps = (24, 24)                             # overlap between patches (size of patch strides+overlaps)
     max_deviation_rigid = 3                         # maximum deviation allowed for patch with respect to rigid shifts
     border_nan = 'copy'
 
-    opts_dict = {
-        'fnames': fnames,
-        'fr': fr,
-        'pw_rigid': pw_rigid,
-        'max_shifts': max_shifts,
-        'gSig_filt': gSig_filt,
-        'strides': strides,
-        'overlaps': overlaps,
-        'max_deviation_rigid': max_deviation_rigid,
-        'border_nan': border_nan
-    }
+    params_dict = {'fnames': fnames,
+                   'fr': fr,
+                   'pw_rigid': pw_rigid,
+                   'max_shifts': max_shifts,
+                   'gSig_filt': gSig_filt,
+                   'strides': strides,
+                   'overlaps': overlaps,
+                   'max_deviation_rigid': max_deviation_rigid,
+                   'border_nan': border_nan}
 
-    opts = volparams(params_dict=opts_dict)
+    opts = volparams(params_dict=params_dict)
 
-    # %% play the movie (optional)
+    # play the movie (optional)
     # playing the movie using opencv. It requires loading the movie in memory.
     # To close the movie press q
-    display_images = False
-    if display_images:
-        m_orig = cm.load(fnames)
+    if not cfg.no_play:
+        m_orig = caiman.load(fnames)
         ds_ratio = 0.2
         moviehandle = m_orig.resize(1, 1, ds_ratio)
         moviehandle.play(q_max=99.5, fr=40, magnification=4)
 
-    # %% start a cluster for parallel processing
-    c, dview, n_processes = cm.cluster.setup_cluster(
-        backend='multiprocessing', n_processes=None, single_thread=False)
+    # start a cluster for parallel processing
+    c, dview, n_processes = caiman.cluster.setup_cluster(backend=cfg.cluster_backend, n_processes=cfg.cluster_nproc)
 
     # %%% MOTION CORRECTION
     # first we create a motion correction object with the specified parameters
@@ -115,16 +108,16 @@ def main():
         mc.mmap_file = [os.path.join(file_dir, mc_list[0])]
         print(f'reuse previously saved motion corrected file:{mc.mmap_file}')
 
-    # %% compare with original movie
-    if display_images:
-        m_orig = cm.load(fnames)
-        m_rig = cm.load(mc.mmap_file)
+    # compare with original movie
+    if not cfg.no_play:
+        m_orig = caiman.load(fnames)
+        m_rig = caiman.load(mc.mmap_file)
         ds_ratio = 0.2
-        moviehandle = cm.concatenate([m_orig.resize(1, 1, ds_ratio),
+        moviehandle = caiman.concatenate([m_orig.resize(1, 1, ds_ratio),
                                       m_rig.resize(1, 1, ds_ratio)], axis=2)
         moviehandle.play(fr=40, q_max=99.5, magnification=4)  # press q to exit
 
-    # %% MEMORY MAPPING
+    # MEMORY MAPPING
     do_memory_mapping = True
     if do_memory_mapping:
         border_to_0 = 0 if mc.border_nan == 'copy' else mc.border_to_0
@@ -133,15 +126,15 @@ def main():
         # the boundaries
         
         # memory map the file in order 'C'
-        fname_new = cm.save_memmap_join(mc.mmap_file, base_name='memmap_' + os.path.splitext(os.path.split(fnames)[-1])[0],
+        fname_new = caiman.save_memmap_join(mc.mmap_file, base_name='memmap_' + os.path.splitext(os.path.split(fnames)[-1])[0],
                                         add_to_mov=border_to_0, dview=dview)  # exclude border
     else: 
         mmap_list = [file for file in os.listdir(file_dir) if 
                      ('memmap_' + os.path.splitext(os.path.split(fnames)[-1])[0]) in file]
         fname_new = os.path.join(file_dir, mmap_list[0])
-        print(f'reuse previously saved memory mapping file:{fname_new}')
+        print(f'reuse previously saved memory mapping file: {fname_new}')
     
-    # %% SEGMENTATION
+    # SEGMENTATION
     # create summary images
     img = mean_image(mc.mmap_file[0], window = 1000, dview=dview)
     img = (img-np.mean(img))/np.std(img)
@@ -154,30 +147,23 @@ def main():
     img_corr = (Cn-np.mean(Cn))/np.std(Cn)
     summary_images = np.stack([img, img, img_corr], axis=0).astype(np.float32)
     # save summary images which are used in the VolPy GUI
-    cm.movie(summary_images).save(fnames[:-5] + '_summary_images.tif')
+    caiman.movie(summary_images).save(fnames[:-5] + '_summary_images.tif')
     fig, axs = plt.subplots(1, 2)
     axs[0].imshow(summary_images[0]); axs[1].imshow(summary_images[2])
     axs[0].set_title('mean image'); axs[1].set_title('corr image');
 
-    #%% methods for segmentation
-    methods_list = ['manual_annotation',       # manual annotations need prepared annotated datasets in the same format as demo_voltage_imaging_ROIs.hdf5 
-                    'maskrcnn',                # Mask R-CNN is a convolutional neural network trained for detecting neurons in summary images
-                    'gui_annotation']          # use VolPy GUI to correct outputs of Mask R-CNN or annotate new datasets 
-                    
-    method = methods_list[0]
-    if method == 'manual_annotation':                
+    if cfg.method == 'manual_annotation':
         with h5py.File(path_ROIs, 'r') as fl:
             ROIs = fl['mov'][()]  
 
-    elif method == 'maskrcnn':                 
+    elif cfg.method == 'maskrcnn':
         weights_path = download_model('mask_rcnn')    
         ROIs = utils.mrcnn_inference(img=summary_images.transpose([1, 2, 0]), size_range=[5, 22],
                                      weights_path=weights_path, display_result=True) # size parameter decides size range of masks to be selected
-        cm.movie(ROIs).save(fnames[:-5] + '_mrcnn_ROIs.hdf5')
+        caiman.movie(ROIs).save(fnames[:-5] + '_mrcnn_ROIs.hdf5')
 
-    elif method == 'gui_annotation':
+    elif cfg.method == 'gui_annotation':
         # run volpy_gui.py file in the caiman/source_extraction/volpy folder
-        # or run the following in the ipython:  %run volpy_gui.py
         gui_ROIs =  caiman_datadir() + '/example_movies/volpy/gui_roi.hdf5'
         with h5py.File(gui_ROIs, 'r') as fl:
             ROIs = fl['mov'][()]
@@ -186,12 +172,12 @@ def main():
     axs[0].imshow(summary_images[0]); axs[1].imshow(ROIs.sum(0))
     axs[0].set_title('mean image'); axs[1].set_title('masks')
         
-    # %% restart cluster to clean up memory
-    cm.stop_server(dview=dview)
-    c, dview, n_processes = cm.cluster.setup_cluster(
-        backend='multiprocessing', n_processes=None, single_thread=False, maxtasksperchild=1)
+    # restart cluster to clean up memory
+    caiman.stop_server(dview=dview)
+    c, dview, n_processes = caiman.cluster.setup_cluster(backend=cfg.cluster_backend, n_processes=cfg.cluster_nproc)
 
-    # %% parameters for trace denoising and spike extraction
+
+    # parameters for trace denoising and spike extraction
     ROIs = ROIs                                   # region of interests
     index = list(range(len(ROIs)))                # index of neurons
     weights = None                                # if None, use ROIs for initialization; to reuse weights check reuse weights block 
@@ -232,27 +218,26 @@ def main():
                'weight_update': weight_update,
                'n_iter': n_iter}
 
-    opts.change_params(params_dict=opts_dict);          
+    opts.change_params(params_dict=params_dict);          
 
-    #%% TRACE DENOISING AND SPIKE DETECTION
+    # TRACE DENOISING AND SPIKE DETECTION
     vpy = VOLPY(n_processes=n_processes, dview=dview, params=opts)
     vpy.fit(n_processes=n_processes, dview=dview);
    
-    #%% visualization
-    display_images = True
-    if display_images:
+    # visualization
+    if not cfg.no_play:
         print(np.where(vpy.estimates['locality'])[0])    # neurons that pass locality test
         idx = np.where(vpy.estimates['locality'] > 0)[0]
         utils.view_components(vpy.estimates, img_corr, idx)
     
-    #%% reconstructed movie 
+    # reconstructed movie 
     # note the negative spatial weights are cutoff    
-    if display_images:
+    if not cfg.no_play:
         mv_all = utils.reconstructed_movie(vpy.estimates.copy(), fnames=mc.mmap_file,
                                            idx=idx, scope=(0,1000), flip_signal=flip_signal)
         mv_all.play(fr=40, magnification=3)
     
-    #%% save the result in .npy format 
+    # save the result in .npy format 
     save_result = True
     if save_result:
         vpy.estimates['ROIs'] = ROIs
@@ -260,7 +245,7 @@ def main():
         save_name = f'volpy_{os.path.split(fnames)[1][:-5]}_{threshold_method}'
         np.save(os.path.join(file_dir, save_name), vpy.estimates)
         
-    #%% reuse weights 
+    # reuse weights 
     # set weights = reuse_weights in opts_dict dictionary
     estimates = np.load(os.path.join(file_dir, save_name+'.npy'), allow_pickle=True).item()
     reuse_weights = []
@@ -270,15 +255,26 @@ def main():
         plt.figure(); plt.imshow(w);plt.colorbar(); plt.show()
         reuse_weights.append(w)
     
-    # %% STOP CLUSTER and clean up log files
-    cm.stop_server(dview=dview)
-    log_files = glob.glob('*_LOG_*')
-    for log_file in log_files:
-        os.remove(log_file)
+    # Stop the cluster and clean up log files
+    caiman.stop_server(dview=dview)
 
-# %%
-# This is to mask the differences between running this demo in an IDE
-# versus from the CLI
-if __name__ == "__main__":
-    main()
+    if not cfg.keep_logs:
+        log_files = glob.glob('*_LOG_*')
+        for log_file in log_files:
+            os.remove(log_file)
+
+def handle_args():
+    parser = argparse.ArgumentParser(description="Demonstrate voltage imaging pipeline")
+    parser.add_argument("--keep_logs",  action="store_true", help="Keep temporary logfiles")
+    parser.add_argument("--no_play",    action="store_true", help="Do not display results")
+    parser.add_argument("--cluster_backend", default="multiprocessing", help="Specify multiprocessing, ipyparallel, or single to pick an engine")
+    parser.add_argument("--cluster_nproc", type=int, default=None, help="Override automatic selection of number of workers to use")
+    parser.add_argument("--input", action="append", help="File(s) to work on, provide multiple times for more files")
+    parser.add_argument("--pathinput", action="append", help="Path input file(s) to work on, provide multiple times for more files")
+    parser.add_argument("--logfile",    help="If specified, log to the named file")
+    parser.add_argument("--method", default="manual_annotation", choices=["manual_annotation", "maskrcnn", "gui_annotation"], help="Segmentation method")
+    return parser.parse_args()
+
+########
+main()
 
