@@ -53,6 +53,7 @@ standard_movies = [
 
 def do_install_to(targdir: str, inplace: bool = False, force: bool = False) -> None:
     global sourcedir_base
+    cwd = None # Assigning so it exists to avoid UnboundLocalError
 
     try:
         import importlib
