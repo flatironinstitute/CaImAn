@@ -55,13 +55,16 @@ def do_install_to(targdir: str, inplace: bool = False, force: bool = False) -> N
     global sourcedir_base
 
     try:
-        print("If you did an editable install (with -e), the install must happen within the source tree; otherwise, it must not")
+        import importlib
         import importlib_metadata
         # A lot can change upstream with this code; I hope the APIs are stable, but just in case, make this best-effort
         if json.loads(importlib_metadata.Distribution.from_name('caiman').read_text('direct_url.json'))['dir_info']['editable']:
             inplace = True
+            cwd = os.getcwd()
+            os.chdir(str(importlib.resources.files('caiman').joinpath('..')))
+            print(f"Used editable fallback, entered {os.getcwd()} directory")
     except:
-        pass
+        print("Did not use editable fallback")
 
     ignore_pycache=shutil.ignore_patterns('__pycache__')
     if os.path.isdir(targdir) and not force:
@@ -88,6 +91,8 @@ def do_install_to(targdir: str, inplace: bool = False, force: bool = False) -> N
         with open(os.path.join(targdir, 'RELEASE'), 'w') as verfile_fh:
             print(f"Version:{caiman.__version__}", file=verfile_fh)
     print("Installed " + targdir)
+    if cwd is not None:
+        os.chdir(cwd)
 
 
 def do_check_install(targdir: str, inplace: bool = False) -> None:
