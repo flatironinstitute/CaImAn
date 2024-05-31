@@ -39,7 +39,6 @@ Copyright (C) 2011, the scikit-image team
 import collections
 import cv2
 import gc
-import h5py
 import pathlib
 import itertools
 import logging
@@ -64,8 +63,6 @@ try:
 except:
     pass
 
-from cv2 import dft as fftn
-from cv2 import idft as ifftn
 
 try:
     profile
