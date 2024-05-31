@@ -21,7 +21,7 @@ def prepare_shape(mytuple:tuple) -> tuple:
         raise Exception("Internal error: prepare_shape() passed a non-tuple")
     return tuple(map(lambda x: np.uint64(x), mytuple))
 
-def load_memmap(filename: str, mode: str = 'r', output_dir: str = '') -> Tuple[Any, Tuple, int]:
+def load_memmap(filename: str, mode: str = 'r', output_dir: str = '') -> tuple[Any, tuple, int]:
     """ Load a memory mapped file created by the function save_memmap
 
     Args:
