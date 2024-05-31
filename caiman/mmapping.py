@@ -22,7 +22,7 @@ def prepare_shape(mytuple: Tuple) -> Tuple:
         raise Exception("Internal error: prepare_shape() passed a non-tuple")
     return tuple(map(lambda x: np.uint64(x), mytuple))
 
-def load_memmap(filename: str, mode: str = 'r') -> Tuple[Any, Tuple, int]:
+def load_memmap(filename: str, mode: str = 'r', output_dir: str = '') -> Tuple[Any, Tuple, int]:
     """ Load a memory mapped file created by the function save_memmap
 
     Args:
@@ -219,7 +219,8 @@ def save_memmap_join(mmap_fnames: List[str], base_name: str = None, n_chunks: in
     else:
         list(map(save_portion, pars))
 
-    np.savez(caiman.paths.fn_relocated(base_name + '.npz'), mmap_fnames=mmap_fnames, fname_tot=fname_tot)
+    npz_file = pathlib.Path(fname_tot).parent / (base_name + '.npz')
+    np.savez(caiman.paths.fn_relocated(npz_file), mmap_fnames=mmap_fnames, fname_tot=fname_tot)
 
     logging.info('Deleting big mov')
     del big_mov
