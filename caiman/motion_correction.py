@@ -3371,7 +3371,7 @@ def compute_metrics_motion_correction(
 def motion_correct_batch_rigid(fname, max_shifts, dview=None, splits=56, num_splits_to_process=None, num_iter=1,
                                template=None, shifts_opencv=False, save_movie_rigid=False, add_to_movie=None,
                                nonneg_movie=False, gSig_filt=None, subidx=slice(None, None, 1), use_cuda=False,
-                               border_nan=True, var_name_hdf5='mov', is3D=False, indices=(slice(None), slice(None))):
+                               border_nan=True, var_name_hdf5='mov', is3D=False, indices=(slice(None), slice(None)), output_dir=""):
     """
     Function that perform memory efficient hyper parallelized rigid motion corrections while also saving a memory mappable file
 
