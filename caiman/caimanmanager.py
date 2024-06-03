@@ -3,6 +3,7 @@
 import argparse
 import filecmp
 import glob
+import json
 import os
 import platform
 import psutil
@@ -52,6 +53,20 @@ standard_movies = [
 
 def do_install_to(targdir: str, inplace: bool = False, force: bool = False) -> None:
     global sourcedir_base
+    cwd = None # Assigning so it exists to avoid UnboundLocalError
+
+    try:
+        import importlib
+        import importlib_metadata
+        # A lot can change upstream with this code; I hope the APIs are stable, but just in case, make this best-effort
+        if json.loads(importlib_metadata.Distribution.from_name('caiman').read_text('direct_url.json'))['dir_info']['editable']:
+            inplace = True
+            cwd = os.getcwd()
+            os.chdir(str(importlib.resources.files('caiman').joinpath('..')))
+            print(f"Used editable fallback, entered {os.getcwd()} directory")
+    except:
+        print("Did not use editable fallback")
+
     ignore_pycache=shutil.ignore_patterns('__pycache__')
     if os.path.isdir(targdir) and not force:
         raise Exception(targdir + " already exists. You may move it out of the way, remove it, or use --force")
@@ -77,6 +92,8 @@ def do_install_to(targdir: str, inplace: bool = False, force: bool = False) -> N
         with open(os.path.join(targdir, 'RELEASE'), 'w') as verfile_fh:
             print(f"Version:{caiman.__version__}", file=verfile_fh)
     print("Installed " + targdir)
+    if cwd is not None:
+        os.chdir(cwd)
 
 
 def do_check_install(targdir: str, inplace: bool = False) -> None:
