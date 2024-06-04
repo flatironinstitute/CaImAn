@@ -1147,12 +1147,10 @@ def motion_correct_online(movie_iterable, add_to_movie, max_shift_w=25, max_shif
                 logging.debug(
                     "Relative change in template:"
                     + str(
-                        old_div(
-                            np.sum(np.abs(template - template_old)),
-                            np.sum(np.abs(template)),
+                            np.sum(np.abs(template - template_old)) //
+                            np.sum(np.abs(template))
                         )
                     )
-                )
                 logging.debug("Iteration:" + str(count))
 
             if border_to_0 > 0:
@@ -1181,7 +1179,7 @@ def motion_correct_online(movie_iterable, add_to_movie, max_shift_w=25, max_shif
                 mov.append(new_img)
 
             if show_movie:
-                cv2.imshow("frame", old_div(new_img, 500))
+                cv2.imshow("frame", new_img // 500)
                 logging.info(shift)
                 if not np.any(np.remainder(shift, 1) == (0, 0)):
                     cv2.waitKey(int(1.0 / 500 * 1000))
@@ -1231,15 +1229,15 @@ def motion_correct_iteration(img, template, frame_num, max_shift_w=25,
         sh_x_n = -(
             sh_x
             - ms_h
-            + old_div(
-                (log_xm1_y - log_xp1_y), (2 * log_xm1_y - four_log_xy + 2 * log_xp1_y)
+            + (
+                (log_xm1_y - log_xp1_y) // (2 * log_xm1_y - four_log_xy + 2 * log_xp1_y)
             )
         )
         sh_y_n = -(
             sh_y
             - ms_w
-            + old_div(
-                (log_x_ym1 - log_x_yp1), (2 * log_x_ym1 - four_log_xy + 2 * log_x_yp1)
+            + (
+                (log_x_ym1 - log_x_yp1) // (2 * log_x_ym1 - four_log_xy + 2 * log_x_yp1)
             )
         )
     else:
@@ -1289,15 +1287,15 @@ def motion_correct_iteration_fast(img, template, max_shift_w=10, max_shift_h=10)
         sh_x_n = -(
             sh_x
             - ms_h
-            + old_div(
-                (log_xm1_y - log_xp1_y), (2 * log_xm1_y - four_log_xy + 2 * log_xp1_y)
+            + (
+                (log_xm1_y - log_xp1_y) // (2 * log_xm1_y - four_log_xy + 2 * log_xp1_y)
             )
         )
         sh_y_n = -(
             sh_y
             - ms_w
-            + old_div(
-                (log_x_ym1 - log_x_yp1), (2 * log_x_ym1 - four_log_xy + 2 * log_x_yp1)
+            + (
+                (log_x_ym1 - log_x_yp1) // (2 * log_x_ym1 - four_log_xy + 2 * log_x_yp1)
             )
         )
     else:
@@ -1649,14 +1647,14 @@ def _upsampled_dft(data, upsampled_region_size,
         (-1j * 2 * np.pi / (data.shape[1] * upsample_factor))
         * (
             ifftshift(np.arange(data.shape[1]))[:, None]
-            - np.floor(old_div(data.shape[1], 2))
+            - np.floor(data.shape[1] // 2)
         ).dot(np.arange(upsampled_region_size[1])[None, :] - axis_offsets[1])
     )
     row_kernel = np.exp(
         (-1j * 2 * np.pi / (data.shape[0] * upsample_factor))
         * (np.arange(upsampled_region_size[0])[:, None] - axis_offsets[0]).dot(
             ifftshift(np.arange(data.shape[0]))[None, :]
-            - np.floor(old_div(data.shape[0], 2))
+            - np.floor(data.shape[0] // 2)
         )
     )
 
@@ -1665,7 +1663,7 @@ def _upsampled_dft(data, upsampled_region_size,
             (-1j * 2 * np.pi / (data.shape[2] * upsample_factor))
             * (np.arange(upsampled_region_size[2])[:, None] - axis_offsets[2]).dot(
                 ifftshift(np.arange(data.shape[2]))[None, :]
-                - np.floor(old_div(data.shape[2], 2))
+                - np.floor(data.shape[2] // 2)
             )
         )
 
@@ -1854,7 +1852,7 @@ def register_translation_3d(src_image, target_image, upsample_factor = 1,
     midpoints = np.array([np.fix(axis_size // 2) for axis_size in shape])
 
     #    maxima = np.unravel_index(np.argmax(new_cross_corr),cross_correlation.shape)
-    #    midpoints = np.array([np.fix(old_div(axis_size, 2)) for axis_size in shape])
+    #    midpoints = np.array([np.fix(axis_size // 2) for axis_size in shape])
 
     shifts = np.array(maxima, dtype=np.float32)
     shifts[shifts > midpoints] -= np.array(shape)[shifts > midpoints]
@@ -2116,15 +2114,15 @@ def register_translation(src_image, target_image, upsample_factor=1,
         new_cross_corr[:, max_shifts[1] : -max_shifts[1]] = 0
 
     maxima = np.unravel_index(np.argmax(new_cross_corr), cross_correlation.shape)
-    midpoints = np.array([np.fix(old_div(axis_size, 2)) for axis_size in shape])
+    midpoints = np.array([np.fix(axis_size // 2) for axis_size in shape])
 
     shifts = np.array(maxima, dtype=np.float64)
     shifts[shifts > midpoints] -= np.array(shape)[shifts > midpoints]
 
     if upsample_factor == 1:
 
-        src_amp = old_div(np.sum(np.abs(src_freq) ** 2), src_freq.size)
-        target_amp = old_div(np.sum(np.abs(target_freq) ** 2), target_freq.size)
+        src_amp = np.sum(np.abs(src_freq) ** 2) // src_freq.size
+        target_amp = np.sum(np.abs(target_freq) ** 2) // target_freq.size
         CCmax = cross_correlation.max()
     # If upsampling > 1, then refine estimate with matrix multiply DFT
     else:
@@ -2797,7 +2795,7 @@ def tile_and_correct(
 
             img_show = cv2.resize(img_show, None, fx=1, fy=1)
 
-            cv2.imshow("frame", old_div(img_show, np.percentile(template, 99)))
+            cv2.imshow("frame", img_show // np.percentile(template, 99))
             cv2.waitKey(int(1.0 / 500 * 1000))
 
         else:
@@ -3176,7 +3174,7 @@ def tile_and_correct_3d(img:np.ndarray, template:np.ndarray, strides:tuple, over
 
             img_show = resize_sk(img_show, None, fx=1, fy=1, fz=1)
 
-            cv2.imshow("frame", old_div(img_show, np.percentile(template, 99)))
+            cv2.imshow("frame", img_show // np.percentile(template, 99))
             cv2.waitKey(int(1.0 / 500 * 1000))
 
         else:
@@ -3522,7 +3520,7 @@ def motion_correct_batch_rigid(fname, max_shifts, dview=None, splits=56, num_spl
         if gSig_filt is not None:
             new_templ = high_pass_filter_space(new_templ, gSig_filt)
 
-    #        logging.debug((old_div(np.linalg.norm(new_templ - old_templ), np.linalg.norm(old_templ))))
+    #        logging.debug((np.linalg.norm(new_templ - old_templ) // np.linalg.norm(old_templ))))
 
     total_template = new_templ
     templates = []
