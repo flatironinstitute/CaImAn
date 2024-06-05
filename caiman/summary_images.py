@@ -1,27 +1,21 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
-""" functions that creates image from a video file
+
+"""
+functions that creates image from a video file
 
 Primarily intended for plotting, returns correlation images ( local or max )
-
-See Also:
-------------
-
-@author andrea giovannucci
 """
-
-from builtins import range
 
 import cv2
 import logging
 import numpy as np
 from scipy.ndimage import convolve, generate_binary_structure
 from scipy.sparse import coo_matrix
-from typing import Any, List, Optional, Tuple
+from typing import Any, Optional
 
-import caiman as cm
+import caiman
+import caiman.base.movies
 from caiman.source_extraction.cnmf.pre_processing import get_noise_fft
-from caiman.source_extraction.cnmf.utilities import get_file_size
 
 def max_correlation_image(Y, bin_size: int = 1000, eight_neighbours: bool = True, swap_dim: bool = True) -> np.ndarray:
     """Computes the max-correlation image for the input dataset Y with bin_size
@@ -68,8 +62,6 @@ def max_correlation_image(Y, bin_size: int = 1000, eight_neighbours: bool = True
         Cn = np.max(Cn_bins, axis=0)
         return Cn
 
-
-#%%
 def local_correlations_fft(Y,
                            eight_neighbours: bool = True,
                            swap_dim: bool = True,
@@ -291,7 +283,7 @@ def local_correlations(Y, eight_neighbours: bool = True, swap_dim: bool = True, 
 
 
 def correlation_pnr(Y, gSig=None, center_psf: bool = True, swap_dim: bool = True,
-                    background_filter: str = 'disk') -> Tuple[np.ndarray, np.ndarray]:
+                    background_filter: str = 'disk') -> tuple[np.ndarray, np.ndarray]:
     """
     compute the correlation image and the peak-to-noise ratio (PNR) image.
     If gSig is provided, then spatially filtered the video.
@@ -435,13 +427,13 @@ def correlation_image_ecobost(mov, chunk_size: int = 1000, dview=None):
     return correlation_image
 
 
-def map_corr(scan) -> Tuple[Any, Any, Any, int]:
+def map_corr(scan) -> tuple[Any, Any, Any, int]:
     '''This part of the code is in a mapping function that's run over different
     movies in parallel
     '''
     # TODO: Tighten prototype above
     if isinstance(scan, str):
-        scan = cm.load(scan)
+        scan = caiman.load(scan)
 
     # h x w x num_frames
     chunk = np.array(scan).transpose([1, 2, 0])
@@ -473,7 +465,7 @@ def map_corr(scan) -> Tuple[Any, Any, Any, int]:
 
 
 def prepare_local_correlations(Y, swap_dim: bool = False,
-                               eight_neighbours: bool = False) -> Tuple[Any, Any, Any, Any, Any, Any, Any, Any]:
+                               eight_neighbours: bool = False) -> tuple[Any, Any, Any, Any, Any, Any, Any, Any]:
     """Computes the correlation image and some statistics to update it online
 
     Args:
@@ -522,14 +514,6 @@ def prepare_local_correlations(Y, swap_dim: bool = False,
             inside = (x >= 0) * (x < d1) * (y >= 0) * (y < d2)
             return np.ravel_multi_index((x[inside], y[inside]), dims, order='F')
 
-    # more compact but slower code
-    # idx = np.asarray([i - 1 for i in np.nonzero(sz)])
-    # def get_indices_of_neighbors(pixel):
-    #     pixel = np.asarray(np.unravel_index(pixel, dims, order='F'))
-    #     xyz = pixel[:, None] + idx
-    #     inside = np.all([(x >= 0) * (x < d) for (x, d) in zip(xyz, dims)], 0)
-    #     return np.ravel_multi_index(xyz[:, inside], dims, order='F')
-
     N = [get_indices_of_neighbors(p) for p in range(np.prod(dims))]
     col_ind = np.concatenate(N)
     row_ind = np.concatenate([[i] * len(k) for i, k in enumerate(N)])
@@ -538,9 +522,6 @@ def prepare_local_correlations(Y, swap_dim: bool = False,
     first_moment = Yr.mean(1)
     second_moment = (Yr**2).mean(1)
     crosscorr = np.mean(Yr[row_ind] * Yr[col_ind], 1)
-    # slower for small T, less memory intensive, but memory not an issue:
-    # crosscorr = np.array([Yr[r_].dot(Yr[c_])
-    #                       for (r_, c_) in zip(row_ind, col_ind)]) / Yr.shape[1]
     sig = np.sqrt(second_moment - first_moment**2)
 
     M = coo_matrix(
@@ -596,30 +577,6 @@ def update_local_correlations(t,
                 second_moment += (f**2) / t
                 crosscorr += (f[row_ind] * f[col_ind]) / t
 
-
-#=======
-#            del_frames = del_frames.reshape((stride, -1), order='F')
-#            first_moment -= del_frames.sum(0) / t
-#            second_moment -= (del_frames**2).sum(0) / t
-#            crosscorr -= np.sum(del_frames[:, row_ind] * del_frames[:, col_ind], 0) / t
-#        else:                                                                                               # loop is faster
-#            for f in del_frames:
-#                f = f.ravel(order='F')
-#                first_moment -= f / t
-#                second_moment -= (f**2) / t
-#                crosscorr -= (f[row_ind] * f[col_ind]) / t
-#    if stride > 10:
-#        frames = frames.reshape((stride, -1), order='F')
-#        first_moment += frames.sum(0) / t
-#        second_moment += (frames**2).sum(0) / t
-#        crosscorr += np.sum(frames[:, row_ind] * frames[:, col_ind], 0) / t
-#    else:                                                                                                   # loop is faster
-#        for f in frames:
-#            f = f.ravel(order='F')
-#            first_moment += f / t
-#            second_moment += (f**2) / t
-#            crosscorr += (f[row_ind] * f[col_ind]) / t
-#>>>>>>> dev
     sig = np.sqrt(second_moment - first_moment**2)
     M.data = ((crosscorr - first_moment[row_ind] * first_moment[col_ind]) / (sig[row_ind] * sig[col_ind]) /
               num_neigbors)
@@ -659,11 +616,11 @@ def local_correlations_movie(file_name,
             Mode of moving average
 
     Returns:
-        corr_movie: cm.movie (3D or 4D).
+        corr_movie: caiman.movie (3D or 4D).
             local correlation movie
 
     """
-    Y = cm.load(file_name) if isinstance(file_name, str) else file_name
+    Y = caiman.load(file_name) if isinstance(file_name, str) else file_name
     Y = Y[..., :tot_frames] if swap_dim else Y[:tot_frames]
     first_moment, second_moment, crosscorr, col_ind, row_ind, num_neigbors, M, cn = \
         prepare_local_correlations(Y[..., :window] if swap_dim else Y[:window],
@@ -689,7 +646,7 @@ def local_correlations_movie(file_name,
                                                            crosscorr, col_ind, row_ind, num_neigbors, M)
     else:
         raise Exception('mode of the moving average must be simple, exponential or cumulative')
-    return cm.movie(corr_movie, fr=fr)
+    return caiman.movie(corr_movie, fr=fr)
 
 
 def local_correlations_movie_offline(file_name,
@@ -750,14 +707,14 @@ def local_correlations_movie_offline(file_name,
             Gaussian smooth the signal
 
     Returns:
-        mm: cm.movie (3D or 4D).
+        mm: caiman.movie (3D or 4D).
             local correlation movie
 
     """
     if Tot_frames is None:
-        _, Tot_frames = get_file_size(file_name)
+        _, Tot_frames = caiman.base.movies.get_file_size(file_name)
 
-    params: List = [[file_name, range(j, j + window), eight_neighbours, swap_dim,
+    params:list = [[file_name, range(j, j + window), eight_neighbours, swap_dim,
                      order_mean, ismulticolor, remove_baseline, winSize_baseline,
                      quantil_min_baseline, gaussian_blur]
                     for j in range(0, Tot_frames - window, stride)]
@@ -769,19 +726,20 @@ def local_correlations_movie_offline(file_name,
     if dview is None:
         parallel_result = list(map(local_correlations_movie_parallel, params))
     else:
+        #TODO phrase better
         if 'multiprocessing' in str(type(dview)):
             parallel_result = dview.map_async(local_correlations_movie_parallel, params).get(4294967)
         else:
             parallel_result = dview.map_sync(local_correlations_movie_parallel, params)
             dview.results.clear()
 
-    mm = cm.movie(np.concatenate(parallel_result, axis=0), fr=fr/len(parallel_result))
+    mm = caiman.movie(np.concatenate(parallel_result, axis=0), fr=fr/len(parallel_result))
     return mm
 
 
-def local_correlations_movie_parallel(params: Tuple) -> np.ndarray:
+def local_correlations_movie_parallel(params:tuple) -> np.ndarray:
     mv_name, idx, eight_neighbours, swap_dim, order_mean, ismulticolor, remove_baseline, winSize_baseline, quantil_min_baseline, gaussian_blur = params
-    mv = cm.load(mv_name, subindices=idx, in_memory=True)
+    mv = caiman.load(mv_name, subindices=idx, in_memory=True)
     if gaussian_blur:
         mv = mv.gaussian_blur_2D()
 
@@ -819,14 +777,14 @@ def mean_image(file_name,
             Use it for parallel computation
     
     Returns:
-        mm: cm.movie (2D).
+        mm: caiman.movie (2D).
             mean image
 
     """
     if Tot_frames is None:
-        _, Tot_frames = get_file_size(file_name)
+        _, Tot_frames = caiman.base.movies.get_file_size(file_name)
 
-    params: List = [[file_name, range(j * window, (j + 1) * window)]
+    params:list = [[file_name, range(j * window, (j + 1) * window)]
                     for j in range(int(Tot_frames / window))]
 
     remain_frames = Tot_frames - int(Tot_frames / window) * window
@@ -842,14 +800,14 @@ def mean_image(file_name,
             parallel_result = dview.map_sync(mean_image_parallel, params)
             dview.results.clear()
 
-    mm = cm.movie(np.concatenate(parallel_result, axis=0), fr=fr/len(parallel_result))
+    mm = caiman.movie(np.concatenate(parallel_result, axis=0), fr=fr/len(parallel_result))
     if remain_frames > 0:
         mean_image = (mm[:-1].sum(axis=0) + (remain_frames / window) * mm[-1]) / (len(mm) - 1 + remain_frames / window)  
     else:
         mean_image = mm.mean(axis=0)
     return mean_image
 
-def mean_image_parallel(params: Tuple) -> np.ndarray:
+def mean_image_parallel(params:tuple) -> np.ndarray:
     mv_name, idx = params
-    mv = cm.load(mv_name, subindices=idx, in_memory=True)
+    mv = caiman.load(mv_name, subindices=idx, in_memory=True)
     return mv.mean(axis=0)[np.newaxis,:,:]

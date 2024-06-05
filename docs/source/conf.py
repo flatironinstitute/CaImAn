@@ -55,7 +55,7 @@ master_doc = 'index'
 
 # General information about the project.
 project = 'CaImAn'
-copyright = '2019, Flatiron Institute, Simons Foundation, New York, NY'
+copyright = '2024, Flatiron Institute, Simons Foundation, New York, NY'
 author = 'Eftychios Pnevmatikakis and Andrea Giovannucci'
 
 # The version info for the project you're documenting, acts as replacement for
@@ -74,7 +74,7 @@ release = version
 #
 # This is also used if you do content translation via gettext catalogs.
 # Usually you set "language" from the command line for these cases.
-language = None
+language = 'en'
 
 # There are two options for replacing |today|: either, you set today to some
 # non-false value, then it is used:
@@ -118,7 +118,7 @@ todo_include_todos = False
 
 # The theme to use for HTML and HTML Help pages.  See the documentation for
 # a list of builtin themes.
-html_theme = 'classic'
+html_theme = 'alabaster'
 
 # Theme options are theme-specific and customize the look and feel of a theme
 # further.  For a list of options available for each theme, see the

@@ -1,34 +1,22 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
 """ A set of pre-processing operations in the input dataset:
 
 1. Interpolation of missing data
-2. Indentification of saturated pixels
+2. Identification of saturated pixels
 3. Estimation of noise level for each imaged voxel
 4. Estimation of global time constants
 
-@authors: agiovann epnev
-@image docs/img/greedyroi.png
 """
-#\package caiman/source_extraction/cnmf
-#\version   1.0
-#\copyright GNU General Public License v2.0
-#\date Created on Tue Jun 30 21:01:17 2015
 
-
+import logging
 import numpy as np
 import scipy
+from scipy.linalg import toeplitz
 import shutil
 import tempfile
-import logging
-from builtins import map
-from builtins import range
-from ...mmapping import load_memmap
-from past.builtins import basestring
-from past.utils import old_div
 
-#%%
+import caiman.mmapping
 
 
 def interpolate_missing_data(Y):
@@ -96,8 +84,6 @@ def find_unsaturated_pixels(Y, saturationValue=None, saturationThreshold=0.9, sa
 
     return normalPixels
 
-
-#%%
 def get_noise_welch(Y, noise_range=[0.25, 0.5], noise_method='logmexp',
                     max_num_samples_fft=3072):
     """Estimate the noise level for each pixel by averaging the power spectral density.
@@ -286,8 +272,6 @@ def get_noise_fft_parallel(Y, n_pixels_per_process=100, dview=None, **kwargs):
         raise
 
     return sn_s, psx_s
-#%%
-
 
 def fft_psd_parallel(Y, sn_s, i, num_pixels, **kwargs):
     """helper function to parallelize get_noise_fft
@@ -310,13 +294,11 @@ def fft_psd_parallel(Y, sn_s, i, num_pixels, **kwargs):
         res: ndarray(double)
             noise associated to each pixel
         psx: ndarray
-            position of thoses pixels
+            position of those pixels
     """
     idxs = list(range(i, i + num_pixels))
     res = get_noise_fft(Y[idxs], **kwargs)
     sn_s[idxs] = res
-#%%
-
 
 def fft_psd_multithreading(args):
     """helper function to parallelize get_noise_fft
@@ -339,12 +321,12 @@ def fft_psd_multithreading(args):
         res: ndarray(double)
             noise associated to each pixel
         psx: ndarray
-            position of thoses pixels
+            position of those pixels
     """
 
     (Y, i, num_pixels, kwargs) = args
-    if isinstance(Y, basestring):
-        Y, _, _ = load_memmap(Y)
+    if isinstance(Y, str):
+        Y, _, _ = caiman.mmapping.load_memmap(Y)
 
     idxs = list(range(i, i + num_pixels))
     #print(len(idxs))
@@ -373,11 +355,11 @@ def mean_psd(y, method='logmexp'):
     """
 
     if method == 'mean':
-        mp = np.sqrt(np.mean(old_div(y, 2), axis=-1))
+        mp = np.sqrt(np.mean(y / 2, axis=-1))
     elif method == 'median':
-        mp = np.sqrt(np.median(old_div(y, 2), axis=-1))
+        mp = np.sqrt(np.median(y / 2, axis=-1))
     else:
-        mp = np.log(old_div((y + 1e-10), 2))
+        mp = np.log((y + 1e-10) / 2)
         mp = np.mean(mp, axis=-1)
         mp = np.exp(mp)
         mp = np.sqrt(mp)
@@ -413,9 +395,8 @@ def estimate_time_constant(Y, sn, p=None, lags=5, include_noise=False, pixels=No
     if p is None:
         raise Exception("You need to define p")
     if pixels is None:
-        pixels = np.arange(old_div(np.size(Y), np.shape(Y)[-1]))
+        pixels = np.arange(np.size(Y) // np.shape(Y)[-1])
 
-    from scipy.linalg import toeplitz
     npx = len(pixels)
     lags += p
     XC = np.zeros((npx, 2 * lags + 1))
@@ -469,7 +450,7 @@ def axcov(data, maxlag=5):
     xcov = np.fft.ifft(np.square(np.abs(xcov)))
     xcov = np.concatenate([xcov[np.arange(xcov.size - maxlag, xcov.size)],
                            xcov[np.arange(0, maxlag + 1)]])
-    return np.real(old_div(xcov, T))
+    return np.real(xcov / T)
 
 def nextpow2(value):
     """
@@ -532,7 +513,7 @@ def preprocess_data(Y, sn=None, dview=None, n_pixels_per_process=100,
         g:  np.ndarray (p x 1)
             Discrete time constants
         psx: ndarray
-            position of thoses pixels
+            position of those pixels
         sn_s: ndarray (memory mapped)
             file where to store the results of computation.
     """

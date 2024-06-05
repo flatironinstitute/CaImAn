@@ -12,7 +12,7 @@ from pyqtgraph import FileDialog, QtWidgets
 from pyqtgraph.parametertree import Parameter, ParameterTree
 from scipy.sparse import csc_matrix
 
-import caiman as cm
+import caiman
 from caiman.source_extraction.cnmf.cnmf import load_CNMF
 from caiman.source_extraction.cnmf.params import CNMFParams
 
@@ -67,10 +67,10 @@ else:
                                           directory=d, filter=f + ';;*.mmap')[0]
 
 if fpath[-3:] == 'nwb':
-    mov = cm.load(cnm_obj.mmap_file,
+    mov = caiman.load(cnm_obj.mmap_file,
                   var_name_hdf5='acquisition/TwoPhotonSeries')
 else:
-    mov = cm.load(cnm_obj.mmap_file)
+    mov = caiman.load(cnm_obj.mmap_file)
 
 estimates = cnm_obj.estimates
 params_obj = cnm_obj.params
@@ -79,16 +79,41 @@ estimates.rotation = False                       # flag for rotation
 min_mov = np.min(mov)
 max_mov = np.max(mov)
 
+if estimates.b is None:
+    estimates.b = estimates.b0[:, None]
+    estimates.f = np.ones((1, estimates.C.shape[1]))
+
+    class combodemo(QtWidgets.QWidget):
+        def __init__(self, parent = None):
+            super(combodemo, self).__init__(parent)
+            layout = QtWidgets.QHBoxLayout()
+            self.cb = QtWidgets.QComboBox()
+            self.cb.addItems(["Constant background", "Full background (slow, memory intensive)"])
+            self.cb.currentIndexChanged.connect(self.selectionchange)
+            layout.addWidget(self.cb)
+            self.setLayout(layout)
+            self.setWindowTitle("Handle background for 1p data")
+
+        def selectionchange(self,i):
+            if i==0:
+                estimates.b = estimates.b0[:, None]
+                estimates.f = np.ones((1, estimates.C.shape[1]))
+            elif i==1:
+                estimates.b = estimates.compute_background(mov.reshape(len(mov), -1).T)
+                estimates.f = np.eye(len(mov), dtype='int8')
+
+    cb = combodemo()
+    cb.show()
 
 if not hasattr(estimates, 'Cn'):
-    estimates.Cn = cm.local_correlations(mov, swap_dim=False)
+    estimates.Cn = caiman.local_correlations(mov, swap_dim=False)
 #Cn = estimates.Cn
 
-# We rotate our components 90 degrees right because of incompatiability of pyqtgraph and pyplot
+# We rotate our components 90 degrees right because of incompatibility of pyqtgraph and pyplot
 def rotate90(img, right=None, vector=None, sparse=False):
     # rotate the img 90 degrees
     # we first transpose the img then flip axis
-    # If right is ture, then rotate 90 degrees right, otherwise, rotate left
+    # If right is true, then rotate 90 degrees right, otherwise, rotate left
     # If vector is True, then we first reshape the spatial 1D vector to 2D then rotate
     # If vector is False, then we directly rotate the matrix
     global dims

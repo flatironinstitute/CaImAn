@@ -1,7 +1,7 @@
+av
 bokeh
 coverage
 cython
-future
 h5py
 holoviews
 ipykernel
@@ -27,3 +27,4 @@ tifffile
 tk
 tqdm
 yapf
+zarr

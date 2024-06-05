@@ -16,14 +16,10 @@ caiman/tests/comparison/comparison.py
 #\date Created on june 2017
 #\author: Jremie KALFON
 
-from builtins import str
-from builtins import range
-
 import copy
 import cv2
 import glob
 import logging
-import matplotlib
 import numpy as np
 import os
 import time
@@ -63,7 +59,7 @@ params_movie = {
     'fname': ['Sue_2x_3000_40_-46.tif'],
     'niter_rig': 1,
     'max_shifts': (3, 3),                      # maximum allow rigid shift
-    'splits_rig': 20,                          # for parallelization split the movies in  num_splits chuncks across time
+    'splits_rig': 20,                          # for parallelization split the movies in  num_splits chunks across time
                                                # if none all the splits are processed and the movie is saved
     'num_splits_to_process_rig': None,
                                                # intervals at which patches are laid out for motion correction
@@ -96,7 +92,7 @@ params_display = {'downsample_ratio': .2, 'thr_plot': 0.9}
 # params_movie = {'fname': [u'./example_movies/demoMovieJ.tif'],
 #                 'max_shifts': (2, 2),  # maximum allow rigid shift (2,2)
 #                 'niter_rig': 1,
-#                 'splits_rig': 14,  # for parallelization split the movies in  num_splits chuncks across time
+#                 'splits_rig': 14,  # for parallelization split the movies in  num_splits chunks across time
 #                 'num_splits_to_process_rig': None,  # if none all the splits are processed and the movie is saved
 #                 'p': 1,  # order of the autoregressive system
 #                 'merge_thresh': 0.8,  # merging threshold, max correlation allow

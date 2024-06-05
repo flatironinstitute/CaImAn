@@ -44,6 +44,7 @@ __pycache__/
 *.pyc
 *.npy
 *.mat
+!testdata/*.mat
 *.hdf5
 *.mmap
 *.npz
@@ -165,7 +166,6 @@ ehthumbs_vista.db
 Desktop.ini
 
 #dev and comparison
-/bin
 #everything from test except the one the user want to send back and an example one.
 caiman/tests/comparison/tests/
 !caiman/tests/comparison/tests/example/*

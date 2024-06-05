@@ -1,3 +1,4 @@
+av
 coverage
 cython
 future
@@ -25,3 +26,4 @@ tifffile
 tk
 tqdm
 yapf
+zarr

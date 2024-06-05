@@ -1,10 +1,9 @@
 #!/usr/bin/env python
 
 from setuptools import setup, find_packages
-import os
-from os import path
-import sys
 import numpy as np
+import os
+import sys
 from Cython.Build import cythonize
 from setuptools.extension import Extension
 from distutils.command.build_ext import build_ext
@@ -13,7 +12,7 @@ from distutils.command.build_ext import build_ext
     Installation script for anaconda installers
 """
 
-here = path.abspath(path.dirname(__file__))
+here = os.path.abspath(os.path.dirname(__file__))
 
 with open('README.md', 'r') as rmf:
     readme = rmf.read()
@@ -32,18 +31,15 @@ with open('VERSION', 'r') as verfile:
 # Note that if python's packaging standards ever change the install base of data_files to be under the
 # package that made them, we can switch to using the pkg_resources API.
 
-binaries = ['caimanmanager.py']
 extra_dirs = ['bin', 'demos', 'docs', 'model']
 data_files = [('share/caiman', ['LICENSE.txt', 'README.md', 'test_demos.sh', 'VERSION']),
               ('share/caiman/example_movies', ['example_movies/data_endoscope.tif', 'example_movies/demoMovie.tif']),
-              ('share/caiman/testdata', ['testdata/groundtruth.npz', 'testdata/example.npz']),
+              ('share/caiman/testdata', ['testdata/groundtruth.npz', 'testdata/example.npz', 'testdata/2d_sbx.mat', 'testdata/2d_sbx.sbx', 'testdata/3d_sbx_1.mat', 'testdata/3d_sbx_1.sbx', 'testdata/3d_sbx_2.mat', 'testdata/3d_sbx_2.sbx']),
              ]
 for part in extra_dirs:
 	newpart = [("share/caiman/" + d, [os.path.join(d,f) for f in files]) for d, folders, files in os.walk(part)]
 	for newcomponent in newpart:
 		data_files.append(newcomponent)
-
-data_files.append(['bin', binaries])
 
 ############
 
@@ -92,7 +88,8 @@ setup(
         'Programming Language :: Python :: 3',
     ],
     keywords='fluorescence calcium ca imaging deconvolution ROI identification',
-    packages=find_packages(exclude=['use_cases', 'use_cases.*']),
+    packages=find_packages(),
+    entry_points = { 'console_scripts': ['caimanmanager = caiman.caimanmanager:main' ] },
     data_files=data_files,
     install_requires=[''],
     ext_modules=cythonize(ext_modules, language_level="3"),

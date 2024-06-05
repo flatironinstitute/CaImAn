@@ -1,28 +1,11 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
-"""
-Created on Thu Oct 20 13:49:57 2016
-
-@author: agiovann
-"""
-
-from builtins import range
-from past.utils import old_div
 
 import logging
 import numpy as np
 import scipy
 
-try:
-    import numba
-except:
-    pass
-
 from scipy.linalg.lapack import dpotrf, dpotrs
 from scipy import fftpack
-
-#%%
-
 
 def mode_robust_fast(inputData, axis=None):
     """
@@ -46,10 +29,6 @@ def mode_robust_fast(inputData, axis=None):
         dataMode = _hsm(data)
 
     return dataMode
-
-
-#%%
-
 
 def mode_robust(inputData, axis=None, dtype=None):
     """
@@ -106,11 +85,6 @@ def mode_robust(inputData, axis=None, dtype=None):
 
     return dataMode
 
-
-#%%
-#@numba.jit("void(f4[:])")
-
-
 def _hsm(data):
     if data.size == 1:
         return data[0]
@@ -128,7 +102,7 @@ def _hsm(data):
     else:
 
         wMin = np.inf
-        N = old_div(data.size, 2) + data.size % 2
+        N = data.size // 2 + data.size % 2
 
         for i in range(0, N):
             w = data[i + N - 1] - data[i]
@@ -173,15 +147,11 @@ def compressive_nmf(A, L, R, r, X=None, Y=None, max_iter=100, ls=0):
 
     return X, Y
 
-#%% kernel density estimation
-
-
 def mode_robust_kde(inputData, axis=None):
     """
     Extracting the dataset of the mode using kernel density estimation
     """
     if axis is not None:
-
         def fnc(x):
             return mode_robust_kde(x)
 
@@ -198,7 +168,9 @@ def df_percentile(inputData, axis=None):
     """
     Extracting the percentile of the data where the mode occurs and its value.
     Used to determine the filtering level for DF/F extraction. Note that
-    computation can be innacurate for short traces.
+    computation can be inaccurate for short traces.
+
+    If errors occur, return fallback values
     """
     if axis is not None:
 
@@ -211,24 +183,37 @@ def df_percentile(inputData, axis=None):
     else:
         # Create the function that we can use for the half-sample mode
         err = True
-        while err:
+        err_count = 0
+        max_err_count = 10
+        while err and err_count < max_err_count:
             try:
                 bandwidth, mesh, density, cdf = kde(inputData)
                 err = False
-            except:
-                logging.warning('Percentile computation failed. Duplicating ' + 'and trying again.')
+            except ValueError:
+                err_count += 1
+                logging.warning(f"kde() failure {err_count}. Concatenating traces and recomputing.")
                 if not isinstance(inputData, list):
                     inputData = inputData.tolist()
                 inputData += inputData
 
-        data_prct = cdf[np.argmax(density)] * 100
-        val = mesh[np.argmax(density)]
+        # There are three ways the above calculation can go wrong. 
+        # For each case: just use median.
+        # if cdf was never defined, it means kde never ran without error
+        try:
+            cdf
+        except NameError:
+            logging.warning('Max err count reached. Reverting to median.')
+            data_prct = 50
+            val = np.median(np.array(inputData))
+        else:
+            data_prct = cdf[np.argmax(density)] * 100
+            val = mesh[np.argmax(density)]
+
         if data_prct >= 100 or data_prct < 0:
-            logging.warning('Invalid percentile computed possibly due ' + 'short trace. Duplicating and recomuputing.')
-            if not isinstance(inputData, list):
-                inputData = inputData.tolist()
-            inputData *= 2
-            err = True
+            logging.warning('Invalid percentile (<0 or >100) computed. Reverting to median.')
+            data_prct = 50
+            val = np.median(np.array(inputData))
+
         if np.isnan(data_prct):
             logging.warning('NaN percentile computed. Reverting to median.')
             data_prct = 50
@@ -241,16 +226,15 @@ def df_percentile(inputData, axis=None):
 An implementation of the kde bandwidth selection method outlined in:
 Z. I. Botev, J. F. Grotowski, and D. P. Kroese. Kernel density
 estimation via diffusion. The Annals of Statistics, 38(5):2916-2957, 2010.
-Based on the implementation in Matlab by Zdravko Botev.
+Based on the implementation in Matlab by Zdravko Botev:
+See: https://www.mathworks.com/matlabcentral/fileexchange/14034-kernel-density-estimator
 Daniel B. Smith, PhD
 Updated 1-23-2013
 """
-
-
 def kde(data, N=None, MIN=None, MAX=None):
 
     # Parameters to set up the mesh on which to calculate
-    N = 2**12 if N is None else int(2**scipy.ceil(scipy.log2(N)))
+    N = 2**12 if N is None else int(2 ** np.ceil(np.log2(N)))
     if MIN is None or MAX is None:
         minimum = min(data)
         maximum = max(data)
@@ -263,46 +247,48 @@ def kde(data, N=None, MIN=None, MAX=None):
 
     # Histogram the data to get a crude first approximation of the density
     M = len(data)
-    DataHist, bins = scipy.histogram(data, bins=N, range=(MIN, MAX))
+    DataHist, bins = np.histogram(data, bins=N, range=(MIN, MAX))
     DataHist = DataHist / M
     DCTData = fftpack.dct(DataHist, norm=None)
 
     I = [iN * iN for iN in range(1, N)]
     SqDCTData = (DCTData[1:] / 2)**2
 
-    # The fixed point calculation finds the bandwidth = t_star
+    # The fixed point calculation finds the bandwidth = t_star for smoothing (see paper cited above)
     guess = 0.1
     try:
-        t_star = scipy.optimize.brentq(fixed_point, 0, guess, args=(M, I, SqDCTData))
-    except ValueError:
-        print('Oops!')
-        return None
+       t_star = scipy.optimize.brentq(fixed_point, 0, guess, args=(M, I, SqDCTData))
+    except ValueError as e:
+       # 
+       raise ValueError(f"Unable to find root: {str(e)}")
 
     # Smooth the DCTransformed data using t_star
-    SmDCTData = DCTData * scipy.exp(-scipy.arange(N)**2 * scipy.pi**2 * t_star / 2)
+    SmDCTData = DCTData * np.exp(-np.arange(N)**2 * np.pi**2 * t_star / 2)
     # Inverse DCT to get density
     density = fftpack.idct(SmDCTData, norm=None) * N / R
     mesh = [(bins[i] + bins[i + 1]) / 2 for i in range(N)]
-    bandwidth = scipy.sqrt(t_star) * R
+    bandwidth = np.sqrt(t_star) * R
 
-    density = density / scipy.trapz(density, mesh)
+    density = density / np.trapz(density, mesh)
     cdf = np.cumsum(density) * (mesh[1] - mesh[0])
 
     return bandwidth, mesh, density, cdf
 
 
 def fixed_point(t, M, I, a2):
+    # TODO: document this: 
+    #   From Matlab code: this implements the function t-zeta*gamma^[l](t)
     l = 7
-    I = scipy.float64(I)
-    M = scipy.float64(M)
-    a2 = scipy.float64(a2)
-    f = 2 * scipy.pi**(2 * l) * scipy.sum(I**l * a2 * scipy.exp(-I * scipy.pi**2 * t))
+    I = np.float64(I)
+    M = np.float64(M)
+    a2 = np.float64(a2)
+    f = 2 * np.pi ** (2 * l) * np.sum(I**l * a2 * np.exp(-I * np.pi**2 * t))
     for s in range(l, 1, -1):
-        K0 = scipy.prod(range(1, 2 * s, 2)) / scipy.sqrt(2 * scipy.pi)
+        K0 = np.prod(range(1, 2 * s, 2)) / np.sqrt(2 * np.pi)
         const = (1 + (1 / 2)**(s + 1 / 2)) / 3
         time = (2 * const * K0 / M / f)**(2 / (3 + 2 * s))
-        f = 2 * scipy.pi**(2 * s) * scipy.sum(I**s * a2 * scipy.exp(-I * scipy.pi**2 * time))
-    return t - (2 * M * scipy.sqrt(scipy.pi) * f)**(-2 / 5)
+        f = 2 * np.pi**(2 * s) * np.sum(I**s * a2 * np.exp(-I * np.pi**2 * time))
+    return t - (2 * M * np.sqrt(np.pi) * f)**(-2 / 5)
 
 
 def csc_column_remove(A, ind):

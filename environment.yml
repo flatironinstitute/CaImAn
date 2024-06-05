@@ -1,34 +1,38 @@
 channels:
 - conda-forge
+- defaults
 dependencies:
-- python >=3.10
-- bokeh
+- python <=3.12
+- av
+- bokeh >=3.1.1
 - coverage
 - cython
-- future
-- h5py
-- holoviews =1.15.2
+- h5py >=3.4.0
+- holoviews >=1.16.2
 - ipykernel
 - ipython
 - ipyparallel
 - jupyter
+- jupyter_bokeh
 - matplotlib
+- moviepy
 - mypy
 - nose
-- numpy
+- numpy <2.0.0,>=1.26
 - numpydoc
 - opencv
+- panel >=1.0.2
 - peakutils
 - pims
 - psutil
 - pynwb
 - pyqtgraph
 - scikit-image >=0.19.0
-- scikit-learn
-- scipy
-- tensorflow >= 2.4.0
+- scikit-learn >=1.2
+- scipy >= 1.10.1
+- tensorflow >=2.4.0,<2.16
 - tifffile
 - tk
 - tqdm
 - yapf
-- z5py >= 2.0.15
+- zarr

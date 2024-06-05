@@ -23,10 +23,10 @@ except NameError:
     print('Not launched under iPython')
 
 import caiman as cm
+import matplotlib.pyplot as plt
 import numpy as np
 import os
 import time
-import pylab as pl
 import scipy
 import sys
 import logging
@@ -313,33 +313,52 @@ for params_movie in np.array(params_movies)[ID]:
     c, dview, n_processes = setup_cluster(
         backend=backend_patch, n_processes=n_processes, single_thread=False)
     # %%
-    params_dict = {'fnames': [fname_new],
-                   'fr': params_movie['fr'],
-                   'decay_time': params_movie['decay_time'],
-                   'rf': params_movie['rf'],
-                   'stride': params_movie['stride_cnmf'],
-                   'K': params_movie['K'],
-                   'gSig': params_movie['gSig'],
-                   'merge_thr': params_movie['merge_thresh'],
-                   'p': global_params['p'],
-                   'nb': global_params['gnb'],
-                   'only_init': global_params['only_init_patch'],
-                   'dview': dview,
-                   'method_deconvolution': 'oasis',
-                   'border_pix': params_movie['crop_pix'],
-                   'low_rank_background': global_params['low_rank_background'],
-                   'rolling_sum': True,
-                   'nb_patch': 1,
-                   'check_nan': check_nan,
-                   'block_size_temp': block_size,
-                   'block_size_spat': block_size,
-                   'num_blocks_per_run_spat': num_blocks_per_run,
-                   'num_blocks_per_run_temp': num_blocks_per_run,
-                   'merge_parallel': True,
-                   'n_pixels_per_process': n_pixels_per_process,
-                   'ssub': global_params['ssub'],
-                   'tsub': global_params['tsub'],
-                   'thr_method': 'nrg'
+    params_dict = {
+                  'data': {
+                          'decay_time': params_movie['decay_time'],
+                          'fnames': [fname_new],
+                          'fr': params_movie['fr'],
+                          },
+                  'init': {
+                          'gSig': params_movie['gSig'],
+                          'K': params_movie['K'],
+                          'nb': global_params['gnb'],
+                          'rolling_sum': True,
+                          'ssub': global_params['ssub'],
+                          'tsub': global_params['tsub'],
+
+                          },
+                  'merging': {
+                             'merge_parallel': True,
+                             'merge_thr': params_movie['merge_thresh'],
+                             },
+                  'patch': {
+                           'border_pix': params_movie['crop_pix'],
+                           'low_rank_background': global_params['low_rank_background'],
+                           'nb_patch': 1,
+                           'only_init': global_params['only_init_patch'],
+                           'rf': params_movie['rf'],
+                           'stride': params_movie['stride_cnmf'],
+
+                           },
+                  'preprocess': {
+                                'check_nan': check_nan,
+                                'n_pixels_per_process': n_pixels_per_process,
+                                'p': global_params['p'],
+                                },
+                  'spatial':   {
+                               'nb': global_params['gnb'],
+                               'num_blocks_per_run_spat': num_blocks_per_run,
+                               'n_pixels_per_process': n_pixels_per_process,
+                               'thr_method': 'nrg'
+                               },
+                  'temporal':   {
+                                'block_size_temp': block_size,
+                                'method_deconvolution': 'oasis',
+                                'nb': global_params['gnb'],
+                                'num_blocks_per_run_temp': num_blocks_per_run,
+                                'p': global_params['p'],
+                                },
                    }
 
     init_method = global_params['init_method']
@@ -415,14 +434,14 @@ for params_movie in np.array(params_movies)[ID]:
                                 f=ld['f_gt'], R=ld['YrA_gt'], dims=(ld['d1'], ld['d2']))
 
     min_size_neuro = 3 * 2 * np.pi
-    max_size_neuro = (2 * params_dict['gSig'][0]) ** 2 * np.pi
+    max_size_neuro = (2 * params_dict['init']['gSig'][0]) ** 2 * np.pi
     gt_estimate.threshold_spatial_components(maxthr=0.2, dview=dview)
     nrn_size = gt_estimate.remove_small_large_neurons(min_size_neuro, max_size_neuro)
     nrn_dup = gt_estimate.remove_duplicates(predictions=None, r_values=None, dist_thr=0.1, min_dist=10,
                                       thresh_subset=0.6)
     gt_estimate.select_components(use_object=True)
     print(gt_estimate.A_thr.shape)
-    # %% prepare CNMF maks
+    # %% prepare CNMF mask
     cnm2.estimates.threshold_spatial_components(maxthr=0.2, dview=dview)
     cnm2.estimates.remove_small_large_neurons(min_size_neuro, max_size_neuro)
     cnm2.estimates.remove_duplicates(r_values=None, dist_thr=0.1, min_dist=10, thresh_subset=0.6)
@@ -433,16 +452,14 @@ for params_movie in np.array(params_movies)[ID]:
         'downsample_ratio': .2,
         'thr_plot': 0.8
     }
-
-    pl.rcParams['pdf.fonttype'] = 42
-    font = {'family': 'Arial',
-            'weight': 'regular',
-            'size': 20}
-    pl.rc('font', **font)
-
     plot_results = False
     if plot_results:
-        pl.figure(figsize=(30, 20))
+        plt.rcParams['pdf.fonttype'] = 42
+        font = {'family': 'Arial',
+                'weight': 'regular',
+                'size': 20}
+        plt.rc('font', **font)
+        plt.figure(figsize=(30, 20))
 
     tp_gt, tp_comp, fn_gt, fp_comp, performance_cons_off = compare_components(gt_estimate, cnm2.estimates,
                                                                               Cn=Cn_orig, thresh_cost=.8,

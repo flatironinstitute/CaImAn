@@ -1,16 +1,15 @@
-Getting Started with CaImAn
+Getting Started
 ===========================
 
 Demos
 -----
 
 -  Notebooks: The notebooks provide a simple and friendly way to get
-   into CaImAn and understand its main characteristics. They are located
-   in the ``demos/notebooks``. To launch one of the jupyter notebooks:
+   into Caiman and understand its main characteristics. They are located
+   in the ``demos/notebooks``. To launch one of the jupyter notebooks, activate your conda caiman environment, enter the caiman_data directory, and then:
 
    .. code:: bash
 
-          source activate CaImAn
           jupyter notebook --NotebookApp.iopub_data_rate_limit=1.0e10
 
    and select the notebook from within Jupyter’s browser. The argument
@@ -20,9 +19,6 @@ Demos
 -  demo files are also found in the demos/general subfolder. We suggest
    trying demo_pipeline.py first as it contains most of the tasks
    required by calcium imaging. For behavior use demo_behavior.py
-
--  If you want to directly launch the python files, your python console
-   still must be in the CaImAn directory.
 
 Basic Structure
 ---------------
@@ -36,13 +32,13 @@ the following objects:
    easily and is passed into all the algorithms.
 -  ``MotionCorrect``: An object for motion correction which can be used
    for both rigid and piece-wise rigid motion correction.
--  ``cnmf``: An object for running the CaImAn batch algorithm either in
+-  ``cnmf``: An object for running the Caiman batch algorithm either in
    patches or not, suitable for both two-photon (CNMF) and one-photon
    (CNMF-E) data.
--  ``online_cnmf``: An object for running the CaImAn online (OnACID)
+-  ``online_cnmf``: An object for running the Caiman online (OnACID)
    algorithm on two-photon data with or without motion correction.
 -  ``estimates``: A single object that stores the results of the
-   algorithms (CaImAn batch, CaImAn online) in a unified way that also
+   algorithms (batch, online) in a unified way that also
    contains plotting methods.
 
 To see examples of how these methods are used, please consult the demos.
@@ -51,7 +47,7 @@ To see examples of how these methods are used, please consult the demos.
 Parameters
 -----------
 
-CaImAn gives you access to a lot of parameters and lets you adapt the analysis to your data. Parameters are stored in
+Caiman gives you access to a lot of parameters and lets you adapt the analysis to your data. Parameters are stored in
 the ``params`` object in a set of dictionaries, sorted by the part of the analysis they are used in:
 
 -  ``data``: General params describing the dataset like dimensions, decay time, filename and framerate
@@ -123,7 +119,7 @@ As mentioned above, the results of the analysis are stored within the
 Result variables for 2p batch analysis
 --------------------------------------
 
-The results of CaImAn are saved in an ``estimates`` object. This is
+The results of Caiman are saved in an ``estimates`` object. This is
 stored inside the cnmf object, i.e. it can be accessed using
 ``cnmf.estimates``. The variables of interest are:
 
@@ -212,3 +208,140 @@ Variables for online processing
 
 The same ``estimates`` object is also used for the results of online
 processing, stored in ``onacid.estimates``.
+
+
+Logging
+-------
+
+Python has a powerful built-in `logging module <https://docs.python.org/3/library/logging.html>`_ for generating 
+log messages while a program is running. It lets you generate custom log messages, and set a threshold to 
+determine which logs you will see. You will only receive messages above the severity threshold you set: 
+you can choose from: ``logging.DEBUG``, ``logging.INFO``, ``logging.WARNING``, ``logging.ERROR``, or ``logging.CRITICAL``. 
+For instance, setting the threshold to ``logging.DEBUG`` will print out every logging statement, while setting it 
+to ``logging.ERROR`` will print out only errors and critical messages. This system gives much more flexibility and 
+control than interspersing ``print()`` statements in your code when debugging. 
+
+Our custom formatted log string is defined in the ``log_format`` parameter below, which draws from a 
+predefined `set of attributes <https://docs.python.org/3/library/logging.html#logrecord-attributes>`_ provided by 
+the logging module. We have set each log to display the time, severity level, filename/function name/line number 
+of the file creating the log, the process ID, and the actual log message. 
+
+While logging is especially helpful when running code on a server, it can also be helpful to get feedback locally, either 
+to audit progress or diagnose problems when debugging. If you set 
+this feature up by running the following cell, the logs will by default go to console. If you want to direct 
+your log to file (which you can indicate with ``use_logfile = True``), then it will automatically be directed 
+to your ``caiman_data/temp`` directory as defined in the ``caiman.paths`` module. You can set another path manually 
+by changing the argument to the ``filename`` parameter in ``basicConfig()``.
+
+::
+
+   use_logfile = True # set to True to log to file
+   if use_logfile:
+      current_datetime = datetime.datetime.now().strftime("_%Y%m%d_%H%M%S")
+      log_filename = 'demo_pipeline' + current_datetime + '.log'  
+      log_path = Path(cm.paths.get_tempdir()) / log_filename
+      print(f"Will save logging data to {log_path}")
+   else:
+      log_path = None
+   log_format = "{asctime} - {levelname} - [{filename} {funcName}() {lineno}] - pid {process} - {message}"
+   logging.basicConfig(format=log_format,
+                       filename=log_path, 
+                       level=logging.WARNING, style="{") #DEBUG, INFO, WARNING, ERROR, CRITICAL
+
+Caiman makes extensive use of the log system, and we have place many loggers interleaved throughough the code to aid in 
+debugging. If you hit a bug, it is often helpful to set your debugging level to ``DEBUG`` so you can see what
+the different functions in Caiman are doing. 
+
+Once you have configured your logger, you can change the level (say, from ``WARNING`` to ``DEBUG``) using the following: 
+
+::
+ 
+   logging.getLogger().setLevel(logging.DEBUG) 
+
+
+
+Estimator design
+----------------
+
+For the main computations in the pipeline -- like motion correction and CNMF -- the estimators are not initialized and
+run all at once. These are broken up into two steps:
+
+* Initialize the estimator object (e.g., ``MotionCorrect``, ``CNMF``) by sending it the set of parameters it will use. 
+* Run the estimator, fitting it to actual data. For ``CNMF`` this will be done using the ``fit()`` method. For motion correction 
+  it is ``motion_correct()``.
+
+This modular architecture, where models are initialized with parameters, and then estimates are made with a separate 
+call to a method that carries out the calculations on data fed to the model, is useful for a few reasons. One is that 
+it allows for efficient exploration of parameter space. Often, after setting some *initial* set of 
+parameters, you will want to modify the parameters after visualizing your data (e.g., after viewing the size of the neurons). 
+
+Note that our API is like that used by the `scikit-learn <https://scikit-learn.org/stable>`_ machine learning library. 
+From their `manuscript on api design <https://arxiv.org/abs/1309.0238>`_ :
+
+::
+
+    Estimator initialization and actual learning are strictly separated...
+    The constructor of an estimator does not see any actual data, nor does 
+    it perform any actual learning. All it does is attach the given parameters 
+    to the object....Actual learning is performed by the `fit` method. p 4-5
+
+If you *do* want to initialize and run in one line of code, you can chain methods. 
+For instance for CNMF you could do ``cnmf.CNMF().fit()`` (adding appropriate parameters).
+
+
+Cluster setup and shutdown
+---------------------------
+
+Caiman is optimized for parallelization and works well at HPC centers as well as laptops with multiple CPU cores. 
+The cluster is set up with Caiman's ``setup_cluster()`` function, which takes in multiple parameters:
+
+::
+
+    c, cluster, n_processes = cm.cluster.setup_cluster(backend='multiprocessing', 
+                                                                    n_processes=None, 
+                                                                    ignore_preexisting=False)
+
+The **backend** parameter determines the type of cluster used. The default value, **'multiprocessing'**, uses the 
+multiprocessing package, but **ipyparallel** is also available. You can set the number of 
+processes (cpu cores) to use with the **n_processes** parameter: the default value **None** will lead to the function 
+selecting one *less* than the total number of logical cores available.
+
+More information on these choices can be found :doc:`in the cluster doc <cluster>`.
+
+The parameter ``ignore_preexisting``, which defaults to ``False``, is a failsafe used to avoid overwhelming your resources. 
+If you try to start another cluster when Caiman already has one running, you will get an error. However, sometimes 
+on more powerful machines you may want to spin up multiple Caiman environments. In that case, 
+set ``ignore_preexisting`` to ``True``.
+
+The output variable ``cluster`` is the multicore processing object that will be used in subsequent processing steps. It will 
+be passed as a parameter in subsequent stages and sets policy for parallelization. The 
+other output that can be useful to check is ``n_processes``, as it will tell you how many CPU cores you have set up 
+in your cluster.
+
+Once you are done running computations that will use the cluster (typically: motion correction, CNMF, and component 
+evaluation), then it can be a useful to save CPU resources by shutting it down: 
+
+::
+
+    cm.stop_server(dview=cluster)
+    
+We typically use this method to shut down pre-existing clusters before starting a new one, just in case we run the same 
+piece of code multiple times.
+
+
+Memory Mapping
+---------------
+
+Caiman uses memory mapping extensively as a tool for out-of-core computation. In general, memory mapped files are 
+binary files saved to disk, and the operating system can work with them as if they were in RAM by just loading 
+parts of the files into memory when needed for particular computations. This is known as *out of core computation*. 
+This is how Caiman is able to work with large files without loading them into RAM. 
+
+.. image:: ../img/memmap_cartoon.jpg
+
+When saving memory mapped files, you can save them in F (Fortran) or C order. This determines whether the bytes 
+will be read/written by column or by row, respectively. This is important because certain operations are much 
+faster on C-order arrays vs F-order arrays. For motion correction, which needs to access contiguous sequences of 
+frames (often in the middle of the movie), it is much more efficient to read and write in F order. On the other 
+hand, when it comes to CNMF, you need to access individual pixels across the entire movie, so Caiman saves the 
+motion-corrected movie in C-order before running CNMF.

@@ -1,13 +1,13 @@
-#!/usr/bin/env python3
-# -*- coding: utf-8 -*-
+#!/usr/bin/env python
+
 """
 This file contains a set of methods for the online analysis of microendoscopic
-one photon data using a "ring-CNN" background model. The code uses tensorflow
-and tensorflow.keras and has been tested with tensorflow 1.13 and tensorflow 2.
-@author: epnevmatikakis
+one photon data using a "ring-CNN" background model.
 """
 
 import numpy as np
+import os
+import tensorflow as tf
 from tensorflow.keras.layers import Input, Dense, Reshape, Layer, Activation
 from tensorflow.keras.models import Model
 from tensorflow.keras.optimizers import Adam
@@ -15,12 +15,10 @@ from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping, LearningR
 from tensorflow.keras import backend as K
 from tensorflow.keras.initializers import Constant, RandomUniform
 from tensorflow.keras.utils import Sequence
-from caiman.source_extraction.cnmf.utilities import get_file_size
-from caiman.base.movies import load
-from caiman.paths import caiman_datadir
-import tensorflow as tf
 import time
-import os
+
+import caiman.base.movies
+from caiman.paths import caiman_datadir
 
 
 class CalciumDataset(Sequence):
@@ -32,7 +30,7 @@ class CalciumDataset(Sequence):
         if isinstance(files, str):
             files = [files]
         self.files = files
-        dims, T = get_file_size(files, var_name_hdf5=var_name_hdf5)
+        dims, T = caiman.base.movies.get_file_size(files, var_name_hdf5=var_name_hdf5)
         if subindices is not None:
             T = len(range(T)[subindices])
         if isinstance(T, int):
@@ -55,8 +53,8 @@ class CalciumDataset(Sequence):
         file_id = int(index / batches_per_npy)
         batch_id = int(index % batches_per_npy)
         lb, ub = batch_id*self.batch_size, (batch_id + 1)*self.batch_size
-        X = load(os.path.join(self.files[file_id]), subindices=slice(lb, ub),
-                 var_name_hdf5=self.var_name_hdf5)
+        X = caiman.base.movies.load(os.path.join(self.files[file_id]), subindices=slice(lb, ub),
+                                    var_name_hdf5=self.var_name_hdf5)
         X = X.astype(np.float32)
         X = np.expand_dims(X, axis=-1)
         return X, X
@@ -159,7 +157,7 @@ def get_mask(gSig=5, r_factor=1.5, width=5):
             radius of average neuron
 
         r_factor: float, default: 1.5
-            expansion factor to deteremine inner radius
+            expansion factor to determine inner radius
 
         width: int, default: 5
             width of ring kernel
@@ -205,7 +203,7 @@ class Hadamard(Layer):
     pointwise multiplication with a set of learnable weights.
 
     Args:
-        initializer: keras initializer, deafult: Constant(0.1)
+        initializer: keras initializer, default: Constant(0.1)
     """
     def __init__(self, initializer=Constant(0.1), **kwargs): #, output_dim):
         self.initializer = initializer
@@ -232,7 +230,7 @@ class Additive(Layer):
     pointwise addition with a set of learnable weights.
 
     Args:
-        initializer: keras initializer, deafult: Constant(0)
+        initializer: keras initializer, default: Constant(0)
     """
     def __init__(self, data=None, initializer=Constant(0), pct=1, **kwargs):
         self.data = data
@@ -311,7 +309,7 @@ def total_variation_loss():
     return my_total_variation_loss
 
 def b0_initializer(Y, pct=10):
-    """ Returns a pecentile based initializer for the additive layer (not used)
+    """ Returns a percentile based initializer for the additive layer (not used)
 
     Args:
         Y: np.array
@@ -367,7 +365,7 @@ def create_LN_model(Y=None, shape=(None, None, 1), n_channels=2, gSig=5, r_facto
             radius of average neuron
 
         r_factor: float, default: 1.5
-            expansion factor to deteremine inner radius
+            expansion factor to determine inner radius
 
         width: int, default: 5
             width of ring kernel
@@ -407,7 +405,7 @@ def create_LN_model(Y=None, shape=(None, None, 1), n_channels=2, gSig=5, r_facto
     if use_add:
         x_out = Additive(data=Y)(x_out)
     model_LIN = Model(x_in, x_out)
-    adam = Adam(lr=lr)
+    adam = Adam(learning_rate=lr)
     model_LIN.compile(optimizer=adam, loss=loss) # compile model
     return model_LIN
 
@@ -436,7 +434,7 @@ def create_NL_model(Y=None, shape=(None, None, 1), n_channels=8, gSig=5, r_facto
             radius of average neuron
 
         r_factor: float, default: 1.5
-            expansion factor to deteremine inner radius
+            expansion factor to determine inner radius
 
         width: int, default: 5
             width of ring kernel
@@ -483,41 +481,39 @@ def create_NL_model(Y=None, shape=(None, None, 1), n_channels=8, gSig=5, r_facto
     if use_add:
         x_out = Additive(data=Y, pct=pct)(x_out)
     model_NL = Model(x_in, x_out)
-    adam = Adam(lr=lr)
+    adam = Adam(learning_rate=lr)
     model_NL.compile(optimizer=adam, loss=loss)
     return model_NL
 
 def fit_NL_model(model_NL, Y, patience=5, val_split=0.2, batch_size=32,
                  epochs=500, schedule=None):
-    """ Fit either the linear or the non-linear model. The model is fit for a
+    """
+    Fit either the linear or the non-linear model. The model is fit for a
     use specified maximum number of epochs and early stopping is used based on the 
     validation loss. A Tensorboard compatible log is also created.
+
     Args:
         model_LN: Keras Ring-CNN model
             see create_LN_model and create_NL_model above
-
         patience: int, default: 5
             patience value for early stopping criterion
-
         val_split: float, default: 0.2
             fraction of data to keep for validation (value between 0 and 1)
-
         batch_size: int, default: 32
             batch size during training
-
         epochs: int, default: 500
             maximum number of epochs
-
         schedule: keras learning rate scheduler
 
     Returns:
-        model_NL: Keras Ring-CNN model
+        model_NL: 
+            Keras Ring-CNN model
             trained model loaded with best weights according to validation loss
+        history_NL:
+            contains data related to the training history
+        path_to_model:
+            path to where the weights are stored
 
-        history_NL: contains data related to the training history
-
-        path_to_model: str
-            path to where the weights are stored.
     """
     if Y.ndim < 4:
         Y = np.expand_dims(Y, axis=-1)

@@ -1,23 +1,29 @@
 channels:
 - conda-forge
+- defaults
 dependencies:
-- python >=3.10
+- python <=3.12
+- av
 - cython
-- future
-- h5py
-- holoviews =1.15.2
+- h5py >=3.4.0
+- holoviews >=1.16.2
+- ipython
 - ipyparallel
+- ipywidgets
 - matplotlib
-- numpy
+- moviepy
+- nose
+- numpy <2.0.0,>=1.26
 - numpydoc
 - opencv
 - peakutils
+- pims
 - psutil
 - pynwb
 - scikit-image >=0.19.0
-- scikit-learn
-- scipy
-- tensorflow >= 2.4.0
+- scikit-learn >=1.2
+- scipy >= 1.10.1
+- tensorflow >=2.4.0,<2.16
 - tifffile
 - tqdm
-- z5py >= 2.0.15
+- zarr

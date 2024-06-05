@@ -1,14 +1,9 @@
 #!/usr/bin/env python
-# -*- coding: utf-8 -*-
 
-"""Extract neural activity from a fluorescence trace using a constrained deconvolution approach
-
-Created on Tue Sep  1 16:11:25 2015
-@author: Eftychios A. Pnevmatikakis, based on an implementation by T. Machado,  Andrea Giovannucci & Ben Deverett
+"""
+Extract neural activity from a fluorescence trace using a constrained deconvolution approach
 """
 
-from builtins import range
-from past.utils import old_div
 import numpy as np
 import scipy.signal
 import scipy.linalg
@@ -17,8 +12,6 @@ from warnings import warn
 from math import log, sqrt, exp
 
 import sys
-#%%
-
 
 def constrained_foopsi(fluor, bl=None,  c1=None, g=None,  sn=None, p=None, method_deconvolution='oasis', bas_nonneg=True,
                        noise_range=[.25, .5], noise_method='logmexp', lags=5, fudge_factor=1.,
@@ -106,9 +99,6 @@ def constrained_foopsi(fluor, bl=None,  c1=None, g=None,  sn=None, p=None, metho
     References:
         * Pnevmatikakis et al. 2016. Neuron, in press, http://dx.doi.org/10.1016/j.neuron.2015.11.037
         * Machado et al. 2015. Cell 162(2):338-350
-
-    \image: docs/img/deconvolution.png
-    \image: docs/img/evaluationcomponent.png
     """
 
     if p is None:
@@ -153,7 +143,7 @@ def constrained_foopsi(fluor, bl=None,  c1=None, g=None,  sn=None, p=None, metho
 
                 c1 = c[0]
 
-                # remove intial calcium to align with the other foopsi methods
+                # remove initial calcium to align with the other foopsi methods
                 # it is added back in function constrained_foopsi_parallel of temporal.py
                 c -= c1 * g**np.arange(len(fluor))
             elif p == 2:
@@ -290,7 +280,7 @@ def cvxopt_foopsi(fluor, b, c1, g, sn, p, bas_nonneg, verbosity):
             b = np.array(xx[T + 1]) + b_lb
         if flag_c1:
             c1 = np.array(xx[-1])
-        sn = old_div(np.linalg.norm(fluor - c - c1 * gd_vec - b), np.sqrt(T))
+        sn = np.linalg.norm(fluor - c - c1 * gd_vec - b) / np.sqrt(T)
     else:  # readout picos solution
         c = np.squeeze(calcium_fit.value)
         sp = np.squeeze(np.asarray(G * calcium_fit.value))
@@ -325,7 +315,7 @@ def cvxpy_foopsi(fluor, g, sn, b=None, c1=None, bas_nonneg=True, solvers=None):
             should the baseline be estimated
 
         solvers: tuple of two strings
-            primary and secondary solvers to be used. Can be choosen between ECOS, SCS, CVXOPT
+            primary and secondary solvers to be used. Can be chosen between ECOS, SCS, CVXOPT
 
     Returns:
         c: estimated calcium trace
@@ -334,7 +324,7 @@ def cvxpy_foopsi(fluor, g, sn, b=None, c1=None, bas_nonneg=True, solvers=None):
 
         c1: esimtated initial calcium value
 
-        g: esitmated parameters of the autoregressive model
+        g: estimated parameters of the autoregressive model
 
         sn: estimated noise level
 
@@ -410,7 +400,7 @@ def cvxpy_foopsi(fluor, g, sn, b=None, c1=None, bas_nonneg=True, solvers=None):
         sys.stdout.flush()
     except (ValueError, cvx.SolverError):     # if solvers fail to solve the problem
 
-        lam = old_div(sn, 500)
+        lam = sn / 500
         constraints = constraints[:-1]
         objective = cvx.Minimize(cvx.norm(-c + fluor - b - gd_vec *
                                           c1, 2) + lam * cvx.norm(G * c, 1))
@@ -503,7 +493,7 @@ def _nnls(KK, Ky, s=None, mask=None, tol=1e-9, max_iter=None):
         w = np.argmax(l)
         P[w] = True
 
-        try:  # likely unnnecessary try-except-clause for robustness sake
+        try:  # likely unnecessary try-except-clause for robustness sake
             #mu = np.linalg.inv(KK[P][:, P]).dot(Ky[P])
             mu = np.linalg.solve(KK[P][:, P], Ky[P])
         except:
@@ -554,7 +544,7 @@ def onnls(y, g, lam=0, shift=100, window=None, mask=None, tol=1e-9, max_iter=Non
         shift : int, optional, default 100
             Number of frames by which to shift window from on run of NNLS to the next.
     
-        window : int, optional, default None (200 or larger dependend on g)
+        window : int, optional, default None (200 or larger dependent on g)
             Window size.
     
         mask : array of bool, shape (n,), optional, default (True,)*n
@@ -673,7 +663,7 @@ def constrained_oasisAR2(y, g, sn, optimize_b=True, b_nonneg=True, optimize_g=0,
         shift : int, optional, default 100
             Number of frames by which to shift window from on run of NNLS to the next.
     
-        window : int, optional, default None (200 or larger dependend on g)
+        window : int, optional, default None (200 or larger dependent on g)
             Window size.
     
         tol : float, optional, default 1e-9
@@ -687,7 +677,7 @@ def constrained_oasisAR2(y, g, sn, optimize_b=True, b_nonneg=True, optimize_g=0,
 
         s_min : float, optional, default 0
             Minimal non-zero activity within each bin (minimal 'spike size').
-            For negative values the threshold is |s_min| * sn * sqrt(1-decay_constant)
+            For negative values the threshold is abs(s_min) * sn * sqrt(1 - decay_constant)
             If 0 the threshold is determined automatically such that RSS <= sn^2 T
 
     Returns:
@@ -1015,7 +1005,7 @@ def estimate_time_constant(fluor, p=2, sn=None, lags=5, fudge_factor=1.):
                               xc[lags + np.arange(p)]) - sn**2 * np.eye(lags, p)
     g = np.linalg.lstsq(A, xc[lags + 1:], rcond=None)[0]
     gr = np.roots(np.concatenate([np.array([1]), -g.flatten()]))
-    gr = old_div((gr + gr.conjugate()), 2.)
+    gr = (gr + gr.conjugate()) / 2.
     np.random.seed(45) # We want some variability below, but it doesn't have to be random at
                        # runtime. A static seed captures our intent, while still not disrupting
                        # the desired identical results from runs.
@@ -1052,9 +1042,9 @@ def GetSn(fluor, range_ff=[0.25, 0.5], method='logmexp'):
     ind = np.logical_and(ind1, ind2)
     Pxx_ind = Pxx[ind]
     sn = {
-        'mean': lambda Pxx_ind: np.sqrt(np.mean(old_div(Pxx_ind, 2))),
-        'median': lambda Pxx_ind: np.sqrt(np.median(old_div(Pxx_ind, 2))),
-        'logmexp': lambda Pxx_ind: np.sqrt(np.exp(np.mean(np.log(old_div(Pxx_ind, 2)))))
+        'mean': lambda Pxx_ind: np.sqrt(np.mean(Pxx_ind / 2)),
+        'median': lambda Pxx_ind: np.sqrt(np.median(Pxx_ind / 2)),
+        'logmexp': lambda Pxx_ind: np.sqrt(np.exp(np.mean(np.log(Pxx_ind / 2))))
     }[method](Pxx_ind)
 
     return sn
@@ -1083,7 +1073,7 @@ def axcov(data, maxlag=5):
     xcov = np.fft.ifft(np.square(np.abs(xcov)))
     xcov = np.concatenate([xcov[np.arange(xcov.size - maxlag, xcov.size)],
                            xcov[np.arange(0, maxlag + 1)]])
-    return np.real(old_div(xcov, T))
+    return np.real(xcov / T)
 
 
 def nextpow2(value):
