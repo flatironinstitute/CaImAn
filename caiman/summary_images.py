@@ -591,7 +591,8 @@ def local_correlations_movie(file_name,
                              stride: int = 1,
                              swap_dim: bool = False,
                              eight_neighbours: bool = True,
-                             mode: str = 'simple'):
+                             mode: str = 'simple',
+                             is3D: bool = False):
     """
     Compute an online correlation image as moving average
 
@@ -614,13 +615,15 @@ def local_correlations_movie(file_name,
             Use 18 neighbors if true, and 6 if false for 4D data
         mode: 'simple', 'exponential', or 'cumulative'
             Mode of moving average
+        is3D: Boolean
+            Whether the movie has 3 spatial dimensions
 
     Returns:
         corr_movie: caiman.movie (3D or 4D).
             local correlation movie
 
     """
-    Y = caiman.load(file_name) if isinstance(file_name, str) else file_name
+    Y = caiman.load(file_name, is3D=is3D) if isinstance(file_name, str) else file_name
     Y = Y[..., :tot_frames] if swap_dim else Y[:tot_frames]
     first_moment, second_moment, crosscorr, col_ind, row_ind, num_neigbors, M, cn = \
         prepare_local_correlations(Y[..., :window] if swap_dim else Y[:window],
@@ -662,7 +665,8 @@ def local_correlations_movie_offline(file_name,
                                      remove_baseline: bool = False,
                                      winSize_baseline: int = 50,
                                      quantil_min_baseline: float = 8,
-                                     gaussian_blur: bool=False):
+                                     gaussian_blur: bool=False,
+                                     is3D: bool = False):
     """
     Efficient (parallel) computation of correlation image in shifting windows 
     with option for prior baseline removal
@@ -705,6 +709,9 @@ def local_correlations_movie_offline(file_name,
             
         gaussian_blur: bool (False)
             Gaussian smooth the signal
+        
+        is3D: bool (False)
+            Whether movie has 3 spatial dimensions
 
     Returns:
         mm: caiman.movie (3D or 4D).
@@ -716,12 +723,12 @@ def local_correlations_movie_offline(file_name,
 
     params:list = [[file_name, range(j, j + window), eight_neighbours, swap_dim,
                      order_mean, ismulticolor, remove_baseline, winSize_baseline,
-                     quantil_min_baseline, gaussian_blur]
+                     quantil_min_baseline, gaussian_blur, is3D]
                     for j in range(0, Tot_frames - window, stride)]
 
     params.append([file_name, range(Tot_frames - window, Tot_frames), eight_neighbours, swap_dim,
                    order_mean, ismulticolor, remove_baseline, winSize_baseline,
-                   quantil_min_baseline, gaussian_blur])
+                   quantil_min_baseline, gaussian_blur, is3D])
 
     if dview is None:
         parallel_result = list(map(local_correlations_movie_parallel, params))
@@ -738,8 +745,9 @@ def local_correlations_movie_offline(file_name,
 
 
 def local_correlations_movie_parallel(params:tuple) -> np.ndarray:
-    mv_name, idx, eight_neighbours, swap_dim, order_mean, ismulticolor, remove_baseline, winSize_baseline, quantil_min_baseline, gaussian_blur = params
-    mv = caiman.load(mv_name, subindices=idx, in_memory=True)
+    (mv_name, idx, eight_neighbours, swap_dim, order_mean, ismulticolor,
+     remove_baseline, winSize_baseline, quantil_min_baseline, gaussian_blur, is3D) = params
+    mv = caiman.load(mv_name, subindices=idx, in_memory=True, is3D=is3D)
     if gaussian_blur:
         mv = mv.gaussian_blur_2D()
 
@@ -756,7 +764,8 @@ def mean_image(file_name,
                  Tot_frames=None,
                  fr: float = 10.,
                  window: int = 100,
-                 dview=None):
+                 dview=None,
+                 is3D: bool = False):
     """
     Efficient (parallel) computation of mean image in chunks
 
@@ -775,21 +784,24 @@ def mean_image(file_name,
 
         dview: map object
             Use it for parallel computation
+        
+        is3D: bool (False)
+            Whether movie has 3 spatial dimensions
     
     Returns:
-        mm: caiman.movie (2D).
+        mm: caiman.movie (2D or 3D).
             mean image
 
     """
     if Tot_frames is None:
         _, Tot_frames = caiman.base.movies.get_file_size(file_name)
 
-    params:list = [[file_name, range(j * window, (j + 1) * window)]
+    params:list = [[file_name, range(j * window, (j + 1) * window), is3D]
                     for j in range(int(Tot_frames / window))]
 
     remain_frames = Tot_frames - int(Tot_frames / window) * window
     if remain_frames > 0:
-        params.append([file_name, range(int(Tot_frames / window) * window, Tot_frames)])
+        params.append([file_name, range(int(Tot_frames / window) * window, Tot_frames), is3D])
 
     if dview is None:
         parallel_result = list(map(mean_image_parallel, params))
@@ -808,6 +820,6 @@ def mean_image(file_name,
     return mean_image
 
 def mean_image_parallel(params:tuple) -> np.ndarray:
-    mv_name, idx = params
-    mv = caiman.load(mv_name, subindices=idx, in_memory=True)
+    mv_name, idx, is3D = params
+    mv = caiman.load(mv_name, subindices=idx, in_memory=True, is3D=is3D)
     return mv.mean(axis=0)[np.newaxis,:,:]
