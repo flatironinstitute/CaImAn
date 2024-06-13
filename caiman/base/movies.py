@@ -552,15 +552,15 @@ class movie(caiman.base.timeseries.timeseries):
     
     def to2DPixelxTime(self, order='F'):
         """
-        Transform 3D movie into 2D
+        Transform 3D or 4D movie into 2D
         """
-        return self.transpose([2,1,0]).reshape((-1,self.shape[0]),order=order)  
+        return self.transpose().reshape((-1,self.shape[0]),order=order)
 
     def to3DFromPixelxTime(self, shape, order='F'):
         """
-            Transform 2D movie into 3D
+            Transform 2D movie into 3D or 4D
         """
-        return to_3D(self,shape[::-1],order=order).transpose([2,1,0])
+        return to_3D(self,shape[::-1],order=order).transpose()
     
     def computeDFF(self, secsWindow: int = 5, quantilMin: int = 8, method: str = 'only_baseline', in_place: bool = False,
                    order: str = 'F') -> tuple[Any, Any]:
