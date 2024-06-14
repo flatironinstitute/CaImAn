@@ -53,6 +53,7 @@ __pycache__/
 # C extensions
 *.so
 *.c
+*.cpp
 
 #movie tif
 *.tif
