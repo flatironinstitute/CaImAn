@@ -1344,7 +1344,6 @@ def view_quilt(template_image: np.ndarray,
         
     Note: 
         Currently assumes square patches so takes in a single number for stride/overlap.
-        TODO: implement bokeh version of this function
     """
     im_dims = template_image.shape
     patch_rows, patch_cols = get_rectangle_coords(im_dims, stride, overlap)
