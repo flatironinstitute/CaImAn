@@ -269,12 +269,12 @@ def evaluate_components_CNN(A,
     if not isGPU and 'CAIMAN_ALLOW_GPU' not in os.environ:
         print("GPU run not requested, disabling use of GPUs")
         os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
-    try:
+    if caiman.keras is not None:
         os.environ["KERAS_BACKEND"] = "tensorflow"
-        from tensorflow.keras.models import model_from_json
+        model_from_json = caiman.keras.models.model_from_json
         use_keras = True
         logging.info('Using Keras')
-    except (ModuleNotFoundError):
+    else:
         use_keras = False
         logging.info('Using Tensorflow')
 

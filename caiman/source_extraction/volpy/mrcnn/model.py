@@ -15,13 +15,14 @@ from collections import OrderedDict
 import multiprocessing
 import numpy as np
 import tensorflow as tf
-import tensorflow.keras as keras
-import tensorflow.keras.backend as K
-import tensorflow.keras.layers as KL
-import tensorflow.keras.layers as KE
-import tensorflow.keras.utils as KU
+
+from caiman import keras
+K = keras.backend
+KE = KL = keras.layers
+KU = keras.utils
+KM = keras.models
+
 from tensorflow.python.eager import context
-import tensorflow.keras.models as KM
 
 from ..mrcnn import utils
 
