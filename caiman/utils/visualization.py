@@ -392,18 +392,16 @@ def get_contours(A, dims, thr=0.9, thr_method='nrg', swap_dim=False):
     if 'csc_matrix' not in str(type(A)):
         A = csc_matrix(A)
     d, nr = np.shape(A)
-    # if we are on a 3D video
-    if len(dims) == 3:
-        d1, d2, d3 = dims
-        x, y = np.mgrid[0:d2:1, 0:d3:1]
-    else:
-        d1, d2 = dims
-        x, y = np.mgrid[0:d1:1, 0:d2:1]
+    d1, d2 = dims[:2]
 
     coordinates = []
 
     # get the center of mass of neurons( patches )
-    cm = caiman.base.rois.com(A, *dims)
+    # com assumes F-order
+    if swap_dim:
+        cm = caiman.base.rois.com(A, *dims[::-1])[:, ::-1]
+    else:
+        cm = caiman.base.rois.com(A, *dims)
 
     # for each patches
     for i in range(nr):
