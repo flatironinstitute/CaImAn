@@ -1424,8 +1424,8 @@ def nb_view_quilt(template_image: np.ndarray,
     plot.rect(x='center_x', y='center_y', width='width', height='height', source=source, color=color, alpha=alpha)
     
     # Create sliders
-    stride_slider = Slider(start=1, end=100, value=rf, step=1, title="Patch half-size (rf)")
-    overlap_slider = Slider(start=0, end=100, value=stride_input, step=1, title="Overlap (stride)")
+    stride_slider = bokeh.models.Slider(start=1, end=100, value=rf, step=1, title="Patch half-size (rf)")
+    overlap_slider = bokeh.models.Slider(start=0, end=100, value=stride_input, step=1, title="Overlap (stride)")
     
     callback = CustomJS(args=dict(source=source, im_dims=im_dims, stride_slider=stride_slider, overlap_slider=overlap_slider), code="""
         function get_rectangle_coords(im_dims, stride, overlap) {
