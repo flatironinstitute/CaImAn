@@ -16,7 +16,7 @@ dependencies:
 - numpy <2.0.0,>=1.26
 - numpydoc
 - opencv
-- peakutils
+- peakutils >=1.3.5
 - pims
 - psutil
 - pynwb

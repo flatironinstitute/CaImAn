@@ -22,7 +22,7 @@ dependencies:
 - numpydoc
 - opencv
 - panel >=1.0.2
-- peakutils
+- peakutils >=1.3.5
 - pims
 - psutil
 - pynwb
