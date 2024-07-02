@@ -53,6 +53,8 @@ F = FileDialog()
 # load object saved by CNMF
 fpath = F.getOpenFileName(caption='Load CNMF Object',
                           filter='HDF5 (*.h5 *.hdf5);;NWB (*.nwb)')[0]
+if fpath == '':
+    raise Exception("You must provide a filename")
 cnm_obj = load_CNMF(fpath)
 
 # movie
