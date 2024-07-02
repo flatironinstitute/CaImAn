@@ -5,14 +5,15 @@ import os
 
 from caiman.paths import caiman_datadir
 from caiman.utils.utils import load_graph
+from caiman import keras
 
 #FIXME A lot of what this did is no longer relevant
 
-try:
+if keras is not None:
     os.environ["KERAS_BACKEND"] = "tensorflow"
-    from tensorflow.keras.models import model_from_json
+    model_from_json = keras.models.model_from_json
     use_keras = True
-except(ModuleNotFoundError):
+else:
     import tensorflow as tf
     use_keras = False
 

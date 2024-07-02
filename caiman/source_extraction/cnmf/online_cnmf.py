@@ -323,14 +323,9 @@ class OnACID(object):
             self.tf_in = None
             self.tf_out = None
         else:
-            try:
-                from tensorflow.keras.models import model_from_json
+            if caiman.keras is not None:
                 logging.info('Using Keras')
-                use_keras = True
-            except(ModuleNotFoundError):
-                use_keras = False
-                logging.info('Using Tensorflow')
-            if use_keras:
+                model_from_json = caiman.keras.models.model_from_json
                 path = self.params.get('online', 'path_to_model').split(".")[:-1]
                 json_path = ".".join(path + ["json"])
                 model_path = ".".join(path + ["h5"])
@@ -342,6 +337,7 @@ class OnACID(object):
                 self.tf_in = None
                 self.tf_out = None
             else:
+                logging.info('Using Tensorflow')
                 path = self.params.get('online', 'path_to_model').split(".")[:-1]
                 model_path = '.'.join(path + ['h5', 'pb'])
                 loaded_model = load_graph(model_path)
