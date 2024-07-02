@@ -397,11 +397,7 @@ def get_contours(A, dims, thr=0.9, thr_method='nrg', swap_dim=False):
     coordinates = []
 
     # get the center of mass of neurons( patches )
-    # com assumes F-order
-    if swap_dim:
-        cm = caiman.base.rois.com(A, *dims[::-1])[:, ::-1]
-    else:
-        cm = caiman.base.rois.com(A, *dims)
+    cm = caiman.base.rois.com(A, *dims, order='C' if swap_dim else 'F')
 
     # for each patches
     for i in range(nr):
