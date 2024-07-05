@@ -28,18 +28,18 @@ except:
     pass
 
 
-def com(A, *dims: int, order='F') -> np.ndarray:
+def com(A, d1: int, d2: int, d3: Optional[int] = None, order: str = 'F') -> np.ndarray:
     """Calculation of the center of mass for spatial components
 
      Args:
          A: np.ndarray or scipy.sparse array or matrix
-              matrix of spatial components (d x K); column indices map to dimensions according to F-order.
+              matrix of spatial components (d x K).
 
-         *dims: D ints
-              each positional argument after A defines the extent of one of the dimensions of the data.
+         d1, d2, d3: ints
+              d1, d2, and (optionally) d3 are the original dimensions of the data.
             
          order: 'C' or 'F'
-              how each column of A should be reshaped to match dims.
+              how each column of A should be reshaped to match the given dimensions.
 
      Returns:
          cm:  np.ndarray
@@ -47,6 +47,10 @@ def com(A, *dims: int, order='F') -> np.ndarray:
     """
     if 'csc_matrix' not in str(type(A)):
         A = scipy.sparse.csc_matrix(A)
+
+    dims = [d1, d2]
+    if d3 is not None:
+        dims.append(d3)
 
     # make coordinate arrays where coor[d] increases from 0 to npixels[d]-1 along the dth axis
     coors = np.meshgrid(*[range(d) for d in dims], indexing='ij')
