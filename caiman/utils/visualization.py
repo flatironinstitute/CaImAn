@@ -20,7 +20,7 @@ from scipy.sparse import issparse, spdiags, coo_matrix, csc_matrix
 from skimage.measure import find_contours
 import sys
 from tempfile import NamedTemporaryFile
-from typing import Any, Optional
+from typing import Any, Optional, Literal, Union
 from warnings import warn
 
 import caiman.base.rois
@@ -366,7 +366,7 @@ def hv_view_patches(Yr, A, C, b, f, d1, d2, YrA=None, image_neurons=None, denois
                 .redim.range(unit_id=(0, nr-1), scale=(0.0, 1.0)))
 
 
-def get_contours(A, dims, thr=0.9, thr_method='nrg', swap_dim=False):
+def get_contours(A, dims, thr=0.9, thr_method='nrg', swap_dim=False, slice_dim: Union[int, Literal['auto']] = 'auto'):
     """Gets contour of spatial components and returns their coordinates
 
      Args:
@@ -374,15 +374,24 @@ def get_contours(A, dims, thr=0.9, thr_method='nrg', swap_dim=False):
                    Matrix of Spatial components (d x K)
 
              dims: tuple of ints
-                   Spatial dimensions of movie (x, y[, z])
+                   Spatial dimensions of movie
 
              thr: scalar between 0 and 1
                    Energy threshold for computing contours (default 0.9)
 
-             thr_method: [optional] string
+             thr_method: string
                   Method of thresholding:
                       'max' sets to zero pixels that have value less than a fraction of the max value
                       'nrg' keeps the pixels that contribute up to a specified fraction of the energy
+            
+             swap_dim: bool
+                  If False (default), each column of A should be reshaped in F-order to recover the mask;
+                  this is correct if the dimensions have not been reordered from (y, x[, z]).
+                  If True, each column should be reshaped in C-order; this is correct for dims = ([z, ]x, y).
+
+             slice_dim: int or 'auto'
+                  Which dimension to slice along if we have 3D data. (i.e., get contours on each plane along this axis).
+                  The default ('auto') is 0 if swap_dim is True, else -1.
 
      Returns:
          Coor: list of coordinates with center of mass and
@@ -431,9 +440,9 @@ def get_contours(A, dims, thr=0.9, thr_method='nrg', swap_dim=False):
             Bmat = np.reshape(Bvec, dims, order='C')
         else:
             Bmat = np.reshape(Bvec, dims, order='F')
-        pars['coordinates'] = []
-        # for each dimensions we draw the contour
-        for B in (Bmat if len(dims) == 3 else [Bmat]):
+
+        def get_slice_coords(B: np.ndarray) -> np.ndarray:
+            """Get contour coordinates for a 2D slice"""
             vertices = find_contours(B.T, thr)
             # this fix is necessary for having disjoint figures and borders plotted correctly
             v = np.atleast_2d([np.nan, np.nan])
@@ -449,9 +458,19 @@ def get_contours(A, dims, thr=0.9, thr_method='nrg', swap_dim=False):
                         vtx = np.concatenate((vtx, vtx[0, np.newaxis]), axis=0)
                 v = np.concatenate(
                     (v, vtx, np.atleast_2d([np.nan, np.nan])), axis=0)
+            return v
+        
+        if len(dims) == 2:
+            pars['coordinates'] = get_slice_coords(Bmat)
+        else:
+            # make a list of the contour coordinates for each 2D slice
+            pars['coordinates'] = []
+            if slice_dim == 'auto':
+                slice_dim = 0 if swap_dim else -1
+            for s in range(dims[slice_dim]):
+                B = Bmat.take(s, axis=slice_dim)
+                pars['coordinates'].append(get_slice_coords(B))
 
-            pars['coordinates'] = v if len(
-                dims) == 2 else (pars['coordinates'] + [v])
         pars['CoM'] = np.squeeze(cm[i, :])
         pars['neuron_id'] = i + 1
         coordinates.append(pars)

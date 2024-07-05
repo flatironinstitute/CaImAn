@@ -66,20 +66,32 @@ def pipeline(D):
     npt.assert_allclose(corr, 1, .05)
 
     # Check that get_contours works regardless of swap_dim
-    if D == 2:  # Can't expect swap_dim to work for 3D data in the same way
-        coor_normal = get_contours(cnm.estimates.A, dims, swap_dim=False)
-        coor_swapped = get_contours(cnm.estimates.A, dims[::-1], swap_dim=True)
-        for c_normal, c_swapped in zip(coor_normal, coor_swapped):
-            # have to sort coordinates b/c starting point is unimportant & depend on orientation
-            # also, the first point is repeated and this may be a different point depending on orientation.
-            # to get around this, compare differences instead (have to take absolute value b/c direction may be opposite)
-            def normalize_coords(coords):
-                abs_diffs = np.abs(np.diff(coords, axis=0))
-                sort_order = np.lexsort(abs_diffs.T)
-                return abs_diffs[sort_order, :]
+    coor_normal = get_contours(cnm.estimates.A, dims, swap_dim=False)
+    coor_swapped = get_contours(cnm.estimates.A, dims[::-1], swap_dim=True)
+    for c_normal, c_swapped in zip(coor_normal, coor_swapped):
+        if D == 3:
+            for plane_coor_normal, plane_coor_swapped in zip(c_normal['coordinates'], c_swapped['coordinates']):
+                compare_contour_coords(plane_coor_normal, plane_coor_swapped[:, ::-1])
+        else:
+            compare_contour_coords(c_normal['coordinates'], c_swapped['coordinates'][:, ::-1])
 
-            npt.assert_allclose(normalize_coords(c_normal['coordinates']), normalize_coords(c_swapped['coordinates'][:, ::-1]))
-            npt.assert_allclose(c_normal['CoM'], c_swapped['CoM'][::-1])
+        npt.assert_allclose(c_normal['CoM'], c_swapped['CoM'][::-1])
+
+def compare_contour_coords(coords1: np.ndarray, coords2: np.ndarray):
+    """
+    Compare 2 matrices of contour coordinates that should be the same, but may be calculated in a different order/
+    from different starting points. 
+
+    The first point of each contour component is repeated, and this may be a different point depending on orientation.
+    To get around this, compare differences instead (have to take absolute value b/c direction may be opposite).
+    Also sort coordinates b/c starting point is unimportant & depends on orientation
+    """
+    diffs_sorted = []
+    for coords in [coords1, coords2]:
+        abs_diffs = np.abs(np.diff(coords, axis=0))
+        sort_order = np.lexsort(abs_diffs.T)
+        diffs_sorted.append(abs_diffs[sort_order, :])
+    npt.assert_allclose(diffs_sorted[0], diffs_sorted[1])
 
 
 def test_2D():
