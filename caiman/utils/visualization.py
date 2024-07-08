@@ -20,7 +20,7 @@ from scipy.sparse import issparse, spdiags, coo_matrix, csc_matrix
 from skimage.measure import find_contours
 import sys
 from tempfile import NamedTemporaryFile
-from typing import Any, Optional, Literal, Union
+from typing import Any, Optional
 from warnings import warn
 
 import caiman.base.rois
@@ -366,7 +366,7 @@ def hv_view_patches(Yr, A, C, b, f, d1, d2, YrA=None, image_neurons=None, denois
                 .redim.range(unit_id=(0, nr-1), scale=(0.0, 1.0)))
 
 
-def get_contours(A, dims, thr=0.9, thr_method='nrg', swap_dim=False, slice_dim: Union[int, Literal['auto']] = 'auto'):
+def get_contours(A, dims, thr=0.9, thr_method='nrg', swap_dim=False, slice_dim: Optional[int] = None):
     """Gets contour of spatial components and returns their coordinates
 
      Args:
@@ -389,9 +389,9 @@ def get_contours(A, dims, thr=0.9, thr_method='nrg', swap_dim=False, slice_dim: 
                   this is correct if the dimensions have not been reordered from (y, x[, z]).
                   If True, each column should be reshaped in C-order; this is correct for dims = ([z, ]x, y).
 
-             slice_dim: int or 'auto'
+             slice_dim: int or None
                   Which dimension to slice along if we have 3D data. (i.e., get contours on each plane along this axis).
-                  The default ('auto') is 0 if swap_dim is True, else -1.
+                  The default (None) is 0 if swap_dim is True, else -1.
 
      Returns:
          Coor: list of coordinates with center of mass and
@@ -465,7 +465,7 @@ def get_contours(A, dims, thr=0.9, thr_method='nrg', swap_dim=False, slice_dim: 
         else:
             # make a list of the contour coordinates for each 2D slice
             pars['coordinates'] = []
-            if slice_dim == 'auto':
+            if slice_dim is None:
                 slice_dim = 0 if swap_dim else -1
             for s in range(dims[slice_dim]):
                 B = Bmat.take(s, axis=slice_dim)
