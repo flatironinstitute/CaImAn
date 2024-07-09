@@ -28,46 +28,36 @@ except:
     pass
 
 
-def com(A: np.ndarray, d1: int, d2: int, d3: Optional[int] = None) -> np.array:
+def com(A, d1: int, d2: int, d3: Optional[int] = None, order: str = 'F') -> np.ndarray:
     """Calculation of the center of mass for spatial components
 
      Args:
-         A:   np.ndarray
-              matrix of spatial components (d x K)
+         A: np.ndarray or scipy.sparse array or matrix
+              matrix of spatial components (d x K).
 
-         d1:  int
-              number of pixels in x-direction
-
-         d2:  int
-              number of pixels in y-direction
-
-         d3:  int
-              number of pixels in z-direction
+         d1, d2, d3: ints
+              d1, d2, and (optionally) d3 are the original dimensions of the data.
+            
+         order: 'C' or 'F'
+              how each column of A should be reshaped to match the given dimensions.
 
      Returns:
          cm:  np.ndarray
-              center of mass for spatial components (K x 2 or 3)
+              center of mass for spatial components (K x D)
     """
-
     if 'csc_matrix' not in str(type(A)):
         A = scipy.sparse.csc_matrix(A)
 
-    if d3 is None:
-        Coor = np.matrix([np.outer(np.ones(d2), np.arange(d1)).ravel(),
-                          np.outer(np.arange(d2), np.ones(d1)).ravel()],
-                         dtype=A.dtype)
-    else:
-        Coor = np.matrix([
-            np.outer(np.ones(d3),
-                     np.outer(np.ones(d2), np.arange(d1)).ravel()).ravel(),
-            np.outer(np.ones(d3),
-                     np.outer(np.arange(d2), np.ones(d1)).ravel()).ravel(),
-            np.outer(np.arange(d3),
-                     np.outer(np.ones(d2), np.ones(d1)).ravel()).ravel()
-        ],
-                         dtype=A.dtype)
+    dims = [d1, d2]
+    if d3 is not None:
+        dims.append(d3)
 
-    cm = (Coor * A / A.sum(axis=0)).T
+    # make coordinate arrays where coor[d] increases from 0 to npixels[d]-1 along the dth axis
+    coors = np.meshgrid(*[range(d) for d in dims], indexing='ij')
+    coor = np.stack([c.ravel(order=order) for c in coors])
+
+    # take weighted sum of pixel positions along each coordinate
+    cm = (coor @ A / A.sum(axis=0)).T
     return np.array(cm)
 
 

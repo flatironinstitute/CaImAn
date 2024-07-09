@@ -366,7 +366,7 @@ def hv_view_patches(Yr, A, C, b, f, d1, d2, YrA=None, image_neurons=None, denois
                 .redim.range(unit_id=(0, nr-1), scale=(0.0, 1.0)))
 
 
-def get_contours(A, dims, thr=0.9, thr_method='nrg', swap_dim=False):
+def get_contours(A, dims, thr=0.9, thr_method='nrg', swap_dim=False, slice_dim: Optional[int] = None):
     """Gets contour of spatial components and returns their coordinates
 
      Args:
@@ -374,15 +374,24 @@ def get_contours(A, dims, thr=0.9, thr_method='nrg', swap_dim=False):
                    Matrix of Spatial components (d x K)
 
              dims: tuple of ints
-                   Spatial dimensions of movie (x, y[, z])
+                   Spatial dimensions of movie
 
              thr: scalar between 0 and 1
                    Energy threshold for computing contours (default 0.9)
 
-             thr_method: [optional] string
+             thr_method: string
                   Method of thresholding:
                       'max' sets to zero pixels that have value less than a fraction of the max value
                       'nrg' keeps the pixels that contribute up to a specified fraction of the energy
+            
+             swap_dim: bool
+                  If False (default), each column of A should be reshaped in F-order to recover the mask;
+                  this is correct if the dimensions have not been reordered from (y, x[, z]).
+                  If True, each column should be reshaped in C-order; this is correct for dims = ([z, ]x, y).
+
+             slice_dim: int or None
+                  Which dimension to slice along if we have 3D data. (i.e., get contours on each plane along this axis).
+                  The default (None) is 0 if swap_dim is True, else -1.
 
      Returns:
          Coor: list of coordinates with center of mass and
@@ -392,18 +401,11 @@ def get_contours(A, dims, thr=0.9, thr_method='nrg', swap_dim=False):
     if 'csc_matrix' not in str(type(A)):
         A = csc_matrix(A)
     d, nr = np.shape(A)
-    # if we are on a 3D video
-    if len(dims) == 3:
-        d1, d2, d3 = dims
-        x, y = np.mgrid[0:d2:1, 0:d3:1]
-    else:
-        d1, d2 = dims
-        x, y = np.mgrid[0:d1:1, 0:d2:1]
 
     coordinates = []
 
     # get the center of mass of neurons( patches )
-    cm = caiman.base.rois.com(A, *dims)
+    cm = caiman.base.rois.com(A, *dims, order='C' if swap_dim else 'F')
 
     # for each patches
     for i in range(nr):
@@ -437,9 +439,10 @@ def get_contours(A, dims, thr=0.9, thr_method='nrg', swap_dim=False):
             Bmat = np.reshape(Bvec, dims, order='C')
         else:
             Bmat = np.reshape(Bvec, dims, order='F')
-        pars['coordinates'] = []
-        # for each dimensions we draw the contour
-        for B in (Bmat if len(dims) == 3 else [Bmat]):
+
+        def get_slice_coords(B: np.ndarray) -> np.ndarray:
+            """Get contour coordinates for a 2D slice"""
+            d1, d2 = B.shape
             vertices = find_contours(B.T, thr)
             # this fix is necessary for having disjoint figures and borders plotted correctly
             v = np.atleast_2d([np.nan, np.nan])
@@ -448,16 +451,26 @@ def get_contours(A, dims, thr=0.9, thr_method='nrg', swap_dim=False):
                 if num_close_coords < 2:
                     if num_close_coords == 0:
                         # case angle
-                        newpt = np.round(vtx[-1, :] / [d2, d1]) * [d2, d1]
-                        vtx = np.concatenate((vtx, newpt[np.newaxis, :]), axis=0)
+                        newpt = np.round(np.mean(vtx[[0, -1], :], axis=0) / [d2, d1]) * [d2, d1]
+                        vtx = np.concatenate((newpt[np.newaxis, :], vtx, newpt[np.newaxis, :]), axis=0)
                     else:
                         # case one is border
                         vtx = np.concatenate((vtx, vtx[0, np.newaxis]), axis=0)
                 v = np.concatenate(
                     (v, vtx, np.atleast_2d([np.nan, np.nan])), axis=0)
+            return v
+        
+        if len(dims) == 2:
+            pars['coordinates'] = get_slice_coords(Bmat)
+        else:
+            # make a list of the contour coordinates for each 2D slice
+            pars['coordinates'] = []
+            if slice_dim is None:
+                slice_dim = 0 if swap_dim else -1
+            for s in range(dims[slice_dim]):
+                B = Bmat.take(s, axis=slice_dim)
+                pars['coordinates'].append(get_slice_coords(B))
 
-            pars['coordinates'] = v if len(
-                dims) == 2 else (pars['coordinates'] + [v])
         pars['CoM'] = np.squeeze(cm[i, :])
         pars['neuron_id'] = i + 1
         coordinates.append(pars)
@@ -1098,16 +1111,11 @@ def plot_contours(A, Cn, thr=None, thr_method='max', maxthr=0.2, nrgthr=0.9, dis
         plt.plot(*v.T, c=colors, **contour_args)
 
     if display_numbers:
-        d1, d2 = np.shape(Cn)
-        d, nr = np.shape(A)
-        cm = caiman.base.rois.com(A, d1, d2)
+        nr = A.shape[1]
         if max_number is None:
-            max_number = A.shape[1]
-        for i in range(np.minimum(nr, max_number)):
-            if swap_dim:
-                ax.text(cm[i, 0], cm[i, 1], str(i + 1), color=colors, **number_args)
-            else:
-                ax.text(cm[i, 1], cm[i, 0], str(i + 1), color=colors, **number_args)
+            max_number = nr
+        for i, c in zip(range(np.minimum(nr, max_number)), coordinates):
+            ax.text(c['CoM'][1], c['CoM'][0], str(i + 1), color=colors, **number_args)
     return coordinates
 
 def plot_shapes(Ab, dims, num_comps=15, size=(15, 15), comps_per_row=None,

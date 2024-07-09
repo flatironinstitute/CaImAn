@@ -6,6 +6,7 @@ from scipy.ndimage.filters import gaussian_filter
 
 import caiman.source_extraction.cnmf.params
 from caiman.source_extraction import cnmf as cnmf
+from caiman.utils.visualization import get_contours
 
 
 #%%
@@ -63,6 +64,34 @@ def pipeline(D):
                     cnm.estimates.A.toarray()[:, i])[0, 1] for i in range(N)
     ]
     npt.assert_allclose(corr, 1, .05)
+
+    # Check that get_contours works regardless of swap_dim
+    coor_normal = get_contours(cnm.estimates.A, dims, swap_dim=False)
+    coor_swapped = get_contours(cnm.estimates.A, dims[::-1], swap_dim=True)
+    for c_normal, c_swapped in zip(coor_normal, coor_swapped):
+        if D == 3:
+            for plane_coor_normal, plane_coor_swapped in zip(c_normal['coordinates'], c_swapped['coordinates']):
+                compare_contour_coords(plane_coor_normal, plane_coor_swapped[:, ::-1])
+        else:
+            compare_contour_coords(c_normal['coordinates'], c_swapped['coordinates'][:, ::-1])
+
+        npt.assert_allclose(c_normal['CoM'], c_swapped['CoM'][::-1])
+
+def compare_contour_coords(coords1: np.ndarray, coords2: np.ndarray):
+    """
+    Compare 2 matrices of contour coordinates that should be the same, but may be calculated in a different order/
+    from different starting points. 
+
+    The first point of each contour component is repeated, and this may be a different point depending on orientation.
+    To get around this, compare differences instead (have to take absolute value b/c direction may be opposite).
+    Also sort coordinates b/c starting point is unimportant & depends on orientation
+    """
+    diffs_sorted = []
+    for coords in [coords1, coords2]:
+        abs_diffs = np.abs(np.diff(coords, axis=0))
+        sort_order = np.lexsort(abs_diffs.T)
+        diffs_sorted.append(abs_diffs[sort_order, :])
+    npt.assert_allclose(diffs_sorted[0], diffs_sorted[1])
 
 
 def test_2D():
