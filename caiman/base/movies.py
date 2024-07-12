@@ -1445,8 +1445,8 @@ def load(file_name: Union[str, list[str]],
             with np.load(file_name) as f:
                 return movie(**f).astype(outtype)
 
-        elif extension in ('.hdf5', '.h5', '.mat', '.nwb', 'n5', 'zarr'):
-            if extension in ('n5', 'zarr'): # Thankfully, the zarr library lines up closely with h5py past the initial open
+        elif extension in ('.hdf5', '.h5', '.mat', '.nwb', '.n5', '.zarr'):
+            if extension in ('.n5', '.zarr'): # Thankfully, the zarr library lines up closely with h5py past the initial open
                 f = zarr.open(file_name, "r")
             else:
                 try:
@@ -1971,9 +1971,9 @@ def get_file_size(file_name, var_name_hdf5:str='mov') -> tuple[tuple, Union[int,
                 filename = os.path.split(file_name)[-1]
                 Yr, dims, T = caiman.mmapping.load_memmap(os.path.join(
                         os.path.split(file_name)[0], filename))
-            elif extension in ('.h5', '.hdf5', '.mat', '.nwb', 'n5', 'zarr'):
+            elif extension in ('.h5', '.hdf5', '.mat', '.nwb', '.n5', '.zarr'):
                 # FIXME this doesn't match the logic in load()
-                if extension in ('n5', 'zarr'): # Thankfully, the zarr library lines up closely with h5py past the initial open
+                if extension in ('.n5', '.zarr'): # Thankfully, the zarr library lines up closely with h5py past the initial open
                     f = zarr.open(file_name, "r")
                 else:
                     try:
