@@ -5,21 +5,26 @@ This file contains a set of methods for the online analysis of microendoscopic
 one photon data using a "ring-CNN" background model.
 """
 
-import numpy as np
 import os
-import tensorflow as tf
-from tensorflow.keras.layers import Input, Dense, Reshape, Layer, Activation
-from tensorflow.keras.models import Model
-from tensorflow.keras.optimizers import Adam
-from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping, LearningRateScheduler
-from tensorflow.keras import backend as K
-from tensorflow.keras.initializers import Constant, RandomUniform
-from tensorflow.keras.utils import Sequence
+os.environ["KERAS_BACKEND"] = "torch"
+import numpy as np
 import time
 
-import caiman.base.movies
-from caiman.paths import caiman_datadir
+import torch 
+import torch.nn.functional as F
+import torch.nn as nn
+import keras 
+import keras.ops as ops  
+from keras.constraints import Constraint 
+from keras.layers import Input, Dense, Reshape, Layer, Activation
+from keras.models import Model
+from keras.optimizers import Adam
+from keras.callbacks import ModelCheckpoint, EarlyStopping, LearningRateScheduler
+from keras.initializers import Constant, RandomUniform
+from keras.utils import Sequence
 
+import caiman.base.movies # look into this 
+from caiman.paths import caiman_datadir
 
 class CalciumDataset(Sequence):
     def __init__(self, files, random_state=42, batch_size=32, train=True,
@@ -64,7 +69,7 @@ class CalciumDataset(Sequence):
         # shuffles order for next epoch. 
         np.random.shuffle(self.files)
 
-class Masked_Conv2D(Layer):
+class Masked_Conv2D(Layer): #Keras.layer
     """ Creates a trainable ring convolutional kernel with non zero entries between
     user specified radius_min and radius_max. Uses a random uniform non-negative
     initializer unless specified otherwise.
@@ -94,7 +99,7 @@ class Masked_Conv2D(Layer):
             add a bias term to each convolution kernel
 
     Returns:
-        Masked_Conv2D: tensorflow.keras.layer
+        Masked_Conv2D: keras.layer
             A trainable layer implementing the convolution with a ring
     """
     def __init__(self, output_dim=1, kernel_size=(5,5), strides=(1,1),
@@ -121,10 +126,11 @@ class Masked_Conv2D(Layer):
         super(Masked_Conv2D, self).__init__()
 
     def build(self, input_shape):
-        try:
-            n_filters = input_shape[-1].value   # tensorflow < 2
-        except:
-            n_filters = input_shape[-1]         # tensorflow >= 2
+        # try:
+        #     n_filters = input_shape[-1].value   # tensorflow < 2
+        # except:
+        #     n_filters = input_shape[-1]         # tensorflow >= 2
+        n_filters = input_shape[-1]
         self.h = self.add_weight(name='h',
                                  shape= self.kernel_size + (n_filters, self.output_dim,),
                                  initializer=self.initializer,
@@ -134,16 +140,15 @@ class Masked_Conv2D(Layer):
         self.b = self.add_weight(name='b',
                                  shape=(self.output_dim,),
                                  initializer=Constant(0),
-                                 trainable=self.use_bias)
+                                 trainable=self.use_bias) 
         super(Masked_Conv2D, self).build(input_shape)
 
     def call(self, x):
-        #hm = tf.multiply(self.h, K.expand_dims(K.expand_dims(tf.cast(self.mask, float))))
-        #hm = tf.multiply(hm, hm>0)
-        #hm = tf.where(hm>0, hm, 0)
-        y = K.conv2d(x, self.h, padding='same', strides=self.strides)
+        # y = K.conv2d(x, self.h, stride=self.strides, padding='same')
+        y = ops.conv(x, self.h, strides=self.strides, padding='same')
         if self.use_bias:
-            y = y + tf.expand_dims(self.b, axis=0)
+            # y = y + torch.unsqueeze(torch.tensor(self.b), dim=0)
+            y = y + torch.unsqueeze(self.b, dim=0)
         return y
 
     def compute_output_shape(self, input_shape):
@@ -178,25 +183,47 @@ def get_mask(gSig=5, r_factor=1.5, width=5):
     R[R>0] = 1
     return R
 
+"""
 def masked_constraint(R):
+""" # Enforces constraint for kernel to be non-negative everywhere and zero outside the ring
+
+    # Args:
+    #    R: np.array
+    #        Binary mask that extracts 
+
+    # Returns:
+    #     my_constraint: function
+    #        Function that enforces the constraint
+"""
+    # R = tf.cast(R, dtype=tf.float32)
+    # R_exp = tf.expand_dims(tf.expand_dims(R, -1), -1)
+    # def my_constraint(x):
+        # Rt = tf.tile(R_exp, [1, 1, 1, x.shape[-1]])
+        # Z = tf.zeros_like(x)
+        # return tf.where(Rt>0, x, Z)
+
+    R = torch.tensor(R).float()
+    R_exp = torch.unsqueeze(torch.unsqueeze(R, dim=-1), dim=-1)
+    def my_constraints(x):
+        x = torch.tensor(x)
+        Rt = torch.tile(R_exp, [1, 1, 1, x.shape[-1]])
+        Z = torch.zeros_like(x)
+        return torch.where(Rt > 0, x, Z)
+    return my_constraints
+"""
+
+def masked_constraint(Constraint):
     """ Enforces constraint for kernel to be non-negative everywhere and zero outside the ring
-
-    Args:
-        R: np.array
-            Binary mask that extracts 
-
-    Returns:
-        my_constraint: function
-            Function that enforces the constraint
-    """
-    R = tf.cast(R, dtype=tf.float32)
-    R_exp = tf.expand_dims(tf.expand_dims(R, -1), -1)
-    def my_constraint(x):
-        Rt = tf.tile(R_exp, [1, 1, 1, x.shape[-1]])
-        Z = tf.zeros_like(x)
-        return tf.where(Rt>0, x, Z)
-    return my_constraint
-
+    """ 
+    def __call__(self, R): 
+        R = torch.tensor(R).float()
+        R_exp = torch.unsqueeze(torch.unsqueeze(R, dim=-1), dim=-1)
+        def my_constraints(x):
+            # x = torch.tensor(x)
+            Rt = torch.tile(R_exp, [1, 1, 1, x.shape[-1]])
+            Z = torch.zeros_like(x)
+            return torch.where(Rt > 0, x, Z)
+        return my_constraints
 
 class Hadamard(Layer):
     """ Creates a tensorflow.keras multiplicative layer that performs
@@ -205,7 +232,7 @@ class Hadamard(Layer):
     Args:
         initializer: keras initializer, default: Constant(0.1)
     """
-    def __init__(self, initializer=Constant(0.1), **kwargs): #, output_dim):
+    def __init__(self, initializer=Constant(0.1), **kwargs):
         self.initializer = initializer
         super(Hadamard, self).__init__(**kwargs)
 
@@ -217,8 +244,8 @@ class Hadamard(Layer):
         super(Hadamard, self).build(input_shape)
 
     def call(self, x):
-        hm = tf.multiply(x, self.kernel)
-        sm = tf.reduce_sum(hm, axis=-1, keepdims=True)
+        hm = torch.multiply(x, self.kernel)
+        sm = torch.sum(hm, dim=-1, keepdim=True)
         return sm
 
     def compute_output_shape(self, input_shape):
@@ -246,7 +273,8 @@ class Additive(Layer):
         super(Additive, self).build(input_shape)
 
     def call(self, x):
-        hm = tf.add(x, self.kernel)
+        # hm = tf.add(x, self.kernel)
+        hm = torch.add(x, self.kernel)
         return hm
 
     def compute_output_shape(self, input_shape):
@@ -264,10 +292,13 @@ def cropped_loss(gSig=0):
         my_loss: cropped loss function
     """
     def my_loss(y_true, y_pred):
+        # y_true, y_pred = torch.tensor(y_true), torch.tensor(y_pred)
         if gSig > 0:
-            error = tf.square(y_true[gSig:-gSig, gSig:-gSig] - y_pred[gSig:-gSig, gSig:-gSig])
+            # error = tf.square(y_true[gSig:-gSig, gSig:-gSig] - y_pred[gSig:-gSig, gSig:-gSig])
+            error = torch.square(y_true[gSig:-gSig, gSig:-gSig] - y_pred[gSig:-gSig, gSig:-gSig])
         else:
-            error = tf.square(y_true - y_pred)
+            # error = tf.square(y_true - y_pred)
+            error = torch.square(y_true - y_pred) 
         return error
     return my_loss
 
@@ -284,7 +315,8 @@ def quantile_loss(qnt=.50):
     def my_qnt_loss(y_true, y_pred):
         error = y_true - y_pred
         pos_error = error > 0
-        return tf.where(pos_error, error*qnt, error*(qnt-1))
+        # return tf.where(pos_error, error*qnt, error*(qnt-1))
+        return torch.where(pos_error, error*qnt, error*(qnt-1))
     return my_qnt_loss
 
 def rate_scheduler(factor=0.5, epoch_length=200, samples_length=1e4):
@@ -300,12 +332,61 @@ def rate_scheduler(factor=0.5, epoch_length=200, samples_length=1e4):
         return rate
     return my_scheduler
 
+def total_variation(image):
+    """
+    Implements PyTorch version of the the anisotropic 2-D version of the formula described here:
+    https://en.wikipedia.org/wiki/Total_variation_denoising
+
+    Args:
+    images: 4-D Tensor of shape `[batch, height, width, channels]` or 3-D Tensor
+      of shape `[height, width, channels]`.
+    name: A name for the operation (optional).
+
+    Raises:
+        ValueError: if images.shape is not a 3-D or 4-D vector.
+
+    Returns:
+        The total variation of `images`.
+    """
+    ndim = image.ndim
+    if ndim == 3: 
+        # The input is a single image with shape [height, width, channels].
+
+        # Calculate the difference of neighboring pixel-values.
+        # The images are shifted one pixel along the height and width by slicing.
+        pixel_dif1 = images[1:, :, :] - images[:-1, :, :]
+        pixel_dif2 = images[:, 1:, :] - images[:, :-1, :]
+        sum_axis = None
+    elif ndims == 4:
+        # The input is a batch of images with shape:
+        # [batch, height, width, channels].
+
+        # Calculate the difference of neighboring pixel-values.
+        # The images are shifted one pixel along the height and width by slicing.
+        pixel_dif1 = images[:, 1:, :, :] - images[:, :-1, :, :]
+        pixel_dif2 = images[:, :, 1:, :] - images[:, :, :-1, :]
+
+        # Only sum for the last 3 axis.
+        # This results in a 1-D tensor with the total variation for each image.
+        sum_axis = [1, 2, 3]
+    else:
+      raise ValueError('\'images\' must be either 3 or 4-dimensional.')
+
+    # Calculate the total variation by taking the absolute value of the
+    # pixel-differences and summing over the appropriate axis.
+    tot_var = (torch.sum(torch.abs(pixel_dif1), axis=sum_axis) +
+        torch.sum(torch.abs(pixel_dif2), axis=sum_axis))
+
+    return tot_var 
+
+
 def total_variation_loss():
     """ Returns a total variation norm loss function that can be used for training.
     """
     def my_total_variation_loss(y_true, y_pred):
-        error = tf.reduce_mean(tf.image.total_variation(y_true - y_pred))
-        return error
+        # y_true, y_pred = torch.tensor(y_true), torch.tensor(y_pred)
+        error = torch.mean(total_variation(y_true - y_pred))
+        return error 
     return my_total_variation_loss
 
 def b0_initializer(Y, pct=10):
@@ -320,12 +401,12 @@ def b0_initializer(Y, pct=10):
     Returns:
         b0_init: keras initializer
     """
-    def b0_init(shape, dtype=tf.float32):
+    def b0_init(shape, dtype=torch.float32): #dtype=tf.float32
         mY = np.percentile(Y, pct, 0)
-        #mY = np.min(Y, axis=0)
+        mY = torch.from_numpy(mY)
         if mY.ndim == 2:
-            mY = tf.expand_dims(mY, -1)
-        mY = tf.cast(mY, dtype=tf.float32)
+            mY = torch.unsqueeze(mY, dim=-1)
+        mY = mY.float()
         return mY
     return b0_init
 
@@ -391,7 +472,7 @@ def create_LN_model(Y=None, shape=(None, None, 1), n_channels=2, gSig=5, r_facto
             add a bias term to each convolution kernel
 
     Returns:
-        model_LIN: tf.keras model compiled and ready to be trained.
+        model_LIN: keras model compiled and ready to be trained.
     """
     x_in = Input(shape=shape)
     radius_min = int(gSig*r_factor)
@@ -400,7 +481,8 @@ def create_LN_model(Y=None, shape=(None, None, 1), n_channels=2, gSig=5, r_facto
     conv1 = Masked_Conv2D(output_dim=n_channels, kernel_size=(ks, ks),
                           radius_min=radius_min, radius_max=radius_max,
                           initializer=initializer, use_bias=use_bias)
-    x = conv1(x_in)  # apply convolutions
+    print("conv1", conv1)
+    x = conv1(x_in)  # apply convolutions #make sure this is right
     x_out = Hadamard()(x)  # apply Hadamard layer
     if use_add:
         x_out = Additive(data=Y)(x_out)
@@ -519,7 +601,8 @@ def fit_NL_model(model_NL, Y, patience=5, val_split=0.2, batch_size=32,
         Y = np.expand_dims(Y, axis=-1)
     run_logdir = get_run_logdir()
     os.mkdir(run_logdir)
-    path_to_model = os.path.join(run_logdir, 'model.h5')
+    path_to_model = os.path.join(run_logdir, 'model.weights.h5')
+    # path_to_model = os.path.join(run_logdir, 'model.h5')
     chk = ModelCheckpoint(filepath=path_to_model,
                           verbose=0, save_best_only=True, save_weights_only=True)
     es = EarlyStopping(monitor='val_loss', patience=patience,
@@ -530,7 +613,8 @@ def fit_NL_model(model_NL, Y, patience=5, val_split=0.2, batch_size=32,
     history_NL = model_NL.fit(Y, Y, epochs=epochs, batch_size=batch_size,
                             shuffle=True, validation_split=val_split,
                             callbacks=callbacks)
-    model_NL.load_weights(os.path.join(run_logdir, 'model.h5'))
+    # model_NL.load_weights(os.path.join(run_logdir, 'model.h5'))
+    model_NL.load_weights(os.path.join(run_logdir, 'model.weights.h5'))
     return model_NL, history_NL, path_to_model
 
 def get_MCNN_model(Y, gSig=5, n_channels=8, lr=1e-4, pct=10, r_factor=1.5,

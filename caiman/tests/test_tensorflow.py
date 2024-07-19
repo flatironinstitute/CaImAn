@@ -37,6 +37,7 @@ def test_tf():
         raise Exception(f'NN model could not be loaded. use_keras = {use_keras}')
 
     A = np.random.randn(10, 50, 50, 1)
+    print("hi")
     try:
         if use_keras:
             predictions = loaded_model.predict(A, batch_size=32)

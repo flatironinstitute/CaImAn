@@ -23,6 +23,8 @@ scikit-image
 scikit-learn
 scipy
 tensorflow
+torch
+torchvision
 tifffile
 tk
 tqdm

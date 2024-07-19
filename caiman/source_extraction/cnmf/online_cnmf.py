@@ -13,6 +13,9 @@ Paninski, L., & Pnevmatikakis, E.A. (2017). OnACID: Online analysis of calcium
 imaging data in real time. In Advances in Neural Information Processing Systems 
 (pp. 2381-2391).
 @url http://papers.nips.cc/paper/6832-onacid-online-analysis-of-calcium-imaging-data-in-real-time
+
+Implemented in PyTorch
+Date: July 18, 2024
 """
 
 import cv2
@@ -49,7 +52,7 @@ from caiman.source_extraction.cnmf.utilities import (update_order, peak_local_ma
 import caiman.summary_images
 from caiman.utils.utils import save_dict_to_hdf5, load_dict_from_hdf5, parmap, load_graph
 from caiman.utils.stats import pd_solve
-from caiman.utils.nn_models import (fit_NL_model, create_LN_model, quantile_loss, rate_scheduler)
+from caiman.utils.nn_models import (fit_NL_model, create_LN_model, quantile_loss, rate_scheduler) 
 
 try:
     cv2.setNumThreads(0)
@@ -320,11 +323,11 @@ class OnACID(object):
         if self.params.get('online', 'path_to_model') is None or self.params.get('online', 'sniper_mode') is False:
             loaded_model = None
             self.params.set('online', {'sniper_mode': False})
-            self.tf_in = None
-            self.tf_out = None
+            self.tf_in = None 
+            self.tf_out = None 
         else:
             try:
-                from tensorflow.keras.models import model_from_json
+                from keras.models import model_from_json 
                 logging.info('Using Keras')
                 use_keras = True
             except(ModuleNotFoundError):
