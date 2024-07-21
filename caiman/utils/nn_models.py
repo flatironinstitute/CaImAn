@@ -8,13 +8,20 @@ one photon data using a "ring-CNN" background model.
 import numpy as np
 import os
 import tensorflow as tf
-from tensorflow.keras.layers import Input, Dense, Reshape, Layer, Activation
-from tensorflow.keras.models import Model
-from tensorflow.keras.optimizers import Adam
-from tensorflow.keras.callbacks import ModelCheckpoint, EarlyStopping, LearningRateScheduler
-from tensorflow.keras import backend as K
-from tensorflow.keras.initializers import Constant, RandomUniform
-from tensorflow.keras.utils import Sequence
+from caiman import keras
+K = keras.backend
+
+for submodule, names in {
+    'layers': ['Input', 'Dense', 'Reshape', 'Layer', 'Activation'],
+    'models': ['Model'],
+    'optimizers': ['Adam'],
+    'callbacks': ['ModelCheckpoint', 'EarlyStopping', 'LearningRateScheduler'],
+    'initializers': ['Constant', 'RandomUniform'],
+    'utils': ['Sequence']
+}.items():
+    for name in names:
+        globals()[name] = getattr(getattr(keras, submodule), name)
+
 import time
 
 import caiman.base.movies
