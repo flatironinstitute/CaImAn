@@ -10,8 +10,8 @@ import scipy
 from scipy.ndimage import generate_binary_structure, iterate_structure
 from typing import Optional
 
-import caiman.utils.utils
 import caiman.base.movies
+import caiman.utils.utils
 from caiman.paths import caiman_datadir
 from caiman.source_extraction.cnmf.utilities import dict_compare
 
@@ -903,6 +903,7 @@ class CNMFParams(object):
         """ Populates the params object with some dataset dependent values
         and ensures that certain constraints are satisfied.
         """
+        logger = logging.getLogger("caiman")
         self.data['last_commit'] = '-'.join(caiman.utils.utils.get_caiman_version())
         if self.data['dims'] is None and self.data['fnames'] is not None:
             self.data['dims'] = caiman.base.movies.get_file_size(self.data['fnames'], var_name_hdf5=self.data['var_name_hdf5'])[0]
@@ -936,18 +937,18 @@ class CNMFParams(object):
         self.init['gSiz'] = tuple([gs + 1 if gs % 2 == 0 else gs for gs in self.init['gSiz']])
         if self.patch['rf'] is not None:
             if np.any(np.array(self.patch['rf']) <= self.init['gSiz'][0]):
-                logging.warning(f"Changing rf from {self.patch['rf']} to {2 * self.init['gSiz'][0]} because the constraint rf > gSiz was not satisfied.")
+                logger.warning(f"Changing rf from {self.patch['rf']} to {2 * self.init['gSiz'][0]} because the constraint rf > gSiz was not satisfied.")
         if self.init['nb'] <= 0 and (self.patch['nb_patch'] != self.init['nb'] or
                                      self.patch['low_rank_background'] is not None):
-            logging.warning(f"gnb={self.init['nb']}, hence setting keys nb_patch and low_rank_background in group patch automatically.")
+            logger.warning(f"gnb={self.init['nb']}, hence setting keys nb_patch and low_rank_background in group patch automatically.")
             self.set('patch', {'nb_patch': self.init['nb'], 'low_rank_background': None})
         if self.init['nb'] == -1 and self.spatial['update_background_components']:
-            logging.warning("gnb=-1, hence setting key update_background_components " +
+            logger.warning("gnb=-1, hence setting key update_background_components " +
                             "in group spatial automatically to False.")
             self.set('spatial', {'update_background_components': False})
         if self.init['method_init'] == 'corr_pnr' and self.init['ring_size_factor'] is not None \
             and self.init['normalize_init']:
-            logging.warning("using CNMF-E's ringmodel for background hence setting key " +
+            logger.warning("using CNMF-E's ringmodel for background hence setting key " +
                             "normalize_init in group init automatically to False.")
             self.set('init', {'normalize_init': False})
         if self.motion['is3D']:
@@ -955,14 +956,14 @@ class CNMFParams(object):
                 if len(self.motion[a]) != 3:
                     if self.motion[a][0] == self.motion[a][1]:
                         self.motion[a] = (self.motion[a][0],) * 3
-                        logging.warning("is3D=True, hence setting key " + a +
+                        logger.warning("is3D=True, hence setting key " + a +
                             " automatically to " + str(self.motion[a]))
                     else:
                         raise ValueError(a + ' has to be a tuple of length 3 for volumetric 3D data')
         for key in ('max_num_added', 'min_num_trial'):
             if (self.online[key] == 0 and self.online['update_num_comps']):
                 self.set('online', {'update_num_comps': False})
-                logging.warning(key + "=0, hence setting key update_num_comps " +
+                logger.warning(key + "=0, hence setting key update_num_comps " +
                                 "in group online automatically to False.")
         # FIXME The authoritative value is stored in the init field. This should later be refactored out
         #     into a general section, once we're passing around the CNMFParams object rather than splatting it out
@@ -985,8 +986,9 @@ class CNMFParams(object):
         A future version of caiman may make this method private.
         """
 
+        logger = logging.getLogger("caiman")
         if set_if_not_exists:
-            logging.warning("The set_if_not_exists flag for CNMFParams.set() is deprecated and will be removed in a future version of Caiman")
+            logger.warning("The set_if_not_exists flag for CNMFParams.set() is deprecated and will be removed in a future version of Caiman")
             # can't easily catch if it's passed but set to False, but that wouldn't do anything because of the default,
             # and if they get that error it's at least really easy to fix - just remove the flag
             # we don't want to support this because it makes the structure of the object unpredictable except at runtime
@@ -998,14 +1000,14 @@ class CNMFParams(object):
         for k, v in val_dict.items():
             if k not in d and not set_if_not_exists:
                 if verbose:
-                    logging.warning(
+                    logger.warning(
                         f"{group}/{k} not set: invalid target in CNMFParams object")
             else:
                 try:
                     if np.any(d[k] != v):
-                        logging.info(f"Changing key {k} in group {group} from {d[k]} to {v}")
+                        logger.info(f"Changing key {k} in group {group} from {d[k]} to {v}")
                 except ValueError: # d[k] and v also differ if above comparison fails, e.g. lists of different length
-                    logging.info(f"Changing key {k} in group {group} from {d[k]} to {v}")
+                    logger.info(f"Changing key {k} in group {group} from {d[k]} to {v}")
                 d[k] = v
 
     def get(self, group, key):
@@ -1129,11 +1131,11 @@ class CNMFParams(object):
                     if k == 'nb' and paramkey != 'init':
                         # Special casing to handle a misdesign in CNMFParams where some keys must have the same value in different
                         # sections.
-                        logging.warning("The 'nb' parameter can only be set in the init part of CNMFParams. Attempts to set it elsewhere are ignored")
+                        logger.warning("The 'nb' parameter can only be set in the init part of CNMFParams. Attempts to set it elsewhere are ignored")
                         continue
                     if k not in cat_handle and warn_unused:
                         # For regular/pathed API, we can notice right away if the user gave us something that won't update the object
-                        logging.warning(f"In setting CNMFParams, provided key {paramkey}/{k} was not consumed. This is a bug!")
+                        logger.warning(f"In setting CNMFParams, provided key {paramkey}/{k} was not consumed. This is a bug!")
                     else:
                         cat_handle[k] = v 
             # BEGIN code that we will remove in some future version of caiman
@@ -1147,13 +1149,13 @@ class CNMFParams(object):
                         cat_handle[paramkey] = params_dict[paramkey] # Do the update
                 if legacy_used:
                     if not nagged_once:
-                        logging.warning(f"In setting CNMFParams, non-pathed parameters were used; this is deprecated. In some future version of Caiman, allow_legacy will default to False (and eventually will be removed)")
+                        logger.warning(f"In setting CNMFParams, non-pathed parameters were used; this is deprecated. In some future version of Caiman, allow_legacy will default to False (and eventually will be removed)")
                     nagged_once = True
         # END
         if warn_unused:
             for toplevel_k in params_dict:
                 if toplevel_k not in consumed and toplevel_k not in list(self.__dict__.keys()): # When we remove legacy behaviour, this logic will simplify and fold into above
-                    logging.warning(f"In setting CNMFParams, provided toplevel key {toplevel_k} was unused. This is a bug!")
+                    logger.warning(f"In setting CNMFParams, provided toplevel key {toplevel_k} was unused. This is a bug!")
         self.check_consistency()
 
     def change_params_from_json(self, jsonstring:str, verbose:bool=False) -> None:

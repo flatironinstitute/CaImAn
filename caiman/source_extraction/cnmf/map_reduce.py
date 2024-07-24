@@ -67,11 +67,10 @@ def cnmf_patches(args_in):
         """
 
     #FIXME Fix in-function imports
-    import logging
     from . import cnmf
+    logger = logging.getLogger("caiman")
     file_name, idx_, shapes, params = args_in
 
-    logger = logging.getLogger(__name__)
     name_log = os.path.basename(
         file_name[:-5]) + '_LOG_ ' + str(idx_[0]) + '_' + str(idx_[-1])
 
@@ -185,6 +184,7 @@ def run_CNMF_patches(file_name, shape, params, gnb=1, dview=None,
     Raises:
         Empty Exception
     """
+    logger = logging.getLogger("caiman")
 
     dims = shape[:-1]
     d = np.prod(dims)
@@ -224,7 +224,7 @@ def run_CNMF_patches(file_name, shape, params, gnb=1, dview=None,
             foo[id_f] = 1
             patch_centers.append(scipy.ndimage.center_of_mass(
                 foo.reshape(dims, order='F')))
-    logging.info(f'Patch size: {id_2d}')
+    logger.info(f'Patch size: {id_2d}')
     st = time.time()
     if dview is not None:
         if 'multiprocessing' in str(type(dview)):
@@ -237,12 +237,12 @@ def run_CNMF_patches(file_name, shape, params, gnb=1, dview=None,
                 print('Something went wrong')
                 raise
             finally:
-                logging.info('Patch processing complete')
+                logger.info('Patch processing complete')
 
     else:
         file_res = list(map(cnmf_patches, args_in))
 
-    logging.info('Elapsed time for processing patches: \
+    logger.info('Elapsed time for processing patches: \
                  {0}s'.format(str(time.time() - st).split('.')[0]))
     # count components
     count = 0
@@ -304,7 +304,7 @@ def run_CNMF_patches(file_name, shape, params, gnb=1, dview=None,
 
     # instead of filling in the matrices, construct lists with their non-zero
     # entries and coordinates
-    logging.info('Embedding patches results into whole FOV')
+    logger.info('Embedding patches results into whole FOV')
     for fff in file_res:
         if fff is not None:
 
@@ -360,7 +360,7 @@ def run_CNMF_patches(file_name, shape, params, gnb=1, dview=None,
         else:
             empty += 1
 
-    logging.debug('Skipped %d empty patches', empty)
+    logger.debug(f'Skipped {empty} empty patches')
     if count_bgr > 0:
         idx_tot_B = np.concatenate(idx_tot_B)
         b_tot = np.concatenate(b_tot)
@@ -396,7 +396,7 @@ def run_CNMF_patches(file_name, shape, params, gnb=1, dview=None,
     optional_outputs['F'] = F_tot
     optional_outputs['mask'] = mask
 
-    logging.info("Constructing background")
+    logger.info("Constructing background")
 
     Im = scipy.sparse.csr_matrix(
         (1. / (mask + np.finfo(np.float32).eps), (np.arange(d), np.arange(d))), dtype=np.float32)
@@ -410,9 +410,9 @@ def run_CNMF_patches(file_name, shape, params, gnb=1, dview=None,
     elif low_rank_background is None:
         b = Im.dot(B_tot)
         f = F_tot
-        logging.info("Leaving background components intact")
+        logger.info("Leaving background components intact")
     elif low_rank_background:
-        logging.info("Compressing background components with a low rank NMF")
+        logger.info("Compressing background components with a low rank NMF")
         B_tot = Im.dot(B_tot)
         Bm = (B_tot)
         #f = np.r_[np.atleast_2d(np.mean(F_tot, axis=0)),
@@ -445,7 +445,7 @@ def run_CNMF_patches(file_name, shape, params, gnb=1, dview=None,
 #        B_tot = scipy.sparse.coo_matrix(B_tot)
         f *= nB[:, None]
     else:
-        logging.info('Removing overlapping background components \
+        logger.info('Removing overlapping background components \
                      from different patches')
         nA = np.ravel(np.sqrt(A_tot.power(2).sum(0)))
         A_tot /= nA
@@ -475,8 +475,8 @@ def run_CNMF_patches(file_name, shape, params, gnb=1, dview=None,
         b = B_tot
         f = F_tot
 
-        logging.info('using one background component per patch')
+        logger.info('using one background component per patch')
 
-    logging.info("Constructing background DONE")
+    logger.info("Constructing background DONE")
 
     return A_tot, C_tot, YrA_tot, b, f, sn_tot, optional_outputs

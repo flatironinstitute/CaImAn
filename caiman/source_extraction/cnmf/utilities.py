@@ -482,15 +482,16 @@ def detrend_df_f(A, b, C, f, YrA=None, quantileMin=8, frames_window=500,
         F_df:
             the computed Calcium activity to the derivative of f
     """
+    logger = logging.getLogger("caiman")
 
     if C is None:
-        logging.warning("There are no components for DF/F extraction!")
+        logger.warning("There are no components for DF/F extraction!")
         return None
     
     if b is None or f is None:
         b = np.zeros((A.shape[0], 1))
         f = np.zeros((1, C.shape[1]))
-        logging.warning("Background components not present. Results should" +
+        logger.warning("Background components not present. Results should" +
                         " not be interpreted as DF/F normalized but only" +
                         " as detrended.")
         detrend_only = True

@@ -58,18 +58,20 @@ class trace(caiman.base.timeseries.timeseries):
             ValueError "All traces must be positive"
             ValueError "The window must be shorter than the total length"
         """
+        logger = logging.getLogger("caiman")
+
         if np.min(self) <= 0:
             raise ValueError("All traces must be positive")
 
         T, _ = self.shape
         window = int(window_sec * self.fr)
-        logging.debug(window)
+        logger.debug(window)
         if window >= T:
             raise ValueError("The window must be shorter than the total length")
 
         tracesDFF = []
         for tr in self.T:
-            logging.debug(f"TR Shape is {tr.shape}")
+            logger.debug(f"TR Shape is {tr.shape}")
             traceBL = [np.percentile(tr[i:i + window], minQuantile) for i in range(1, len(tr) - window)]
             missing = np.percentile(tr[-window:], minQuantile)
             missing = np.repeat(missing, window + 1)

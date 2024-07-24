@@ -49,10 +49,7 @@ from caiman.utils.utils import download_demo
 # You can log to a file using the filename parameter, or make the output more or less
 # verbose by setting level to logging.DEBUG, logging.INFO, logging.WARNING, or logging.ERROR
 
-logging.basicConfig(
-    format="%(relativeCreated)12d [%(filename)s:%(funcName)20s():%(lineno)s] [%(process)d] %(message)s",
-                                                                                                         # filename="/tmp/caiman.log",
-    level=logging.DEBUG)
+logging.getLogger("caiman").setLevel(logging.DEBUG)
 
 # GLOBAL VAR
 params_movie = {

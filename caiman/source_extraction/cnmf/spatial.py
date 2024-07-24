@@ -8,17 +8,19 @@ import cv2
 import logging
 import numpy as np
 import os
+import psutil
 import scipy
 from scipy.sparse import coo_matrix, csc_matrix, csr_matrix
 from scipy.sparse import spdiags
 from scipy.linalg import eig
 from scipy.ndimage import (
-    label,
     binary_dilation,
     binary_closing,
-    median_filter,
     generate_binary_structure,
-    iterate_structure
+    grey_dilation,
+    iterate_structure,
+    label,
+    median_filter
 )
 import shutil
 from sklearn.decomposition import NMF
@@ -26,7 +28,6 @@ from sklearn.preprocessing import StandardScaler
 from sklearn.pipeline import make_pipeline
 import tempfile
 import time
-import psutil
 
 import caiman.mmapping
 import caiman.utils.stats
@@ -151,8 +152,9 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
 
         Exception "Failed to delete: " + folder
     """
+    logger = logging.getLogger("caiman")
     # TODO fix documentation on backend
-    #logging.info('Initializing update of Spatial Components')
+    logger.info('Initializing update of Spatial Components')
 
     if expandCore is None:
         expandCore = iterate_structure(
@@ -166,7 +168,7 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
         Y, A_in, C, f, n_pixels_per_process, nb)
 
     start_time = time.time()
-    logging.info('Computing support of spatial components')
+    logger.info('Computing support of spatial components')
     # we compute the indicator from distance indicator
     ind2_, nr, C, f, b_, A_in = computing_indicator(
         Y, A_in, b_in, C, f, nb, method_exp, dims, min_size, max_size, dist, expandCore, dview)
@@ -174,7 +176,7 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
     # remove components that are empty or have a nan
     ff = np.where((np.sum(C, axis=1)==0) + np.isnan(np.sum(C, axis=1)))[0]
     if np.size(ff) > 0:
-        logging.info(f"Eliminating empty and nan components: {ff}")
+        logger.info(f"Eliminating empty and nan components: {ff}")
         A_in = caiman.utils.stats.csc_column_remove(A_in, list(ff))
         C = np.delete(C, list(ff), 0)
         # update indices
@@ -195,13 +197,13 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
     if b_in is None:
         b_in = b_
 
-    logging.info('Memory mapping')
+    logger.info('Memory mapping')
     # we create a memory map file if not already the case, we send Cf, a
     # matrix that include background components
     C_name, Y_name, folder = creatememmap(Y, np.vstack((C, f)), dview)
 
     # we create a pixel group array (chunks for the cnmf)for the parallelization of the process
-    logging.info('Updating Spatial Components using lasso lars')
+    logger.info('Updating Spatial Components using lasso lars')
     cct = np.diag(C.dot(C.T))
     pixel_groups = []
     for i in range(0, np.prod(dims) - n_pixels_per_process + 1, n_pixels_per_process):
@@ -234,13 +236,13 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
             cols.extend(idxs_[nz])
     A_ = scipy.sparse.coo_matrix((data, (rows, cols)), shape=(d, nr + np.size(f, 0)))
 
-    logging.info("thresholding components")
+    logger.info("thresholding components")
     A_ = threshold_components(A_, dims, dview=dview, medw=medw, thr_method=thr_method,
                               maxthr=maxthr, nrgthr=nrgthr, extract_cc=extract_cc, se=se, ss=ss)
     #ff = np.where(np.sum(A_, axis=0) == 0)  # remove empty components
     ff = np.asarray(A_.sum(0) == 0).nonzero()[1]
     if np.size(ff) > 0:
-        logging.info(f'removing {ff.shape[0]} empty spatial component(s)')
+        logger.info(f'removing {ff.shape[0]} empty spatial component(s)')
         if any(ff < nr):
             A_ = caiman.utils.stats.csc_column_remove(A_, list(ff[ff < nr]))
             C = np.delete(C, list(ff[ff < nr]), 0)
@@ -257,7 +259,7 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
     A_ = A_[:, :nr]    
     if update_background_components:
         A_ = csr_matrix(A_)
-        logging.info("Computing residuals")
+        logger.info("Computing residuals")
         if 'memmap' in str(type(Y)):
             bl_siz1 = Y.shape[0] // (num_blocks_per_run_spat - 1)
             bl_siz2 = psutil.virtual_memory().available // (4*Y.shape[-1]*(num_blocks_per_run_spat + 1))
@@ -284,11 +286,11 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
         # except NameError:
         b = b_in
     # print(("--- %s seconds ---" % (time.time() - start_time)))
-    logging.info('Updating done in ' + 
+    logger.info('Updating done in ' + 
                  '{0}s'.format(str(time.time() - start_time).split(".")[0]))
     try:  # clean up
         # remove temporary file created
-        logging.info("Removing created tempfiles")
+        logger.info("Removing created tempfiles")
         shutil.rmtree(folder)
     except:
         raise Exception("Failed to delete: " + folder)
@@ -841,7 +843,7 @@ def determine_search_location(A, dims, method='ellipse', min_size=3, max_size=8,
         Exception 'You cannot pass empty (all zeros) components!'
     """
 
-    from scipy.ndimage import grey_dilation
+    logger = logging.getLogger("caiman")
 
     # we initialize the values
     if len(dims) == 2:
@@ -918,7 +920,7 @@ def determine_search_location(A, dims, method='ellipse', min_size=3, max_size=8,
             dist_indicator = csc_matrix((data, indices, indptr), shape=(d, nr))
 
         else:
-            logging.info('dilate in parallel...')
+            logger.info('dilate in parallel...')
             pars = []
             for i in range(nr):
                 pars.append([A[:, i], dims, expandCore, d])

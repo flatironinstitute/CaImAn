@@ -11,11 +11,7 @@ from caiman.source_extraction.cnmf.deconvolution import constrained_foopsi
 # You can log to a file using the filename parameter, or make the output more or less
 # verbose by setting level to logging.DEBUG, logging.INFO, logging.WARNING, or logging.ERROR
 
-logging.basicConfig(
-    format="%(relativeCreated)12d [%(filename)s:%(funcName)20s():%(lineno)s] [%(process)d] %(message)s",
-                                                                                                         # filename="/tmp/caiman.log",
-    level=logging.DEBUG)
-
+logging.getLogger("caiman").setLevel(logging.DEBUG)
 
 def gen_data(g=[.95], sn=.2, T=1000, framerate=30, firerate=.5, b=10, N=1, seed=0):
     """

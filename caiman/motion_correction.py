@@ -45,11 +45,13 @@ import matplotlib.pyplot as plt
 import numpy as np
 from numpy.fft import ifftshift
 import os
-import sys
-import tifffile
-from typing import Optional
+import scipy
 from skimage.transform import resize as resize_sk
 from skimage.transform import warp as warp_sk
+import sys
+import tifffile
+from tqdm import tqdm
+from typing import Optional
 
 import caiman
 import caiman.base.movies
@@ -166,11 +168,12 @@ class MotionCorrect(object):
            self
 
         """
+        logger = logging.getLogger("caiman")
         if 'ndarray' in str(type(fname)) or isinstance(fname, caiman.base.movies.movie):
             mc_tempfile = caiman.paths.fn_relocated('tmp_mov_mot_corr.hdf5')
             if os.path.isfile(mc_tempfile):
                 os.remove(mc_tempfile)
-            logging.info(f"Creating file for motion correction: {mc_tempfile}")
+            logger.info(f"Creating file for motion correction: {mc_tempfile}")
             caiman.movie(fname).save(mc_tempfile)
             fname = [mc_tempfile]
 
@@ -202,7 +205,7 @@ class MotionCorrect(object):
         self.is3D = bool(is3D)
         self.indices = indices
         if self.use_cuda and not HAS_CUDA:
-            logging.debug("pycuda is unavailable. Falling back to default FFT.")
+            logger.debug("pycuda is unavailable. Falling back to default FFT.")
 
     def motion_correct(self, template=None, save_movie=False):
         """general function for performing all types of motion correction. The
@@ -277,8 +280,10 @@ class MotionCorrect(object):
 
             self.shifts_rig: shifts in x and y (and z if 3D) per frame
         """
-        logging.debug('Entering Rigid Motion Correction')
-        logging.debug(-self.min_mov)  # XXX why the minus?
+        logger = logging.getLogger("caiman")
+
+        logger.debug('Entering Rigid Motion Correction')
+        logger.debug(f"{self.min_mov=}")
         self.total_template_rig = template
         self.templates_rig:list = []
         self.fname_tot_rig:list = []
@@ -336,10 +341,11 @@ class MotionCorrect(object):
         Raises:
             Exception: 'Error: Template contains NaNs, Please review the parameters'
         """
+        logger = logging.getLogger("caiman")
 
         num_iter = 1
         if template is None:
-            logging.info('Generating template by rigid motion correction')
+            logger.info('Generating template by rigid motion correction')
             self.motion_correct_rigid()
             self.total_template_els = self.total_template_rig.copy()
         else:
@@ -415,6 +421,7 @@ class MotionCorrect(object):
             m_reg: caiman movie object
                 caiman movie object with applied shifts (not memory mapped)
         """
+        logger = logging.getLogger("caiman")
 
         Y = caiman.load(fname).astype(np.float32)
         if remove_min: 
@@ -423,7 +430,7 @@ class MotionCorrect(object):
                 Y -= Y.min()
 
         if rigid_shifts is not None:
-            logging.warning('The rigid_shifts flag is deprecated and it is ' +
+            logger.warning('The rigid_shifts flag is deprecated and it is ' +
                             'being ignored. The value is read directly from' +
                             ' mc.pw_rigid and is currently set to the opposite' +
                             f' of {self.pw_rigid}')
@@ -750,6 +757,7 @@ def motion_correct_oneP_nonrigid(
     return mc
 
 def motion_correct_online_multifile(list_files, add_to_movie, order='C', **kwargs):
+    logger = logging.getLogger("caiman")
     # todo todocument
 
     kwargs['order'] = order
@@ -762,7 +770,7 @@ def motion_correct_online_multifile(list_files, add_to_movie, order='C', **kwarg
     kwargs_['order'] = order
     total_frames = 0
     for file_ in list_files:
-        logging.info(('Processing:' + file_))
+        logger.info('Processing: {file_}')
         kwargs_['template'] = template
         kwargs_['save_base_name'] = os.path.splitext(file_)[0]
         tffl = tifffile.TiffFile(file_)
@@ -781,6 +789,7 @@ def motion_correct_online(movie_iterable, add_to_movie, max_shift_w=25, max_shif
                           border_to_0=0, n_iter=1, remove_blanks=False, show_template=False, return_mov=False,
                           use_median_as_template=False):
     # todo todocument
+    logger = logging.getLogger("caiman")
 
     shifts = []  # store the amount of shift in each frame
     xcorrs = []
@@ -790,7 +799,7 @@ def motion_correct_online(movie_iterable, add_to_movie, max_shift_w=25, max_shif
 
     if 'tifffile' in str(type(movie_iterable[0])):
         if len(movie_iterable) == 1:
-            logging.warning(
+            logger.warning(
                 '******** WARNING ****** NEED TO LOAD IN MEMORY SINCE SHAPE OF PAGE IS THE FULL MOVIE')
             movie_iterable = movie_iterable.asarray()
             init_mov = movie_iterable[:init_frames_template]
@@ -801,7 +810,7 @@ def motion_correct_online(movie_iterable, add_to_movie, max_shift_w=25, max_shif
         init_mov = movie_iterable[slice(0, init_frames_template, 1)]
 
     dims = (len(movie_iterable),) + movie_iterable[0].shape # TODO: Refactor so length is either tracked separately or is last part of tuple
-    logging.debug("dimensions:" + str(dims))
+    logger.debug("dimensions:" + str(dims))
 
     if use_median_as_template:
         template = bin_median(movie_iterable)
@@ -885,9 +894,9 @@ def motion_correct_online(movie_iterable, add_to_movie, max_shift_w=25, max_shif
                               vmax=350, interpolation='none')
                     plt.pause(.001)
 
-                logging.debug('Relative change in template:' + str(
+                logger.debug('Relative change in template:' + str(
                     np.sum(np.abs(template - template_old)) / np.sum(np.abs(template))))
-                logging.debug('Iteration:' + str(count))
+                logger.debug('Iteration:' + str(count))
 
             if border_to_0 > 0:
                 new_img[:border_to_0, :] = min_mov
@@ -916,7 +925,7 @@ def motion_correct_online(movie_iterable, add_to_movie, max_shift_w=25, max_shif
 
             if show_movie:
                 cv2.imshow('frame', new_img / 500)
-                logging.info(shift)
+                logger.info(shift)
                 if not np.any(np.remainder(shift, 1) == (0, 0)):
                     cv2.waitKey(int(1. / 500 * 1000))
 
@@ -925,7 +934,7 @@ def motion_correct_online(movie_iterable, add_to_movie, max_shift_w=25, max_shif
         xcorrs.append(xcorr_tmp)
 
     if save_base_name is not None:
-        logging.debug('Flushing memory')
+        logger.debug('Flushing memory')
         big_mov.flush() # type: ignore # mypy cannot prove big_mov is not still None
         del big_mov
         gc.collect()
@@ -1087,6 +1096,7 @@ def bin_median_3d(mat, window=10, exclude_nans=True):
 
 def process_movie_parallel(arg_in):
     #todo: todocument
+    logger = logging.getLogger("caiman")
     fname, fr, margins_out, template, max_shift_w, max_shift_h, remove_blanks, apply_smooth, save_hdf5 = arg_in
 
     if template is not None:
@@ -1098,7 +1108,6 @@ def process_movie_parallel(arg_in):
 
     type_input = str(type(fname))
     if 'movie' in type_input:
-        #        logging.info((type(fname)))
         Yr = fname
 
     elif 'ndarray' in type_input:
@@ -1109,40 +1118,30 @@ def process_movie_parallel(arg_in):
         raise Exception('Unknown input type:' + type_input)
 
     if Yr.ndim > 1:
-        #        logging.info('loaded')
         if apply_smooth:
-            #            logging.info('applying smoothing')
             Yr = Yr.bilateral_blur_2D(
                 diameter=10, sigmaColor=10000, sigmaSpace=0)
 
-#        print('Remove BL')
         if margins_out != 0:
             Yr = Yr[:, margins_out:-margins_out, margins_out:-
                     margins_out]  # borders create troubles
-
-#        logging.info('motion correcting')
 
         Yr, shifts, xcorrs, template = Yr.motion_correct(max_shift_w=max_shift_w, max_shift_h=max_shift_h,
                                                          method='opencv', template=template, remove_blanks=remove_blanks)
 
         if ('movie' in type_input) or ('ndarray' in type_input):
-            #            logging.debug('Returning Values')
             return Yr, shifts, xcorrs, template
 
         else:
 
-            #            logging.debug('median computing')
+            #            logger.debug('median computing')
             template = Yr.bin_median()
-#            logging.debug('saving')
             idx_dot = len(fname.split('.')[-1])
             if save_hdf5:
                 Yr.save(fname[:-idx_dot] + 'hdf5')
-#            logging.debug('saving 2')
             np.savez(fname[:-idx_dot] + 'npz', shifts=shifts,
                      xcorrs=xcorrs, template=template)
-#            logging.debug('deleting')
             del Yr
-#            logging.debug('done!')
             return fname[:-idx_dot]
     else:
         return None
@@ -1167,6 +1166,7 @@ def motion_correct_parallel(file_names, fr=10, template=None, margins_out=0,
     Raises:
         Exception
     """
+    logger = logging.getLogger("caiman")
     args_in = []
     for file_idx, f in enumerate(file_names):
         if isinstance(template, list):
@@ -1193,7 +1193,7 @@ def motion_correct_parallel(file_names, fr=10, template=None, margins_out=0,
                 dview.results.clear()
 
         except UnboundLocalError:
-            logging.error('could not close client')
+            logger.error('could not close client')
 
         raise
 
@@ -2123,7 +2123,8 @@ def tile_and_correct(img, template, strides, overlaps, max_shifts, newoverlaps=N
 
 
     """
-    logging.debug("Starting tile and correct")
+    logger = logging.getLogger("caiman")
+    logger.debug("Starting tile and correct")
     img = img.astype(np.float64).copy()
     template = template.astype(np.float64).copy()
 
@@ -2160,7 +2161,7 @@ def tile_and_correct(img, template, strides, overlaps, max_shifts, newoverlaps=N
         return new_img - add_to_movie, (-rigid_shts[0], -rigid_shts[1]), None, None
     else:
         # extract patches
-        logging.info("Extracting patches")
+        logger.info("Extracting patches")
         templates = [
             it[-1] for it in sliding_window(template, overlaps=overlaps, strides=strides)]
         xy_grid = [(it[0], it[1]) for it in sliding_window(
@@ -2183,7 +2184,7 @@ def tile_and_correct(img, template, strides, overlaps, max_shifts, newoverlaps=N
             ub_shifts = None
 
         # extract shifts for each patch
-        logging.info("extracting shifts for each patch")
+        logger.info("extracting shifts for each patch")
         shfts_et_all = [register_translation(
             a, b, c, shifts_lb=lb_shifts, shifts_ub=ub_shifts, max_shifts=max_shifts, use_cuda=use_cuda) for a, b, c in zip(
             imgs, templates, [upsample_factor_fft] * num_tiles)]
@@ -2594,9 +2595,7 @@ def compute_metrics_motion_correction(fname, final_size_x, final_size_y, swap_di
                                       opencv=True, resize_fact_play=3, fr_play=30, max_flow=1,
                                       gSig_filt=None):
     #todo: todocument
-    # cv2.OPTFLOW_FARNEBACK_GAUSSIAN
-    import scipy
-    from tqdm import tqdm
+    logger = logging.getLogger("caiman")
     if os.environ.get('ENABLE_TQDM') == 'True':
         disable_tqdm = False
     else:
@@ -2619,40 +2618,40 @@ def compute_metrics_motion_correction(fname, final_size_x, final_size_y, swap_di
 
     if max_shft_y_1 == 0:
         max_shft_y_1 = None
-    logging.info([max_shft_x, max_shft_x_1, max_shft_y, max_shft_y_1])
+    logger.info([max_shft_x, max_shft_x_1, max_shft_y, max_shft_y_1])
     m = m[:, max_shft_x:max_shft_x_1, max_shft_y:max_shft_y_1]
     if np.sum(np.isnan(m)) > 0:
-        logging.info(m.shape)
-        logging.warning('Movie contains NaN')
+        logger.info(m.shape)
+        logger.warning('Movie contains NaN')
         raise Exception('Movie contains NaN')
 
-    logging.debug('Local correlations..')
+    logger.debug('Local correlations..')
     img_corr = m.local_correlations(eight_neighbours=True, swap_dim=swap_dim)
-    logging.debug(m.shape)
+    logger.debug(m.shape)
     if template is None:
         tmpl = caiman.motion_correction.bin_median(m)
     else:
         tmpl = template
 
-    logging.debug('Compute Smoothness.. ')
+    logger.debug('Compute Smoothness.. ')
     smoothness = np.sqrt(
         np.sum(np.sum(np.array(np.gradient(np.mean(m, 0)))**2, 0)))
     smoothness_corr = np.sqrt(
         np.sum(np.sum(np.array(np.gradient(img_corr))**2, 0)))
 
-    logging.debug('Compute correlations.. ')
+    logger.debug('Computing correlations.. ')
     correlations = []
     count = 0
     sys.stdout.flush()
     for fr in tqdm(m, desc="Correlations", disable=disable_tqdm):
         if disable_tqdm:
             if count % 100 == 0:
-                logging.debug(count)
+                logger.debug(count)
         count += 1
         correlations.append(scipy.stats.pearsonr(
             fr.flatten(), tmpl.flatten())[0])
 
-    logging.info('Compute optical flow .. ')
+    logger.info('Computing optical flow.. ')
 
     m = m.resize(1, 1, resize_fact_flow)
     norms = []
@@ -2662,7 +2661,7 @@ def compute_metrics_motion_correction(fname, final_size_x, final_size_y, swap_di
     for fr in tqdm(m, desc="Optical flow", disable=disable_tqdm):
         if disable_tqdm:
             if count % 100 == 0:
-                logging.debug(count)
+                logger.debug(count)
 
 
         count += 1
@@ -2781,6 +2780,7 @@ def motion_correct_batch_rigid(fname, max_shifts, dview=None, splits=56, num_spl
         Exception 'The movie contains nans. Nans are not allowed!'
 
     """
+    logger = logging.getLogger("caiman")
 
     dims, T = caiman.base.movies.get_file_size(fname, var_name_hdf5=var_name_hdf5)
     Ts = np.arange(T)[subidx].shape[0]
@@ -2791,9 +2791,9 @@ def motion_correct_batch_rigid(fname, max_shifts, dview=None, splits=56, num_spl
     if len(m.shape) < 3:
         m = caiman.load(fname, var_name_hdf5=var_name_hdf5)
         m = m[corrected_slicer]
-        logging.warning("Your original file was saved as a single page " +
-                        "file. Consider saving it in multiple smaller files" +
-                        "with size smaller than 4GB (if it is a .tif file)")
+        logger.warning("Your original file was saved as a single page " +
+                       "file. Consider saving it in multiple smaller files" +
+                       "with size smaller than 4GB (if it is a .tif file)")
 
     if is3D:
         m = m[:, indices[0], indices[1], indices[2]]
@@ -2820,20 +2820,20 @@ def motion_correct_batch_rigid(fname, max_shifts, dview=None, splits=56, num_spl
         add_to_movie = -np.min(template)
 
     if np.isnan(add_to_movie):
-        logging.error('The movie contains NaNs. NaNs are not allowed!')
+        logger.error('The movie contains NaNs. NaNs are not allowed!')
         raise Exception('The movie contains NaNs. NaNs are not allowed!')
     else:
-        logging.debug('Adding to movie ' + str(add_to_movie))
+        logger.debug('Adding to movie ' + str(add_to_movie))
 
     save_movie = False
     fname_tot_rig = None
     res_rig:list = []
     for iter_ in range(num_iter):
-        logging.debug(iter_)
+        logger.debug(iter_)
         old_templ = new_templ.copy()
         if iter_ == num_iter - 1:
             save_movie = save_movie_rigid
-            logging.debug('saving!')
+            logger.debug('saving!')
 
 
         if isinstance(fname, tuple):
@@ -2853,8 +2853,6 @@ def motion_correct_batch_rigid(fname, max_shifts, dview=None, splits=56, num_spl
             new_templ = np.nanmedian(np.dstack([r[-1] for r in res_rig]), -1)
         if gSig_filt is not None:
             new_templ = high_pass_filter_space(new_templ, gSig_filt)
-
-#        logging.debug((np.linalg.norm(new_templ - old_templ) / np.linalg.norm(old_templ)))
 
     total_template = new_templ
     templates = []
@@ -2936,6 +2934,8 @@ def motion_correct_batch_pwrigid(fname, max_shifts, strides, overlaps, add_to_mo
         Exception 'You need to initialize the template with a good estimate. See the motion'
                         '_correct_batch_rigid function'
     """
+    logger = logging.getLogger("caiman")
+
     if template is None:
         raise Exception('You need to initialize the template with a good estimate. See the motion'
                         '_correct_batch_rigid function')
@@ -2943,13 +2943,13 @@ def motion_correct_batch_pwrigid(fname, max_shifts, strides, overlaps, add_to_mo
         new_templ = template
 
     if np.isnan(add_to_movie):
-        logging.error('The template contains NaNs. NaNs are not allowed!')
+        logger.error('The template contains NaNs. NaNs are not allowed!')
         raise Exception('The template contains NaNs. NaNs are not allowed!')
     else:
-        logging.debug('Adding to movie ' + str(add_to_movie))
+        logger.debug(f'Adding to movie {add_to_movie}'))
 
     for iter_ in range(num_iter):
-        logging.debug(iter_)
+        logger.debug(iter_)
         old_templ = new_templ.copy()
 
         if iter_ == num_iter - 1:
@@ -2957,9 +2957,9 @@ def motion_correct_batch_pwrigid(fname, max_shifts, strides, overlaps, add_to_mo
             if save_movie:
 
                 if isinstance(fname, tuple):
-                    logging.debug(f'saving mmap of {fname[0]} to {fname[-1]}')
+                    logger.debug(f'saving mmap of {fname[0]} to {fname[-1]}')
                 else:
-                    logging.debug(f'saving mmap of {fname}')
+                    logger.debug(f'saving mmap of {fname}')
 
         if isinstance(fname, tuple):
             base_name=os.path.splitext(os.path.split(fname[0])[-1])[0] + '_els_'
@@ -3019,6 +3019,7 @@ def tile_and_correct_wrapper(params):
 
     """
     # todo todocument
+    logger = logging.getLogger("caiman")
 
 
     try:
@@ -3046,7 +3047,7 @@ def tile_and_correct_wrapper(params):
         template = template[indices]
     for count, img in enumerate(imgs):
         if count % 10 == 0:
-            logging.debug(count)
+            logger.debug(count)
         if is3D:
             mc[count], total_shift, start_step, xyz_grid = tile_and_correct_3d(img, template, strides, overlaps, max_shifts,
                                                                        add_to_movie=add_to_movie, newoverlaps=newoverlaps,
@@ -3092,6 +3093,7 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
 
     """
     # todo todocument
+    logger = logging.getLogger("caiman")
     if isinstance(fname, tuple):
         name, extension = os.path.splitext(fname[0])[:2]
     else:
@@ -3102,7 +3104,7 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
     dims, T = caiman.base.movies.get_file_size(fname, var_name_hdf5=var_name_hdf5)
     z = np.zeros(dims)
     dims = z[indices].shape
-    logging.debug(f'Number of Splits: {splits}')
+    logger.debug(f'Number of Splits: {splits}')
     if isinstance(splits, int):
         if subidx is None:
             rng = range(T)
@@ -3121,7 +3123,7 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
     if num_splits is not None:
         idxs = np.array(idxs)[np.random.randint(0, len(idxs), num_splits)]
         save_movie = False
-        #logging.warning('**** MOVIE NOT SAVED BECAUSE num_splits is not None ****')
+        logger.warning('**** MOVIE NOT SAVED BECAUSE num_splits is not None ****')
 
     if save_movie:
         if base_name is None:
@@ -3131,29 +3133,29 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
 
         np.memmap(fname_tot, mode='w+', dtype=np.float32,
                   shape=caiman.mmapping.prepare_shape(shape_mov), order=order)
-        logging.info(f'Saving file as {fname_tot}')
+        logger.info(f'Saving file as {fname_tot}')
     else:
         fname_tot = None
 
     pars = []
     for idx in idxs:
-        logging.debug(f'Extracting parameters for frames: {idx}')
+        logger.debug(f'Extracting parameters for frames: {idx}')
         pars.append([fname, fname_tot, idx, shape_mov, template, strides, overlaps, max_shifts, np.array(
             add_to_movie, dtype=np.float32), max_deviation_rigid, upsample_factor_grid,
             newoverlaps, newstrides, shifts_opencv, nonneg_movie, gSig_filt, is_fiji,
             use_cuda, border_nan, var_name_hdf5, is3D, indices])
 
     if dview is not None:
-        logging.info('** Starting parallel motion correction **')
+        logger.info('** Starting parallel motion correction **')
         if HAS_CUDA and use_cuda:
             res = dview.map(tile_and_correct_wrapper,pars)
             dview.map(close_cuda_process, range(len(pars)))
         elif 'multiprocessing' in str(type(dview)):
-            logging.debug("entering multiprocessing tile_and_correct_wrapper")
+            logger.debug("entering multiprocessing tile_and_correct_wrapper")
             res = dview.map_async(tile_and_correct_wrapper, pars).get(4294967)
         else:
             res = dview.map_sync(tile_and_correct_wrapper, pars)
-        logging.info('** Finished parallel motion correction **')
+        logger.info('** Finished parallel motion correction **')
     else:
         res = list(map(tile_and_correct_wrapper, pars))
 

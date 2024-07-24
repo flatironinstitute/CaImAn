@@ -36,17 +36,20 @@ from caiman.utils.utils import download_demo, download_model
 def main():
     cfg = handle_args()
 
-    if cfg.logfile:
-        logging.basicConfig(format=
-            "[%(filename)s:%(funcName)20s():%(lineno)s] %(message)s",
-            level=logging.INFO,
-            filename=cfg.logfile)
-        # You can make the output more or less verbose by setting level to logging.DEBUG, logging.INFO, logging.WARNING, or logging.ERROR
-    else:
-        logging.basicConfig(format=
-            "[%(filename)s:%(funcName)20s():%(lineno)s] %(message)s",
-            level=logging.INFO)
+    # Set up logging
+    logger = logging.getLogger("caiman")
+    logger.setLevel(logging.INFO) # Or another loglevel
+    logfmt = logging.Formatter("[%(filename)s:%(funcName)20s():%(lineno)s] %(message)s")
 
+    if cfg.logfile:
+        handler = logging.FileHandler(cfg.logfile)
+    else:
+        handler = logging.StreamHandler()
+
+    handler.setFormatter(logfmt)
+    logger.addHandler(handler)
+
+    # Figure out what data we're working on
     if cfg.input is None:
         # If no input is specified, use sample data, downloading if necessary
         fnames    = [download_demo('demo_voltage_imaging.hdf5', 'volpy')] # XXX do we need to use a separate directory?

@@ -26,17 +26,18 @@ from caiman.paths import caiman_datadir
 
 def main():
     cfg = handle_args()
+    # Set up logging
+    logger = logging.getLogger("caiman")
+    logger.setLevel(logging.INFO) # Or another loglevel
+    logfmt = logging.Formatter("[%(filename)s:%(funcName)20s():%(lineno)s] %(message)s")
 
     if cfg.logfile:
-        logging.basicConfig(format=
-            "[%(filename)s:%(funcName)20s():%(lineno)s] %(message)s",
-            level=logging.INFO,
-            filename=cfg.logfile)
-        # You can make the output more or less verbose by setting level to logging.DEBUG, logging.INFO, logging.WARNING, or logging.ERROR
+        handler = logging.FileHandler(cfg.logfile)
     else:
-        logging.basicConfig(format=
-            "[%(filename)s:%(funcName)20s():%(lineno)s] %(message)s",
-            level=logging.INFO)
+        handler = logging.StreamHandler()
+
+    handler.setFormatter(logfmt)
+    logger.addHandler(handler)
 
     opts = cnmf.params.CNMFParams(params_from_file=cfg.configfile)
 
