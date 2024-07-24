@@ -1118,6 +1118,7 @@ class CNMFParams(object):
                          were never used in populating the Params object. You really should not
                          set this to False. Fix your code.
         """
+        logger = logging.getLogger("caiman")
         # When we're ready to remove allow_legacy, this code will get a lot simpler
 
         consumed = {} # Keep track of what parameters in params_dict were used to set something in params (just for legacy API)

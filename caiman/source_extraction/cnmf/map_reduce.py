@@ -14,7 +14,6 @@ import time
 
 from caiman.cluster import extract_patch_coordinates
 from caiman.mmapping import load_memmap
-from caiman.source_extraction.cnmf import CNMF
 
 def cnmf_patches(args_in):
     """Function that is run for each patches

@@ -2946,7 +2946,7 @@ def motion_correct_batch_pwrigid(fname, max_shifts, strides, overlaps, add_to_mo
         logger.error('The template contains NaNs. NaNs are not allowed!')
         raise Exception('The template contains NaNs. NaNs are not allowed!')
     else:
-        logger.debug(f'Adding to movie {add_to_movie}'))
+        logger.debug(f'Adding to movie {add_to_movie}')
 
     for iter_ in range(num_iter):
         logger.debug(iter_)
