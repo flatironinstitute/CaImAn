@@ -956,15 +956,13 @@ class CNMFParams(object):
                 if len(self.motion[a]) != 3:
                     if self.motion[a][0] == self.motion[a][1]:
                         self.motion[a] = (self.motion[a][0],) * 3
-                        logger.warning("is3D=True, hence setting key " + a +
-                            " automatically to " + str(self.motion[a]))
+                        logger.warning(f"is3D=True, hence setting key {a} to {self.motion[a]}")
                     else:
-                        raise ValueError(a + ' has to be a tuple of length 3 for volumetric 3D data')
+                        raise ValueError(f'{a} must be a tuple of length 3 for volumetric 3D data')
         for key in ('max_num_added', 'min_num_trial'):
             if (self.online[key] == 0 and self.online['update_num_comps']):
                 self.set('online', {'update_num_comps': False})
-                logger.warning(key + "=0, hence setting key update_num_comps " +
-                                "in group online automatically to False.")
+                logger.warning(f"{key}=0, hence setting key online.update_num_comps to False.")
         # FIXME The authoritative value is stored in the init field. This should later be refactored out
         #     into a general section, once we're passing around the CNMFParams object rather than splatting it out
         #     from **get_group

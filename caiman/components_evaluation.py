@@ -143,7 +143,7 @@ def find_activity_intervals(C, Npeaks: int = 5, tB=-3, tA=10, thres: float = 0.3
     for i in range(K):
         if np.sum(np.abs(np.diff(C[i, :]))) == 0:
             L.append([])
-            logger.debug('empty component at:' + str(i))
+            logger.debug(f'empty component at: {i}')
             continue
         indexes = peakutils.indexes(C[i, :], thres=thres)
         srt_ind = indexes[np.argsort(C[i, indexes])][::-1]

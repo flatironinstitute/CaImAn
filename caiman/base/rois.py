@@ -780,7 +780,7 @@ def find_matches(D_s, print_assignment: bool = False) -> tuple[list, list]:
             if print_assignment:
                 logger.debug(f'({row}, {column}) -> {value}')
             total.append(value)
-        logger.debug((f'FOV: {ii}, shape: {DD.shape[0]},{DD.shape[1]} total cost: {np.sum(total)}')
+        logger.debug(f'FOV: {ii}, shape: {DD.shape[0]},{DD.shape[1]} total cost: {np.sum(total)}')
         logger.debug(time.time() - t_start)
         costs.append(total)
         # send back the results in the format we want

@@ -435,9 +435,7 @@ class CNMF(object):
         if self.params.get('patch', 'rf') is None and (is_sliced or 'ndarray' in str(type(images))):
             images = images[tuple(indices)]
             self.dview = None
-            logger.info("Parallel processing in a single patch "
-                            "is not available for loaded in memory or sliced" +
-                            " data.")
+            logger.info("Parallel processing in a single patch is not available for loaded in memory or sliced data.")
 
         T = images.shape[0]
         self.params.set('online', {'init_batch': T})
@@ -465,7 +463,8 @@ class CNMF(object):
         #                             'ss': np.ones((3,) * len(self.dims), dtype=np.uint8)
         #                             })
 
-        logger.info(('Using ' + str(self.params.get('patch', 'n_processes')) + ' processes'))
+        logger.info(f"Using {self.params.get('patch', 'n_processes')} processes")
+        # FIXME The code below is really ugly and it's hard to tell if it's doing the right thing
         if self.params.get('preprocess', 'n_pixels_per_process') is None:
             avail_memory_per_process = psutil.virtual_memory()[
                 1] / 2.**30 / self.params.get('patch', 'n_processes')

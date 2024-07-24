@@ -2823,7 +2823,7 @@ def motion_correct_batch_rigid(fname, max_shifts, dview=None, splits=56, num_spl
         logger.error('The movie contains NaNs. NaNs are not allowed!')
         raise Exception('The movie contains NaNs. NaNs are not allowed!')
     else:
-        logger.debug('Adding to movie ' + str(add_to_movie))
+        logger.debug(f'Adding to movie {add_to_movie}')
 
     save_movie = False
     fname_tot_rig = None

@@ -14,6 +14,7 @@ import time
 
 from caiman.cluster import extract_patch_coordinates
 from caiman.mmapping import load_memmap
+from caiman.source_extraction.cnmf import CNMF
 
 def cnmf_patches(args_in):
     """Function that is run for each patches
@@ -67,16 +68,16 @@ def cnmf_patches(args_in):
         """
 
     #FIXME Fix in-function imports
-    from . import cnmf
+    from caiman.source_extraction.cnmf import CNMF
     logger = logging.getLogger("caiman")
     file_name, idx_, shapes, params = args_in
 
     name_log = os.path.basename(
         file_name[:-5]) + '_LOG_ ' + str(idx_[0]) + '_' + str(idx_[-1])
 
-    logger.debug(name_log + 'START')
+    logger.debug(name_log + ' START')
 
-    logger.debug(name_log + 'Read file')
+    logger.debug(name_log + ' Read file')
     Yr, dims, timesteps = load_memmap(file_name)
 
     # slicing array (takes the min and max index in n-dimensional space and
@@ -107,7 +108,7 @@ def cnmf_patches(args_in):
         for group in ('preprocess', 'temporal'):
             opts.set(group, {'p': params.get('patch', 'p_patch')})
 
-        cnm = cnmf.CNMF(n_processes=1, params=opts)
+        cnm = CNMF(n_processes=1, params=opts)
 
         cnm = cnm.fit(images)
         return [idx_, shapes, scipy.sparse.coo_matrix(cnm.estimates.A),
