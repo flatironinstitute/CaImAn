@@ -57,7 +57,7 @@ def main():
     cnm.fit_online()
 
     # plot contours
-    logging.info(f"Number of components: {cnm.estimates.A.shape[-1]}")
+    logger.info(f"Number of components: {cnm.estimates.A.shape[-1]}")
     Cn = cm.load(fnames[0], subindices=slice(0,500)).local_correlations(swap_dim=False)
     cnm.estimates.plot_contours(img=Cn)
 

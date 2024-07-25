@@ -69,7 +69,7 @@ def main():
     cnm.fit_online()
 
     # plot contours (this may take time)
-    logging.info(f"Number of components: {cnm.estimates.A.shape[-1]}")
+    logger.info(f"Number of components: {cnm.estimates.A.shape[-1]}")
     images = cm.load(fnames)
     Cn = images.local_correlations(swap_dim=False, frames_per_chunk=500)
     cnm.estimates.plot_contours(img=Cn, display_numbers=False)
