@@ -6,15 +6,7 @@ use for nosetests and continuous integration development.
 See Also
 ------------
 caiman/tests/comparison/comparison.py
-
-
 """
-#%%
-#\package None
-#\version   1.0
-#\copyright GNU General Public License v2.0
-#\date Created on june 2017
-#\author: Jremie KALFON
 
 import copy
 import cv2
@@ -49,10 +41,8 @@ from caiman.utils.utils import download_demo
 # You can log to a file using the filename parameter, or make the output more or less
 # verbose by setting level to logging.DEBUG, logging.INFO, logging.WARNING, or logging.ERROR
 
-logging.basicConfig(
-    format="%(relativeCreated)12d [%(filename)s:%(funcName)20s():%(lineno)s] [%(process)d] %(message)s",
-                                                                                                         # filename="/tmp/caiman.log",
-    level=logging.DEBUG)
+logger = logging.getLogger("caiman")
+logger.setLevel(logging.DEBUG)
 
 # GLOBAL VAR
 params_movie = {
@@ -204,7 +194,7 @@ def test_general():
     if len(name_new) > 1:
         fname_new = cm.save_memmap_join(name_new, base_name='Yr', n_chunks=params_movie['n_chunks'], dview=None)
     else:
-        logging.warning('One file only, not saving!')
+        logger.warning('One file only, not saving!')
         fname_new = name_new[0]
 
     Yr, dims, T = cm.load_memmap(fname_new)
@@ -259,7 +249,7 @@ def test_general():
     b_tot = cnm.estimates.b
     f_tot = cnm.estimates.f
     # DISCARDING
-    logging.info(('Number of components:' + str(A_tot.shape[-1])))
+    logger.info(('Number of components:' + str(A_tot.shape[-1])))
     final_frate = params_movie['final_frate']
     # threshold on space consistency
     r_values_min = params_movie['r_values_min_patch']
@@ -335,29 +325,29 @@ def test_general():
         for log_file in log_files:
             os.remove(log_file)
     except:
-        logging.warning('Cannot remove log files')
+        logger.warning('Cannot remove log files')
 
 
 ############ assertions ##################
     pb = False
     if (comp.information['differences']['params_movie']):
-        logging.error(
-            "you need to set the same movie parameters than the ground truth to have a real comparison (use the comp.see() function to explore it)"
+        logger.error(
+            "You must set the same movie parameters as the ground truth to have a real comparison (use the comp.see() function to explore it)"
         )
         pb = True
     if (comp.information['differences']['params_cnm']):
-        logging.warning(
-            "you need to set the same cnmf parameters than the ground truth to have a real comparison (use the comp.see() function to explore it)"
+        logger.warning(
+            "You must set the same cnmf parameters as the ground truth to have a real comparison (use the comp.see() function to explore it)"
         )
         # pb = True
     if (comp.information['diff']['rig']['isdifferent']):
-        logging.error("the rigid shifts are different from the groundtruth ")
+        logger.error("the rigid shifts are different from the groundtruth ")
         pb = True
     if (comp.information['diff']['cnmpatch']['isdifferent']):
-        logging.error("the cnmf on patch produces different results than the groundtruth ")
+        logger.error("the cnmf on patch produces different results than the groundtruth ")
         pb = True
     if (comp.information['diff']['cnmfull']['isdifferent']):
-        logging.error("the cnmf full frame produces different  results than the groundtruth ")
+        logger.error("the cnmf full frame produces different  results than the groundtruth ")
         pb = True
 
     assert (not pb)

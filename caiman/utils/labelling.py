@@ -16,7 +16,7 @@ def pre_preprocess_movie_labeling(dview, file_names, median_filter_size=(2, 1, 1
 
         name_log = fil[:-4] + '_LOG'
         logger = logging.getLogger(name_log)
-        hdlr = logging.FileHandler(name_log)
+        hdlr = logging.FileHandler(name_log) # We don't use the caiman logger here b/c we're saving to files
 
         formatter = logging.Formatter('%(asctime)s %(levelname)s %(message)s')
         hdlr.setFormatter(formatter)

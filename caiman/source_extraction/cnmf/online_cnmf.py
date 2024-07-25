@@ -119,6 +119,7 @@ class OnACID(object):
     @profile
     def _prepare_object(self, Yr, T, new_dims=None, idx_components=None):
 
+        logger = logging.getLogger("caiman")
         init_batch = self.params.get('online', 'init_batch')
         old_dims = self.params.get('data', 'dims')
         self.is1p = (self.params.get('init', 'method_init') == 'corr_pnr' and 
@@ -248,7 +249,7 @@ class OnACID(object):
         self.estimates.CY = self.estimates.CY * 1. / self.params.get('online', 'init_batch')
         self.estimates.CC = 1 * self.estimates.CC / self.params.get('online', 'init_batch')
 
-        logging.info(f'Expecting {expected_comps} components')
+        logger.info(f'Expecting {expected_comps} components')
         self.estimates.CY.resize([expected_comps + self.params.get('init', 'nb'), self.estimates.CY.shape[-1]], refcheck=False)
         if self.params.get('online', 'use_dense'):
             self.estimates.Ab_dense = np.zeros((self.estimates.CY.shape[-1], expected_comps + self.params.get('init', 'nb')),
@@ -325,11 +326,11 @@ class OnACID(object):
         else:
             try:
                 from tensorflow.keras.models import model_from_json
-                logging.info('Using Keras')
+                logger.info('Using Keras')
                 use_keras = True
             except(ModuleNotFoundError):
                 use_keras = False
-                logging.info('Using Tensorflow')
+                logger.info('Using Tensorflow')
             if use_keras:
                 path = self.params.get('online', 'path_to_model').split(".")[:-1]
                 json_path = ".".join(path + ["json"])
@@ -420,7 +421,7 @@ class OnACID(object):
             num_iters_hals: int, optional
                 maximal number of iterations for HALS (NNLS via blockCD)
         """
-
+        logger = logging.getLogger("caiman")
         t_start = time()
 
         # locally scoped variables for brevity of code and faster look up
@@ -581,8 +582,7 @@ class OnACID(object):
                         self.estimates.Ab_dense = np.zeros((self.estimates.CY.shape[-1], expected_comps + nb_),
                                                  dtype=np.float32)
                         self.estimates.Ab_dense[:, :Ab_.shape[1]] = Ab_.toarray()
-                    logging.info('Increasing number of expected components to:' +
-                          str(expected_comps))
+                    logger.info(f'Increasing number of expected components to: {expected_comps}')
                 self.update_counter.resize(self.N, refcheck=False)
 
                 self.estimates.noisyC[self.M - num_added:self.M, t - mbs +
@@ -739,7 +739,7 @@ class OnACID(object):
         if not self.params.get('online', 'dist_shape_update'):  # bulk shape update
             if ((t + 1 - self.params.get('online', 'init_batch')) %
                     self.params.get('online', 'update_freq') == 0):
-                logging.info('Updating Shapes')
+                logger.info('Updating Shapes')
 
                 if self.N > self.params.get('online', 'max_comp_update_shape'):
                     indicator_components = np.where(self.update_counter <=
@@ -875,6 +875,7 @@ class OnACID(object):
         return self
 
     def initialize_online(self, model_LN=None, T=None):
+        logger = logging.getLogger("caiman")
         fls = self.params.get('data', 'fnames')
         opts = self.params.get_group('online')
         Y = caiman.load(fls[0], subindices=slice(0, opts['init_batch'],
@@ -909,7 +910,7 @@ class OnACID(object):
             Y = Y - img_min
         img_norm = np.std(Y, axis=0)
         img_norm += np.median(img_norm)  # normalize data to equalize the FOV
-        logging.info('Frame size:' + str(img_norm.shape))
+        logger.info(f'Frame size: {img_norm.shape}')
         if self.params.get('online', 'normalize'):
             Y = Y/img_norm[None, :, :]
         if opts['show_movie']:
@@ -1108,11 +1109,12 @@ class OnACID(object):
         Returns:
             self (results of caiman online)
         """
+        logger = logging.getLogger("caiman")
         self.t_init = -time()
         fls = self.params.get('data', 'fnames')
         init_batch = self.params.get('online', 'init_batch')
         if self.params.get('online', 'ring_CNN'):
-            logging.info('Using Ring CNN model')
+            logger.info('Using Ring CNN model')
             gSig = self.params.get('init', 'gSig')[0]
             width = self.params.get('ring_CNN', 'width')
             nch = self.params.get('ring_CNN', 'n_channels')
@@ -1127,22 +1129,22 @@ class OnACID(object):
             Y = caiman.base.movies.load(fls[0], subindices=slice(init_batch),
                                         var_name_hdf5=self.params.get('data', 'var_name_hdf5'))
             shape = Y.shape[1:] + (1,)
-            logging.info('Starting background model training.')
+            logger.info('Starting background model training.')
             model_LN = create_LN_model(Y, shape=shape, n_channels=nch,
                                        lr=self.params.get('ring_CNN', 'lr'), gSig=gSig,
                                        loss=loss_fn, width=width,
                                        use_add=self.params.get('ring_CNN', 'use_add'),
                                        use_bias=self.params.get('ring_CNN', 'use_bias'))
             if self.params.get('ring_CNN', 'reuse_model'):
-                logging.info('Using existing model from {self.params.get("ring_CNN", "path_to_model")}')
+                logger.info('Using existing model from {self.params.get("ring_CNN", "path_to_model")}')
                 model_LN.load_weights(self.params.get('ring_CNN', 'path_to_model'))
             else:
-                logging.info('Estimating model from scratch, starting training.')
+                logger.info('Estimating model from scratch, starting training.')
                 model_LN, history, path_to_model = fit_NL_model(model_LN, Y,
                                                                 epochs=self.params.get('ring_CNN', 'max_epochs'),
                                                                 patience=self.params.get('ring_CNN', 'patience'),
                                                                 schedule=sch)
-                logging.info(f'Training complete. Model saved in {path_to_model}.')
+                logger.info(f'Training complete. Model saved in {path_to_model}.')
                 self.params.set('ring_CNN', {'path_to_model': path_to_model})
         else:
             model_LN = None
@@ -1171,7 +1173,7 @@ class OnACID(object):
         for iter in range(epochs):
             if iter == epochs - 1 and self.params.get('online', 'stop_detection'):
                 self.params.set('online', {'update_num_comps': False})
-            logging.info(f"Searching for new components set to: {self.params.get('online', 'update_num_comps')}")
+            logger.info(f"Searching for new components set to: {self.params.get('online', 'update_num_comps')}")
             if iter > 0:
                 # if not on first epoch process all files from scratch
                 process_files = fls[:init_files + extra_files]
@@ -1180,7 +1182,7 @@ class OnACID(object):
             # Go through all files
             # TODO Use better variable names
             for file_count, ffll in enumerate(process_files):
-                logging.warning(f'Now processing file {ffll}')
+                logger.warning(f'Now processing file {ffll}')
                 Y_ = caiman.base.movies.load_iter(
                     ffll, var_name_hdf5=self.params.get('data', 'var_name_hdf5'),
                     subindices=slice(init_batc_iter[file_count], None, None))
@@ -1206,10 +1208,9 @@ class OnACID(object):
                             raise Exception('Frame ' + str(frame_count) +
                                             ' contains NaN')
                         if t % 500 == 0:
-                            logging.info('Epoch: ' + str(iter + 1) + '. ' + str(t) +
+                            logger.info(f'Epoch: {iter + 1}. {t}' +
                                          ' frames have been processed in total. ' +
-                                         str(self.N - old_comps) +
-                                         ' new components were added. Total # of components is '
+                                         f'{self.N - old_comps} new components were added. Total # of components is '
                                          + str(self.estimates.Ab.shape[-1] - self.params.get('init', 'nb')))
                             old_comps = self.N
 

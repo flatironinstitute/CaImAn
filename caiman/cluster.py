@@ -21,9 +21,6 @@ import sys
 import time
 from typing import Any, Optional, Union
 
-logger = logging.getLogger(__name__)
-
-
 def extract_patch_coordinates(dims: tuple,
                               rf: Union[list, tuple],
                               stride: Union[list[int], tuple],
@@ -107,6 +104,7 @@ def start_server(ipcluster: str = "ipcluster", ncpus: int = None) -> None:
             ipcluster binary file name; requires 4 path separators on Windows. ipcluster="C:\\\\Anaconda3\\\\Scripts\\\\ipcluster.exe"
             Default: "ipcluster"
     """
+    logger = logging.getLogger("caiman")
     logger.info("Starting cluster...")
     if ncpus is None:
         ncpus = psutil.cpu_count()
@@ -142,6 +140,7 @@ def stop_server(ipcluster: str = 'ipcluster', pdir: str = None, profile: str = N
         dview: Undocumented
 
     """
+    logger = logging.getLogger("caiman")
     if 'multiprocessing' in str(type(dview)):
         dview.terminate()
     else:
@@ -216,6 +215,7 @@ def setup_cluster(backend:str = 'multiprocessing',
             number of workers in dview. None means single core mode in use. 
     """
 
+    logger = logging.getLogger("caiman")
     sys.stdout.flush() # XXX Unsure why we do this
     if n_processes is None:
         n_processes = np.maximum(int(psutil.cpu_count() - 1), 1)

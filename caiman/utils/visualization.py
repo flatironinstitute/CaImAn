@@ -366,7 +366,7 @@ def hv_view_patches(Yr, A, C, b, f, d1, d2, YrA=None, image_neurons=None, denois
                 .redim.range(unit_id=(0, nr-1), scale=(0.0, 1.0)))
 
 
-def get_contours(A, dims, thr=0.9, thr_method='nrg', swap_dim=False):
+def get_contours(A, dims, thr=0.9, thr_method='nrg', swap_dim=False, slice_dim: Optional[int] = None):
     """Gets contour of spatial components and returns their coordinates
 
      Args:
@@ -374,15 +374,24 @@ def get_contours(A, dims, thr=0.9, thr_method='nrg', swap_dim=False):
                    Matrix of Spatial components (d x K)
 
              dims: tuple of ints
-                   Spatial dimensions of movie (x, y[, z])
+                   Spatial dimensions of movie
 
              thr: scalar between 0 and 1
                    Energy threshold for computing contours (default 0.9)
 
-             thr_method: [optional] string
+             thr_method: string
                   Method of thresholding:
                       'max' sets to zero pixels that have value less than a fraction of the max value
                       'nrg' keeps the pixels that contribute up to a specified fraction of the energy
+            
+             swap_dim: bool
+                  If False (default), each column of A should be reshaped in F-order to recover the mask;
+                  this is correct if the dimensions have not been reordered from (y, x[, z]).
+                  If True, each column should be reshaped in C-order; this is correct for dims = ([z, ]x, y).
+
+             slice_dim: int or None
+                  Which dimension to slice along if we have 3D data. (i.e., get contours on each plane along this axis).
+                  The default (None) is 0 if swap_dim is True, else -1.
 
      Returns:
          Coor: list of coordinates with center of mass and
@@ -392,18 +401,11 @@ def get_contours(A, dims, thr=0.9, thr_method='nrg', swap_dim=False):
     if 'csc_matrix' not in str(type(A)):
         A = csc_matrix(A)
     d, nr = np.shape(A)
-    # if we are on a 3D video
-    if len(dims) == 3:
-        d1, d2, d3 = dims
-        x, y = np.mgrid[0:d2:1, 0:d3:1]
-    else:
-        d1, d2 = dims
-        x, y = np.mgrid[0:d1:1, 0:d2:1]
 
     coordinates = []
 
     # get the center of mass of neurons( patches )
-    cm = caiman.base.rois.com(A, *dims)
+    cm = caiman.base.rois.com(A, *dims, order='C' if swap_dim else 'F')
 
     # for each patches
     for i in range(nr):
@@ -437,9 +439,10 @@ def get_contours(A, dims, thr=0.9, thr_method='nrg', swap_dim=False):
             Bmat = np.reshape(Bvec, dims, order='C')
         else:
             Bmat = np.reshape(Bvec, dims, order='F')
-        pars['coordinates'] = []
-        # for each dimensions we draw the contour
-        for B in (Bmat if len(dims) == 3 else [Bmat]):
+
+        def get_slice_coords(B: np.ndarray) -> np.ndarray:
+            """Get contour coordinates for a 2D slice"""
+            d1, d2 = B.shape
             vertices = find_contours(B.T, thr)
             # this fix is necessary for having disjoint figures and borders plotted correctly
             v = np.atleast_2d([np.nan, np.nan])
@@ -448,16 +451,26 @@ def get_contours(A, dims, thr=0.9, thr_method='nrg', swap_dim=False):
                 if num_close_coords < 2:
                     if num_close_coords == 0:
                         # case angle
-                        newpt = np.round(vtx[-1, :] / [d2, d1]) * [d2, d1]
-                        vtx = np.concatenate((vtx, newpt[np.newaxis, :]), axis=0)
+                        newpt = np.round(np.mean(vtx[[0, -1], :], axis=0) / [d2, d1]) * [d2, d1]
+                        vtx = np.concatenate((newpt[np.newaxis, :], vtx, newpt[np.newaxis, :]), axis=0)
                     else:
                         # case one is border
                         vtx = np.concatenate((vtx, vtx[0, np.newaxis]), axis=0)
                 v = np.concatenate(
                     (v, vtx, np.atleast_2d([np.nan, np.nan])), axis=0)
+            return v
+        
+        if len(dims) == 2:
+            pars['coordinates'] = get_slice_coords(Bmat)
+        else:
+            # make a list of the contour coordinates for each 2D slice
+            pars['coordinates'] = []
+            if slice_dim is None:
+                slice_dim = 0 if swap_dim else -1
+            for s in range(dims[slice_dim]):
+                B = Bmat.take(s, axis=slice_dim)
+                pars['coordinates'].append(get_slice_coords(B))
 
-            pars['coordinates'] = v if len(
-                dims) == 2 else (pars['coordinates'] + [v])
         pars['CoM'] = np.squeeze(cm[i, :])
         pars['neuron_id'] = i + 1
         coordinates.append(pars)
@@ -1098,16 +1111,11 @@ def plot_contours(A, Cn, thr=None, thr_method='max', maxthr=0.2, nrgthr=0.9, dis
         plt.plot(*v.T, c=colors, **contour_args)
 
     if display_numbers:
-        d1, d2 = np.shape(Cn)
-        d, nr = np.shape(A)
-        cm = caiman.base.rois.com(A, d1, d2)
+        nr = A.shape[1]
         if max_number is None:
-            max_number = A.shape[1]
-        for i in range(np.minimum(nr, max_number)):
-            if swap_dim:
-                ax.text(cm[i, 0], cm[i, 1], str(i + 1), color=colors, **number_args)
-            else:
-                ax.text(cm[i, 1], cm[i, 0], str(i + 1), color=colors, **number_args)
+            max_number = nr
+        for i, c in zip(range(np.minimum(nr, max_number)), coordinates):
+            ax.text(c['CoM'][1], c['CoM'][0], str(i + 1), color=colors, **number_args)
     return coordinates
 
 def plot_shapes(Ab, dims, num_comps=15, size=(15, 15), comps_per_row=None,
@@ -1344,7 +1352,6 @@ def view_quilt(template_image: np.ndarray,
         
     Note: 
         Currently assumes square patches so takes in a single number for stride/overlap.
-        TODO: implement bokeh version of this function
     """
     im_dims = template_image.shape
     patch_rows, patch_cols = get_rectangle_coords(im_dims, stride, overlap)
@@ -1362,3 +1369,119 @@ def view_quilt(template_image: np.ndarray,
                               ax=ax)
             
     return ax
+
+
+def create_quilt_patches(patch_rows, patch_cols):
+    """
+    Helper function for nb_view_quilt.
+    Create patches given the row and column coordinates.
+    
+    Args:
+        patch_rows (ndarray): Array of row start and end positions for each patch.
+        patch_cols (ndarray): Array of column start and end positions for each patch.
+    
+    Returns:
+        list: A list of dictionaries, each containing the center coordinates, width, 
+              and height of a patch.
+    """
+    patches = []
+    for row in patch_rows:
+        for col in patch_cols:
+            center_x = (col[0] + col[1]) / 2
+            center_y = (row[0] + row[1]) / 2
+            width = col[1] - col[0]
+            height = row[1] - row[0]
+            patches.append({'center_x': center_x, 'center_y': center_y, 'width': width, 'height': height})
+    return patches
+
+
+def nb_view_quilt(template_image: np.ndarray, 
+               rf: int, 
+               stride_input: int, 
+               color: Optional[Any]='white', 
+               alpha: Optional[float]=0.2):
+    """
+    Bokeh implementation of view_quilt.
+    Plot patches on the template image given stride and overlap parameters.
+    
+    Args:
+        template_image (ndarray): Row x column summary image upon which to draw patches (e.g., correlation image).
+        rf (int): Half-size of the patches in pixels (patch width is rf*2 + 1).
+        stride_input (int): Amount of overlap between the patches in pixels (overlap is stride_input + 1).
+        color (Optional[Any]): Color of the patches, default 'white'.
+        alpha (Optional[float]): Patch transparency, default 0.2.
+    """
+    
+    width = (rf*2)+1
+    overlap = stride_input+1
+    stride = width-overlap
+    
+    im_dims = template_image.shape
+    patch_rows, patch_cols = get_rectangle_coords(im_dims, stride, overlap)
+    patches = create_quilt_patches(patch_rows, patch_cols)
+
+    plot = bpl.figure(x_range=(0, im_dims[1]), y_range=(im_dims[0], 0), width=600, height=600)
+    #plot.y_range.flipped = True
+    plot.image(image=[template_image], x=0, y=0, dw=im_dims[1], dh=im_dims[0], palette="Greys256")
+    source = ColumnDataSource(data=dict(
+        center_x=[patch['center_x'] for patch in patches],
+        center_y=[patch['center_y'] for patch in patches],
+        width=[patch['width'] for patch in patches],
+        height=[patch['height'] for patch in patches]
+    ))
+    plot.rect(x='center_x', y='center_y', width='width', height='height', source=source, color=color, alpha=alpha)
+    
+    # Create sliders
+    stride_slider = bokeh.models.Slider(start=1, end=100, value=rf, step=1, title="Patch half-size (rf)")
+    overlap_slider = bokeh.models.Slider(start=0, end=100, value=stride_input, step=1, title="Overlap (stride)")
+    
+    callback = CustomJS(args=dict(source=source, im_dims=im_dims, stride_slider=stride_slider, overlap_slider=overlap_slider), code="""
+        function get_rectangle_coords(im_dims, stride, overlap) {
+            let patch_width = overlap + stride;
+            
+            let patch_onset_rows = Array.from({length: Math.ceil((im_dims[0] - patch_width) / stride)}, (_, i) => i * stride).concat([im_dims[0] - patch_width]);
+            let patch_offset_rows = patch_onset_rows.map(x => Math.min(x + patch_width, im_dims[0] - 1));
+            let patch_rows = patch_onset_rows.map((x, i) => [x, patch_offset_rows[i]]);
+            
+            let patch_onset_cols = Array.from({length: Math.ceil((im_dims[1] - patch_width) / stride)}, (_, i) => i * stride).concat([im_dims[1] - patch_width]);
+            let patch_offset_cols = patch_onset_cols.map(x => Math.min(x + patch_width, im_dims[1] - 1));
+            let patch_cols = patch_onset_cols.map((x, i) => [x, patch_offset_cols[i]]);
+            
+            return [patch_rows, patch_cols];
+        }
+    
+        function create_quilt_patches(patch_rows, patch_cols) {
+            let patches = [];
+            for (let row of patch_rows) {
+                for (let col of patch_cols) {
+                    let center_x = (col[0] + col[1]) / 2;
+                    let center_y = (row[0] + row[1]) / 2;
+                    let width = col[1] - col[0];
+                    let height = row[1] - row[0];
+                    patches.push({'center_x': center_x, 'center_y': center_y, 'width': width, 'height': height});
+                }
+            }
+            return patches;
+        }
+    
+        let width = (stride_slider.value * 2) + 1;
+        let overlap = overlap_slider.value + 1;
+        let stride = width - overlap
+        
+        let [patch_rows, patch_cols] = get_rectangle_coords(im_dims, stride, overlap);
+        let patches = create_quilt_patches(patch_rows, patch_cols);
+    
+        source.data = {
+            center_x: patches.map(patch => patch.center_x),
+            center_y: patches.map(patch => patch.center_y),
+            width: patches.map(patch => patch.width),
+            height: patches.map(patch => patch.height)
+        };
+        source.change.emit();
+    """)
+    
+    stride_slider.js_on_change('value', callback)
+    overlap_slider.js_on_change('value', callback)
+
+    
+    bpl.show(bokeh.layouts.row(plot, bokeh.layouts.column(stride_slider, overlap_slider)))

@@ -32,10 +32,7 @@ try:
 except:
     print('OpenCV is naturally single threaded')
 
-logging.basicConfig(format=
-                    "%(relativeCreated)12d [%(filename)s:%(funcName)20s():%(lineno)s]"\
-                    "[%(process)d] %(message)s",
-                    level=logging.ERROR)
+logging.getLogger("caiman").setLevel(logging.ERROR)
 # %% Select a dataset (specify the ID variable as a list of datasets to be processed)
 # 0: neuforinder.03.00.test (N.03.00.t)
 # 1: neurofinder.04.00.test (N.04.00.t)

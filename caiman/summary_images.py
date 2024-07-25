@@ -39,6 +39,7 @@ def max_correlation_image(Y, bin_size: int = 1000, eight_neighbours: bool = True
         Cn: d1 x d2 [x d3] matrix,
             max correlation image
     """
+    logger = logging.getLogger("caiman")
 
     if swap_dim:
         Y = np.transpose(Y, tuple(np.hstack((Y.ndim - 1, list(range(Y.ndim))[:-1]))))
@@ -57,7 +58,7 @@ def max_correlation_image(Y, bin_size: int = 1000, eight_neighbours: bool = True
             Cn_bins[i] = local_correlations_fft(Y[i * bin_size:(i + 1) * bin_size],
                                                 eight_neighbours=eight_neighbours,
                                                 swap_dim=False)
-            logging.debug(i * bin_size)
+            logger.debug(i * bin_size)
 
         Cn = np.max(Cn_bins, axis=0)
         return Cn

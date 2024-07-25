@@ -228,25 +228,38 @@ of the file creating the log, the process ID, and the actual log message.
 
 While logging is especially helpful when running code on a server, it can also be helpful to get feedback locally, either 
 to audit progress or diagnose problems when debugging. If you set 
-this feature up by running the following cell, the logs will by default go to console. If you want to direct 
+this feature up by running the following code, the logs will by default go to console. If you want to direct 
 your log to file (which you can indicate with ``use_logfile = True``), then it will automatically be directed 
 to your ``caiman_data/temp`` directory as defined in the ``caiman.paths`` module. You can set another path manually 
 by changing the argument to the ``filename`` parameter in ``basicConfig()``.
 
+If you want to log to normal outputs (cells in Jupyter, STDOUT in scripts), you can set that up by running this:
+
 ::
 
-   use_logfile = True # set to True to log to file
-   if use_logfile:
-      current_datetime = datetime.datetime.now().strftime("_%Y%m%d_%H%M%S")
-      log_filename = 'demo_pipeline' + current_datetime + '.log'  
-      log_path = Path(cm.paths.get_tempdir()) / log_filename
-      print(f"Will save logging data to {log_path}")
-   else:
-      log_path = None
-   log_format = "{asctime} - {levelname} - [{filename} {funcName}() {lineno}] - pid {process} - {message}"
-   logging.basicConfig(format=log_format,
-                       filename=log_path, 
-                       level=logging.WARNING, style="{") #DEBUG, INFO, WARNING, ERROR, CRITICAL
+   logger = logging.getLogger("caiman")
+   logger.setLevel(logging.WARNING)
+   handler = logging.StreamHandler()
+   log_format = logging.Formatter("%(relativeCreated)12d [%(filename)s:%(funcName)10s():%(lineno)s] [%(process)d] %(message)s")
+   handler.setFormatter(log_format)
+   logger.addHandler(handler)
+
+If you prefer to log to a file, you can set that up by running this:
+
+::
+
+   logger = logging.getLogger("caiman")
+   logger.setLevel(logging.WARNING)
+   # Set path to logfile
+   current_datetime = datetime.datetime.now().strftime("_%Y%m%d_%H%M%S")
+   log_filename = 'demo_pipeline' + current_datetime + '.log'  
+   log_path = Path(cm.paths.get_tempdir()) / log_filename
+   # Done with path stuff
+   handler = logging.FileHandler(log_path)
+   log_format = logging.Formatter("%(relativeCreated)12d [%(filename)s:%(funcName)10s():%(lineno)s] [%(process)d] %(message)s")
+   handler.setFormatter(log_format)
+   logger.addHandler(handler)
+
 
 Caiman makes extensive use of the log system, and we have place many loggers interleaved throughough the code to aid in 
 debugging. If you hit a bug, it is often helpful to set your debugging level to ``DEBUG`` so you can see what
@@ -256,7 +269,7 @@ Once you have configured your logger, you can change the level (say, from ``WARN
 
 ::
  
-   logging.getLogger().setLevel(logging.DEBUG) 
+   logging.getLogger("caiman").setLevel(logging.DEBUG) 
 
 
 

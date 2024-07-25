@@ -11,11 +11,8 @@ from caiman.source_extraction.cnmf.deconvolution import constrained_foopsi
 # You can log to a file using the filename parameter, or make the output more or less
 # verbose by setting level to logging.DEBUG, logging.INFO, logging.WARNING, or logging.ERROR
 
-logging.basicConfig(
-    format="%(relativeCreated)12d [%(filename)s:%(funcName)20s():%(lineno)s] [%(process)d] %(message)s",
-                                                                                                         # filename="/tmp/caiman.log",
-    level=logging.DEBUG)
-
+logger = logging.getLogger("caiman")
+logger.setLevel(logging.DEBUG)
 
 def gen_data(g=[.95], sn=.2, T=1000, framerate=30, firerate=.5, b=10, N=1, seed=0):
     """
@@ -71,7 +68,7 @@ def foo(method, p):
         res = constrained_foopsi(y, g=g, sn=sn, p=p, method=method)
         npt.assert_allclose(np.corrcoef(res[0], c)[0, 1], 1, [.01, .1][i])
         npt.assert_allclose(np.corrcoef(res[-2], s)[0, 1], 1, [.03, .3][i])
-    logging.debug(['\n', ''][p - 1] + ' %5s AR%d   %.4fs' % (method, p, time() - t))
+    logger.debug(['\n', ''][p - 1] + ' %5s AR%d   %.4fs' % (method, p, time() - t))
 
 
 def test_oasis():

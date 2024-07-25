@@ -13,7 +13,7 @@ Caiman Central
 --------------
 - [Caiman Central](https://github.com/flatironinstitute/caiman_central) is the hub for sharing information about CaImAn. Information on quarterly community meetings, workshops, other events, and any other communications between the developers and the user community can be found there.
 
-# Quick start :rocket:
+# Quick start
 Follow these three steps to get started quickly, from installation to working through a demo notebook. If you do not already have conda installed, [you can find it here](https://docs.conda.io/en/latest/miniconda.html). There is a video walkthrough of the following steps [here](https://youtu.be/b63zAmKihIY?si=m7WleTwdU0rJup_2).
 
 ### Step 1: Install caiman
@@ -41,7 +41,7 @@ Jupyter will open. Navigate to demos/notebooks/ and click on `demo_pipeline.ipyn
 ## For installation help
 Caiman should install easily on Linux, Mac, and Windows. If you run into problems, we have a dedicated [installation page](./docs/source/Installation.rst): the details there should help you troubleshoot. If you don't find what you need there, *please* [create an issue](https://github.com/flatironinstitute/CaImAn/issues) at GitHub, and we will help you get it sorted out. 
 
-# Demo notebooks :page_with_curl:
+# Demo notebooks
 Caiman provides demo notebooks to showcase each of our main features, from motion correction to online CNMF. We recommend starting with the CNMF notebook (`demo_pipeline.ipynb`), which contains more explanation and details than the other notebooks: it covers many concepts that will be used without explanation in the other notebooks. The CNMFE notebook (`demo_pipeline_cnmfE.ipynb`), is also more detailed. Once you've gotten things set up and worked through those "anchor" notebooks, the best way to get started is to work through the demo notebook that most closely matches your use case; you should be able to adapt it for your particular needs.
 
 The main use cases and notebooks are listed in the following table:
@@ -72,7 +72,7 @@ Caiman also provides commandline demos, similar to the notebooks, demonstrating 
 - If you have found a bug, we recommend searching the [issues at github](https://github.com/flatironinstitute/CaImAn/issues) and opening a new issue if you can't find the solution there. 
 - If there is a feature you would like to see implemented, feel free to come chat at the above forums or open an issue at Github.
 
-# How to contribute :hammer:
+# How to contribute
  Caiman is an open-source project and improves because of contributions from users all over the world. If there is something about Caiman that you would like to work on, then please reach out. We are always looking for more contributors, so please come read the [contributors page](./CONTRIBUTING.md) for more details about how. 
 
 # Videos 
@@ -89,7 +89,7 @@ The following talks are more in depth:
 * https://www.youtube.com/watch?v=z6TlH28MLRo
 
 
-# Related repositories :pushpin:
+# Related repositories
 There are many repositories that use Caiman, or help make using Caiman easier.
 
 * [use\_cases repo](https://github.com/flatironinstitute/caiman_use_cases):  additional code (unmaintained) demonstrating how to reproduce results in some Caiman-related papers, and how to use/extend Caiman.

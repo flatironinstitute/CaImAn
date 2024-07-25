@@ -52,7 +52,7 @@ __pycache__/
 
 # C extensions
 *.so
-*.c
+caiman/source_extraction/cnmf/oasis.cpp
 
 #movie tif
 *.tif

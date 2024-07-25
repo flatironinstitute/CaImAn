@@ -169,6 +169,7 @@ def update_temporal_components(Y, A, b, Cin, fin, bl=None, c1=None, g=None, sn=N
             Automatically tuned sparsity parameter
     """
 
+    logger = logging.getLogger("caiman")
     if 'p' not in kwargs or kwargs['p'] is None:
         raise Exception("You have to provide a value for p")
 
@@ -197,7 +198,7 @@ def update_temporal_components(Y, A, b, Cin, fin, bl=None, c1=None, g=None, sn=N
     C = Cin.copy()
     nA = np.ravel(A.power(2).sum(axis=0)) + np.finfo(np.float32).eps
 
-    logging.info('Generating residuals')
+    logger.info('Generating residuals')
 #    dview_res = None if block_size >= 500 else dview
     if 'memmap' in str(type(Y)):
         bl_siz1 = d // (np.maximum(num_blocks_per_run_temp - 1, 1))
@@ -211,13 +212,13 @@ def update_temporal_components(Y, A, b, Cin, fin, bl=None, c1=None, g=None, sn=N
     YrA = YA - AA.T.dot(Cin).T
     # creating the patch of components to be computed in parallel
     parrllcomp, len_parrllcomp = caiman.source_extraction.cnmf.utilities.update_order_greedy(AA[:nr, :][:, :nr])
-    logging.info("entering the deconvolution ")
+    logger.info("entering the deconvolution ")
     C, S, bl, YrA, c1, sn, g, lam = update_iteration(parrllcomp, len_parrllcomp, nb, C, S, bl, nr,
                                                      ITER, YrA, c1, sn, g, Cin, T, nA, dview, debug, AA, kwargs)
     ff = np.where(np.sum(C, axis=1) == 0)  # remove empty components
     if np.size(ff) > 0:  # Eliminating empty temporal components
         ff = ff[0]
-        logging.info(f'removing {len(ff)} empty spatial component(s)')
+        logger.info(f'removing {len(ff)} empty spatial component(s)')
         keep = list(range(A.shape[1]))
         for i in ff:
             keep.remove(i)
@@ -327,6 +328,7 @@ def update_iteration(parrllcomp, len_parrllcomp, nb, C, S, bl, nr,
             YrA corresponds to the residual trace for each component and is used for faster plotting (K x T)
 """
 
+    logger = logging.getLogger("caiman")
     lam = np.repeat(None, nr)
     for _ in range(ITER):
 
@@ -375,7 +377,7 @@ def update_iteration(parrllcomp, len_parrllcomp, nb, C, S, bl, nr,
             YrA -= AA[jo, :].T.dot(Ctemp - C[jo, :]).T
             C[jo, :] = Ctemp.copy()
             S[jo, :] = Stemp
-            logging.info(str(np.sum(len_parrllcomp[:count + 1])) +
+            logger.info(str(np.sum(len_parrllcomp[:count + 1])) +
                          f" out of total {nr} temporal components updated")
 
         for ii in np.arange(nr, nr + nb):
@@ -388,13 +390,13 @@ def update_iteration(parrllcomp, len_parrllcomp, nb, C, S, bl, nr,
 
         try:
             if scipy.linalg.norm(Cin - C, 'fro') <= 1e-3*scipy.linalg.norm(C, 'fro'):
-                logging.info("stopping: overall temporal component not changing" +
+                logger.info("stopping: overall temporal component not changing" +
                              " significantly")
                 break
             else:  # we keep Cin and do the iteration once more
                 Cin = C.copy()
         except ValueError:
-            logging.warning("Aborting updating of temporal components due" +
+            logger.warning("Aborting updating of temporal components due" +
                             " to possible numerical issues.")
             C = Cin.copy()
             break

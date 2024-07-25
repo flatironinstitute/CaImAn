@@ -318,10 +318,12 @@ class movie(caiman.base.timeseries.timeseries):
             Exception 'Unknown motion correction method!'
 
         """
+        logger = logging.getLogger("caiman")
+
         min_val = np.percentile(self, 1)
         if min_val < -0.1:
-            logging.debug("min_val in extract_shifts: " + str(min_val))
-            logging.warning('Movie average is negative. Removing 1st percentile.')
+            logger.debug(f"min_val in extract_shifts: {min_val}")
+            logger.warning('Movie average is negative. Removing 1st percentile.')
             self = self - min_val
         else:
             min_val = 0
@@ -339,7 +341,7 @@ class movie(caiman.base.timeseries.timeseries):
             template = np.median(self, axis=0)
         else:
             if np.percentile(template, 8) < -0.1:
-                logging.warning('Movie average is negative. Removing 1st percentile.')
+                logger.warning('Movie average is negative. Removing 1st percentile.')
                 template = template - np.percentile(template, 1)
 
         template = template[ms_h:h_i - ms_h, ms_w:w_i - ms_w].astype(np.float32)
@@ -350,7 +352,7 @@ class movie(caiman.base.timeseries.timeseries):
 
         for i, frame in enumerate(self):
             if i % 100 == 99:
-                logging.debug(f"Frame {i + 1}")
+                logger.debug(f"Frame {i + 1}")
             if method == 'opencv':
                 res = cv2.matchTemplate(frame, template, cv2.TM_CCORR_NORMED)
                 top_left = cv2.minMaxLoc(res)[3]
@@ -408,6 +410,8 @@ class movie(caiman.base.timeseries.timeseries):
 
             Exception 'Method not defined'
         """
+        logger = logging.getLogger("caiman")
+
         if not isinstance(self[0, 0, 0], np.float32):
             warnings.warn('Casting the array to float32')
             self = np.asanyarray(self, dtype=np.float32)
@@ -417,40 +421,40 @@ class movie(caiman.base.timeseries.timeseries):
                 interpolation = cv2.INTER_CUBIC
             else:
                 interpolation = 3
-            logging.debug('cubic interpolation')
+            logger.debug('cubic interpolation')
 
         elif interpolation == 'nearest':
             if method == 'opencv':
                 interpolation = cv2.INTER_NEAREST
             else:
                 interpolation = 0
-            logging.debug('nearest interpolation')
+            logger.debug('nearest interpolation')
 
         elif interpolation == 'linear':
             if method == 'opencv':
                 interpolation = cv2.INTER_LINEAR
             else:
                 interpolation = 1
-            logging.debug('linear interpolation')
+            logger.debug('linear interpolation')
         elif interpolation == 'area':
             if method == 'opencv':
                 interpolation = cv2.INTER_AREA
             else:
                 raise Exception('Method not defined')
-            logging.debug('area interpolation')
+            logger.debug('area interpolation')
         elif interpolation == 'lanczos4':
             if method == 'opencv':
                 interpolation = cv2.INTER_LANCZOS4
             else:
                 interpolation = 4
-            logging.debug('lanczos/biquartic interpolation')
+            logger.debug('lanczos/biquartic interpolation')
         else:
             raise Exception('Interpolation method not available')
 
         _, h, w = self.shape
         for i, frame in enumerate(self):
             if i % 100 == 99:
-                logging.debug(f"Frame {i + 1}")
+                logger.debug(f"Frame {i + 1}")
 
             sh_x_n, sh_y_n = shifts[i]
 
@@ -550,17 +554,17 @@ class movie(caiman.base.timeseries.timeseries):
             self -= caiman.movie(cv2.resize(res,pixs.shape[::-1]),fr=self.fr).to3DFromPixelxTime(self.shape) 
             return self
     
-    def to2DPixelxTime(self, order='F'):
+    def to2DPixelxTime(self, order='F') -> 'movie':
         """
-        Transform 3D movie into 2D
+        Transform 3D or 4D movie into 2D (pixels x time)
         """
-        return self.transpose([2,1,0]).reshape((-1,self.shape[0]),order=order)  
+        return self.T.reshape((-1,self.shape[0]),order=order)
 
-    def to3DFromPixelxTime(self, shape, order='F'):
+    def to3DFromPixelxTime(self, shape, order='F') -> 'movie':
         """
-            Transform 2D movie into 3D
+        Transform 2D movie (pixels x time) into 3D or 4D
         """
-        return to_3D(self,shape[::-1],order=order).transpose([2,1,0])
+        return to_3D(self,shape[::-1],order=order).T
     
     def computeDFF(self, secsWindow: int = 5, quantilMin: int = 8, method: str = 'only_baseline', in_place: bool = False,
                    order: str = 'F') -> tuple[Any, Any]:
@@ -587,26 +591,28 @@ class movie(caiman.base.timeseries.timeseries):
         Raises:
             Exception 'Unknown method'
         """
-        logging.debug("computing minimum ...")
+        logger = logging.getLogger("caiman")
+
+        logger.debug("computing minimum ...")
         sys.stdout.flush()
         if np.min(self) <= 0 and method != 'only_baseline':
             raise ValueError("All pixels must be positive")
 
         numFrames, linePerFrame, pixPerLine = np.shape(self)
         downsampfact = int(secsWindow * self.fr)
-        logging.debug(f"Downsample factor: {downsampfact}")
+        logger.debug(f"Downsample factor: {downsampfact}")
         elm_missing = int(np.ceil(numFrames * 1.0 / downsampfact) * downsampfact - numFrames)
         padbefore = int(np.floor(elm_missing / 2.))
         padafter = int(np.ceil(elm_missing / 2.))
 
-        logging.debug('Initial Size Image:' + str(np.shape(self)))
+        logger.debug(f'Initial Size Image: {np.shape(self)}')
         sys.stdout.flush()
         mov_out = movie(np.pad(self.astype(np.float32), ((padbefore, padafter), (0, 0), (0, 0)), mode='reflect'),
                         **self.__dict__)
         numFramesNew, linePerFrame, pixPerLine = np.shape(mov_out)
 
         # compute baseline quickly
-        logging.debug("binning data ...")
+        logger.debug("binning data ...")
         sys.stdout.flush()
         
         if not in_place:
@@ -619,9 +625,9 @@ class movie(caiman.base.timeseries.timeseries):
                                order=order)
 
         movBL = np.percentile(movBL, quantilMin, axis=0)
-        logging.debug("interpolating data ...")
+        logger.debug("interpolating data ...")
         sys.stdout.flush()
-        logging.debug(f"movBL shape is {movBL.shape}")
+        logger.debug(f"movBL shape is {movBL.shape}")
         movBL = scipy.ndimage.zoom(np.array(movBL, dtype=np.float32), [downsampfact, 1, 1],
                                    order=1,
                                    mode='constant',
@@ -642,7 +648,7 @@ class movie(caiman.base.timeseries.timeseries):
             mov_out = movBL
             
         mov_out = mov_out[padbefore:len(movBL) - padafter, :, :]
-        logging.debug('Final Size Movie:' + str(self.shape))
+        logger.debug(f'Final Size Movie: {self.shape}')
         return mov_out, movie(movBL,
                               fr=self.fr,
                               start_time=self.start_time,
@@ -812,6 +818,8 @@ class movie(caiman.base.timeseries.timeseries):
                 rho: d1 x d2 [x d3] matrix, cross-correlation with adjacent pixels
 
         """
+        logger = logging.getLogger("caiman")
+
         T = self.shape[0]
         Cn = np.zeros(self.shape[1:])
         if T <= 3000:
@@ -823,7 +831,7 @@ class movie(caiman.base.timeseries.timeseries):
 
             n_chunks = T // frames_per_chunk
             for jj, mv in enumerate(range(n_chunks - 1)):
-                logging.debug('number of chunks:' + str(jj) + ' frames: ' +
+                logger.debug('number of chunks:{jj} frames: ' +
                               str([mv * frames_per_chunk, (mv + 1) * frames_per_chunk]))
                 rho = caiman.summary_images.local_correlations(np.array(self[mv * frames_per_chunk:(mv + 1) * frames_per_chunk]),
                                             eight_neighbours=eight_neighbours,
@@ -834,7 +842,7 @@ class movie(caiman.base.timeseries.timeseries):
                     plt.imshow(Cn, cmap='gray')
                     plt.pause(.1)
 
-            logging.debug('number of chunks:' + str(n_chunks - 1) + ' frames: ' +
+            logger.debug(f'number of chunks: {n_chunks - 1} frames: ' +
                           str([(n_chunks - 1) * frames_per_chunk, T]))
             rho = caiman.summary_images.local_correlations(np.array(self[(n_chunks - 1) * frames_per_chunk:]),
                                         eight_neighbours=eight_neighbours,
@@ -929,16 +937,18 @@ class movie(caiman.base.timeseries.timeseries):
         Returns:
             self (caiman movie)
         """
+        logger = logging.getLogger("caiman")
+
         T, d1, d2 = self.shape
         d = d1 * d2
         elm = d * T
         max_els = 2**61 - 1    # the bug for sizes >= 2**31 is appears to be fixed now
-        if elm > max_els:
+        if elm > max_els: # XXX do we still need this fallback then?
             chunk_size = max_els // d
             new_m:list = []
-            logging.debug('Resizing in chunks because of opencv bug')
+            logger.debug('Resizing in chunks because of opencv bug')
             for chunk in range(0, T, chunk_size):
-                logging.debug([chunk, np.minimum(chunk + chunk_size, T)])
+                logger.debug([chunk, np.minimum(chunk + chunk_size, T)])
                 m_tmp = self[chunk:np.minimum(chunk + chunk_size, T)].copy()
                 m_tmp = m_tmp.resize(fx=fx, fy=fy, fz=fz, interpolation=interpolation)
                 if len(new_m) == 0:
@@ -949,16 +959,16 @@ class movie(caiman.base.timeseries.timeseries):
             return new_m
         else:
             if fx != 1 or fy != 1:
-                logging.debug("reshaping along x and y")
+                logger.debug("reshaping along x and y")
                 t, h, w = self.shape
                 newshape = (int(w * fy), int(h * fx))
                 mov = []
-                logging.debug(f"New shape is {newshape}")
+                logger.debug(f"New shape is {newshape}")
                 for frame in self:
                     mov.append(cv2.resize(frame, newshape, fx=fx, fy=fy, interpolation=interpolation))
                 self = movie(np.asarray(mov), **self.__dict__)
             if fz != 1:
-                logging.debug("reshaping along z")
+                logger.debug("reshaping along z")
                 t, h, w = self.shape
                 self = np.reshape(self, (t, h * w))
                 mov = cv2.resize(self, (h * w, int(fz * t)), fx=1, fy=fz, interpolation=interpolation)
@@ -972,9 +982,11 @@ class movie(caiman.base.timeseries.timeseries):
         """
         performs guided filtering on each frame. See opencv documentation of cv2.ximgproc.guidedFilter
         """
+        logger = logging.getLogger("caiman")
+
         for idx, fr in enumerate(self):
             if idx % 1000 == 0:
-                logging.debug("At index: " + str(idx))
+                logger.debug(f"At index: {idx}")
             self[idx] = cv2.ximgproc.guidedFilter(guide_filter, fr, radius=radius, eps=eps)
 
         return self
@@ -983,13 +995,15 @@ class movie(caiman.base.timeseries.timeseries):
         """
         performs bilateral filtering on each frame. See opencv documentation of cv2.bilateralFilter
         """
+        logger = logging.getLogger("caiman")
+
         if not isinstance(self[0, 0, 0], np.float32):
-            warnings.warn('Casting the array to float32')
+            warnings.warn('Casting the array to float32') # XXX consider just using logger
             self = np.asanyarray(self, dtype=np.float32)
 
         for idx, fr in enumerate(self):
             if idx % 1000 == 0:
-                logging.debug("At index: " + str(idx))
+                logger.debug("At index: " + str(idx))
             self[idx] = cv2.bilateralFilter(fr, diameter, sigmaColor, sigmaSpace)
 
         return self
@@ -1015,9 +1029,10 @@ class movie(caiman.base.timeseries.timeseries):
             self: ndarray
                 blurred movie
         """
+        logger = logging.getLogger("caiman")
 
         for idx, fr in enumerate(self):
-            logging.debug(idx)
+            logger.debug(idx)
             self[idx] = cv2.GaussianBlur(fr,
                                          ksize=(kernel_size_x, kernel_size_y),
                                          sigmaX=kernel_std_x,
@@ -1044,9 +1059,10 @@ class movie(caiman.base.timeseries.timeseries):
             self: ndarray
                 blurred movie
         """
+        logger = logging.getLogger("caiman")
 
         for idx, fr in enumerate(self):
-            logging.debug(idx)
+            logger.debug(idx)
             self[idx] = cv2.medianBlur(fr, ksize=kernel_size)
 
         return self
@@ -1207,13 +1223,15 @@ def load(file_name: Union[str, list[str]],
     
         Exception 'File not found!'
     """
+    logger = logging.getLogger("caiman")
+
     # case we load movie from file
     if max(top, bottom, left, right) > 0 and isinstance(file_name, str):
         file_name = [file_name]        # type: ignore # mypy doesn't like that this changes type
 
     if isinstance(file_name, list):
         if shape is not None:
-            logging.error('shape parameter not supported for multiple movie input')
+            logger.error('shape parameter not supported for multiple movie input')
 
         return load_movie_chain(file_name,
                                 fr=fr,
@@ -1230,10 +1248,10 @@ def load(file_name: Union[str, list[str]],
                                 is3D=is3D)
 
     elif isinstance(file_name, tuple):
-        logging.debug(f'**** Processing input file {file_name} as individual frames *****')
+        logger.debug(f'**** Processing input file {file_name} as individual frames *****')
         if shape is not None:
             # XXX Should this be an Exception?
-            logging.error('movies.py:load(): A shape parameter is not supported for multiple movie input')
+            logger.error('movies.py:load(): A shape parameter is not supported for multiple movie input')
         else:
             return load_movie_chain(tuple([iidd for iidd in np.array(file_name)[subindices]]),
                      fr=fr, start_time=start_time,
@@ -1243,10 +1261,10 @@ def load(file_name: Union[str, list[str]],
 
     # If we got here we're parsing a single movie file
     if max(top, bottom, left, right) > 0:
-        logging.error('movies.py:load(): Parameters top,bottom,left,right are not supported for single movie input')
+        logger.error('movies.py:load(): Parameters top,bottom,left,right are not supported for single movie input')
 
     if channel is not None:
-        logging.error('movies.py:load(): channel parameter is not supported for single movie input')
+        logger.error('movies.py:load(): channel parameter is not supported for single movie input')
 
     if os.path.exists(file_name):
         basename, extension = os.path.splitext(file_name)
@@ -1257,8 +1275,8 @@ def load(file_name: Union[str, list[str]],
             with tifffile.TiffFile(file_name) as tffl:
                 multi_page = True if tffl.series[0].shape[0] > 1 else False
                 if len(tffl.pages) == 1:
-                    logging.warning('Your tif file is saved a single page' +
-                                    'file. Performance will be affected')
+                    logger.warning('Your tif file is saved a single page' +
+                                   'file. Performance will be affected')
                     multi_page = False
                 if subindices is not None:
                     # if isinstance(subindices, (list, tuple)): # is list or tuple:
@@ -1308,7 +1326,7 @@ def load(file_name: Union[str, list[str]],
             #
             # We have a fallback of trying to use the pims package if OpenCV fails
             if 'CAIMAN_LOAD_AVI_FORCE_FALLBACK' in os.environ: # User requested we don't even try opencv
-                logging.debug("Loading AVI/MKV file: PIMS codepath requested")
+                logger.debug("Loading AVI/MKV file: PIMS codepath requested")
                 do_opencv = False
             else:
                 cap = cv2.VideoCapture(file_name)
@@ -1322,7 +1340,7 @@ def load(file_name: Union[str, list[str]],
                     do_opencv = False
                     cap.release()
                     cv2.destroyAllWindows()
-                    logging.warning(f"OpenCV failed to parse {file_name}, falling back to pims")
+                    logger.warning(f"OpenCV failed to parse {file_name}, falling back to pims")
                 else:
                     do_opencv = True
 
@@ -1404,7 +1422,7 @@ def load(file_name: Union[str, list[str]],
                         elif isinstance(sb, np.ndarray):
                             dims[ind] = sb.shape[0]
                     start_frame = subindices[0][0]
-                    logging.debug(f"Subinds not none: start frame: {start_frame} and subinds: {subindices}")
+                    logger.debug(f"Subinds not none: start frame: {start_frame} and subinds: {subindices}")
                 else:
                     subindices = [np.r_[range(dims[0])]]
                     start_frame = 0
@@ -1445,8 +1463,8 @@ def load(file_name: Union[str, list[str]],
             with np.load(file_name) as f:
                 return movie(**f).astype(outtype)
 
-        elif extension in ('.hdf5', '.h5', '.mat', '.nwb', 'n5', 'zarr'):
-            if extension in ('n5', 'zarr'): # Thankfully, the zarr library lines up closely with h5py past the initial open
+        elif extension in ('.hdf5', '.h5', '.mat', '.nwb', '.n5', '.zarr'):
+            if extension in ('.n5', '.zarr'): # Thankfully, the zarr library lines up closely with h5py past the initial open
                 f = zarr.open(file_name, "r")
             else:
                 try:
@@ -1477,12 +1495,12 @@ def load(file_name: Union[str, list[str]],
                     if type(subindices).__module__ == 'numpy':
                         subindices = subindices.tolist()
                     if len(fgroup.shape) > 3:
-                        logging.warning(f'fgroup.shape has dimensionality greater than 3 {fgroup.shape} in load')
+                        logger.warning(f'fgroup.shape has dimensionality greater than 3 {fgroup.shape} in load')
                     images = np.array(fgroup[subindices]).squeeze()
 
                 return movie(images.astype(outtype))
             else:
-                logging.debug('KEYS:' + str(f.keys()))
+                logger.debug('KEYS:' + str(f.keys()))
                 raise Exception('Key not found in hdf5 file')
 
         elif extension == '.mmap':
@@ -1495,14 +1513,14 @@ def load(file_name: Union[str, list[str]],
                 images = images[subindices]
 
             if in_memory:
-                logging.debug('loading mmap file in memory')
+                logger.debug('loading mmap file in memory')
                 images = np.array(images).astype(outtype)
 
-            logging.debug('mmap')
+            logger.debug('mmap')
             return movie(images, fr=fr)
 
         elif extension == '.sbx':
-            logging.debug('sbx')
+            logger.debug('sbx')
             meta_data = caiman.utils.sbx_utils.sbx_meta_data(basename)
             input_arr = caiman.utils.sbx_utils.sbxread(basename, subindices)
             return movie(input_arr, fr=fr,
@@ -1515,7 +1533,7 @@ def load(file_name: Union[str, list[str]],
         else:
             raise Exception('Unknown file type')
     else:
-        logging.error(f"File request:[{file_name}] not found!")
+        logger.error(f"File request:[{file_name}] not found!")
         raise Exception(f'File {file_name} not found!')
 
     return movie(input_arr.astype(outtype),
@@ -1559,6 +1577,8 @@ def load_movie_chain(file_list: list[str],
             movie corresponding to the concatenation og the input files
 
     """
+    logger = logging.getLogger("caiman")
+
     mov = []
     for f in tqdm(file_list):
         m = load(f,
@@ -1570,9 +1590,9 @@ def load_movie_chain(file_list: list[str],
                  outtype=outtype,
                  var_name_hdf5=var_name_hdf5)
         if channel is not None:
-            logging.debug(m.shape)
+            logger.debug(m.shape)
             m = m[channel].squeeze()
-            logging.debug(f"Movie shape: {m.shape}")
+            logger.debug(f"Movie shape: {m.shape}")
 
         if not is3D:
             if m.ndim == 2:
@@ -1600,6 +1620,7 @@ def _load_behavior(file_name:str) -> Any:
     # with a particular inner structure. The keys in that file are things like trial_1, trial_12, ..
     # I refactored this out of load() to improve clarity of that function and to make it more clear
     # that user code should not do things that way.
+    logger = logging.getLogger("caiman")
 
     if not isinstance(file_name, str):
         raise Exception(f'Invalid type in _load_behavior(); please do not use this function outside of demo_behavior.py')
@@ -1612,7 +1633,7 @@ def _load_behavior(file_name:str) -> Any:
                 kk.sort(key=lambda x: int(x.split('_')[-1]))
                 input_arr = []
                 for trial in kk:
-                    logging.info('Loading ' + trial)
+                    logger.info(f'Loading {trial}')
                     input_arr.append(np.array(f[trial]['mov']))
 
                 input_arr = np.vstack(input_arr)
@@ -1620,7 +1641,7 @@ def _load_behavior(file_name:str) -> Any:
             raise Exception(f'_load_behavior() only accepts hdf5 files formatted a certain way. Please do not use this function.')
  
     else:
-        logging.error(f"File request:[{file_name}] not found!")
+        logger.error(f"File request:[{file_name}] not found!")
         raise Exception(f'File {file_name} not found!')
 
     # Defaults from movies.load() at time this was refactored out
@@ -1653,8 +1674,10 @@ def from_zip_file_to_movie(zipfile_name: str, start_end:Optional[tuple] = None) 
     Returns:
         movie
     '''
+    logger = logging.getLogger("caiman")
+
     mov:list = []
-    logging.info('unzipping file into movie object')
+    logger.info('unzipping file into movie object')
     if start_end is not None:
         num_frames = start_end[1] - start_end[0]
 
@@ -1671,7 +1694,7 @@ def from_zip_file_to_movie(zipfile_name: str, start_end:Optional[tuple] = None) 
                         mov[counter] = np.array(Image.open(file))
 
                     if counter % 100 == 0:
-                        logging.debug(f"counter/idx: {counter} {idx}")
+                        logger.debug(f"counter/idx: {counter} {idx}")
 
                     counter += 1
 
@@ -1763,6 +1786,8 @@ def load_iter(file_name: Union[str, list[str]], subindices=None, var_name_hdf5: 
 
         Exception 'File not found!'
     """
+    logger = logging.getLogger("caiman")
+
     if isinstance(file_name, list) or isinstance(file_name, tuple):
         for fname in file_name:
             iterator = load_iter(fname, subindices, var_name_hdf5, outtype)
@@ -1814,7 +1839,7 @@ def load_iter(file_name: Union[str, list[str]], subindices=None, var_name_hdf5: 
             elif extension in ('.avi', '.mkv'):
                 # First, let's see if OpenCV can handle this AVI file
                 if 'CAIMAN_LOAD_AVI_FORCE_FALLBACK' in os.environ: # User requested we don't even try opencv
-                    logging.debug("Loading AVI/MKV file: PIMS codepath requested")
+                    logger.debug("Loading AVI/MKV file: PIMS codepath requested")
                     do_opencv = False
                 else:
                     cap = cv2.VideoCapture(file_name)
@@ -1822,7 +1847,7 @@ def load_iter(file_name: Union[str, list[str]], subindices=None, var_name_hdf5: 
                     width  = int(cap.get(cv2.CAP_PROP_FRAME_WIDTH))
                     height = int(cap.get(cv2.CAP_PROP_FRAME_HEIGHT))
                     if length <= 0 or width <= 0 or height <= 0: # Not a perfect way to do this, but it's a start. Could also do a try/except block?
-                        logging.warning(f"OpenCV failed to parse {file_name}, falling back to pims")
+                        logger.warning(f"OpenCV failed to parse {file_name}, falling back to pims")
                         do_opencv = False
                         # Close up shop, and get ready for the alternative
                         cap.release()
@@ -1912,7 +1937,7 @@ def load_iter(file_name: Union[str, list[str]], subindices=None, var_name_hdf5: 
                             subindices=subindices, outtype=outtype, is3D=is3D):
                     yield y
         else:
-            logging.error(f"File request:[{file_name}] not found!")
+            logger.error(f"File request:[{file_name}] not found!")
             raise Exception('File not found!')
 
 def get_file_size(file_name, var_name_hdf5:str='mov') -> tuple[tuple, Union[int, tuple]]:
@@ -1934,6 +1959,8 @@ def get_file_size(file_name, var_name_hdf5:str='mov') -> tuple[tuple, Union[int,
             number of timesteps in each file
 
     """
+    logger = logging.getLogger("caiman")
+
     # TODO There is a lot of redundant code between this, load(), and load_iter() that should be unified somehow
     if isinstance(file_name, pathlib.Path):
         # We want to support these as input, but str has a broader set of operations that we'd like to use, so let's just convert.
@@ -1971,9 +1998,9 @@ def get_file_size(file_name, var_name_hdf5:str='mov') -> tuple[tuple, Union[int,
                 filename = os.path.split(file_name)[-1]
                 Yr, dims, T = caiman.mmapping.load_memmap(os.path.join(
                         os.path.split(file_name)[0], filename))
-            elif extension in ('.h5', '.hdf5', '.mat', '.nwb', 'n5', 'zarr'):
+            elif extension in ('.h5', '.hdf5', '.mat', '.nwb', '.n5', '.zarr'):
                 # FIXME this doesn't match the logic in load()
-                if extension in ('n5', 'zarr'): # Thankfully, the zarr library lines up closely with h5py past the initial open
+                if extension in ('.n5', '.zarr'): # Thankfully, the zarr library lines up closely with h5py past the initial open
                     f = zarr.open(file_name, "r")
                 else:
                     try:
@@ -1995,7 +2022,7 @@ def get_file_size(file_name, var_name_hdf5:str='mov') -> tuple[tuple, Union[int,
                 elif var_name_hdf5 in f['acquisition']:
                     siz = f['acquisition'][var_name_hdf5]['data'].shape
                 else:
-                    logging.error(f'The file does not contain a variable named {var_name_hdf5}')
+                    logger.error(f'The file does not contain a variable named {var_name_hdf5}')
                     raise Exception('Variable not found. Use one of the above')
                 T, dims = siz[0], siz[1:]
             elif extension in ('.sbx'):
@@ -2097,10 +2124,16 @@ def play_movie(movie,
     Raises:
         Exception 'Unknown backend!'
     """
+    logger = logging.getLogger("caiman")
+
     # todo: todocument
-    it = True if (isinstance(movie, list) or isinstance(movie, tuple) or isinstance(movie, str)) else False
+    if isinstance(movie, list) or isinstance(movie, tuple) or isinstance(movie, str):
+        it = True
+    else:
+        it = False
+
     if backend == 'pyplot':
-        logging.warning('Using pyplot back end: not recommended. Using opencv will yield faster, higher-quality results.')
+        logger.warning('Using pyplot back end: not recommended. Using opencv will yield faster, higher-quality results.')
 
     gain = float(gain)     # convert to float in case we were passed an int
     if q_max < 100:
