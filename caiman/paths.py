@@ -34,14 +34,16 @@ def get_tempdir() -> str:
     # If unset, uses default of a temp folder under caiman_datadir()
     # To get the old "store it where I am" behaviour, set CAIMAN_TEMP to a single dot.
     # If you prefer to store it somewhere different, provide a full path to that location.
+    logger = logging.getLogger("caiman")
+
     if 'CAIMAN_TEMP' in os.environ:
         if os.path.isdir(os.environ['CAIMAN_TEMP']):
             return os.environ['CAIMAN_TEMP']
         else:
-            logging.warning(f"CAIMAN_TEMP is set to nonexistent directory {os.environ['CAIMAN_TEMP']}. Ignoring")
+            logger.warning(f"CAIMAN_TEMP is set to nonexistent directory {os.environ['CAIMAN_TEMP']}. Ignoring")
     temp_under_data = os.path.join(caiman_datadir(), "temp")
     if not os.path.isdir(temp_under_data):
-        logging.warning(f"Default temporary dir {temp_under_data} does not exist, creating")
+        logger.warning(f"Default temporary dir {temp_under_data} does not exist, creating")
         os.makedirs(temp_under_data)
     return temp_under_data
 

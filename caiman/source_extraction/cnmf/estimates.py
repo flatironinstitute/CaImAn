@@ -105,8 +105,9 @@ class Estimates(object):
                 eccentricity values
         """
         # Sanity checks (right now these just warn, but eventually we would like to fail)
+        logger = logging.getLogger("caiman")
         if R is not None and not isinstance(R, np.ndarray):
-            logging.warning(f"Estimates.R should be an np.ndarray but was assigned a {type(R)}")
+            logger.warning(f"Estimates.R should be an np.ndarray but was assigned a {type(R)}")
 
         # variables related to the estimates of traces, footprints, deconvolution and background
         self.A = A
@@ -719,7 +720,8 @@ class Estimates(object):
              Yr :    np.ndarray
                  movie in format pixels (d) x frames (T)
             """
-        logging.warning("Computing the full background has big memory requirements!")
+        logger = logging.getLogger("caiman")
+        logger.warning("Computing the full background has big memory requirements!")
         if self.f is not None:  # low rank background
             return self.b.dot(self.f)
         else:  # ring model background
@@ -802,10 +804,11 @@ class Estimates(object):
             self: CNMF object
                 self.F_dff contains the DF/F normalized traces
         """
+        logger = logging.getLogger("caiman")
         # FIXME This method shares its name with a function elsewhere in the codebase (which it wraps)
 
         if self.C is None or self.C.shape[0] == 0:
-            logging.warning("There are no components for DF/F extraction!")
+            logger.warning("There are no components for DF/F extraction!")
             return self
 
         if use_residuals:
@@ -947,6 +950,7 @@ class Estimates(object):
     def restore_discarded_components(self):
         ''' Recover components that are filtered out with the select_components method
         '''
+        logger = logging.getLogger("caiman")
         if self.discarded_components is not None:
             for field in ['C', 'S', 'YrA', 'R', 'F_dff', 'g', 'bl', 'c1', 'neurons_sn', 'lam', 'cnn_preds','SNR_comp','r_values','coordinates']:
                 if getattr(self, field) is not None:
@@ -956,7 +960,7 @@ class Estimates(object):
                         setattr(self, field, np.concatenate([getattr(self, field), getattr(self.discarded_components, field)], axis=0))
                         setattr(self.discarded_components, field, None)
                     else:
-                        logging.warning('Variable ' + field + ' could not be \
+                        logger.warning('Variable ' + field + ' could not be \
                                         restored as it does not have the same \
                                         number of components as A')
 
@@ -1034,6 +1038,7 @@ class Estimates(object):
                 self.cnn_preds: np.array
                     CNN classifier values for each component
         """
+        logger = logging.getLogger("caiman")
         dims = imgs.shape[1:]
         opts = params.get_group('quality')
         idx_components, idx_components_bad, SNR_comp, r_values, cnn_preds = \
@@ -1052,11 +1057,11 @@ class Estimates(object):
         self.idx_components = idx_components.astype(int)
         self.idx_components_bad = idx_components_bad.astype(int)
         if np.any(np.isnan(r_values)):
-            logging.warning('NaN values detected for space correlation in {}'.format(np.where(np.isnan(r_values))[0]) +
+            logger.warning('NaN values detected for space correlation in {}'.format(np.where(np.isnan(r_values))[0]) +
                             '. Changing their value to -1.')
             r_values = np.where(np.isnan(r_values), -1, r_values)
         if np.any(np.isnan(SNR_comp)):
-            logging.warning('NaN values detected for trace SNR in {}'.format(np.where(np.isnan(SNR_comp))[0]) +
+            logger.warning('NaN values detected for trace SNR in {}'.format(np.where(np.isnan(SNR_comp))[0]) +
                             '. Changing their value to 0.')
             SNR_comp = np.where(np.isnan(SNR_comp), 0, SNR_comp)
         self.SNR_comp = SNR_comp
@@ -1176,7 +1181,7 @@ class Estimates(object):
         Returns:
             self: estimates object
         '''
-
+        logger = logging.getLogger("caiman")
         F = self.C + self.YrA
         args = dict()
         args['p'] = params.get('preprocess', 'p')
@@ -1213,7 +1218,7 @@ class Estimates(object):
 
         if dff_flag:
             if self.F_dff is None:
-                logging.warning('The F_dff field is empty. Run the method' +
+                logger.warning('The F_dff field is empty. Run the method' +
                                 ' estimates.detrend_df_f before attempting' +
                                 ' to deconvolve.')
             else:
@@ -1272,6 +1277,7 @@ class Estimates(object):
         Returns:
             self: estimates object
         '''
+        logger = logging.getLogger("caiman")
 
         ln = np.sum(np.array([len(comp) for comp in components]))
         ids = set.union(*[set(comp) for comp in components])
@@ -1295,7 +1301,7 @@ class Estimates(object):
 
         for i in range(nbmrg):
             merged_ROI = list(set(components[i]))
-            logging.info(f'Merging components {merged_ROI}')
+            logger.info(f'Merging components {merged_ROI}')
             merged_ROIs.append(merged_ROI)
 
             Acsc = self.A.tocsc()[:, merged_ROI]
@@ -1446,6 +1452,7 @@ class Estimates(object):
             thresh_subset
             plot_duplicates
         '''
+        logger = logging.getLogger("caiman")
         if self.A_thr is None:
             raise Exception('You need to compute thresholded components before calling remove_duplicates: use the threshold_components method')
 
@@ -1454,7 +1461,7 @@ class Estimates(object):
         duplicates_gt, indices_keep_gt, indices_remove_gt, D_gt, overlap_gt = detect_duplicates_and_subsets(
             A_gt_thr_bin,predictions=predictions, r_values=r_values, dist_thr=dist_thr, min_dist=min_dist,
             thresh_subset=thresh_subset)
-        logging.info(f'Number of duplicates: {len(duplicates_gt)}')
+        logger.info(f'Number of duplicates: {len(duplicates_gt)}')
         if len(duplicates_gt) > 0:
             if plot_duplicates:
                 plt.figure()
@@ -1544,6 +1551,7 @@ class Estimates(object):
 
             location: str
         """
+        logger = logging.getLogger("caiman")
 
         if identifier is None:
             identifier = uuid.uuid1().hex
@@ -1578,7 +1586,7 @@ class Estimates(object):
                 io.write(nwbfile)
 
         time.sleep(4)  # ensure the file is fully closed before opening again in append mode
-        logging.info('Saving the results in the NWB file...')
+        logger.info('Saving the results in the NWB file...')
 
         with NWBHDF5IO(filename, 'r+') as io:
             nwbfile = io.read()

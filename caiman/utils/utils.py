@@ -61,6 +61,7 @@ def download_demo(name:str='Sue_2x_3000_40_-46.tif', save_folder:str='') -> str:
     Raise:
         WrongFolder Exception
     """
+    logger = logging.getLogger("caiman")
 
     file_dict = {
 		'Sue_2x_3000_40_-46.tif': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/Sue_2x_3000_40_-46.tif',
@@ -93,8 +94,8 @@ def download_demo(name:str='Sue_2x_3000_40_-46.tif', save_folder:str='') -> str:
         path_movie = os.path.join(base_folder, save_folder, name)
         if not os.path.exists(path_movie):
             url = file_dict[name]
-            logging.info(f"downloading {name} with urllib")
-            logging.info(f"GET {url} HTTP/1.1")
+            logger.info(f"downloading {name} with urllib")
+            logger.info(f"GET {url} HTTP/1.1")
             if os.name == 'nt':
                 urllib_context = ssl.create_default_context(cafile = certifi.where() ) # On windows we need to avoid the limited default cert store
             else:
@@ -102,7 +103,7 @@ def download_demo(name:str='Sue_2x_3000_40_-46.tif', save_folder:str='') -> str:
             try:
                 f = urlopen(url, context=urllib_context)
             except:
-                logging.info(f"Trying to set user agent to download demo")
+                logger.info(f"Trying to set user agent to download demo")
                 from urllib.request import Request
                 req = Request(url, headers={'User-Agent': 'Mozilla/5.0'})
                 f = urlopen(req, context=urllib_context)
@@ -111,7 +112,7 @@ def download_demo(name:str='Sue_2x_3000_40_-46.tif', save_folder:str='') -> str:
             with open(path_movie, "wb") as code:
                 code.write(data)
         else:
-            logging.info(f"File {name} already downloaded")
+            logger.info(f"File {name} already downloaded")
     else:
         raise Exception('Cannot find the example_movies folder in your caiman_datadir - did you make one with caimanmanager?')
     return path_movie
@@ -134,9 +135,7 @@ def download_model(name:str='mask_rcnn', save_folder:str='') -> str:
     Raise:
         WrongFolder Exception
     """
-
-    #\bug
-    #\warning
+    logger = logging.getLogger("caiman")
 
     file_dict = {'mask_rcnn': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/model/mask_rcnn_neurons_0040.h5'}
     base_folder = os.path.join(caiman_datadir(), 'model')
@@ -146,8 +145,8 @@ def download_model(name:str='mask_rcnn', save_folder:str='') -> str:
         path_movie = os.path.join(base_folder, save_folder, name)
         if not os.path.exists(path_movie):
             url = file_dict[name]
-            logging.info(f"downloading {name} with urllib")
-            logging.info(f"GET {url} HTTP/1.1")
+            logger.info(f"downloading {name} with urllib")
+            logger.info(f"GET {url} HTTP/1.1")
             if os.name == 'nt':
                 urllib_context = ssl.create_default_context(cafile = certifi.where() ) # On windows we need to avoid the limited default cert store
             else:
@@ -155,7 +154,7 @@ def download_model(name:str='mask_rcnn', save_folder:str='') -> str:
             try:
                 f = urlopen(url, context=urllib_context)
             except:
-                logging.info(f"Trying to set user agent to download demo")
+                logger.info(f"Trying to set user agent to download demo")
                 from urllib.request import Request
                 req = Request(url, headers={'User-Agent': 'Mozilla/5.0'})
                 f = urlopen(req, context=urllib_context)
@@ -164,7 +163,7 @@ def download_model(name:str='mask_rcnn', save_folder:str='') -> str:
             with open(path_movie, "wb") as code:
                 code.write(data)
         else:
-            logging.info("File " + str(name) + " already downloaded")
+            logger.info("File " + str(name) + " already downloaded")
     else:
         raise Exception('Cannot find the model folder in your caiman_datadir - did you make one with caimanmanager?')
     return path_movie
@@ -223,6 +222,7 @@ def get_image_description_SI(fname:str) -> list:
      Returns:
         image_description: information of the image
     """
+    logger = logging.getLogger("caiman")
 
     image_descriptions = []
 
@@ -230,7 +230,7 @@ def get_image_description_SI(fname:str) -> list:
 
     for idx, pag in enumerate(tf.pages):
         if idx % 1000 == 0:
-            logging.debug(idx) # progress report to the user
+            logger.debug(idx) # progress report to the user
         field = pag.tags['image_description'].value
 
         image_descriptions.append(si_parse(field))
@@ -374,6 +374,7 @@ def apply_magic_wand(A, gSig, dims, A_thr=None, coms=None, dview=None,
         masks: ndarray
             binary masks
     """
+    logger = logging.getLogger("caiman")
 
     if (A_thr is None) and (coms is None):
         import pdb
@@ -399,7 +400,7 @@ def apply_magic_wand(A, gSig, dims, A_thr=None, coms=None, dview=None,
         params.append([A.tocsc()[:,idx].toarray().reshape(dims, order='F'),
             coms[idx], min_radius, max_radius, roughness, zoom_factor, center_range])
 
-    logging.debug(len(params))
+    logger.debug(len(params))
 
     if dview is not None:
         masks = np.array(list(dview.map(cell_magic_wand_wrapper, params)))
@@ -459,6 +460,7 @@ def recursively_save_dict_contents_to_group(h5file:h5py.File, path:str, dic:dict
         dic: dictionary
             dictionary to save
     '''
+    logger = logging.getLogger("caiman")
     # argument type checking
     if not isinstance(dic, dict):
         raise ValueError("must provide a dictionary")
@@ -475,7 +477,7 @@ def recursively_save_dict_contents_to_group(h5file:h5py.File, path:str, dic:dict
         if key == 'g':
             if item is None:
                 item = 0
-            logging.info(key + ' is an object type')
+            logger.info(f'{key} is an object type')
             try:
                 item = np.array(list(item))
             except:
@@ -485,7 +487,7 @@ def recursively_save_dict_contents_to_group(h5file:h5py.File, path:str, dic:dict
         if key in ['groups', 'idx_tot', 'ind_A', 'Ab_epoch', 'coordinates',
                    'loaded_model', 'optional_outputs', 'merged_ROIs', 'tf_in',
                    'tf_out', 'empty_merged']:
-            logging.info(f'Key {key} is not saved')
+            logger.info(f'Key {key} is not saved')
             continue
 
         if isinstance(item, (list, tuple)):
@@ -503,12 +505,12 @@ def recursively_save_dict_contents_to_group(h5file:h5py.File, path:str, dic:dict
         elif isinstance(item, (np.int64, np.int32, np.float64, float, np.float32, int)):
             # TODO In the future we may store all scalars, including these, as attributes too, although strings suffer the most from being stored as datasets
             h5file[path + key] = item
-            logging.debug(f'Saving numeric {path + key}')
+            logger.debug(f'Saving numeric {path + key}')
             if not h5file[path + key][()] == item:
                 raise ValueError(f'Error (v {h5py.__version__}) while saving numeric {path + key}: assigned value {h5file[path + key][()]} does not match intended value {item}')
         # save numpy arrays
         elif isinstance(item, np.ndarray):
-            logging.debug(f'Saving {key}')
+            logger.debug(f'Saving {key}')
             try:
                 h5file[path + key] = item
             except:
@@ -520,7 +522,7 @@ def recursively_save_dict_contents_to_group(h5file:h5py.File, path:str, dic:dict
         elif isinstance(item, dict):
             recursively_save_dict_contents_to_group(h5file, path + key + '/', item)
         elif 'sparse' in str(type(item)):
-            logging.info(key + ' is sparse ****')
+            logger.info(f'{key} is sparse ****')
             h5file[path + key + '/data'] = item.tocsc().data
             h5file[path + key + '/indptr'] = item.tocsc().indptr
             h5file[path + key + '/indices'] = item.tocsc().indices
@@ -530,7 +532,7 @@ def recursively_save_dict_contents_to_group(h5file:h5py.File, path:str, dic:dict
             h5file[path + key] = 'NoneType'
         elif key in ['dims', 'medw', 'sigma_smooth_snmf', 'dxy', 'max_shifts',
                      'strides', 'overlaps', 'gSig']:
-            logging.info(key + ' is a tuple ****')
+            logger.info(f'{key} is a tuple ****')
             h5file[path + key] = np.array(item)
         elif type(item).__name__ in ['CNMFParams', 'Estimates']: #  parameter object
             recursively_save_dict_contents_to_group(h5file, path + key + '/', item.__dict__)
@@ -574,10 +576,10 @@ def recursively_load_dict_contents_from_group(h5file:h5py.File, path:str) -> dic
 
         elif isinstance(item, h5py._hl.group.Group):
             if key in ('A', 'W', 'Ab', 'downscale_matrix', 'upscale_matrix'):
-                data =  item[path + key + '/data']
+                data    = item[path + key + '/data']
                 indices = item[path + key + '/indices']
-                indptr = item[path + key + '/indptr']
-                shape = item[path + key + '/shape']
+                indptr  = item[path + key + '/indptr']
+                shape   = item[path + key + '/shape']
                 ans[key] = scipy.sparse.csc_matrix((data[:], indices[:],
                     indptr[:]), shape[:])
                 if key in ('W', 'upscale_matrix'):

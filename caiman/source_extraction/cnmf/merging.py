@@ -120,6 +120,7 @@ def merge_components(Y, A, b, C, R, f, S, sn_pix, temporal_params,
         Exception "The number of elements of bl, c1, g, sn must match the number of components"
     """
 
+    logger = logging.getLogger("caiman")
     # tests and initialization
     nr = A.shape[1]
     A = csc_matrix(A)
@@ -222,7 +223,7 @@ def merge_components(Y, A, b, C, R, f, S, sn_pix, temporal_params,
             merged_ROIs = []
             for i in range(nbmrg):
                 merged_ROI = np.where(list_conxcomp[:, ind[i]])[0]
-                logging.info(f'Merging components {merged_ROI}')
+                logger.info(f'Merging components {merged_ROI}')
                 merged_ROIs.append(merged_ROI)
                 Acsc = A.tocsc()[:, merged_ROI]
                 Ctmp = np.array(C)[merged_ROI, :] + np.array(R)[merged_ROI, :]
@@ -279,7 +280,7 @@ def merge_components(Y, A, b, C, R, f, S, sn_pix, temporal_params,
             nr = nr - len(neur_id) + len(C_merged)
 
     else:
-        logging.info('No more components merged!')
+        logger.info('No more components merged!')
         merged_ROIs = []
         empty = []
 
@@ -292,6 +293,7 @@ def merge_iter(a):
     return res
 
 def merge_iteration(Acsc, C_to_norm, Ctmp, fast_merge, g, g_idx, indx, temporal_params):
+    logger = logging.getLogger("caiman")
     if fast_merge:
         # we normalize the values of different A's to be able to compare them efficiently. we then sum them
 
@@ -304,7 +306,7 @@ def merge_iteration(Acsc, C_to_norm, Ctmp, fast_merge, g, g_idx, indx, temporal_
                 break
             computedA = np.maximum(Acsc.dot(Ctmp.dot(computedC.T)) / nc, 0)
     else:
-        logging.info('Simple merging ny taking best neuron')
+        logger.info('Simple merging ny taking best neuron')
         computedC = Ctmp[indx]
         computedA = Acsc[:, indx]
     # then we de-normalize them using A_to_norm

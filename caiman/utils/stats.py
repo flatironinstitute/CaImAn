@@ -172,6 +172,8 @@ def df_percentile(inputData, axis=None):
 
     If errors occur, return fallback values
     """
+    logger = logging.getLogger("caiman")
+
     if axis is not None:
 
         def fnc(x):
@@ -191,7 +193,7 @@ def df_percentile(inputData, axis=None):
                 err = False
             except ValueError:
                 err_count += 1
-                logging.warning(f"kde() failure {err_count}. Concatenating traces and recomputing.")
+                logger.warning(f"kde() failure {err_count}. Concatenating traces and recomputing.")
                 if not isinstance(inputData, list):
                     inputData = inputData.tolist()
                 inputData += inputData
@@ -199,10 +201,11 @@ def df_percentile(inputData, axis=None):
         # There are three ways the above calculation can go wrong. 
         # For each case: just use median.
         # if cdf was never defined, it means kde never ran without error
+        # TODO: Review if we can just look at err instead of this weird try
         try:
             cdf
         except NameError:
-            logging.warning('Max err count reached. Reverting to median.')
+            logger.warning('Max err count reached. Reverting to median.')
             data_prct = 50
             val = np.median(np.array(inputData))
         else:
@@ -210,12 +213,12 @@ def df_percentile(inputData, axis=None):
             val = mesh[np.argmax(density)]
 
         if data_prct >= 100 or data_prct < 0:
-            logging.warning('Invalid percentile (<0 or >100) computed. Reverting to median.')
+            logger.warning('Invalid percentile (<0 or >100) computed. Reverting to median.')
             data_prct = 50
             val = np.median(np.array(inputData))
 
         if np.isnan(data_prct):
-            logging.warning('NaN percentile computed. Reverting to median.')
+            logger.warning('NaN percentile computed. Reverting to median.')
             data_prct = 50
             val = np.median(np.array(inputData))
 
@@ -299,9 +302,10 @@ def csc_column_remove(A, ind):
         ind: iterable[int]
             list or np.array with columns to be removed
     """
+    logger = logging.getLogger("caiman")
     d1, d2 = A.shape
     if 'csc_matrix' not in str(type(A)): # FIXME
-        logging.warning("Original matrix not in csc_format. Converting it" + " anyway.")
+        logger.warning("Original matrix not in csc_format. Converting it anyway.")
         A = scipy.sparse.csc_matrix(A)
     indptr = A.indptr
     ind_diff = np.diff(A.indptr).tolist()

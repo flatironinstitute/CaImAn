@@ -37,10 +37,11 @@ def interpolate_missing_data(Y):
     Raises:
         Exception 'The algorithm has not been tested with missing values (NaNs). Remove NaNs and rerun the algorithm.'
     """
+    logger = logging.getLogger("caiman")
     coor = []
-    logging.info('Checking for missing data entries (NaN)')
+    logger.info('Checking for missing data entries (NaN)')
     if np.any(np.isnan(Y)):
-        logging.info('Interpolating missing data')
+        logger.info('Interpolating missing data')
         for idx, row in enumerate(Y):
             nans = np.where(np.isnan(row))[0]
             n_nans = np.where(~np.isnan(row))[0]

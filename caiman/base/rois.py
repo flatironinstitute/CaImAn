@@ -212,6 +212,7 @@ def nf_match_neurons_in_binary_masks(masks_gt,
             indices false pos
 
     """
+    logger = logging.getLogger("caiman")
 
     _, d1, d2 = np.shape(masks_gt)
     dims = d1, d2
@@ -252,7 +253,7 @@ def nf_match_neurons_in_binary_masks(masks_gt,
     performance['precision'] = TP / (TP + FP)
     performance['accuracy'] = (TP + TN) / (TP + FP + FN + TN)
     performance['f1_score'] = 2 * TP / (2 * TP + FP + FN)
-    logging.debug(performance)
+    logger.debug(performance)
 
     idx_tp = np.where(np.array(costs) < thresh_cost)[0]
     idx_tp_ben = matches[0][idx_tp]    # ground truth
@@ -297,8 +298,8 @@ def nf_match_neurons_in_binary_masks(masks_gt,
             pl.show()
             pl.axis('off')
         except Exception as e:
-            logging.warning("not able to plot precision recall: graphics failure")
-            logging.warning(e)
+            logger.warning("not able to plot precision recall: graphics failure")
+            logger.warning(e)
     return idx_tp_gt, idx_tp_comp, idx_fn_gt, idx_fp_comp, performance
 
 
@@ -392,11 +393,7 @@ def register_ROIs(A1,
             ROIs from session 2 aligned to session 1
 
     """
-
-    #    if 'csc_matrix' not in str(type(A1)):
-    #        A1 = scipy.sparse.csc_matrix(A1)
-    #    if 'csc_matrix' not in str(type(A2)):
-    #        A2 = scipy.sparse.csc_matrix(A2)
+    logger = logging.getLogger("caiman")
 
     if 'ndarray' not in str(type(A1)):
         A1 = A1.toarray()
@@ -488,7 +485,7 @@ def register_ROIs(A1,
     performance['precision'] = TP / (TP + FP)
     performance['accuracy'] = (TP + TN) / (TP + FP + FN + TN)
     performance['f1_score'] = 2 * TP / (2 * TP + FP + FN)
-    logging.info(performance)
+    logger.info(performance)
 
     if plot_results:
         if Cn is None:
@@ -520,11 +517,6 @@ def register_ROIs(A1,
         [pl.contour(norm_nrg(mm), levels=[level], colors='r', linewidths=1) for mm in masks_2[non_matched2]]
         pl.title('Mismatches')
         pl.axis('off')
-
-
-#        except Exception as e:
-#            logging.warning("not able to plot precision recall usually because we are on travis")
-#            logging.warning(e)
 
     return matched_ROIs1, matched_ROIs2, non_matched1, non_matched2, performance, A2
 
@@ -586,6 +578,7 @@ def register_multisession(A,
             by component k in A_union
 
     """
+    logger = logging.getLogger("caiman")
 
     n_sessions = len(A)
     templates = list(templates)
@@ -615,7 +608,7 @@ def register_multisession(A,
                                     enclosed_thr=enclosed_thr)
 
         mat_sess, mat_un, nm_sess, nm_un, _, A2 = reg_results
-        logging.info(len(mat_sess))
+        logger.info(len(mat_sess))
         A_union = A2.copy()
         A_union[:, mat_un] = A[sess][:, mat_sess]
         A_union = np.concatenate((A_union.toarray(), A[sess][:, nm_sess]), axis=1)
@@ -763,6 +756,7 @@ def distance_masks(M_s:list, cm_s: list[list], max_dist: float, enclosed_thr: Op
 
 def find_matches(D_s, print_assignment: bool = False) -> tuple[list, list]:
     # todo todocument
+    logger = logging.getLogger("caiman")
 
     matches = []
     costs = []
@@ -771,7 +765,7 @@ def find_matches(D_s, print_assignment: bool = False) -> tuple[list, list]:
         # we make a copy not to set changes in the original
         DD = D.copy()
         if np.sum(np.where(np.isnan(DD))) > 0:
-            logging.error('Exception: Distance Matrix contains invalid value NaN')
+            logger.error('Exception: Distance Matrix contains invalid value NaN')
             raise Exception('Distance Matrix contains invalid value NaN')
 
         # we do the hungarian
@@ -784,10 +778,10 @@ def find_matches(D_s, print_assignment: bool = False) -> tuple[list, list]:
         for row, column in indexes2:
             value = DD[row, column]
             if print_assignment:
-                logging.debug(('(%d, %d) -> %f' % (row, column, value)))
+                logger.debug(f'({row}, {column}) -> {value}')
             total.append(value)
-        logging.debug(('FOV: %d, shape: %d,%d total cost: %f' % (ii, DD.shape[0], DD.shape[1], np.sum(total))))
-        logging.debug((time.time() - t_start))
+        logger.debug(f'FOV: {ii}, shape: {DD.shape[0]},{DD.shape[1]} total cost: {np.sum(total)}')
+        logger.debug(time.time() - t_start)
         costs.append(total)
         # send back the results in the format we want
     return matches, costs
@@ -818,6 +812,8 @@ def link_neurons(matches: list[list[tuple]],
         neurons: list of arrays representing the indices of neurons in each FOV
 
     """
+    logger = logging.getLogger("caiman")
+
     if min_FOV_present is None:
         min_FOV_present = len(matches)
 
@@ -842,7 +838,7 @@ def link_neurons(matches: list[list[tuple]],
             neurons.append(neuron)
 
     neurons = np.array(neurons).T
-    logging.info(f'num_neurons: {num_neurons}')
+    logger.info(f'num_neurons: {num_neurons}')
     return neurons
 
 
@@ -917,6 +913,8 @@ def nf_read_roi(fileobj) -> np.ndarray:
 
     Adapted from https://gist.github.com/luispedro/3437255
     '''
+    logger = logging.getLogger("caiman")
+
     # This is based on:
     # http://rsbweb.nih.gov/ij/developer/source/ij/io/RoiDecoder.java.html
     # http://rsbweb.nih.gov/ij/developer/source/ij/io/RoiEncoder.java.html
@@ -957,8 +955,7 @@ def nf_read_roi(fileobj) -> np.ndarray:
 
     magic = fileobj.read(4)
     if magic != 'Iout':
-        #        raise IOError('Magic number not found')
-        logging.warning('Magic number not found')
+        logger.warning('Magic number not found')
     version = get16()
 
     # It seems that the roi type field occupies 2 Bytes, but only one is used
@@ -966,13 +963,6 @@ def nf_read_roi(fileobj) -> np.ndarray:
     roi_type = get8()
     # Discard second Byte:
     get8()
-
-    #    if not (0 <= roi_type < 11):
-    #        logging.error(('roireader: ROI type %s not supported' % roi_type))
-    #
-    #    if roi_type != 7:
-    #
-    #        logging.error(('roireader: ROI type %s not supported (!= 7)' % roi_type))
 
     top = get16()
     left = get16()
@@ -1050,6 +1040,8 @@ def nf_merge_roi_zip(fnames: list[str], idx_to_keep: list[list], new_fold: str):
             name of the output zip file (without .zip extension)
 
     """
+    logger = logging.getLogger("caiman")
+
     folders_rois = []
     files_to_keep = []
     # unzip the files and keep only the ones that are requested
@@ -1058,7 +1050,7 @@ def nf_merge_roi_zip(fnames: list[str], idx_to_keep: list[list], new_fold: str):
         folders_rois.append(dirpath)
         with zipfile.ZipFile(fn) as zf:
             name_rois = zf.namelist()
-            logging.debug(len(name_rois))
+            logger.debug(len(name_rois))
         zip_ref = zipfile.ZipFile(fn, 'r')
         zip_ref.extractall(dirpath)
         files_to_keep.append([os.path.join(dirpath, ff) for ff in np.array(name_rois)[idx]])
@@ -1109,6 +1101,8 @@ def extract_binary_masks_blob(A,
         neg_examples:
 
     """
+    logger = logging.getLogger("caiman")
+
     params = cv2.SimpleBlobDetector_Params()
     params.minCircularity = minCircularity
     params.minInertiaRatio = minInertiaRatio
@@ -1136,7 +1130,7 @@ def extract_binary_masks_blob(A,
     neg_examples = []
 
     for count, comp in enumerate(A.tocsc()[:].T):
-        logging.debug(count)
+        logger.debug(count)
         comp_d = np.array(comp.todense())
         gray_image = np.reshape(comp_d, dims, order='F')
         gray_image = (gray_image - np.min(gray_image)) / \
@@ -1161,7 +1155,7 @@ def extract_binary_masks_blob(A,
             edges = (label_objects == (1 + idx_largest))
             edges = scipy.ndimage.binary_fill_holes(edges)
         else:
-            logging.warning('empty component')
+            logger.warning('empty component')
             edges = np.zeros_like(edges)
 
         masks_ws.append(edges)
@@ -1265,6 +1259,7 @@ def detect_duplicates_and_subsets(binary_masks,
                                   dist_thr: float = 0.1,
                                   min_dist=10,
                                   thresh_subset: float = 0.8):
+    logger = logging.getLogger("caiman")
 
     cm = [scipy.ndimage.center_of_mass(mm) for mm in binary_masks]
     sp_rois = scipy.sparse.csc_matrix(np.reshape(binary_masks, (binary_masks.shape[0], -1)).T)
@@ -1272,7 +1267,7 @@ def detect_duplicates_and_subsets(binary_masks,
     np.fill_diagonal(D, 1)
     overlap = sp_rois.T.dot(sp_rois).toarray()
     sz = np.array(sp_rois.sum(0))
-    logging.info(sz.shape)
+    logger.info(sz.shape)
     overlap = overlap / sz.T
     np.fill_diagonal(overlap, 0)
     # pairs of duplicate indices
@@ -1287,7 +1282,7 @@ def detect_duplicates_and_subsets(binary_masks,
         metric = r_values.squeeze()
     else:
         metric = sz.squeeze()
-        logging.debug('***** USING MAX AREA BY DEFAULT')
+        logger.debug('***** USING MAX AREA BY DEFAULT')
 
     overlap_tmp = overlap.copy() >= thresh_subset
     overlap_tmp = overlap_tmp * metric[:, None]

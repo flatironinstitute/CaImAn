@@ -38,10 +38,7 @@ from caiman.cluster import setup_cluster
 from caiman.source_extraction.cnmf import params as params
 from caiman.source_extraction.cnmf.cnmf import load_CNMF
 
-logging.basicConfig(format=
-                    "%(relativeCreated)12d [%(filename)s:%(funcName)20s():%(lineno)s]"\
-                    "[%(process)d] %(message)s",
-                    level=logging.ERROR)
+logging.getLogger("caiman").setLevel(logging.ERROR)
 
 warnings.filterwarnings("ignore", category=FutureWarning)
 # %%  ANALYSIS MODE AND PARAMETERS

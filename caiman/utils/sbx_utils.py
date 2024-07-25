@@ -487,12 +487,14 @@ def _interpret_subindices(subindices: DimSubindices, dim_extent: int) -> tuple[I
     Given the extent of a dimension in the corresponding recording, obtain an iterable over subindices 
     and the step size (or 0 if the step size is not uniform).
     """
+    logger = logging.getLogger("caiman")
+
     if isinstance(subindices, slice):
         iterable_elements = range(dim_extent)[subindices]
         skip = iterable_elements.step
 
         if subindices.stop is not None and np.isfinite(subindices.stop) and subindices.stop > dim_extent:
-            logging.warning(f'Only {dim_extent} frames or pixels available to load ' +
+            logger.warning(f'Only {dim_extent} frames or pixels available to load ' +
                             f'(requested up to {subindices.stop})')
     else:
         iterable_elements = subindices
