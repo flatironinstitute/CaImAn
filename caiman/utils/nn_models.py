@@ -23,7 +23,7 @@ from keras.callbacks import ModelCheckpoint, EarlyStopping, LearningRateSchedule
 from keras.initializers import Constant, RandomUniform
 from keras.utils import Sequence
 
-import caiman.base.movies # look into this 
+import caiman.base.movies 
 from caiman.paths import caiman_datadir
 
 class CalciumDataset(Sequence):
@@ -236,7 +236,6 @@ class Additive(Layer):
         super(Additive, self).build(input_shape)
 
     def call(self, x):
-        # hm = tf.add(x, self.kernel)
         hm = torch.add(x, self.kernel)
         return hm
 
@@ -343,7 +342,6 @@ def total_variation_loss():
     """ Returns a total variation norm loss function that can be used for training.
     """
     def my_total_variation_loss(y_true, y_pred):
-        # y_true, y_pred = torch.tensor(y_true), torch.tensor(y_pred)
         error = torch.mean(total_variation(y_true - y_pred))
         return error 
     return my_total_variation_loss
@@ -440,7 +438,7 @@ def create_LN_model(Y=None, shape=(None, None, 1), n_channels=2, gSig=5, r_facto
     conv1 = Masked_Conv2D(output_dim=n_channels, kernel_size=(ks, ks),
                           radius_min=radius_min, radius_max=radius_max,
                           initializer=initializer, use_bias=use_bias)
-    x = conv1(x_in)  # apply convolutions #make sure this is right
+    x = conv1(x_in)  # apply convolutions 
     x_out = Hadamard()(x)  # apply Hadamard layer
     if use_add:
         x_out = Additive(data=Y)(x_out)
@@ -570,7 +568,6 @@ def fit_NL_model(model_NL, Y, patience=5, val_split=0.2, batch_size=32,
     history_NL = model_NL.fit(Y, Y, epochs=epochs, batch_size=batch_size,
                             shuffle=True, validation_split=val_split,
                             callbacks=callbacks)
-    # model_NL.load_weights(os.path.join(run_logdir, 'model.h5'))
     model_NL.load_weights(os.path.join(run_logdir, 'model.weights.h5'))
     return model_NL, history_NL, path_to_model
 
