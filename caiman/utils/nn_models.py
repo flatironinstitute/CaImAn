@@ -5,9 +5,9 @@ This file contains a set of methods for the online analysis of microendoscopic
 one photon data using a "ring-CNN" background model.
 """
 
+import numpy as np
 import os
 os.environ["KERAS_BACKEND"] = "torch"
-import numpy as np
 import time
 
 import torch 
@@ -126,15 +126,11 @@ class Masked_Conv2D(Layer): #Keras.layer
         super(Masked_Conv2D, self).__init__()
 
     def build(self, input_shape):
-        # try:
-        #     n_filters = input_shape[-1].value   # tensorflow < 2
-        # except:
-        #     n_filters = input_shape[-1]         # tensorflow >= 2
-        n_filters = input_shape[-1]
+        n_filters = input_shape[-1] 
         self.h = self.add_weight(name='h',
                                  shape= self.kernel_size + (n_filters, self.output_dim,),
                                  initializer=self.initializer,
-                                 constraint=masked_constraint(self.mask),
+                                 constraint=MaskedConstraint(self.mask), 
                                  trainable=True)
 
         self.b = self.add_weight(name='b',
@@ -144,10 +140,8 @@ class Masked_Conv2D(Layer): #Keras.layer
         super(Masked_Conv2D, self).build(input_shape)
 
     def call(self, x):
-        # y = K.conv2d(x, self.h, stride=self.strides, padding='same')
         y = ops.conv(x, self.h, strides=self.strides, padding='same')
         if self.use_bias:
-            # y = y + torch.unsqueeze(torch.tensor(self.b), dim=0)
             y = y + torch.unsqueeze(self.b, dim=0)
         return y
 
@@ -183,50 +177,19 @@ def get_mask(gSig=5, r_factor=1.5, width=5):
     R[R>0] = 1
     return R
 
-"""
-def masked_constraint(R):
-""" # Enforces constraint for kernel to be non-negative everywhere and zero outside the ring
+class MaskedConstraint(keras.constraints.Constraint):
+    def __init__(self, R):
+        self.R = R
 
-    # Args:
-    #    R: np.array
-    #        Binary mask that extracts 
-
-    # Returns:
-    #     my_constraint: function
-    #        Function that enforces the constraint
-"""
-    # R = tf.cast(R, dtype=tf.float32)
-    # R_exp = tf.expand_dims(tf.expand_dims(R, -1), -1)
-    # def my_constraint(x):
-        # Rt = tf.tile(R_exp, [1, 1, 1, x.shape[-1]])
-        # Z = tf.zeros_like(x)
-        # return tf.where(Rt>0, x, Z)
-
-    R = torch.tensor(R).float()
-    R_exp = torch.unsqueeze(torch.unsqueeze(R, dim=-1), dim=-1)
-    def my_constraints(x):
-        x = torch.tensor(x)
+    def __call__(self, x):
+        self.R = torch.tensor(self.R).float() 
+        R_exp = torch.unsqueeze(torch.unsqueeze(self.R, dim=-1), dim=-1)
         Rt = torch.tile(R_exp, [1, 1, 1, x.shape[-1]])
         Z = torch.zeros_like(x)
         return torch.where(Rt > 0, x, Z)
-    return my_constraints
-"""
-
-def masked_constraint(Constraint):
-    """ Enforces constraint for kernel to be non-negative everywhere and zero outside the ring
-    """ 
-    def __call__(self, R): 
-        R = torch.tensor(R).float()
-        R_exp = torch.unsqueeze(torch.unsqueeze(R, dim=-1), dim=-1)
-        def my_constraints(x):
-            # x = torch.tensor(x)
-            Rt = torch.tile(R_exp, [1, 1, 1, x.shape[-1]])
-            Z = torch.zeros_like(x)
-            return torch.where(Rt > 0, x, Z)
-        return my_constraints
 
 class Hadamard(Layer):
-    """ Creates a tensorflow.keras multiplicative layer that performs
+    """ Creates a keras multiplicative layer that performs
     pointwise multiplication with a set of learnable weights.
 
     Args:
@@ -253,7 +216,7 @@ class Hadamard(Layer):
 
 
 class Additive(Layer):
-    """ Creates a tensorflow.keras additive layer that performs
+    """ Creates a keras additive layer that performs
     pointwise addition with a set of learnable weights.
 
     Args:
@@ -292,12 +255,9 @@ def cropped_loss(gSig=0):
         my_loss: cropped loss function
     """
     def my_loss(y_true, y_pred):
-        # y_true, y_pred = torch.tensor(y_true), torch.tensor(y_pred)
         if gSig > 0:
-            # error = tf.square(y_true[gSig:-gSig, gSig:-gSig] - y_pred[gSig:-gSig, gSig:-gSig])
             error = torch.square(y_true[gSig:-gSig, gSig:-gSig] - y_pred[gSig:-gSig, gSig:-gSig])
         else:
-            # error = tf.square(y_true - y_pred)
             error = torch.square(y_true - y_pred) 
         return error
     return my_loss
@@ -315,7 +275,6 @@ def quantile_loss(qnt=.50):
     def my_qnt_loss(y_true, y_pred):
         error = y_true - y_pred
         pos_error = error > 0
-        # return tf.where(pos_error, error*qnt, error*(qnt-1))
         return torch.where(pos_error, error*qnt, error*(qnt-1))
     return my_qnt_loss
 
@@ -401,7 +360,7 @@ def b0_initializer(Y, pct=10):
     Returns:
         b0_init: keras initializer
     """
-    def b0_init(shape, dtype=torch.float32): #dtype=tf.float32
+    def b0_init(shape, dtype=torch.float32): 
         mY = np.percentile(Y, pct, 0)
         mY = torch.from_numpy(mY)
         if mY.ndim == 2:
@@ -481,7 +440,6 @@ def create_LN_model(Y=None, shape=(None, None, 1), n_channels=2, gSig=5, r_facto
     conv1 = Masked_Conv2D(output_dim=n_channels, kernel_size=(ks, ks),
                           radius_min=radius_min, radius_max=radius_max,
                           initializer=initializer, use_bias=use_bias)
-    print("conv1", conv1)
     x = conv1(x_in)  # apply convolutions #make sure this is right
     x_out = Hadamard()(x)  # apply Hadamard layer
     if use_add:
@@ -491,7 +449,7 @@ def create_LN_model(Y=None, shape=(None, None, 1), n_channels=2, gSig=5, r_facto
     model_LIN.compile(optimizer=adam, loss=loss) # compile model
     return model_LIN
 
-def create_NL_model(Y=None, shape=(None, None, 1), n_channels=8, gSig=5, r_factor=1.5,
+def create_NL_model(Y=None, shape=(None, None, 1), n_channels=2, gSig=5, r_factor=1.5,
                     use_add=True, initializer='he_normal', lr=1e-4, pct=10,
                     activation='relu', loss='mse', width=5, use_bias=True):
     """ Creates a two layer nonlinear convolutional neural network with ring 
@@ -545,7 +503,7 @@ def create_NL_model(Y=None, shape=(None, None, 1), n_channels=8, gSig=5, r_facto
             add a bias term to each convolution kernel
 
     Returns:
-        model_LIN: tf.keras model compiled and ready to be trained.
+        model_LIN: torch.keras model compiled and ready to be trained.
     """
     x_in = Input(shape=shape)
     radius_min = int(gSig*r_factor)
@@ -602,7 +560,6 @@ def fit_NL_model(model_NL, Y, patience=5, val_split=0.2, batch_size=32,
     run_logdir = get_run_logdir()
     os.mkdir(run_logdir)
     path_to_model = os.path.join(run_logdir, 'model.weights.h5')
-    # path_to_model = os.path.join(run_logdir, 'model.h5')
     chk = ModelCheckpoint(filepath=path_to_model,
                           verbose=0, save_best_only=True, save_weights_only=True)
     es = EarlyStopping(monitor='val_loss', patience=patience,
