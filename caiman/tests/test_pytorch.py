@@ -3,17 +3,28 @@
 import numpy as np
 import os
 import keras 
+import json 
+os.environ["KERAS_BACKEND"] = "torch"
+from keras.saving import deserialize_keras_object
+use_keras = True
 
 from caiman.paths import caiman_datadir
-from caiman.utils.utils import load_graph
 
-try:
-    os.environ["KERAS_BACKEND"] = "torch"
-    from keras.models import load_model 
-    use_keras = True
-except(ModuleNotFoundError):
-    import torch 
-    use_keras = False
+def model_from_json(json_string, custom_objects=None):
+    """Parses a JSON model configuration string and returns a model instance.
+
+    Args:
+        json_string: JSON string encoding a model configuration.
+        custom_objects: Optional dictionary mapping names
+            (strings) to custom classes or functions to be
+            considered during deserialization.
+
+    Returns:
+        A Keras model instance (uncompiled).
+    """
+    breakpoint() 
+    model_config = json.loads(json_string)
+    return deserialize_keras_object(model_config, custom_objects=custom_objects)  
 
 def test_torch():
     os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
@@ -21,36 +32,31 @@ def test_torch():
     try:
         model_name = os.path.join(caiman_datadir(), 'model', 'cnn_model')
         if use_keras:
-            model_file = model_name + ".h5"
-            # with open(model_file, 'r') as json_file:
-            #    print('USING MODEL:' + model_file)
-            #    loaded_model_keras = json_file.read()
+            """
+            model_file = model_name + ".json"
+            with open(model_file, 'r') as json_file:
+                print('USING MODEL:' + model_file)
+                loaded_model_json = json_file.read()
 
-            loaded_model = load_model(model_file)
-            loaded_model.load_weights(model_name + '.weights.h5')
-            loaded_model.compile('sgd', 'mse')
-        # else:
-            # model_file = model_name + ".h5.pb"
-            # loaded_model = load_graph(model_file)
+            loaded_model = model_from_json(loaded_model_json)
+            loaded_model.load_weights(model_name + '.h5')
+            loaded_model.compile(optimizer='sgd', loss='mse')
+            """
+
+
+            loaded_model.load_weights(model_name + '.h5')
+            loaded_model.compile(optimizer='sgd', loss='mse')
     except:
         raise Exception(f'NN model could not be loaded. use_keras = {use_keras}')
 
     A = np.random.randn(10, 50, 50, 1)
     try:
         if use_keras:
-            print("hi")
             predictions = loaded_model.predict(A, batch_size=32)
-        # else:
-            """
-            tf_in = loaded_model.get_tensor_by_name('prefix/conv2d_20_input:0')
-            tf_out = loaded_model.get_tensor_by_name('prefix/output_node0:0')
-            with tf.Session(graph=loaded_model) as sess:
-                predictions = sess.run(tf_out, feed_dict={tf_in: A})
-            """
-        # pass
+        pass 
     except:
         raise Exception('NN model could not be deployed. use_keras = ' + str(use_keras))
 
-
 if __name__ == "__main__":
+    print(keras.__version__)
     test_torch()
