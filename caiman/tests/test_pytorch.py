@@ -6,6 +6,7 @@ import keras
 import json 
 os.environ["KERAS_BACKEND"] = "torch"
 from keras.saving import deserialize_keras_object
+from keras.models import load_model 
 use_keras = True
 
 from caiman.paths import caiman_datadir
@@ -43,8 +44,8 @@ def test_torch():
             loaded_model.compile(optimizer='sgd', loss='mse')
             """
 
-
-            loaded_model.load_weights(model_name + '.h5')
+            model_file = model_name + ".keras"
+            loaded_model = load_model(model_file, compile=False)
             loaded_model.compile(optimizer='sgd', loss='mse')
     except:
         raise Exception(f'NN model could not be loaded. use_keras = {use_keras}')
@@ -58,5 +59,4 @@ def test_torch():
         raise Exception('NN model could not be deployed. use_keras = ' + str(use_keras))
 
 if __name__ == "__main__":
-    print(keras.__version__)
     test_torch()
