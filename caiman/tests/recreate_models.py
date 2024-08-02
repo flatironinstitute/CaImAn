@@ -9,6 +9,7 @@ os.environ["KERAS_BACKEND"] = "tensorflow"
 from tensorflow.keras.models import model_from_json
 use_keras = True
 
+
 def recreate_model():
     os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
 
@@ -25,4 +26,15 @@ def recreate_model():
         # loaded_model.save(model_name + '.keras')
 
 if __name__ == "__main__":
-    recreate_model()
+    # recreate_model()
+    import tensorflow as tf 
+    sequential_model = tf.keras.Sequential(
+    [
+        tf.keras.Input(shape=(784,), name="conv2d_20"),
+        keras.layers.Conv2D(64, activation="relu", name="activation_12"),
+        keras.layers.Activation(64, activation="relu", name="conv2d_21"),
+        keras.layers.Conv2D(10, name="activation_14"),
+        # keras.layers.MaxPooling2d(, name-"max_pooling2d_10")
+    ]
+    )
+    print(sequential_model)

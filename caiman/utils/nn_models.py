@@ -179,12 +179,11 @@ def get_mask(gSig=5, r_factor=1.5, width=5):
 
 class MaskedConstraint(keras.constraints.Constraint):
     def __init__(self, R):
-        self.R = R
+        R = torch.tensor(R).float() 
+        self.R_exp = torch.unsqueeze(torch.unsqueeze(R, dim=-1), dim=-1)
 
     def __call__(self, x):
-        self.R = torch.tensor(self.R).float() 
-        R_exp = torch.unsqueeze(torch.unsqueeze(self.R, dim=-1), dim=-1)
-        Rt = torch.tile(R_exp, [1, 1, 1, x.shape[-1]])
+        Rt = torch.tile(self.R_exp, [1, 1, 1, x.shape[-1]])
         Z = torch.zeros_like(x)
         return torch.where(Rt > 0, x, Z)
 

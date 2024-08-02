@@ -46,7 +46,8 @@ def test_torch():
 
             model_file = model_name + ".keras"
             loaded_model = load_model(model_file, compile=False)
-            loaded_model.compile(optimizer='sgd', loss='mse')
+            # loaded_model.load_weights(model_name + '.weights.h5')
+            # loaded_model.compile(optimizer='sgd', loss='mse')
     except:
         raise Exception(f'NN model could not be loaded. use_keras = {use_keras}')
 
@@ -59,4 +60,12 @@ def test_torch():
         raise Exception('NN model could not be deployed. use_keras = ' + str(use_keras))
 
 if __name__ == "__main__":
-    test_torch()
+    import h5py
+    model_name = os.path.join(caiman_datadir(), 'model', 'cnn_model')
+    filename = model_name + ".weights.h5"
+    hfh = h5py.File(filename, "r")
+    # <KeysViewHDF5 ['model_weights', 'optimizer_weights']>
+    # print(hfh.keys())
+    print( hfh['model_weights'] ) 
+    # hfh['raw'][2000,500,1000]
+    # test_torch()
