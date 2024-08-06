@@ -1,5 +1,5 @@
-# CaImAn . contributors guide
-CaImAn is an open source project with contributors from many people at many places. Help is available on (Gitter)[https://app.gitter.im/#/room/#agiovann_Constrained_NMF:gitter.im] or [Github Discussions](https://github.com/flatironinstitute/CaImAn/discussions).
+# CaImAn guide to contributing
+CaImAn is an open source project with contributors from many people at many places. Help is available on [Gitter](https://app.gitter.im/#/room/#agiovann_Constrained_NMF:gitter.im) or [Github Discussions](https://github.com/flatironinstitute/CaImAn/discussions).
 
 If you run into issues or want to suggest features, you can [open an issue on Github](https://github.com/flatironinstitute/CaImAn/issues).
 
