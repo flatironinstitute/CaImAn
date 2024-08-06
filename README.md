@@ -9,10 +9,6 @@ A Python toolbox for large-scale **Ca**lcium **Im**aging **An**alysis.
 
 CaImAn implements a set of essential methods required to analyze calcium and voltage imaging data. It provides fast and scalable algorithms for motion correction, source extraction, spike deconvolution, and registering neurons across multiple sessions. It is suitable for both two-photon and one-photon fluorescence microscopy data, and can be run in both offline and online modes. Documentation is [here](https://caiman.readthedocs.io/en/latest/). 
 
-Caiman Central
---------------
-- [Caiman Central](https://github.com/flatironinstitute/caiman_central) is the hub for sharing information about CaImAn. Information on quarterly community meetings, workshops, other events, and any other communications between the developers and the user community can be found there.
-
 # Quick start
 Follow these three steps to get started quickly, from installation to working through a demo notebook. If you do not already have conda installed, [you can find it here](https://docs.conda.io/en/latest/miniconda.html). There is a video walkthrough of the following steps [here](https://youtu.be/b63zAmKihIY?si=m7WleTwdU0rJup_2).
 
@@ -36,10 +32,10 @@ Go into the working directory you created in Step 2, and open a Jupyter notebook
 
 Jupyter will open. Navigate to demos/notebooks/ and click on `demo_pipeline.ipynb` to get started with a demo.
 
-> Note that what counts as `<your home>` in the first line depends on your OS/computer. Be sure to fill in your actual home directory. On Linux/Mac it is `~` while on Windows it will be something like `C:\Users\your_user_name\` 
+> `<your home>` in the first line is your home directory, its location depdnding on your OS/computer. On Linux/Mac it is `~` while on Windows it will be something like `C:\Users\your_user_name\` 
 
 ## For installation help
-Caiman should install easily on Linux, Mac, and Windows. If you run into problems, we have a dedicated [installation page](./docs/source/Installation.rst): the details there should help you troubleshoot. If you don't find what you need there, *please* [create an issue](https://github.com/flatironinstitute/CaImAn/issues) at GitHub, and we will help you get it sorted out. 
+Caiman should install easily on Linux, Mac, and Windows. If you run into problems, we have a dedicated [installation page](./docs/source/Installation.rst). If you don't find what you need there, [create an issue](https://github.com/flatironinstitute/CaImAn/issues) on GitHub.
 
 # Demo notebooks
 Caiman provides demo notebooks to showcase each of our main features, from motion correction to online CNMF. We recommend starting with the CNMF notebook (`demo_pipeline.ipynb`), which contains more explanation and details than the other notebooks: it covers many concepts that will be used without explanation in the other notebooks. The CNMFE notebook (`demo_pipeline_cnmfE.ipynb`), is also more detailed. Once you've gotten things set up and worked through those "anchor" notebooks, the best way to get started is to work through the demo notebook that most closely matches your use case; you should be able to adapt it for your particular needs.
@@ -119,12 +115,12 @@ If possible, we'd also ask that you cite the papers where the original algorithm
 # Main developers
 * (emeritus) Eftychios A. Pnevmatikakis, **Flatiron Institute, Simons Foundation** 
 * (emeritus) Andrea Giovannucci, **University of North Carolina, Chapel Hill**
-* Johannes Friedrich, **Allen Institute, Seattle Washington**
-* Changjia Cai, **University of North Carolina, Chapel Hill**
+* (emeritus) Johannes Friedrich, **Allen Institute, Seattle Washington**
+* (emeritus) Changjia Cai, **University of North Carolina, Chapel Hill**
+* Kushal Kolar, **Flatiron Institute, Simons Foundation**
 * Pat Gunn, **Flatiron Institute, Simons Foundation**
-* Eric Thomson, **Flatiron Institute, Simons Foundation**
 
-A complete list of contributors can be found [here](https://github.com/flatironinstitute/Caiman/graphs/contributors). Currently Pat Gunn, Johannes Friedrich, and Eric Thomson are the most active contributors.
+A complete list of contributors can be found [here](https://github.com/flatironinstitute/Caiman/graphs/contributors). Currently Pat Gunn and Kushal Kolar are the most active contributors.
 
 
 # Acknowledgements 
@@ -136,6 +132,8 @@ Special thanks to the following people for letting us use their datasets in demo
 * Manolis Froudarakis, Jake Reimers, Andreas Tolias, Baylor College of Medicine
 * Clay Lacefield, Randy Bruno, Columbia University
 * Daniel Aharoni, Peyman Golshani, UCLA
+
+Also a special thanks to Eric Thompson, for various strong contributions to code and demos, both before and during his employment at the Flatiron Institute.
 
 # License
 This program is free software; you can redistribute it and/or

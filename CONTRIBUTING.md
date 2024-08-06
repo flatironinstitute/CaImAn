@@ -1,7 +1,7 @@
-# CaImAn contributors guide :hammer:
-CaImAn is an open source project where *everyone* is welcome and encouraged to contribute. We have external contributors from all over the world, and we are always looking for more help. This guide explains how to contribute: if you have questions about the process, please feel free to reach out at [GitHub Discussions](https://github.com/flatironinstitute/CaImAn/discussions). Everyone needs help contributing and finds git/GitHub confusing, so please don't be shy about asking. 
+# CaImAn . contributors guide
+CaImAn is an open source project with contributors from many people at many places. Help is available on (Gitter)[https://app.gitter.im/#/room/#agiovann_Constrained_NMF:gitter.im] or [Github Discussions](https://github.com/flatironinstitute/CaImAn/discussions).
 
-There are many different ways you can contribute to Caiman. The first and easiest way is to bring problems to our attention: if you find a bug, or think there is a feature that is lacking in Caiman, please [open an issue at Github](https://github.com/flatironinstitute/CaImAn/issues). You can also contribute just by *participating* in the different forums.   
+If you run into issues or want to suggest features, you can [open an issue on Github](https://github.com/flatironinstitute/CaImAn/issues).
 
 Second, let's say you want to improve something yourself:
 
@@ -9,9 +9,9 @@ Second, let's say you want to improve something yourself:
 - The demo notebooks
 - The code base
 
-We welcome *all* such contributions. To make them, you need to make changes on your local version of Caiman and then push make a *Pull Request* (PR) to our GitHub repository. We will walk through this process in the rest of the document. 
+To contribute, start by making changes on your local version of Caiman and then push make a *Pull Request* (PR) to our GitHub repository. We will walk through this process in the rest of the document. 
 
-Before you go through the work required to improve something, we recommend that you let us know your plans on GitHub either in discussions or issues. This way, we can avoid duplicated effort (if someone is already working on it), or wasted time (it could turn out the changes might not be feasible right now because it conflicts with some other major feature we are working on). If needed, can usually set up a video chat to talk about a feature proposal if that works for you.
+Before you go through the work required to improve something, we recommend that you reach out on GitHub by filing a feature request in an issue. This way, we can avoid duplicated effort (if someone is already working on it), or wasted time (we may not agree on direction).
 
 ## Background: how do pull requests work?
 In this section we'll give general background on how making a contribution/PR works. If you know this stuff and just want to get started quickly, feel free to skip to the next section.
@@ -28,7 +28,7 @@ The workflow for contributing to Caiman is roughly illustrated by the numbers in
 3) Make a PR: this is when you request that your changes become merged into `dev` at Caiman. This merge won't be immediate, you will get feedback on your code, and probably be asked to make some changes. 
 4) Periodically, as features accumulate in the `dev` branch (every month or so), the `dev` branch will be merged with `main`. This will become a new version of Caiman that people install when they run `mamba install caiman`. 
 
-Below we have instructions on how to do all of the above steps. While all of this may seem like a lot, some of the steps are extremely simple. Also, once you have done it once, you will have the recipe and it will be pretty easy. Finally, it is a very rewarding experience to contribute to an open source project -- we hope you'll take the plunge!
+Below we have instructions on how to do all of the above steps. 
 
 ## First, create a dedicated development environment
 If you have downloaded Caiman for standard use, you probably installed it using `conda` or `mamba` as described on the README page. As a contributor, you will want to set up a dedicated development environment. This means you will be setting up a version of Caiman you will edit and tweak, uncoupled from your main installation for everyday use. To set up a development environment so you can follow the workflow outlined above, do the following:
@@ -57,7 +57,7 @@ Go to the [Caiman repo](https://github.com/flatironinstitute/CaImAn) and hit the
 
     This installs Caiman directly from the downloaded source code. The `-e` stands for 'editable': when you edit the files, the changes should immediately be reflected in the code you run.
 
-Note this section is partly based on the excellent [docs from Matplotlib](https://matplotlib.org/devdocs/devel/development_setup.html#installing-for-devs).
+Note this section is partly based on the [docs from Matplotlib](https://matplotlib.org/devdocs/devel/development_setup.html#installing-for-devs).
 
 
 ## Second, work on a feature 
@@ -86,21 +86,15 @@ Note that all PRs are reviewed by other programmers. This is an important part o
 You may be asked to make some changes (or to *think* about making some changes). You will sometimes need to do more some more work on your branch and make more changes after making an initial PR. In this case, the workflow is simple: you will work within your your local `my_feature` branch as before, and run the `push` command again. Conveniently, this will automatically push the changes to the same work-in-progress PR at Caiman. Eventually, the feature will be merged into `dev` and your work is done!
 
 ## Fourth, wait for the work to show up in main :clock8: 
-Once your work is done, the `dev` branch will eventually be merged into `main`  by the developers who maintain Caiman (label 4 in the figure). This is done every month or two, and is the stage when your work will actually be available to the people who download Caiman. It's at this point your name will appear when you click on the [list of Contributors](https://github.com/flatironinstitute/CaImAn/graphs/contributors) at GitHub. Please give yourself a pat on the back -- we really appreciate the folks who go through all this work to help make the package better!
+Once your work is done, the `dev` branch will eventually be merged into `main`  by the developers who maintain Caiman (label 4 in the figure). This is done every month or two, and is the stage when your work will actually be available to the people who download Caiman. It's at this point your name will appear when you click on the [list of Contributors](https://github.com/flatironinstitute/CaImAn/graphs/contributors) at GitHub. 
 
 # What next?
 Once you have gone through the above steps, you can delete your local feature branch. Before working on a new feature, you will want to make sure that your fork stays up to date with Caiman. You can do this with the user interface at GitHub (there is a button to sync up your repo with the original repository on a particular branch). 
 
-Nobody remembers all the git commands, don't worry if you constantly are looking things up: that's what *everyone* does. If you want to learn more, check out the following resources:
+If you want to learn more, check out the following resources:
 
 * [Getting started with git/github](https://github.com/EricThomson/git_learn)
 * [GitHub on Contributing to a Project](https://git-scm.com/book/en/v2/GitHub-Contributing-to-a-Project)
 * [GitHub skillbuilding](https://skills.github.com/)
 * [Scipy git resources](https://docs.scipy.org/doc/scipy/dev/gitwash/gitwash.html#using-git)
-
-Again, if you want to contribute and find any of the above bits confusing, please reach out!
-
-
-
-
 
