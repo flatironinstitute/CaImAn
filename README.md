@@ -133,7 +133,10 @@ Special thanks to the following people for letting us use their datasets in demo
 * Clay Lacefield, Randy Bruno, Columbia University
 * Daniel Aharoni, Peyman Golshani, UCLA
 
-Also a special thanks to Eric Thompson, for various strong contributions to code and demos, both before and during his employment at the Flatiron Institute.
+Also a special thanks to:
+* Eric Thompson, for various strong contributions to code and demos, both before and during his employment at the Flatiron Institute.
+* Cai Changjia, for Volpy
+* Ethan Blackwood, for several contributions in various areas
 
 # License
 This program is free software; you can redistribute it and/or
