@@ -1,7 +1,6 @@
 av
 coverage
 cython
-future
 h5py
 ipykernel
 ipython

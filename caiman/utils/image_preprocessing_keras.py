@@ -14,7 +14,6 @@ import os
 import re
 from scipy import linalg
 import scipy.ndimage as ndi
-from six.moves import range
 import threading
 import warnings
 
