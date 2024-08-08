@@ -6,13 +6,12 @@ import logging
 import numpy as np
 import os
 import peakutils
-import tensorflow as tf
+import torch 
 import scipy
 from scipy.sparse import csc_matrix
 from scipy.stats import norm
 from typing import Any, Union
 import warnings
-
 import caiman
 from caiman.paths import caiman_datadir
 import caiman.utils.stats
@@ -269,40 +268,36 @@ def evaluate_components_CNN(A,
     if not isGPU and 'CAIMAN_ALLOW_GPU' not in os.environ:
         print("GPU run not requested, disabling use of GPUs")
         os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
-    try:
-        os.environ["KERAS_BACKEND"] = "tensorflow"
-        from tensorflow.keras.models import model_from_json
-        use_keras = True
+
+    try: 
+        os.environ["KERAS_BACKEND"] = "torch"
+        from keras.models import model_load 
+        use_keras = True 
         logging.info('Using Keras')
     except (ModuleNotFoundError):
-        use_keras = False
-        logging.info('Using Tensorflow')
+        use_keras = False 
+        logging.info('Using Torch')
 
     if loaded_model is None:
         if use_keras:
-            if os.path.isfile(os.path.join(caiman_datadir(), model_name + ".json")):
-                model_file = os.path.join(caiman_datadir(), model_name + ".json")
-                model_weights = os.path.join(caiman_datadir(), model_name + ".h5")
-            elif os.path.isfile(model_name + ".json"):
-                model_file = model_name + ".json"
-                model_weights = model_name + ".h5"
+            if os.path.isfile(os.path.join(caiman_datadir(), model_name + ".keras")):
+                model_file = os.path.join(caiman_datadir(), model_name + ".keras")
+            elif os.path.isfile(model_name + ".keras"):
+                model_file = model_name + ".keras"
             else:
                 raise FileNotFoundError(f"File for requested model {model_name} not found")
-            with open(model_file, 'r') as json_file:
-                print(f"USING MODEL (keras API): {model_file}")
-                loaded_model_json = json_file.read()
-
-            loaded_model = model_from_json(loaded_model_json)
-            loaded_model.load_weights(model_name + '.h5')
+            
+            print(f"USING MODEL (keras API): {model_file}")
+            loaded_model = model_load(model_file)
         else:
-            if os.path.isfile(os.path.join(caiman_datadir(), model_name + ".h5.pb")):
-                model_file = os.path.join(caiman_datadir(), model_name + ".h5.pb")
-            elif os.path.isfile(model_name + ".h5.pb"):
-                model_file = model_name + ".h5.pb"
+            if os.path.isfile(os.path.join(caiman_datadir(), model_name + ".pt")):
+                model_file = os.path.join(caiman_datadir(), model_name + ".pt")
+            elif os.path.isfile(model_name + ".pt"):
+                model_file = model_name + ".pt"
             else:
                 raise FileNotFoundError(f"File for requested model {model_name} not found")
             print(f"USING MODEL (tensorflow API): {model_file}")
-            loaded_model = caiman.utils.utils.load_graph(model_file)
+            loaded_model = torch.load(model_file)
 
         logging.debug("Loaded model from disk")
 
@@ -319,11 +314,11 @@ def evaluate_components_CNN(A,
     if use_keras:
         predictions = loaded_model.predict(final_crops[:, :, :, np.newaxis], batch_size=32, verbose=1)
     else:
-        tf_in = loaded_model.get_tensor_by_name('prefix/conv2d_20_input:0')
-        tf_out = loaded_model.get_tensor_by_name('prefix/output_node0:0')
-        with tf.Session(graph=loaded_model) as sess:
-            predictions = sess.run(tf_out, feed_dict={tf_in: final_crops[:, :, :, np.newaxis]})
-            sess.close()
+        final_crops = torch.tensor(final_crops, dtype=torch.float32)
+        final_crops = torch.reshape(final_crops, (-1, final_crops.shape[-1], 
+                        final_crops.shape[1], final_crops.shape[2])) 
+        with torch.no_grad():
+            prediction = loaded_model(final_crops[:, np.newaxis, :, :])
 
     return predictions, final_crops
 

@@ -27,7 +27,7 @@ def test_tf():
             loaded_model = model_from_json(loaded_model_json)
             loaded_model.load_weights(model_name + '.h5')
             loaded_model.save(model_name + '.keras')
-            # loaded_model.compile('sgd', 'mse')
+            loaded_model.compile('sgd', 'mse')
     except:
         raise Exception(f'NN model could not be loaded. use_keras = {use_keras}')
 
