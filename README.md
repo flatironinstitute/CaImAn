@@ -28,7 +28,7 @@ Create a working directory called `caiman_data` that includes code samples and r
 Go into the working directory you created in Step 2, and open a Jupyter notebook:
 
     cd <your home>/caiman_data/
-    jupyter notebook 
+    jupyter lab
 
 Jupyter will open. Navigate to demos/notebooks/ and click on `demo_pipeline.ipynb` to get started with a demo.
 
