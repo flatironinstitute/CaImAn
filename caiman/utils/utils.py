@@ -516,7 +516,7 @@ def recursively_save_dict_contents_to_group(h5file:h5py.File, path:str, dic:dict
             except:
                 item = np.array(item).astype('|S32')
                 h5file[path + key] = item
-            if not np.array_equal(h5file[path + key][()], item, equal_nan=item.dtype == 'f'):  # just using True gives "ufunc 'isnan' not supported for the input types"
+            if not np.array_equal(h5file[path + key][()], item, equal_nan=item.dtype.kind == 'f'):  # just using True gives "ufunc 'isnan' not supported for the input types"
                 raise ValueError(f'Error while saving ndarray {key} of dtype {item.dtype}')
         # save dictionaries
         elif isinstance(item, dict):
