@@ -270,7 +270,6 @@ class OnACID(object):
 
         if self.is1p:
             estim = self.estimates
-            d1, d2 = estim.dims    
             estim.Yres_buf -= estim.b0
             if ssub_B == 1:
                 estim.Atb = estim.Ab.T.dot(estim.W.dot(estim.b0) - estim.b0)
@@ -389,6 +388,7 @@ class OnACID(object):
                 else:
                     Yres -= estim.upscale_matrix.dot(estim.W.dot(
                         estim.downscale_matrix.dot(Yres)))
+            d1, d2 = self.estimates.dims
             Yres = Yres.reshape((d1, d2, -1), order='F')
 
             (self.estimates.first_moment, self.estimates.second_moment,
