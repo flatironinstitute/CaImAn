@@ -91,7 +91,7 @@ def get_params_dicts(D: int):
         'patch-not-lowrank': {
             'data': {'dims': dims},
             'init': {'K': 4, 'gSig': [2, 2, 2][:D]},
-            'patch': {'rf': [d // 2 for d in dims], 'stride': 1, 'nb_patch': 2, 'low_rank_background': False}
+            'patch': {'rf': [d // 2 for d in dims], 'stride': 1, 'low_rank_background': False}
         }
     }
 
