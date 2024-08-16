@@ -10,10 +10,6 @@ import scipy
 from scipy.sparse import csgraph, csc_matrix, lil_matrix, csr_matrix
 
 from caiman.source_extraction.cnmf.deconvolution import constrained_foopsi
-from caiman.source_extraction.cnmf.spatial import update_spatial_components, threshold_components
-from caiman.source_extraction.cnmf.temporal import update_temporal_components
-from caiman.source_extraction.cnmf.utilities import update_order_greedy
-
 
 
 def merge_components(Y, A, b, C, R, f, S, sn_pix, temporal_params,

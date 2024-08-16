@@ -1,19 +1,10 @@
 #!/usr/bin/env python
 
-import bokeh
 import cv2
 import logging
 import matplotlib.pyplot as plt
 import numpy as np
-import os
-from pynwb import NWBHDF5IO, TimeSeries, NWBFile
-from pynwb.base import Images
-from pynwb.image import GrayscaleImage
-from pynwb.ophys import ImageSegmentation, Fluorescence, OpticalChannel, ImageSeries
-from pynwb.device import Device
 import scipy.sparse
-import time
-import uuid
 
 import caiman
 from caiman.base.rois import detect_duplicates_and_subsets, nf_match_neurons_in_binary_masks, nf_masks_to_neurof_dict
@@ -23,6 +14,7 @@ from caiman.source_extraction.cnmf.merging import merge_iteration, merge_compone
 from caiman.source_extraction.cnmf.spatial import threshold_components
 from caiman.source_extraction.cnmf.temporal import constrained_foopsi_parallel
 from caiman.source_extraction.cnmf.utilities import detrend_df_f, decimation_matrix
+
 
 class Estimates(object):
     """
@@ -1498,209 +1490,6 @@ class Estimates(object):
                 'You need to compute thresholded components before calling this method: use the threshold_components method')
         bin_masks = self.A_thr.reshape([self.dims[0], self.dims[1], -1], order='F').transpose([2, 0, 1])
         return nf_masks_to_neurof_dict(bin_masks, dataset_name)
-
-    def save_NWB(self,
-                 filename,
-                 imaging_plane_name=None,
-                 imaging_series_name=None,
-                 sess_desc='CaImAn Results',
-                 exp_desc=None,
-                 identifier=None,
-                 imaging_rate=30.,
-                 starting_time=0.,
-                 session_start_time=None,
-                 excitation_lambda=488.0,
-                 imaging_plane_description='some imaging plane description',
-                 emission_lambda=520.0,
-                 indicator='OGB-1',
-                 location='brain',
-                 raw_data_file=None):
-        """writes NWB file
-
-        Args:
-            filename: str
-
-            imaging_plane_name: str, optional
-
-            imaging_series_name: str, optional
-
-            sess_desc: str, optional
-
-            exp_desc: str, optional
-
-            identifier: str, optional
-
-            imaging_rate: float, optional
-                default: 30 (Hz)
-
-            starting_time: float, optional
-                default: 0.0 (seconds)
-
-            location: str, optional
-
-            session_start_time: datetime.datetime, optional
-                Only required for new files
-
-            excitation_lambda: float
-
-            imaging_plane_description: str
-
-            emission_lambda: float
-
-            indicator: str
-
-            location: str
-        """
-        logger = logging.getLogger("caiman")
-
-        if identifier is None:
-            identifier = uuid.uuid1().hex
-
-        if '.nwb' != os.path.splitext(filename)[-1].lower():
-            raise Exception("Wrong filename")
-
-        if not os.path.isfile(filename):  # if the file doesn't exist create new and add the original data path
-            print('filename does not exist. Creating new NWB file with only estimates output')
-
-            nwbfile = NWBFile(sess_desc, identifier, session_start_time, experiment_description=exp_desc)
-            device = Device('imaging_device')
-            nwbfile.add_device(device)
-            optical_channel = OpticalChannel('OpticalChannel',
-                                             'main optical channel',
-                                             emission_lambda=emission_lambda)
-            nwbfile.create_imaging_plane(name='ImagingPlane',
-                                         optical_channel=optical_channel,
-                                         description=imaging_plane_description,
-                                         device=device,
-                                         excitation_lambda=excitation_lambda,
-                                         imaging_rate=imaging_rate,
-                                         indicator=indicator,
-                                         location=location)
-            if raw_data_file:
-                nwbfile.add_acquisition(ImageSeries(name='TwoPhotonSeries',
-                                                    external_file=[raw_data_file],
-                                                    format='external',
-                                                    rate=imaging_rate,
-                                                    starting_frame=[0]))
-            with NWBHDF5IO(filename, 'w') as io:
-                io.write(nwbfile)
-
-        time.sleep(4)  # ensure the file is fully closed before opening again in append mode
-        logger.info('Saving the results in the NWB file...')
-
-        with NWBHDF5IO(filename, 'r+') as io:
-            nwbfile = io.read()
-            # Add processing results
-
-            # Create the module as 'ophys' unless it is taken and append 'ophysX' instead
-            ophysmodules = [s[5:] for s in list(nwbfile.modules) if s.startswith('ophys')]
-            if any('' in s for s in ophysmodules):
-                if any([s for s in ophysmodules if s.isdigit()]):
-                    nummodules = max([int(s) for s in ophysmodules if s.isdigit()])+1
-                    print('ophys module previously created, writing to ophys'+str(nummodules)+' instead')
-                    mod = nwbfile.create_processing_module('ophys'+str(nummodules), 'contains caiman estimates for '
-                                                                                    'the main imaging plane')
-                else:
-                    print('ophys module previously created, writing to ophys1 instead')
-                    mod = nwbfile.create_processing_module('ophys1', 'contains caiman estimates for the main '
-                                                                     'imaging plane')
-            else:
-                mod = nwbfile.create_processing_module('ophys', 'contains caiman estimates for the main imaging plane')
-
-            img_seg = ImageSegmentation()
-            mod.add(img_seg)
-            fl = Fluorescence()
-            mod.add_data_interface(fl)
-#            mot_crct = MotionCorrection()
-#            mod.add_data_interface(mot_crct)
-
-            # Add the ROI-related stuff
-            if imaging_plane_name is not None:
-                imaging_plane = nwbfile.imaging_planes[imaging_plane_name]
-            else:
-                if len(nwbfile.imaging_planes) == 1:
-                    imaging_plane = list(nwbfile.imaging_planes.values())[0]
-                else:
-                    raise Exception('There is more than one imaging plane in the file, you need to specify the name'
-                                    ' via the "imaging_plane_name" parameter')
-
-            if imaging_series_name is not None:
-                image_series = nwbfile.acquisition[imaging_series_name]
-            else:
-                if not len(nwbfile.acquisition):
-                    image_series = None
-                elif len(nwbfile.acquisition) == 1:
-                    image_series = list(nwbfile.acquisition.values())[0]
-                else:
-                    raise Exception('There is more than one imaging plane in the file, you need to specify the name'
-                                    ' via the "imaging_series_name" parameter')
-
-            ps = img_seg.create_plane_segmentation(
-                name='PlaneSegmentation',
-                description='CNMF_ROIs',
-                imaging_plane=imaging_plane,
-                reference_images=image_series)
-
-            ps.add_column('r', 'description of r values')
-            ps.add_column('snr', 'signal to noise ratio')
-            ps.add_column('accepted', 'in accepted list')
-            ps.add_column('rejected', 'in rejected list')
-            if self.cnn_preds is not None:
-                ps.add_column('cnn', 'description of CNN')
-            if self.idx_components is not None:
-                ps.add_column('keep', 'in idx_components')
-
-            # Add ROIs
-            for i in range(self.A.shape[-1]):
-                add_roi_kwargs = dict(image_mask=self.A.T[i].T.toarray().reshape(self.dims),
-                                      r=self.r_values[i], snr=self.SNR_comp[i], accepted=False, rejected=False)
-                if hasattr(self, 'accepted_list'):
-                    add_roi_kwargs.update(accepted=i in self.accepted_list)
-                if hasattr(self, 'rejected_list'):
-                    add_roi_kwargs.update(rejected=i in self.rejected_list)
-                if self.cnn_preds is not None:
-                    add_roi_kwargs.update(cnn=self.cnn_preds[i])
-                if self.idx_components is not None:
-                    add_roi_kwargs.update(keep=i in self.idx_components)
-
-                ps.add_roi(**add_roi_kwargs)
-
-            for bg in self.b.T:  # Backgrounds
-                add_bg_roi_kwargs = dict(image_mask=bg.reshape(self.dims), r=np.nan, snr=np.nan, accepted=False,
-                                         rejected=False)
-                if 'keep' in ps.colnames:
-                    add_bg_roi_kwargs.update(keep=False)
-                if 'cnn' in ps.colnames:
-                    add_bg_roi_kwargs.update(cnn=np.nan)
-                ps.add_roi(**add_bg_roi_kwargs)
-
-            # Add Traces
-            n_rois = self.A.shape[-1]
-            n_bg = len(self.f)
-            rt_region_roi = ps.create_roi_table_region(
-                'ROIs', region=list(range(n_rois)))
-
-            rt_region_bg = ps.create_roi_table_region(
-                'Background', region=list(range(n_rois, n_rois+n_bg)))
-
-            timestamps = np.arange(self.f.shape[1]) / imaging_rate + starting_time
-
-            # Neurons
-            fl.create_roi_response_series(name='RoiResponseSeries', data=self.C.T, rois=rt_region_roi, unit='lumens',
-                                          timestamps=timestamps)
-            # Background
-            fl.create_roi_response_series(name='Background_Fluorescence_Response', data=self.f.T, rois=rt_region_bg,
-                                          unit='lumens', timestamps=timestamps)
-
-            mod.add(TimeSeries(name='residuals', description='residuals', data=self.YrA.T, timestamps=timestamps,
-                               unit='NA'))
-            if hasattr(self, 'Cn'):
-                images = Images('summary_images')
-                images.add_image(GrayscaleImage(name='local_correlations', data=self.Cn))
-
-                # Add MotionCorrection
-    #            create_corrected_image_stack(corrected, original, xy_translation, name='CorrectedImageStack')
-            io.write(nwbfile)
 
 
 def compare_components(estimate_gt, estimate_cmp,  Cn=None, thresh_cost=.8, min_dist=10, print_assignment=False,
