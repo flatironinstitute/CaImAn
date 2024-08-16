@@ -56,7 +56,6 @@ from typing import Optional
 import caiman
 import caiman.base.movies
 import caiman.mmapping
-import caiman.motion_correction
 import caiman.paths
 
 try:
@@ -2772,7 +2771,7 @@ def motion_correct_batch_rigid(fname, max_shifts, dview=None, splits=56, num_spl
                 np.array([high_pass_filter_space(m_, gSig_filt) for m_ in m]))
         if is3D:     
             # TODO - motion_correct_3d needs to be implemented in movies.py
-            template = caiman.motion_correction.bin_median_3d(m) # motion_correct_3d has not been implemented yet - instead initialize to just median image
+            template = bin_median_3d(m) # motion_correct_3d has not been implemented yet - instead initialize to just median image
 #            template = caiman.motion_correction.bin_median_3d(
 #                    m.motion_correct_3d(max_shifts[2], max_shifts[1], max_shifts[0], template=None)[0])
         else:
