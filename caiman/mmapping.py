@@ -9,7 +9,7 @@ import pathlib
 import pickle
 import sys
 import tifffile
-from typing import Any, Optional, Union
+from typing import Any, Optional
 
 import caiman
 import caiman.paths

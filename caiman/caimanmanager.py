@@ -8,7 +8,6 @@ import os
 import platform
 import psutil
 import shutil
-import string
 import subprocess
 import sys     # for sys.prefix
 

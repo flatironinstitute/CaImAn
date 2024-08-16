@@ -5,16 +5,11 @@ Class representing a time series.
 """
 
 import cv2
-from datetime import datetime
-from dateutil.tz import tzlocal
 import h5py
 import logging
 import matplotlib.pyplot as plt
 import numpy as np
 import os
-from pynwb import NWBHDF5IO, NWBFile
-from pynwb.ophys import TwoPhotonSeries, OpticalChannel
-from pynwb.device import Device
 import pickle as cpk
 from scipy.io import savemat
 import tifffile
@@ -327,50 +322,6 @@ class timeseries(np.ndarray):
             big_mov.flush()
             del big_mov, input_arr
             return fname_tot
-        elif extension == '.nwb':
-            if to32 and not ('float32' in str(self.dtype)):
-                input_arr = self.astype(np.float32)
-            else:
-                input_arr = np.array(self)
-            # Create NWB file
-            nwbfile = NWBFile(sess_desc,
-                              identifier,
-                              datetime.now(tzlocal()),
-                              experimenter=experimenter,
-                              lab=lab_name,
-                              institution=institution,
-                              experiment_description=experiment_description,
-                              session_id=session_id)
-            # Get the device
-            device = Device('imaging_device')
-            nwbfile.add_device(device)
-            # OpticalChannel
-            optical_channel = OpticalChannel('OpticalChannel', 'main optical channel', emission_lambda=emission_lambda)
-            imaging_plane = nwbfile.create_imaging_plane(name='ImagingPlane',
-                                                         optical_channel=optical_channel,
-                                                         description=imaging_plane_description,
-                                                         device=device,
-                                                         excitation_lambda=excitation_lambda,
-                                                         imaging_rate=self.fr,
-                                                         indicator=indicator,
-                                                         location=location)
-            # Images
-            image_series = TwoPhotonSeries(name=var_name_hdf5,
-                                           dimension=self.shape[1:],
-                                           data=input_arr,
-                                           unit=unit,
-                                           imaging_plane=imaging_plane,
-                                           starting_frame=[0],
-                                           starting_time=starting_time,
-                                           rate=self.fr)
-
-            nwbfile.add_acquisition(image_series)
-
-            with NWBHDF5IO(file_name, 'w') as io:
-                io.write(nwbfile)
-
-            return file_name
-
         else:
             logger.error(f"Extension {extension} unknown")
             raise Exception('Extension Unknown')
