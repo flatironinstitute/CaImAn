@@ -56,7 +56,6 @@ from typing import Optional
 import caiman
 import caiman.base.movies
 import caiman.mmapping
-import caiman.motion_correction
 import caiman.paths
 
 try:
@@ -668,7 +667,7 @@ def motion_correct_oneP_rigid(
     Returns:
         Motion correction object
     '''
-    min_mov = np.array([caiman.motion_correction.high_pass_filter_space(
+    min_mov = np.array([high_pass_filter_space(
         m_, gSig_filt) for m_ in caiman.load(filename[0], subindices=range(400))]).min()
     new_templ = None
 
@@ -728,7 +727,7 @@ def motion_correct_oneP_nonrigid(
     '''
 
     if new_templ is None:
-        min_mov = np.array([caiman.motion_correction.high_pass_filter_space(
+        min_mov = np.array([high_pass_filter_space(
             m_, gSig_filt) for m_ in caiman.load(filename, subindices=range(400))]).min()
     else:
         min_mov = np.min(new_templ)
@@ -1345,31 +1344,6 @@ def _compute_error(cross_correlation_max, src_amp, target_amp):
         (src_amp * target_amp)
     return np.sqrt(np.abs(error))
 
-def init_cuda_process():
-    """
-    Initialize a PyCUDA context at global scope so that it can be accessed
-    from processes when using multithreading
-    """
-    global cudactx
-
-    cudadrv.init()
-    dev = cudadrv.Device(0)
-    cudactx = dev.make_context() # type: ignore
-    atexit.register(cudactx.pop) # type: ignore
-
-
-def close_cuda_process(n):
-    """
-    Cleanup cuda process
-    """
-
-    global cudactx
-
-    import skcuda.misc as cudamisc
-    try:
-        cudamisc.done_context(cudactx) # type: ignore
-    except:
-        pass
 
 def register_translation_3d(src_image, target_image, upsample_factor = 1,
                             space = "real", shifts_lb = None, shifts_ub = None,
@@ -1625,15 +1599,6 @@ def register_translation(src_image, target_image, upsample_factor=1,
     if src_image.ndim != 2 and upsample_factor > 1:
         raise NotImplementedError("Error: register_translation only supports "
                                   "subpixel registration for 2D images")
-
-    if HAS_CUDA and use_cuda:
-        from skcuda.fft import Plan
-        from skcuda.fft import fft as cudafft
-        from skcuda.fft import ifft as cudaifft
-        try:
-            cudactx # type: ignore
-        except NameError:
-            init_cuda_process()
 
     # assume complex data is already in Fourier space
     if space.lower() == 'fourier':
@@ -2629,7 +2594,7 @@ def compute_metrics_motion_correction(fname, final_size_x, final_size_y, swap_di
     img_corr = m.local_correlations(eight_neighbours=True, swap_dim=swap_dim)
     logger.debug(m.shape)
     if template is None:
-        tmpl = caiman.motion_correction.bin_median(m)
+        tmpl = bin_median(m)
     else:
         tmpl = template
 
@@ -2806,13 +2771,13 @@ def motion_correct_batch_rigid(fname, max_shifts, dview=None, splits=56, num_spl
                 np.array([high_pass_filter_space(m_, gSig_filt) for m_ in m]))
         if is3D:     
             # TODO - motion_correct_3d needs to be implemented in movies.py
-            template = caiman.motion_correction.bin_median_3d(m) # motion_correct_3d has not been implemented yet - instead initialize to just median image
+            template = bin_median_3d(m) # motion_correct_3d has not been implemented yet - instead initialize to just median image
 #            template = caiman.motion_correction.bin_median_3d(
 #                    m.motion_correct_3d(max_shifts[2], max_shifts[1], max_shifts[0], template=None)[0])
         else:
             if not m.flags['WRITEABLE']:
                 m = m.copy()
-            template = caiman.motion_correction.bin_median(
+            template = bin_median(
                     m.motion_correct(max_shifts[1], max_shifts[0], template=None)[0])
 
     new_templ = template

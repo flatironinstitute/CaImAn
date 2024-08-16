@@ -10,7 +10,7 @@ import tensorflow as tf
 import scipy
 from scipy.sparse import csc_matrix
 from scipy.stats import norm
-from typing import Any, Union
+from typing import Any
 import warnings
 
 import caiman

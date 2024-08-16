@@ -17,6 +17,7 @@ import caiman
 import caiman.base.movies
 from caiman.source_extraction.cnmf.pre_processing import get_noise_fft
 
+
 def max_correlation_image(Y, bin_size: int = 1000, eight_neighbours: bool = True, swap_dim: bool = True) -> np.ndarray:
     """Computes the max-correlation image for the input dataset Y with bin_size
 
@@ -62,6 +63,7 @@ def max_correlation_image(Y, bin_size: int = 1000, eight_neighbours: bool = True
 
         Cn = np.max(Cn_bins, axis=0)
         return Cn
+
 
 def local_correlations_fft(Y,
                            eight_neighbours: bool = True,

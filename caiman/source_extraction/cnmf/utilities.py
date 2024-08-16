@@ -11,12 +11,11 @@ description of the array's dtype.
 import cv2
 import logging
 import numpy as np
-import os
-import pathlib
-import matplotlib.pyplot as plt
 import scipy
 from scipy.sparse import spdiags, issparse, csc_matrix, csr_matrix
 import scipy.ndimage as ndi
+from skimage.measure import find_contours
+from warnings import warn
 
 import caiman.base.rois
 import caiman.cluster
@@ -700,129 +699,6 @@ def detrend_df_f_auto(A, b, C, f, dims=None, YrA=None, use_annulus = True,
 
     return F_df
 
-def manually_refine_components(Y, xxx_todo_changeme, A, C, Cn, thr=0.9, display_numbers=True,
-                               max_number=None, cmap=None, **kwargs):
-    """Plots contour of spatial components
-     against a background image and allows to interactively add novel components by clicking with mouse
-
-     Args:
-         Y: ndarray
-                   movie in 2D
-
-         (dx,dy): tuple
-                   dimensions of the square used to identify neurons (should be set to the galue of gsiz)
-
-         A:   np.ndarray or sparse matrix
-                   Matrix of Spatial components (d x K)
-
-         Cn:  np.ndarray (2D)
-                   Background image (e.g. mean, correlation)
-
-         thr: scalar between 0 and 1
-                   Energy threshold for computing contours (default 0.995)
-
-         display_number:     Boolean
-                   Display number of ROIs if checked (default True)
-
-         max_number:    int
-                   Display the number for only the first max_number components (default None, display all numbers)
-
-         cmap:     string
-                   User specifies the colormap (default None, default colormap)
-
-     Returns:
-         A: np.ndarray
-             matrix A os estimated spatial component contributions
-
-         C: np.ndarray
-             array of estimated calcium traces
-    """
-    (dx, dy) = xxx_todo_changeme
-    if issparse(A):
-        A = np.array(A.todense())
-    else:
-        A = np.array(A)
-
-    d1, d2 = np.shape(Cn)
-    d, nr = np.shape(A)
-    if max_number is None:
-        max_number = nr
-
-    x, y = np.mgrid[0:d1:1, 0:d2:1]
-
-    plt.imshow(Cn, interpolation=None, cmap=cmap)
-    cm = caiman.base.rois.com(A, d1, d2)
-
-    Bmat = np.zeros((np.minimum(nr, max_number), d1, d2))
-    for i in range(np.minimum(nr, max_number)):
-        indx = np.argsort(A[:, i], axis=None)[::-1]
-        cumEn = np.cumsum(A[:, i].flatten()[indx]**2)
-        cumEn /= cumEn[-1]
-        Bvec = np.zeros(d)
-        Bvec[indx] = cumEn
-        Bmat[i] = np.reshape(Bvec, np.shape(Cn), order='F')
-
-    T = np.shape(Y)[-1]
-
-    plt.close()
-    fig = plt.figure()
-    ax = plt.gca()
-    ax.imshow(Cn, interpolation=None, cmap=cmap,
-              vmin=np.percentile(Cn[~np.isnan(Cn)], 1), vmax=np.percentile(Cn[~np.isnan(Cn)], 99))
-    for i in range(np.minimum(nr, max_number)):
-        plt.contour(y, x, Bmat[i], [thr])
-
-    if display_numbers:
-        for i in range(np.minimum(nr, max_number)):
-            ax.text(cm[i, 1], cm[i, 0], str(i + 1))
-
-    A3 = np.reshape(A, (d1, d2, nr), order='F')
-    while True:
-        pts = fig.ginput(1, timeout=0)
-
-        if pts != []:
-            print(pts)
-            xx, yy = np.round(pts[0]).astype(int)
-            coords_y = np.array(list(range(yy - dy, yy + dy + 1)))
-            coords_x = np.array(list(range(xx - dx, xx + dx + 1)))
-            coords_y = coords_y[(coords_y >= 0) & (coords_y < d1)]
-            coords_x = coords_x[(coords_x >= 0) & (coords_x < d2)]
-            a3_tiny = A3[coords_y[0]:coords_y[-1] +
-                         1, coords_x[0]:coords_x[-1] + 1, :]
-            y3_tiny = Y[coords_y[0]:coords_y[-1] +
-                        1, coords_x[0]:coords_x[-1] + 1, :]
-
-            dy_sz, dx_sz = np.shape(a3_tiny)[:-1]
-            y2_tiny = np.reshape(y3_tiny, (dx_sz * dy_sz, T), order='F')
-            a2_tiny = np.reshape(a3_tiny, (dx_sz * dy_sz, nr), order='F')
-            y2_res = y2_tiny - a2_tiny.dot(C)
-            y3_res = np.reshape(y2_res, (dy_sz, dx_sz, T), order='F')
-            a__, c__, center__, b_in__, f_in__ = caiman.source_extraction.cnmf.initialization.greedyROI(
-                y3_res, nr=1, gSig=[dx_sz//2, dy_sz//2], gSiz=[dx_sz, dy_sz])
-
-            a_f = np.zeros((d, 1))
-            idxs = np.meshgrid(coords_y, coords_x)
-            a_f[np.ravel_multi_index(
-                idxs, (d1, d2), order='F').flatten()] = a__
-
-            A = np.concatenate([A, a_f], axis=1)
-            C = np.concatenate([C, c__], axis=0)
-            indx = np.argsort(a_f, axis=None)[::-1]
-            cumEn = np.cumsum(a_f.flatten()[indx]**2)
-            cumEn /= cumEn[-1]
-            Bvec = np.zeros(d)
-            Bvec[indx] = cumEn
-            bmat = np.reshape(Bvec, np.shape(Cn), order='F')
-            plt.contour(y, x, bmat, [thr])
-            plt.pause(.01)
-
-        elif pts == []:
-            break
-
-        nr += 1
-        A3 = np.reshape(A, (d1, d2, nr), order='F')
-
-    return A, C
 
 def app_vertex_cover(A):
     """ Finds an approximate vertex cover for a symmetric graph with adjacency matrix A.
@@ -1235,3 +1111,114 @@ def fast_graph_Laplacian_pixel(pars):
         ind = np.where(w>0)[0]
 
     return indices[ind].tolist(), w[ind].tolist()
+
+
+def get_contours(A, dims, thr=0.9, thr_method='nrg', swap_dim=False, slice_dim: int = None):
+    """Gets contour of spatial components and returns their coordinates
+
+     Args:
+         A:   np.ndarray or sparse matrix
+                   Matrix of Spatial components (d x K)
+
+             dims: tuple of ints
+                   Spatial dimensions of movie
+
+             thr: scalar between 0 and 1
+                   Energy threshold for computing contours (default 0.9)
+
+             thr_method: string
+                  Method of thresholding:
+                      'max' sets to zero pixels that have value less than a fraction of the max value
+                      'nrg' keeps the pixels that contribute up to a specified fraction of the energy
+
+             swap_dim: bool
+                  If False (default), each column of A should be reshaped in F-order to recover the mask;
+                  this is correct if the dimensions have not been reordered from (y, x[, z]).
+                  If True, each column should be reshaped in C-order; this is correct for dims = ([z, ]x, y).
+
+             slice_dim: int or None
+                  Which dimension to slice along if we have 3D data. (i.e., get contours on each plane along this axis).
+                  The default (None) is 0 if swap_dim is True, else -1.
+
+     Returns:
+         Coor: list of coordinates with center of mass and
+                contour plot coordinates (per layer) for each component
+    """
+
+    if 'csc_matrix' not in str(type(A)):
+        A = csc_matrix(A)
+    d, nr = np.shape(A)
+
+    coordinates = []
+
+    # get the center of mass of neurons( patches )
+    cm = caiman.base.rois.com(A, *dims, order='C' if swap_dim else 'F')
+
+    # for each patches
+    for i in range(nr):
+        pars: dict = dict()
+        # we compute the cumulative sum of the energy of the Ath component that has been ordered from least to highest
+        patch_data = A.data[A.indptr[i]:A.indptr[i + 1]]
+        indx = np.argsort(patch_data)[::-1]
+        if thr_method == 'nrg':
+            cumEn = np.cumsum(patch_data[indx] ** 2)
+            if len(cumEn) == 0:
+                pars = dict(
+                    coordinates=np.array([]),
+                    CoM=np.array([np.NaN, np.NaN]),
+                    neuron_id=i + 1,
+                )
+                coordinates.append(pars)
+                continue
+            else:
+                # we work with normalized values
+                cumEn /= cumEn[-1]
+                Bvec = np.ones(d)
+                # we put it in a similar matrix
+                Bvec[A.indices[A.indptr[i]:A.indptr[i + 1]][indx]] = cumEn
+        else:
+            if thr_method != 'max':
+                warn("Unknown threshold method. Choosing max")
+            Bvec = np.zeros(d)
+            Bvec[A.indices[A.indptr[i]:A.indptr[i + 1]]] = patch_data / patch_data.max()
+
+        if swap_dim:
+            Bmat = np.reshape(Bvec, dims, order='C')
+        else:
+            Bmat = np.reshape(Bvec, dims, order='F')
+
+        def get_slice_coords(B: np.ndarray) -> np.ndarray:
+            """Get contour coordinates for a 2D slice"""
+            d1, d2 = B.shape
+            vertices = find_contours(B.T, thr)
+            # this fix is necessary for having disjoint figures and borders plotted correctly
+            v = np.atleast_2d([np.nan, np.nan])
+            for _, vtx in enumerate(vertices):
+                num_close_coords = np.sum(np.isclose(vtx[0, :], vtx[-1, :]))
+                if num_close_coords < 2:
+                    if num_close_coords == 0:
+                        # case angle
+                        newpt = np.round(np.mean(vtx[[0, -1], :], axis=0) / [d2, d1]) * [d2, d1]
+                        vtx = np.concatenate((newpt[np.newaxis, :], vtx, newpt[np.newaxis, :]), axis=0)
+                    else:
+                        # case one is border
+                        vtx = np.concatenate((vtx, vtx[0, np.newaxis]), axis=0)
+                v = np.concatenate(
+                    (v, vtx, np.atleast_2d([np.nan, np.nan])), axis=0)
+            return v
+
+        if len(dims) == 2:
+            pars['coordinates'] = get_slice_coords(Bmat)
+        else:
+            # make a list of the contour coordinates for each 2D slice
+            pars['coordinates'] = []
+            if slice_dim is None:
+                slice_dim = 0 if swap_dim else -1
+            for s in range(dims[slice_dim]):
+                B = Bmat.take(s, axis=slice_dim)
+                pars['coordinates'].append(get_slice_coords(B))
+
+        pars['CoM'] = np.squeeze(cm[i, :])
+        pars['neuron_id'] = i + 1
+        coordinates.append(pars)
+    return coordinates
