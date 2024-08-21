@@ -524,6 +524,7 @@ class MotionCorrect(object):
                                        cv2.INTER_CUBIC, borderMode=cv2.BORDER_CONSTANT,
                                        borderValue=0.0)
                              for img, shiftX, shiftY in zip(Y, shifts_x, shifts_y)]
+        del Y
         m_reg = np.stack(m_reg, axis=0)
         if save_memmap:
             dims = m_reg.shape
