@@ -8,6 +8,7 @@ import matplotlib.pyplot as pl
 import numpy as np
 import os
 import scipy
+import scipy.sparse
 from scipy.ndimage import label, gaussian_filter
 from scipy.optimize import linear_sum_assignment
 import shutil
@@ -106,7 +107,7 @@ def extract_binary_masks_from_structural_channel(Y,
     th = remove_small_objects(th, min_size=min_area_size)
     areas = label(th)
 
-    A = np.zeros((np.prod(th.shape), areas[1]), dtype=bool)
+    A = scipy.sparse.lil_array((areas[1], np.prod(th.shape)), dtype=bool)
 
     for i in range(areas[1]):
         temp = (areas[0] == i + 1)
@@ -115,9 +116,9 @@ def extract_binary_masks_from_structural_channel(Y,
         elif expand_method == 'closing':
             temp = closing(temp, footprint=selem)
 
-        A[:, i] = temp.flatten('F')
+        A.getrowview(i)[:] = temp.flatten('F')
 
-    return A, mR
+    return A.tocsr().T, mR
 
 
 def mask_to_2d(mask):
