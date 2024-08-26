@@ -13,6 +13,9 @@ Paninski, L., & Pnevmatikakis, E.A. (2017). OnACID: Online analysis of calcium
 imaging data in real time. In Advances in Neural Information Processing Systems 
 (pp. 2381-2391).
 @url http://papers.nips.cc/paper/6832-onacid-online-analysis-of-calcium-imaging-data-in-real-time
+
+Implemented in PyTorch
+Date: July 18, 2024
 """
 
 import cv2
@@ -26,7 +29,7 @@ from scipy.sparse import coo_matrix, csc_matrix, spdiags, hstack
 from scipy.stats import norm
 from sklearn.decomposition import NMF
 from sklearn.preprocessing import normalize
-import tensorflow as tf
+import torch 
 from time import time
 
 import caiman
@@ -320,34 +323,30 @@ class OnACID(object):
         if self.params.get('online', 'path_to_model') is None or self.params.get('online', 'sniper_mode') is False:
             loaded_model = None
             self.params.set('online', {'sniper_mode': False})
-            self.tf_in = None
-            self.tf_out = None
+            # self.tf_in = None
+            # self.tf_out = None
+            self.use_torch = None #fix 
         else:
-            try:
-                from tensorflow.keras.models import model_from_json
-                logger.info('Using Keras')
+            try: 
+                from keras.models import load_model 
+                logging.info('Using Keras')
                 use_keras = True
             except(ModuleNotFoundError):
-                use_keras = False
-                logger.info('Using Tensorflow')
+                use_keras = False 
+                logging.info('Using Torch')
+
+            path = self.params.get('online', 'path_to_model').split(".")[:-1]
             if use_keras:
-                path = self.params.get('online', 'path_to_model').split(".")[:-1]
-                json_path = ".".join(path + ["json"])
-                model_path = ".".join(path + ["h5"])
-                json_file = open(json_path, 'r')
-                loaded_model_json = json_file.read()
-                json_file.close()
-                loaded_model = model_from_json(loaded_model_json)
-                loaded_model.load_weights(model_path)
-                self.tf_in = None
-                self.tf_out = None
-            else:
-                path = self.params.get('online', 'path_to_model').split(".")[:-1]
-                model_path = '.'.join(path + ['h5', 'pb'])
+                # uses online model -> be careful 
+                model_path = ".".join(path + ["keras"])
+                loaded_model = model_load(model_path)
+                self.use_torch = False 
+            else: 
+                model_path = '.'.join(path + ['pt'])
                 loaded_model = load_graph(model_path)
-                self.tf_in = loaded_model.get_tensor_by_name('prefix/conv2d_1_input:0')
-                self.tf_out = loaded_model.get_tensor_by_name('prefix/output_node0:0')
-                loaded_model = tf.Session(graph=loaded_model)
+                loaded_model = torch.load(model_file)
+                self.use_torch = True 
+
         self.loaded_model = loaded_model
 
         if self.is1p:
@@ -548,7 +547,8 @@ class OnACID(object):
                 sniper_mode=self.params.get('online', 'sniper_mode'),
                 use_peak_max=self.params.get('online', 'use_peak_max'),
                 mean_buff=self.estimates.mean_buff,
-                tf_in=self.tf_in, tf_out=self.tf_out,
+                # tf_in=self.tf_in, tf_out=self.tf_out,
+                use_torch=self.use_torch,
                 ssub_B=ssub_B, W=self.estimates.W if self.is1p else None,
                 b0=self.estimates.b0 if self.is1p else None,
                 corr_img=self.estimates.corr_img if use_corr else None,
@@ -2003,7 +2003,8 @@ def get_candidate_components(sv, dims, Yres_buf, min_num_trial=3, gSig=(5, 5),
                              patch_size=50, loaded_model=None, test_both=False,
                              thresh_CNN_noisy=0.5, use_peak_max=False,
                              thresh_std_peak_resid = 1, mean_buff=None,
-                             tf_in=None, tf_out=None):
+                             # tf_in=None, tf_out=None):
+                             use_torch=None):
     """
     Extract new candidate components from the residual buffer and test them
     using space correlation or the CNN classifier. The function runs the CNN
@@ -2084,12 +2085,19 @@ def get_candidate_components(sv, dims, Yres_buf, min_num_trial=3, gSig=(5, 5),
         Ain2 /= np.std(Ain2,axis=1)[:,None]
         Ain2 = np.reshape(Ain2,(-1,) + tuple(np.diff(ijSig_cnn).squeeze()),order= 'F')
         Ain2 = np.stack([cv2.resize(ain,(patch_size ,patch_size)) for ain in Ain2])
-        if tf_in is None:
+        if use_torch is None:
             predictions = loaded_model.predict(Ain2[:,:,:,np.newaxis], batch_size=min_num_trial, verbose=0)
+            keep_cnn = list(np.where(predictions[:, 0] > thresh_CNN_noisy)[0])
         else:
-            predictions = loaded_model.run(tf_out, feed_dict={tf_in: Ain2[:, :, :, np.newaxis]})
-        keep_cnn = list(np.where(predictions[:, 0] > thresh_CNN_noisy)[0])
-        cnn_pos = Ain2[keep_cnn]
+            final_crops = torch.tensor(Ain2, dtype=torch.float32)
+            final_crops = torch.reshape(Ain2, (-1, Ain2.shape[-1], 
+                        Ain2.shape[1], Ain2.shape[2])) 
+            with torch.no_grad():
+                prediction = loaded_model(Ain2[:, np.newaxis, :, :])     
+            keep_cnn = list(torch.where(predictions[:, 0] > thresh_CNN_noisy)[0])
+        
+        cnn_pos = Ain2[keep_cnn] #Make sure this works 
+        # tensor.numpy() also works 
     else:
         keep_cnn = []  # list(range(len(Ain_cnn)))
 
@@ -2138,7 +2146,8 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                           corr_img=None, first_moment=None, second_moment=None,
                           crosscorr=None, col_ind=None, row_ind=None, corr_img_mode=None,
                           max_img=None, downscale_matrix=None, upscale_matrix=None,
-                          tf_in=None, tf_out=None):
+                          # tf_in=None, tf_out=None):
+                          torch_in=None, torch_out=None):
     """
     Checks for new components in the residual buffer and incorporates them if they pass the acceptance tests
     """
@@ -2168,7 +2177,8 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
         sniper_mode=sniper_mode, rval_thr=rval_thr, patch_size=50,
         loaded_model=loaded_model, thresh_CNN_noisy=thresh_CNN_noisy,
         use_peak_max=use_peak_max, test_both=test_both, mean_buff=mean_buff,
-        tf_in=tf_in, tf_out=tf_out)
+        # tf_in=tf_in, tf_out=tf_out)
+        torch_in=torch_in, torch_out=torch_out)
 
     ind_new_all = ijsig_all
 
