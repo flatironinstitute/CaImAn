@@ -67,7 +67,7 @@ def extract_binary_masks_from_structural_channel(Y,
                                                  min_hole_size: int = 15,
                                                  gSig: int = 5,
                                                  expand_method: str = 'closing',
-                                                 selem: np.array = np.ones((3, 3))) -> tuple[np.ndarray, np.array]:
+                                                 selem: np.ndarray = np.ones((3, 3))) -> tuple[scipy.sparse.csc_array, np.ndarray]:
     """Extract binary masks by using adaptive thresholding on a structural channel
 
     Args:
@@ -93,7 +93,7 @@ def extract_binary_masks_from_structural_channel(Y,
         A:                  sparse column format matrix
                             matrix of binary masks to be used for CNMF seeding
 
-        mR:                 np.array
+        mR:                 np.ndarray
                             mean image used to detect cell boundaries
     """
 
