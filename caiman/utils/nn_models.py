@@ -555,7 +555,7 @@ def fit_NL_model(model_NL, Y, patience=5, val_split=0.2, batch_size=32,
         Y = np.expand_dims(Y, axis=-1)
     run_logdir = get_run_logdir()
     os.mkdir(run_logdir)
-    path_to_model = os.path.join(run_logdir, 'model.h5')
+    path_to_model = os.path.join(run_logdir, 'model.weights.h5')
     chk = ModelCheckpoint(filepath=path_to_model,
                           verbose=0, save_best_only=True, save_weights_only=True)
     es = EarlyStopping(monitor='val_loss', patience=patience,
@@ -566,7 +566,7 @@ def fit_NL_model(model_NL, Y, patience=5, val_split=0.2, batch_size=32,
     history_NL = model_NL.fit(Y, Y, epochs=epochs, batch_size=batch_size,
                             shuffle=True, validation_split=val_split,
                             callbacks=callbacks)
-    model_NL.load_weights(os.path.join(run_logdir, 'model.h5'))
+    model_NL.load_weights(os.path.join(run_logdir, 'model.weights.h5'))
     return model_NL, history_NL, path_to_model
 
 def get_MCNN_model(Y, gSig=5, n_channels=8, lr=1e-4, pct=10, r_factor=1.5,
