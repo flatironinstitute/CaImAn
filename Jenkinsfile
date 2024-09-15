@@ -34,7 +34,7 @@ pipeline {
               export THEANO_FLAGS="base_compiledir=$TEMPDIR/theano_tmp"
               cd $TEMPDIR
               caimanmanager.py install
-              nosetests --traverse-namespace caiman
+              pytest --pyargs caiman
               caimanmanager.py demotest
             '''
           }
@@ -58,7 +58,7 @@ pipeline {
               export CAIMAN_DATA=$TEMPDIR/caiman_data
               cd $TEMPDIR
               caimanmanager.py install
-              nosetests --traverse-namespace caiman
+              pytest --pyargs caiman
             '''
           }
         }
