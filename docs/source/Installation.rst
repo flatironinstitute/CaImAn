@@ -89,11 +89,17 @@ The Windows installation process differs quite a bit from installation
 on Linux or MacOSX. If you can work on Linux, it will be easier. Everything 
 below should be from a Conda-prompt rather than from Powershell or any other shell.
 
--  Install Microsoft Build Tools for Visual Studio 2019, which you can download 
-   from (https://visualstudio.microsoft.com/vs/older-downloads/). Check the 
-   “Build Tools” box, and in the detailed view on the right check the “C/C++ CLI 
-   Tools” component too. The specifics of this occasionally change as Microsoft 
-   changes its products and website; you may need to go off-script.
+-  Install Microsoft Build Tools for Visual Studio 2019.
+
+   - If you are on Windows 10 version 1709 or later
+     or Windows 11, you can use ``winget``. Run in a command prompt:
+
+     ``winget install --id=Microsoft.VisualStudio.2019.BuildTools -e``
+   - Otherwise, you can install it from 
+     from (https://visualstudio.microsoft.com/vs/older-downloads/). Check the 
+     “Build Tools” box, and in the detailed view on the right check the “C/C++ CLI 
+     Tools” component too. The specifics of this occasionally change as Microsoft 
+     changes its products and website; you may need to go off-script.
 -  Remove any associations you may have made between .py files and an existing python
    interpreter or editor
 -  If you have less than 64GB of RAM, increase the maximum size of your pagefile to 64G or more
