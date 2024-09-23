@@ -12,7 +12,7 @@ dependencies:
 - ipywidgets
 - matplotlib
 - moviepy
-- nose
+- pytest
 - numpy <2.0.0,>=1.26
 - numpydoc
 - opencv
