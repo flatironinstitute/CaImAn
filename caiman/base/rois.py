@@ -8,6 +8,7 @@ import matplotlib.pyplot as pl
 import numpy as np
 import os
 import scipy
+import scipy.sparse
 from scipy.ndimage import label, gaussian_filter
 from scipy.optimize import linear_sum_assignment
 import shutil
@@ -66,7 +67,7 @@ def extract_binary_masks_from_structural_channel(Y,
                                                  min_hole_size: int = 15,
                                                  gSig: int = 5,
                                                  expand_method: str = 'closing',
-                                                 selem: np.array = np.ones((3, 3))) -> tuple[np.ndarray, np.array]:
+                                                 selem: np.ndarray = np.ones((3, 3))) -> tuple[scipy.sparse.csc_array, np.ndarray]:
     """Extract binary masks by using adaptive thresholding on a structural channel
 
     Args:
@@ -92,7 +93,7 @@ def extract_binary_masks_from_structural_channel(Y,
         A:                  sparse column format matrix
                             matrix of binary masks to be used for CNMF seeding
 
-        mR:                 np.array
+        mR:                 np.ndarray
                             mean image used to detect cell boundaries
     """
 
@@ -106,7 +107,7 @@ def extract_binary_masks_from_structural_channel(Y,
     th = remove_small_objects(th, min_size=min_area_size)
     areas = label(th)
 
-    A = np.zeros((np.prod(th.shape), areas[1]), dtype=bool)
+    A = scipy.sparse.lil_array((areas[1], np.prod(th.shape)), dtype=bool)
 
     for i in range(areas[1]):
         temp = (areas[0] == i + 1)
@@ -115,9 +116,9 @@ def extract_binary_masks_from_structural_channel(Y,
         elif expand_method == 'closing':
             temp = closing(temp, footprint=selem)
 
-        A[:, i] = temp.flatten('F')
+        A.getrowview(i)[:] = temp.flatten('F')
 
-    return A, mR
+    return A.tocsr().T, mR
 
 
 def mask_to_2d(mask):
