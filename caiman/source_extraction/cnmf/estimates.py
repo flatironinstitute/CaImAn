@@ -35,9 +35,10 @@ class Estimates(object):
         for evaluating the quality of each component, DF/F normalization and some basic plotting.
 
         Args:
-            A:  scipy.sparse.csc_matrix (dimensions: # of pixels x # components)
-                set of spatial footprints. Each footprint is represented in a column of A, flattened with order = 'F'
-
+            A:  scipy.sparse.csc_matrix or np.ndarray (dimensions: # of pixels x # components)
+                set of spatial footprints. Each footprint is represented in a column of A, flattened with order = 'F' . 
+                Must be a np.ndarray of type `bool` if used for manually seeded initialization.
+                
             C:  np.ndarray (dimensions: # of components x # of timesteps)
                 set of temporal traces (each row of C corresponds to a trace)
 
