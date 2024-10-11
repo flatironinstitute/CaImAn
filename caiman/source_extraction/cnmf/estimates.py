@@ -37,7 +37,7 @@ class Estimates(object):
         Args:
             A:  scipy.sparse.csc_matrix (dimensions: # of pixels x # components)
                 set of spatial footprints. Each footprint is represented in a column of A, flattened with order = 'F'. 
-                Must be a np.ndarray of type `bool` is used for manual seeded initialization.
+                Must be a np.ndarray of type `bool` if used for manual seeded initialization.
 
             C:  np.ndarray (dimensions: # of components x # of timesteps)
                 set of temporal traces (each row of C corresponds to a trace)
