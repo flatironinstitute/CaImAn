@@ -109,8 +109,8 @@ class CNMF(object):
             p: int
                 order of the autoregressive process used to estimate deconvolution
 
-            Ain: ndarray
-                if know, it is the initial estimate of spatial filters
+            Ain: np.ndarray
+                if known, it is the initial estimate of spatial filters. Array must be of type `bool` in 'F' order of shape: [n_pixels, n_components]
 
             ssub: int
                 downsampleing factor in space
