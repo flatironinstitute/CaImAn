@@ -49,7 +49,7 @@ get things running quickly. You will create a new environment with the caiman pa
 
 .. code:: bash
 
-    mamba create -n caiman -c conda-forge caiman
+    mamba create -n caiman caiman
     conda activate caiman
 
 Note if you are installing on Windows, run the above commands in the anaconda prompt rather than powershell or the dos shell:
@@ -209,7 +209,7 @@ Section 3A: Upgrade conda install
    <details>
    <summary>Updating the conda-forge package</summary>
 
-From within your caiman environment type ```conda update caiman -c conda-forge```. In most cases this should be enough.
+From within your caiman environment type ```conda update caiman```. In most cases this should be enough.
 
 If not, you may want to create a new environmrent from scratch. 
 
@@ -331,24 +331,7 @@ Support for Linux on ARM (e.g. AWS Graviton) is not available (but it may work w
 if you compile Caiman yourself - we do not have binary packages and this is untested). If you care about this,
 please let us know.
 
-
-Section 4B: Installing additional packages
-~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-Caiman installs through the conda-forge conda channel. Some packages are available on multiple conda channels, and in this 
-case it is important that you use the conda-forge channel if possible. To do this, when installing new packages 
-inside your environment, use the following command:
-
-::
-
-   mamba install -c conda-forge --override-channels NEW_PACKAGE_NAME
-
-You will notice that any packages installed this way will mention, in their listing, 
-that they are from conda-forge, with none of them having a blank origin. If you don't do this, 
-differences between how packages are built in different channels could lead to some packages failing to work
-(e.g., OpenCV). 
-
-Section 4C: Setting up environment variables
+Section 4B: Setting up environment variables
 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 This is only important for people who are doing the dev-mode install. If you 
@@ -375,7 +358,7 @@ following the instructions
 `here <https://conda.io/projects/conda/en/latest/user-guide/tasks/manage-environments.html#saving-environment-variables>`__.
 
 
-Section 4D: Other topics
+Section 4C: Other topics
 ~~~~~~~~~~~~~~~~~~~~~~~~~
 See also:
 
