@@ -18,7 +18,7 @@ Caiman setup consists of two main steps:
 We will discuss each of these steps for different operating systems below. In a separate section, we will discuss how to 
 upgrade once you've already installed. 
 
-If you do not already have conda installed, first install a 3.x version for your platform `here <https://docs.conda.io/en/latest/miniconda.html>`_. 
+If you do not already have conda installed, first install a 3.x version of miniforge (conda distribution) for your platform `here <https://github.com/conda-forge/miniforge>`_. 
 When installing, allow conda to modify your PATH variable. If you are using an M1-based Mac, please ignore the ARM builds of conda; install an x86 version instead (ignore any warnings you get while doing so; 
 it will work fine).
 
@@ -45,16 +45,16 @@ should be good to go.
    <summary>Details for conda install</summary>
 
 This process is the same on every operating system, and is what most users will need who just want to use Caiman to 
-get things running quickly. You will install mamba into your base environment, create a new environment with the 
-caiman package from conda-forge, and then activate the new environment.
+get things running quickly. You will create a new environment with the caiman package from conda-forge, and then activate the new environment.
 
 .. code:: bash
 
-    conda install -n base -c conda-forge mamba
     mamba create -n caiman -c conda-forge caiman
     conda activate caiman
 
 Note if you are installing on Windows, run the above commands in the anaconda prompt rather than powershell or the dos shell:
+
+If you do not have a mamba command, you may have started with a different conda distribution than miniforge; this is fine, but you'll want to add the mamba package manually first.
 
 **Known issues**
 

@@ -10,14 +10,13 @@ A Python toolbox for large-scale **Ca**lcium **Im**aging **An**alysis.
 CaImAn implements a set of essential methods required to analyze calcium and voltage imaging data. It provides fast and scalable algorithms for motion correction, source extraction, spike deconvolution, and registering neurons across multiple sessions. It is suitable for both two-photon and one-photon fluorescence microscopy data, and can be run in both offline and online modes. Documentation is [here](https://caiman.readthedocs.io/en/latest/). 
 
 # Quick start
-Follow these three steps to get started quickly, from installation to working through a demo notebook. If you do not already have conda installed, [you can find it here](https://docs.conda.io/en/latest/miniconda.html). There is a video walkthrough of the following steps [here](https://youtu.be/b63zAmKihIY?si=m7WleTwdU0rJup_2).
+Follow these three steps to get started quickly, from installation to working through a demo notebook. If you do not already have conda installed, [you can find it here](https://github.com/conda-forge/miniforge). The miniforge distribution of conda is preferred; it will require fewer steps and likely encounter fewer issues. There is a video walkthrough of the following steps [here](https://youtu.be/b63zAmKihIY?si=m7WleTwdU0rJup_2).
 
 ### Step 1: Install caiman
 The following is all done in your anaconda prompt, starting in your base environment:
   
-    conda install -n base -c conda-forge mamba   # install mamba in base environment
-    mamba create -n caiman -c conda-forge caiman # install caiman
-    conda activate caiman  # activate virtual environment
+    mamba create -n caiman caiman # build a caiman environment
+    conda activate caiman  # activate the environment
 
 ### Step 2: Download code samples and data sets
 Create a working directory called `caiman_data` that includes code samples and related data. Run the following command from the same virtual environment that you created in Step 1:  
