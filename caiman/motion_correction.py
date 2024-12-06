@@ -69,15 +69,7 @@ try:
 except:
     def profile(a): return a
 
-opencv = True
-
-try:
-    import pycuda.gpuarray as gpuarray
-    import pycuda.driver as cudadrv
-    import atexit
-    HAS_CUDA = True
-except ImportError:
-    HAS_CUDA = False
+opencv = True # FIXME How is the user meant to be able to interact with this?!
 
 class MotionCorrect(object):
     """
@@ -143,8 +135,8 @@ class MotionCorrect(object):
            nonneg_movie: boolean
                make the SAVED movie and template mostly nonnegative by removing min_mov from movie
 
-           use_cuda : bool, optional
-               Use skcuda.fft (if available). Default: False
+           use_cuda : boolean (DEPRECATED)
+               No longer used, may be removed in a future version
 
            border_nan : bool or string, optional
                Specifies how to deal with borders. (True, False, 'copy', 'min')
@@ -204,8 +196,8 @@ class MotionCorrect(object):
         self.var_name_hdf5 = var_name_hdf5
         self.is3D = bool(is3D)
         self.indices = indices
-        if self.use_cuda and not HAS_CUDA:
-            logger.debug("pycuda is unavailable. Falling back to default FFT.")
+        if self.use_cuda:
+            logger.warn("skcuda is no longer supported; using non-cuda algorithms")
 
     def motion_correct(self, template=None, save_movie=False):
         """general function for performing all types of motion correction. The
@@ -1346,32 +1338,6 @@ def _compute_error(cross_correlation_max, src_amp, target_amp):
         (src_amp * target_amp)
     return np.sqrt(np.abs(error))
 
-def init_cuda_process():
-    """
-    Initialize a PyCUDA context at global scope so that it can be accessed
-    from processes when using multithreading
-    """
-    global cudactx
-
-    cudadrv.init()
-    dev = cudadrv.Device(0)
-    cudactx = dev.make_context() # type: ignore
-    atexit.register(cudactx.pop) # type: ignore
-
-
-def close_cuda_process(n):
-    """
-    Cleanup cuda process
-    """
-
-    global cudactx
-
-    import skcuda.misc as cudamisc
-    try:
-        cudamisc.done_context(cudactx) # type: ignore
-    except:
-        pass
-
 def register_translation_3d(src_image, target_image, upsample_factor = 1,
                             space = "real", shifts_lb = None, shifts_ub = None,
                             max_shifts = [10,10,10]):
@@ -1586,8 +1552,8 @@ def register_translation(src_image, target_image, upsample_factor=1,
             will be FFT'd to compute the correlation, while "fourier" data will
             bypass FFT of input data.  Case insensitive.
 
-        use_cuda : bool, optional
-            Use skcuda.fft (if available). Default: False
+        use_cuda : boolean (DEPRECATED)
+            No longer used, may be removed in a future version
 
     Returns:
         shifts : ndarray
@@ -1627,50 +1593,13 @@ def register_translation(src_image, target_image, upsample_factor=1,
         raise NotImplementedError("Error: register_translation only supports "
                                   "subpixel registration for 2D images")
 
-    if HAS_CUDA and use_cuda:
-        from skcuda.fft import Plan
-        from skcuda.fft import fft as cudafft
-        from skcuda.fft import ifft as cudaifft
-        try:
-            cudactx # type: ignore
-        except NameError:
-            init_cuda_process()
-
     # assume complex data is already in Fourier space
     if space.lower() == 'fourier':
         src_freq = src_image
         target_freq = target_image
     # real data needs to be fft'd.
     elif space.lower() == 'real':
-        if HAS_CUDA and use_cuda:
-            # src_image_cpx = np.array(src_image, dtype=np.complex128, copy=False)
-            # target_image_cpx = np.array(target_image, dtype=np.complex128, copy=False)
-
-            image_gpu = gpuarray.to_gpu(np.stack((src_image, target_image)).astype(np.complex128))
-            freq_gpu = gpuarray.empty((2, src_image.shape[0], src_image.shape[1]), dtype=np.complex128)
-            # src_image_gpu = gpuarray.to_gpu(src_image_cpx)
-            # src_freq_gpu = gpuarray.empty(src_image_cpx.shape, np.complex128)
-
-            # target_image_gpu = gpuarray.to_gpu(target_image_cpx)
-            # target_freq_gpu = gpuarray.empty(target_image_cpx.shape, np.complex128)
-
-            plan = Plan(src_image.shape, np.complex128, np.complex128, batch=2)
-            # cudafft(src_image_gpu, src_freq_gpu, plan, scale=True)
-            # cudafft(target_image_gpu, target_freq_gpu, plan, scale=True)
-            cudafft(image_gpu, freq_gpu, plan, scale=True)
-            # src_freq = src_freq_gpu.get()
-            # target_freq = target_freq_gpu.get()
-            freq = freq_gpu.get()
-            src_freq = freq[0, :, :]
-            target_freq = freq[1, :, :]
-
-            # del(src_image_gpu)
-            # del(src_freq_gpu)
-            # del(target_image_gpu)
-            # del(target_freq_gpu)
-            del(image_gpu)
-            del(freq_gpu)
-        elif opencv:
+        if opencv:
             src_freq_1 = cv2.dft(
                 src_image, flags=cv2.DFT_COMPLEX_OUTPUT + cv2.DFT_SCALE)
             src_freq = src_freq_1[:, :, 0] + 1j * src_freq_1[:, :, 1]
@@ -1695,14 +1624,7 @@ def register_translation(src_image, target_image, upsample_factor=1,
     # Whole-pixel shift - Compute cross-correlation by an IFFT
     shape = src_freq.shape
     image_product = src_freq * target_freq.conj()
-    if HAS_CUDA and use_cuda:
-        image_product_gpu = gpuarray.to_gpu(image_product)
-        cross_correlation_gpu = gpuarray.empty(
-            image_product.shape, np.complex128)
-        iplan = Plan(image_product.shape, np.complex128, np.complex128)
-        cudaifft(image_product_gpu, cross_correlation_gpu, iplan, scale=True)
-        cross_correlation = cross_correlation_gpu.get()
-    elif opencv:
+    if opencv:
 
         image_product_cv = np.dstack(
             [np.real(image_product), np.imag(image_product)])
@@ -2112,8 +2034,8 @@ def tile_and_correct(img, template, strides, overlaps, max_shifts, newoverlaps=N
         filt_sig_size: tuple
             standard deviation and size of gaussian filter to center filter data in case of one photon imaging data
 
-        use_cuda : bool, optional
-            Use skcuda.fft (if available). Default: False
+        use_cuda : boolean (DEPRECATED)
+            No longer used, may be removed in a future version
 
         border_nan : bool or string, optional
             specifies how to deal with borders. (True, False, 'copy', 'min')
@@ -2360,8 +2282,8 @@ def tile_and_correct_3d(img:np.ndarray, template:np.ndarray, strides:tuple, over
         filt_sig_size: tuple
             standard deviation and size of gaussian filter to center filter data in case of one photon imaging data
 
-        use_cuda : bool, optional
-            Use skcuda.fft (if available). Default: False
+        use_cuda : boolean (DEPRECATED)
+            No longer used, may be removed in a future version
 
         border_nan : bool or string, optional
             specifies how to deal with borders. (True, False, 'copy', 'min')
@@ -2389,11 +2311,6 @@ def tile_and_correct_3d(img:np.ndarray, template:np.ndarray, strides:tuple, over
         img, template, upsample_factor=upsample_factor_fft, max_shifts=max_shifts)
 
     if max_deviation_rigid == 0: # if rigid shifts only
-
-#        if shifts_opencv:
-            # NOTE: opencv does not support 3D operations - skimage is used instead
- #       else:
-
         if gSig_filt is not None:
             raise Exception(
                 'The use of FFT and filtering options have not been tested. Set opencv=True')
@@ -2760,8 +2677,8 @@ def motion_correct_batch_rigid(fname, max_shifts, dview=None, splits=56, num_spl
         subidx: slice
             Indices to slice
 
-        use_cuda : bool, optional
-            Use skcuda.fft (if available). Default: False
+        use_cuda : boolean (DEPRECATED)
+            No longer used, may be removed in a future version
 
         indices: tuple(slice), default: (slice(None), slice(None))
            Use that to apply motion correction only on a part of the FOV
@@ -2914,8 +2831,8 @@ def motion_correct_batch_pwrigid(fname, max_shifts, strides, overlaps, add_to_mo
         save_movie_rigid: boolean
              toggle save movie
 
-        use_cuda : bool, optional
-            Use skcuda.fft (if available). Default: False
+        use_cuda : boolean (DEPRECATED)
+            No longer used, may be removed in a future version
 
         indices: tuple(slice), default: (slice(None), slice(None))
            Use that to apply motion correction only on a part of the FOV
@@ -3148,10 +3065,7 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
 
     if dview is not None:
         logger.info('** Starting parallel motion correction **')
-        if HAS_CUDA and use_cuda:
-            res = dview.map(tile_and_correct_wrapper,pars)
-            dview.map(close_cuda_process, range(len(pars)))
-        elif 'multiprocessing' in str(type(dview)):
+        if 'multiprocessing' in str(type(dview)):
             logger.debug("entering multiprocessing tile_and_correct_wrapper")
             res = dview.map_async(tile_and_correct_wrapper, pars).get(4294967)
         else:
