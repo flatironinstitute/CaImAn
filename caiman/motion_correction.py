@@ -142,7 +142,7 @@ class MotionCorrect(object):
                      border_strategy to hold the how
 
            pw_rigid: bool, default: False
-               flag for performing motion correction when calling motion_correct
+               flag for performing elastic motion correction when calling motion_correct
 
            num_frames_split: int, default: 80
                Number of frames in each batch. Used when constructing the options
