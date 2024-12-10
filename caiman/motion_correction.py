@@ -69,8 +69,6 @@ try:
 except:
     def profile(a): return a
 
-opencv = True # FIXME How is the user meant to be able to interact with this?!
-
 class MotionCorrect(object):
     """
         class implementing motion correction operations
@@ -1599,24 +1597,15 @@ def register_translation(src_image, target_image, upsample_factor=1,
         target_freq = target_image
     # real data needs to be fft'd.
     elif space.lower() == 'real':
-        if opencv:
-            src_freq_1 = cv2.dft(
-                src_image, flags=cv2.DFT_COMPLEX_OUTPUT + cv2.DFT_SCALE)
-            src_freq = src_freq_1[:, :, 0] + 1j * src_freq_1[:, :, 1]
-            src_freq = np.array(src_freq, dtype=np.complex128, copy=False)
-            target_freq_1 = cv2.dft(
-                target_image, flags=cv2.DFT_COMPLEX_OUTPUT + cv2.DFT_SCALE)
-            target_freq = target_freq_1[:, :, 0] + 1j * target_freq_1[:, :, 1]
-            target_freq = np.array(
-                target_freq, dtype=np.complex128, copy=False)
-        else:
-            src_image_cpx = np.array(
-                src_image, dtype=np.complex128, copy=False)
-            target_image_cpx = np.array(
-                target_image, dtype=np.complex128, copy=False)
-            src_freq = np.fft.fftn(src_image_cpx)
-            target_freq = np.fft.fftn(target_image_cpx)
-
+        src_freq_1 = cv2.dft(
+            src_image, flags=cv2.DFT_COMPLEX_OUTPUT + cv2.DFT_SCALE)
+        src_freq = src_freq_1[:, :, 0] + 1j * src_freq_1[:, :, 1]
+        src_freq = np.array(src_freq, dtype=np.complex128, copy=False)
+        target_freq_1 = cv2.dft(
+            target_image, flags=cv2.DFT_COMPLEX_OUTPUT + cv2.DFT_SCALE)
+        target_freq = target_freq_1[:, :, 0] + 1j * target_freq_1[:, :, 1]
+        target_freq = np.array(
+            target_freq, dtype=np.complex128, copy=False)
     else:
         raise ValueError("Error: register_translation only knows the \"real\" "
                          "and \"fourier\" values for the ``space`` argument.")
@@ -1624,22 +1613,14 @@ def register_translation(src_image, target_image, upsample_factor=1,
     # Whole-pixel shift - Compute cross-correlation by an IFFT
     shape = src_freq.shape
     image_product = src_freq * target_freq.conj()
-    if opencv:
-
-        image_product_cv = np.dstack(
-            [np.real(image_product), np.imag(image_product)])
-        cross_correlation = cv2.dft(
-            image_product_cv, flags=cv2.DFT_INVERSE + cv2.DFT_SCALE)
-        cross_correlation = cross_correlation[:,
-                                              :, 0] + 1j * cross_correlation[:, :, 1]
-    else:
-        cross_correlation = cv2.idft(image_product)
+    image_product_cv = np.dstack([np.real(image_product), np.imag(image_product)])
+    cross_correlation = cv2.dft(image_product_cv, flags=cv2.DFT_INVERSE + cv2.DFT_SCALE)
+    cross_correlation = cross_correlation[:, :, 0] + 1j * cross_correlation[:, :, 1]
 
     # Locate maximum
     new_cross_corr = np.abs(cross_correlation)
 
     if (shifts_lb is not None) or (shifts_ub is not None):
-
         if (shifts_lb[0] < 0) and (shifts_ub[0] >= 0):
             new_cross_corr[shifts_ub[0]:shifts_lb[0], :] = 0
         else:
@@ -1652,9 +1633,7 @@ def register_translation(src_image, target_image, upsample_factor=1,
             new_cross_corr[:, :shifts_lb[1]] = 0
             new_cross_corr[:, shifts_ub[1]:] = 0
     else:
-
         new_cross_corr[max_shifts[0]:-max_shifts[0], :] = 0
-
         new_cross_corr[:, max_shifts[1]:-max_shifts[1]] = 0
 
     maxima = np.unravel_index(np.argmax(new_cross_corr),
@@ -1666,7 +1645,6 @@ def register_translation(src_image, target_image, upsample_factor=1,
     shifts[shifts > midpoints] -= np.array(shape)[shifts > midpoints]
 
     if upsample_factor == 1:
-
         src_amp = np.sum(np.abs(src_freq) ** 2) / src_freq.size
         target_amp = np.sum(np.abs(target_freq) ** 2) / target_freq.size
         CCmax = cross_correlation.max()
