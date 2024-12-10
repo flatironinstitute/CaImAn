@@ -11,6 +11,43 @@ authors = [
 	{ name = "Jeremie Kalfon"}]
 readme = "README.md"
 dynamic = ["classifiers", "keywords", "license", "scripts", "version"]
+dependencies = [
+  "av",
+  "bokeh",
+  "coverage",
+  "cython",
+  "h5py",
+  "holoviews",
+  "ipykernel",
+  "ipython",
+  "ipyparallel",
+  "ipywidgets",
+  "keras",
+  "matplotlib",
+  "mypy",
+  "numpy",
+  "numpydoc",
+  "opencv-python",
+  "peakutils",
+  "pims",
+  "psutil",
+  "pynwb",
+  "scikit-image",
+  "scikit-learn",
+  "scipy",
+  "tensorflow",
+  "tifffile",
+  "tqdm",
+  "yapf",
+  "zarr"
+]
+
+[project.optional-dependencies]
+jupyter = [
+  "jupyter",
+  "pyqtgraph",
+  "tk"
+]
 
 [build-system]
 requires = ["cython", "numpy", "setuptools", "wheel"]
