@@ -1822,7 +1822,7 @@ def sliding_window(image, overlaps, strides):
         img:ndarray 2D
             image that needs to be slices
 
-        windowSize: tuple
+        overlaps: tuple
             dimension of the patch
 
         strides: tuple
@@ -1852,7 +1852,7 @@ def sliding_window_3d(image, overlaps, strides):
         img:ndarray 3D
             image that needs to be slices
 
-        windowSize: tuple
+        overlaps: tuple
             dimension of the patch
 
         strides: tuple
@@ -2495,7 +2495,7 @@ def compute_metrics_motion_correction(fname, final_size_x, final_size_y, swap_di
                                       gSig_filt=None):
     #todo: todocument
     logger = logging.getLogger("caiman")
-    if os.environ.get('ENABLE_TQDM') == 'True':
+    if os.environ.get('ENABLE_TQDM') == 'True': # TODO Find a better way to toggle this or remove the code; this is also not documented anywhere
         disable_tqdm = False
     else:
         disable_tqdm = True
@@ -3022,7 +3022,7 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
     if num_splits is not None:
         idxs = np.array(idxs)[np.random.randint(0, len(idxs), num_splits)]
         save_movie = False
-        logger.warning('**** MOVIE NOT SAVED BECAUSE num_splits is not None ****')
+        logger.warning('**** Movie not saved because num_splits is not None ****')
 
     if save_movie:
         if base_name is None:
@@ -3056,3 +3056,4 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
         res = list(map(tile_and_correct_wrapper, pars))
 
     return fname_tot, res
+
