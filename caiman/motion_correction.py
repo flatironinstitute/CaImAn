@@ -136,7 +136,7 @@ class MotionCorrect(object):
                make the SAVED movie and template mostly nonnegative by removing min_mov from movie
 
            use_cuda : boolean (DEPRECATED)
-               No longer used, may be removed in a future version
+               cuda is no longer supported for motion correction; this kwarg will be removed in a future version of Caiman
 
            border_nan : bool or string, optional
                Specifies how to deal with borders. (True, False, 'copy', 'min')
@@ -197,7 +197,7 @@ class MotionCorrect(object):
         self.is3D = bool(is3D)
         self.indices = indices
         if self.use_cuda:
-            logger.warn("skcuda is no longer supported; using non-cuda algorithms")
+            logger.warn("cuda is no longer supported; this kwarg will be removed in a future version of caiman")
 
     def motion_correct(self, template=None, save_movie=False):
         """general function for performing all types of motion correction. The
@@ -1553,7 +1553,7 @@ def register_translation(src_image, target_image, upsample_factor=1,
             bypass FFT of input data.  Case insensitive.
 
         use_cuda : boolean (DEPRECATED)
-            No longer used, may be removed in a future version
+            cuda is no longer supported for motion correction; this kwarg will be removed in a future version of Caiman
 
     Returns:
         shifts : ndarray
@@ -2035,7 +2035,7 @@ def tile_and_correct(img, template, strides, overlaps, max_shifts, newoverlaps=N
             standard deviation and size of gaussian filter to center filter data in case of one photon imaging data
 
         use_cuda : boolean (DEPRECATED)
-            No longer used, may be removed in a future version
+               cuda is no longer supported for motion correction; this kwarg will be removed in a future version of Caiman
 
         border_nan : bool or string, optional
             specifies how to deal with borders. (True, False, 'copy', 'min')
@@ -2283,7 +2283,7 @@ def tile_and_correct_3d(img:np.ndarray, template:np.ndarray, strides:tuple, over
             standard deviation and size of gaussian filter to center filter data in case of one photon imaging data
 
         use_cuda : boolean (DEPRECATED)
-            No longer used, may be removed in a future version
+            cuda is no longer supported for motion correction; this kwarg will be removed in a future version of Caiman
 
         border_nan : bool or string, optional
             specifies how to deal with borders. (True, False, 'copy', 'min')
@@ -2678,7 +2678,7 @@ def motion_correct_batch_rigid(fname, max_shifts, dview=None, splits=56, num_spl
             Indices to slice
 
         use_cuda : boolean (DEPRECATED)
-            No longer used, may be removed in a future version
+            cuda is no longer supported for motion correction; this kwarg will be removed in a future version of Caiman
 
         indices: tuple(slice), default: (slice(None), slice(None))
            Use that to apply motion correction only on a part of the FOV
@@ -2832,7 +2832,7 @@ def motion_correct_batch_pwrigid(fname, max_shifts, strides, overlaps, add_to_mo
              toggle save movie
 
         use_cuda : boolean (DEPRECATED)
-            No longer used, may be removed in a future version
+            cuda is no longer supported for motion correction; this kwarg will be removed in a future version of Caiman
 
         indices: tuple(slice), default: (slice(None), slice(None))
            Use that to apply motion correction only on a part of the FOV
