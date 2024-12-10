@@ -2279,6 +2279,7 @@ def tile_and_correct_3d(img:np.ndarray, template:np.ndarray, strides:tuple, over
 
     """
 
+    # TODO The clarity of this function is poor; it'd be good to refactor it towards being easier to read/understand
     img = img.astype(np.float64).copy()
     template = template.astype(np.float64).copy()
 
@@ -2296,7 +2297,7 @@ def tile_and_correct_3d(img:np.ndarray, template:np.ndarray, strides:tuple, over
     if max_deviation_rigid == 0: # if rigid shifts only
         if gSig_filt is not None:
             raise Exception(
-                'The use of FFT and filtering options have not been tested. Set opencv=True')
+                'The use of FFT and filtering options has not been tested. Do not use gSig_filt with rigid shifts only')
 
         new_img = apply_shifts_dft( # TODO: check
             sfr_freq, (-rigid_shts[0], -rigid_shts[1], -rigid_shts[2]), diffphase, border_nan=border_nan)
@@ -2314,14 +2315,11 @@ def tile_and_correct_3d(img:np.ndarray, template:np.ndarray, strides:tuple, over
         dim_grid = tuple(np.add(xyz_grid[-1], 1))
 
         if max_deviation_rigid is not None:
-
             lb_shifts = np.ceil(np.subtract(
                 rigid_shts, max_deviation_rigid)).astype(int)
             ub_shifts = np.floor(
                 np.add(rigid_shts, max_deviation_rigid)).astype(int)
-
         else:
-
             lb_shifts = None
             ub_shifts = None
 
@@ -2414,7 +2412,7 @@ def tile_and_correct_3d(img:np.ndarray, template:np.ndarray, strides:tuple, over
 
         if gSig_filt is not None:
             raise Exception(
-                'The use of FFT and filtering options have not been tested. Set opencv=True')
+                'The use of FFT and filtering options have not been tested. Do not use gSig_filt in this mode without shifts_opencv')
 
         imgs = [apply_shifts_dft(im, (
             sh[0], sh[1], sh[2]), dffphs, is_freq=False, border_nan=border_nan) for im, sh, dffphs in zip(
