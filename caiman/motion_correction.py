@@ -129,13 +129,13 @@ class MotionCorrect(object):
            max_deviation_rigid:int
                maximum deviation allowed for patch with respect to rigid shift
 
-           shifts_opencv: Bool
+           shifts_opencv: bool
                apply shifts fast way (but smoothing results)
 
-           nonneg_movie: boolean
+           nonneg_movie: bool
                make the SAVED movie and template mostly nonnegative by removing min_mov from movie
 
-           use_cuda : boolean (DEPRECATED)
+           use_cuda : bool (DEPRECATED)
                cuda is no longer supported for motion correction; this kwarg will be removed in a future version of Caiman
 
            border_nan : bool or string, optional
@@ -317,7 +317,7 @@ class MotionCorrect(object):
             template: ndarray 2D (or 3D)
                 if known, one can pass a template to register the frames to
 
-            show_template: boolean
+            show_template: bool
                 whether to show the updated template at each iteration
 
         Important Fields:
@@ -1552,7 +1552,7 @@ def register_translation(src_image, target_image, upsample_factor=1,
             will be FFT'd to compute the correlation, while "fourier" data will
             bypass FFT of input data.  Case insensitive.
 
-        use_cuda : boolean (DEPRECATED)
+        use_cuda : bool (DEPRECATED)
             cuda is no longer supported for motion correction; this kwarg will be removed in a future version of Caiman
 
     Returns:
@@ -2012,11 +2012,11 @@ def tile_and_correct(img, template, strides, overlaps, max_shifts, newoverlaps=N
         max_shifts: tuple
             max shifts in x and y
 
-        newstrides:tuple
-            strides between patches along each dimension when upsampling the vector fields
-
         newoverlaps:tuple
             amount of pixel overlapping between patches along each dimension when upsampling the vector fields
+
+        newstrides:tuple
+            strides between patches along each dimension when upsampling the vector fields
 
         upsample_factor_grid: int
             if newshapes or newstrides are not specified this is inferred upsampling by a constant factor the cvector field
@@ -2024,17 +2024,22 @@ def tile_and_correct(img, template, strides, overlaps, max_shifts, newoverlaps=N
         upsample_factor_fft: int
             resolution of fractional shifts
 
-        show_movie: boolean whether to visualize the original and corrected frame during motion correction
+        show_movie: bool
+            whether to visualize the original and corrected frame during motion correction
 
         max_deviation_rigid: int
             maximum deviation in shifts of each patch from the rigid shift (should not be large)
 
-        add_to_movie: if movie is too negative the correction might have some issues. In this case it is good to add values so that it is non negative most of the times
+        add_to_movie: int
+            if movie is too negative the correction might have some issues. In this case it is good to add values so that it is non negative most of the times
 
-        filt_sig_size: tuple
+        shifts_opencv: bool
+            FIXME: (UNDOCUMENTED)
+
+        gSig_filt: tuple
             standard deviation and size of gaussian filter to center filter data in case of one photon imaging data
 
-        use_cuda : boolean (DEPRECATED)
+        use_cuda: bool (DEPRECATED)
                cuda is no longer supported for motion correction; this kwarg will be removed in a future version of Caiman
 
         border_nan : bool or string, optional
@@ -2052,7 +2057,6 @@ def tile_and_correct(img, template, strides, overlaps, max_shifts, newoverlaps=N
     template = template.astype(np.float64).copy()
 
     if gSig_filt is not None:
-
         img_orig = img.copy()
         img = high_pass_filter_space(img_orig, gSig_filt)
 
@@ -2064,7 +2068,6 @@ def tile_and_correct(img, template, strides, overlaps, max_shifts, newoverlaps=N
         img, template, upsample_factor=upsample_factor_fft, max_shifts=max_shifts, use_cuda=use_cuda)
 
     if max_deviation_rigid == 0:
-
         if shifts_opencv:
             if gSig_filt is not None:
                 img = img_orig
@@ -2073,10 +2076,9 @@ def tile_and_correct(img, template, strides, overlaps, max_shifts, newoverlaps=N
                 img, (-rigid_shts[0], -rigid_shts[1]), border_nan=border_nan)
 
         else:
-
             if gSig_filt is not None:
                 raise Exception(
-                    'The use of FFT and filtering options have not been tested. Set opencv=True')
+                    'The use of FFT and filtering options have not been tested. Set shifts_opencv=True or do not provide gSig_filt')
 
             new_img = apply_shifts_dft(
                 sfr_freq, (-rigid_shts[0], -rigid_shts[1]), diffphase, border_nan=border_nan)
@@ -2173,7 +2175,7 @@ def tile_and_correct(img, template, strides, overlaps, max_shifts, newoverlaps=N
 
         if gSig_filt is not None:
             raise Exception(
-                'The use of FFT and filtering options have not been tested. Set opencv=True')
+                'The use of FFT and filtering options have not been tested. Set shifts_opencv=True')
 
         imgs = [apply_shifts_dft(im, (
             sh[0], sh[1]), dffphs, is_freq=False, border_nan=border_nan) for im, sh, dffphs in zip(
@@ -2272,17 +2274,21 @@ def tile_and_correct_3d(img:np.ndarray, template:np.ndarray, strides:tuple, over
         upsample_factor_fft: int
             resolution of fractional shifts
 
-        show_movie: boolean whether to visualize the original and corrected frame during motion correction
+        show_movie: bool
+            whether to visualize the original and corrected frame during motion correction
 
         max_deviation_rigid: int
             maximum deviation in shifts of each patch from the rigid shift (should not be large)
 
         add_to_movie: if movie is too negative the correction might have some issues. In this case it is good to add values so that it is non negative most of the times
 
-        filt_sig_size: tuple
+        shifts_opencv: bool
+            FIXME: (UNDOCUMENTED)
+
+        gSig_filt: tuple
             standard deviation and size of gaussian filter to center filter data in case of one photon imaging data
 
-        use_cuda : boolean (DEPRECATED)
+        use_cuda : bool (DEPRECATED)
             cuda is no longer supported for motion correction; this kwarg will be removed in a future version of Caiman
 
         border_nan : bool or string, optional
@@ -2299,7 +2305,6 @@ def tile_and_correct_3d(img:np.ndarray, template:np.ndarray, strides:tuple, over
     template = template.astype(np.float64).copy()
 
     if gSig_filt is not None:
-
         img_orig = img.copy()
         img = high_pass_filter_space(img_orig, gSig_filt)
 
@@ -2668,16 +2673,16 @@ def motion_correct_batch_rigid(fname, max_shifts, dview=None, splits=56, num_spl
         template: ndarray
             if a good approximation of the template to register is available, it can be used
 
-        shifts_opencv: boolean
+        shifts_opencv: bool
              toggle the shifts applied with opencv, if yes faster but induces some smoothing
 
-        save_movie_rigid: boolean
+        save_movie_rigid: bool
              toggle save movie
 
         subidx: slice
             Indices to slice
 
-        use_cuda : boolean (DEPRECATED)
+        use_cuda : bool (DEPRECATED)
             cuda is no longer supported for motion correction; this kwarg will be removed in a future version of Caiman
 
         indices: tuple(slice), default: (slice(None), slice(None))
@@ -2825,13 +2830,13 @@ def motion_correct_batch_pwrigid(fname, max_shifts, strides, overlaps, add_to_mo
         template: ndarray
             if a good approximation of the template to register is available, it can be used
 
-        shifts_opencv: boolean
+        shifts_opencv: bool
              toggle the shifts applied with opencv, if yes faster but induces some smoothing
 
-        save_movie_rigid: boolean
+        save_movie_rigid: bool
              toggle save movie
 
-        use_cuda : boolean (DEPRECATED)
+        use_cuda : bool (DEPRECATED)
             cuda is no longer supported for motion correction; this kwarg will be removed in a future version of Caiman
 
         indices: tuple(slice), default: (slice(None), slice(None))
