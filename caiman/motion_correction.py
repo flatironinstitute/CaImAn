@@ -77,7 +77,7 @@ class MotionCorrect(object):
     def __init__(self, fname, min_mov=None, dview=None, max_shifts=(6, 6), niter_rig=1, splits_rig=14, num_splits_to_process_rig=None,
                  strides=(96, 96), overlaps=(32, 32), splits_els=14, num_splits_to_process_els=None,
                  upsample_factor_grid=4, max_deviation_rigid=3, shifts_opencv=True, nonneg_movie=True, gSig_filt=None,
-                 use_cuda=False, border_nan=True, pw_rigid=False, num_frames_split=80, var_name_hdf5='mov',is3D=False,
+                 use_cuda=False, border_nan=True, pw_rigid=False, num_frames_split=80, var_name_hdf5='mov', is3D=False,
                  indices=(slice(None), slice(None))):
         """
         Constructor class for motion correction operations
@@ -95,11 +95,11 @@ class MotionCorrect(object):
            max_shifts: tuple
                maximum allow rigid shift
 
-           niter_rig':int
+           niter_rig:int
                maximum number of iterations rigid motion correction, in general is 1. 0
                will quickly initialize a template with the first frames
 
-           splits_rig': int
+           splits_rig: int
             for parallelization split the movies in  num_splits chunks across time
 
            num_splits_to_process_rig: list,
@@ -112,13 +112,10 @@ class MotionCorrect(object):
            overlaps: tuple
                overlap between patches (size of patch strides+overlaps)
 
-           pw_rigig: bool, default: False
-               flag for performing motion correction when calling motion_correct
-
            splits_els':list
                for parallelization split the movies in  num_splits chunks across time
 
-           num_splits_to_process_els: UNUSED
+           num_splits_to_process_els: UNUSED, deprecated
                Legacy parameter, does not do anything
 
            upsample_factor_grid:int,
@@ -133,6 +130,9 @@ class MotionCorrect(object):
            nonneg_movie: bool
                make the SAVED movie and template mostly nonnegative by removing min_mov from movie
 
+           gSig_filt: list
+               (UNDOCUMENTED)
+
            use_cuda : bool (DEPRECATED)
                cuda is no longer supported for motion correction; this kwarg will be removed in a future version of Caiman
 
@@ -141,6 +141,9 @@ class MotionCorrect(object):
                TODO: make this just the bool, and make another variable called
                      border_strategy to hold the how
 
+           pw_rigid: bool, default: False
+               flag for performing motion correction when calling motion_correct
+
            num_frames_split: int, default: 80
                Number of frames in each batch. Used when constructing the options
                through the params object
@@ -148,10 +151,10 @@ class MotionCorrect(object):
            var_name_hdf5: str, default: 'mov'
                If loading from hdf5, name of the variable to load
 
-            is3D: bool, default: False
+           is3D: bool, default: False
                Flag for 3D motion correction
 
-            indices: tuple(slice), default: (slice(None), slice(None))
+           indices: tuple(slice), default: (slice(None), slice(None))
                Use that to apply motion correction only on a part of the FOV
 
        Returns:
@@ -477,7 +480,6 @@ class MotionCorrect(object):
                                      resize_sk(shiftZ.astype(np.float32), dims) + z_grid), axis=0),
                                      order=3, mode='constant')
                              for img, shiftX, shiftY, shiftZ in zip(Y, shifts_x, shifts_y, shifts_z)]
-                                     # borderValue=add_to_movie)                                 # borderValue=add_to_movie)
             else:
                 xy_grid = [(it[0], it[1]) for it in sliding_window(Y[0], self.overlaps, self.strides)]
                 dims_grid = tuple(np.max(np.stack(xy_grid, axis=1), axis=1) - np.min(
@@ -801,7 +803,7 @@ def motion_correct_online(movie_iterable, add_to_movie, max_shift_w=25, max_shif
         init_mov = movie_iterable[slice(0, init_frames_template, 1)]
 
     dims = (len(movie_iterable),) + movie_iterable[0].shape # TODO: Refactor so length is either tracked separately or is last part of tuple
-    logger.debug("dimensions:" + str(dims))
+    logger.debug(f"dimensions: {dims}")
 
     if use_median_as_template:
         template = bin_median(movie_iterable)
@@ -1034,9 +1036,6 @@ def bin_median(mat, window=10, exclude_nans=True):
     Returns:
         img:
             median image
-
-    Raises:
-        Exception 'Path to template does not exist:'+template
     """
 
     T, d1, d2 = np.shape(mat)
@@ -1066,9 +1065,6 @@ def bin_median_3d(mat, window=10, exclude_nans=True):
     Returns:
         img:
             median image
-
-    Raises:
-        Exception 'Path to template does not exist:'+template
     """
 
     T, d1, d2, d3 = np.shape(mat)
@@ -1153,9 +1149,6 @@ def motion_correct_parallel(file_names, fr=10, template=None, margins_out=0,
 
     Returns:
         base file names of the motion corrected files:list[str]
-
-    Raises:
-        Exception
     """
     logger = logging.getLogger("caiman")
     args_in = []
@@ -1267,15 +1260,13 @@ def _upsampled_dft(data, upsampled_region_size,
         upsampled_region_size = [upsampled_region_size, ] * data.ndim
     else:
         if len(upsampled_region_size) != data.ndim:
-            raise ValueError("shape of upsampled region sizes must be equal "
-                             "to input data's number of dimensions.")
+            raise ValueError("shape of upsampled region sizes must be equal to input data's number of dimensions.")
 
     if axis_offsets is None:
         axis_offsets = [0, ] * data.ndim
     else:
         if len(axis_offsets) != data.ndim:
-            raise ValueError("number of axis offsets must be equal to input "
-                             "data's number of dimensions.")
+            raise ValueError("number of axis offsets must be equal to input data's number of dimensions.")
 
     col_kernel = np.exp(
         (-1j * 2 * np.pi / (data.shape[1] * upsample_factor)) *
@@ -1388,13 +1379,11 @@ def register_translation_3d(src_image, target_image, upsample_factor = 1,
 
     # images must be the same shape
     if src_image.shape != target_image.shape:
-        raise ValueError("Error: images must really be same size for "
-                         "register_translation_3d")
+        raise ValueError("Error: images must really be same size for register_translation_3d")
 
     # only 3D data makes sense right now
     if src_image.ndim != 3 and upsample_factor > 1:
-        raise NotImplementedError("Error: register_translation_3d only supports "
-                                  "subpixel registration for 3D images")
+        raise NotImplementedError("Error: register_translation_3d only supports subpixel registration for 3D images")
 
     # assume complex data is already in Fourier space
     if space.lower() == 'fourier':
@@ -1409,13 +1398,11 @@ def register_translation_3d(src_image, target_image, upsample_factor = 1,
         src_freq = np.fft.fftn(src_image_cpx)
         target_freq = np.fft.fftn(target_image_cpx)
     else:
-        raise ValueError("Error: register_translation_3d only knows the \"real\" "
-                         "and \"fourier\" values for the ``space`` argument.")
+        raise ValueError('Error: register_translation_3d only knows the "real" and "fourier" values for the ``space`` argument.')
 
     shape = src_freq.shape
     image_product = src_freq * target_freq.conj()
     cross_correlation = np.fft.ifftn(image_product)
-#    cross_correlation = ifftn(image_product) # TODO CHECK why this line is different
     new_cross_corr = np.abs(cross_correlation)
 
     CCmax = cross_correlation.max()
@@ -1583,13 +1570,11 @@ def register_translation(src_image, target_image, upsample_factor=1,
     """
     # images must be the same shape
     if src_image.shape != target_image.shape:
-        raise ValueError("Error: images must really be same size for "
-                         "register_translation")
+        raise ValueError("Error: images must really be same size for register_translation")
 
     # only 2D data makes sense right now
     if src_image.ndim != 2 and upsample_factor > 1:
-        raise NotImplementedError("Error: register_translation only supports "
-                                  "subpixel registration for 2D images")
+        raise NotImplementedError("Error: register_translation only supports subpixel registration for 2D images")
 
     # assume complex data is already in Fourier space
     if space.lower() == 'fourier':
@@ -1607,8 +1592,7 @@ def register_translation(src_image, target_image, upsample_factor=1,
         target_freq = np.array(
             target_freq, dtype=np.complex128, copy=False)
     else:
-        raise ValueError("Error: register_translation only knows the \"real\" "
-                         "and \"fourier\" values for the ``space`` argument.")
+        raise ValueError('Error: register_translation only knows the "real" and "fourier" values for the ``space`` argument.')
 
     # Whole-pixel shift - Compute cross-correlation by an IFFT
     shape = src_freq.shape
@@ -2108,7 +2092,6 @@ def tile_and_correct(img, template, strides, overlaps, max_shifts, newoverlaps=N
             m_reg = cv2.remap(img, cv2.resize(shift_img_y.astype(np.float32), dims[::-1]) + x_grid,
                               cv2.resize(shift_img_x.astype(np.float32), dims[::-1]) + y_grid,
                               cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
-                             # borderValue=add_to_movie)
             total_shifts = [
                     (-x, -y) for x, y in zip(shift_img_x.reshape(num_tiles), shift_img_y.reshape(num_tiles))]
             return m_reg - add_to_movie, total_shifts, None, None
@@ -2225,7 +2208,7 @@ def tile_and_correct_3d(img:np.ndarray, template:np.ndarray, strides:tuple, over
         4) stiching back together the corrected subpatches
 
     Args:
-        img: ndaarray 3D
+        img: ndarray 3D
             image to correct
 
         template: ndarray
@@ -2369,7 +2352,7 @@ def tile_and_correct_3d(img:np.ndarray, template:np.ndarray, strides:tuple, over
                     (-x, -y, -z) for x, y, z in zip(shift_img_x.reshape(num_tiles), shift_img_y.reshape(num_tiles), shift_img_z.reshape(num_tiles))]
             return m_reg - add_to_movie, total_shifts, None, None
 
-        # create automatically upsample parameters if not passed
+        # create automatically upsampled parameters if not passed
         if newoverlaps is None:
             newoverlaps = overlaps
         if newstrides is None:
@@ -2400,7 +2383,7 @@ def tile_and_correct_3d(img:np.ndarray, template:np.ndarray, strides:tuple, over
 
         num_tiles = np.prod(dim_new_grid)
 
-        # what dimension shear should be looked at? shearing for 3d point scanning happens in y and z but no for plane-scanning
+        # what dimension shear should be looked at? shearing for 3d point scanning happens in y and z but not for plane-scanning
         max_shear = np.percentile(
             [np.max(np.abs(np.diff(ssshh, axis=xxsss))) for ssshh, xxsss in itertools.product(
                 [shift_img_x, shift_img_y], [0, 1])], 75)
@@ -2706,8 +2689,6 @@ def motion_correct_batch_rigid(fname, max_shifts, dview=None, splits=56, num_spl
         if is3D:     
             # TODO - motion_correct_3d needs to be implemented in movies.py
             template = caiman.motion_correction.bin_median_3d(m) # motion_correct_3d has not been implemented yet - instead initialize to just median image
-#            template = caiman.motion_correction.bin_median_3d(
-#                    m.motion_correct_3d(max_shifts[2], max_shifts[1], max_shifts[0], template=None)[0])
         else:
             if not m.flags['WRITEABLE']:
                 m = m.copy()
@@ -2860,7 +2841,7 @@ def motion_correct_batch_pwrigid(fname, max_shifts, strides, overlaps, add_to_mo
                 else:
                     logger.debug(f'saving mmap of {fname}')
 
-        if isinstance(fname, tuple):
+        if isinstance(fname, tuple): # TODO Switch to using standard path functions
             base_name=os.path.splitext(os.path.split(fname[0])[-1])[0] + '_els_'
         else:
             base_name=os.path.splitext(os.path.split(fname)[-1])[0] + '_els_'
@@ -2919,7 +2900,6 @@ def tile_and_correct_wrapper(params):
     """
     # todo todocument
     logger = logging.getLogger("caiman")
-
 
     try:
         cv2.setNumThreads(0)
