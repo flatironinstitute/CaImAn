@@ -130,8 +130,8 @@ class MotionCorrect(object):
            nonneg_movie: bool
                make the SAVED movie and template mostly nonnegative by removing min_mov from movie
 
-           gSig_filt: list
-               (UNDOCUMENTED)
+           gSig_filt: list[int], default None
+               if specified, indicates the shape of a Gaussian kernel used to perform high-pass spatial filtering of the video frames before performing motion correction. Useful for data with high background to emphasize landmarks. 
 
            use_cuda : bool (DEPRECATED)
                cuda is no longer supported for motion correction; this kwarg will be removed in a future version of Caiman
