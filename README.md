@@ -10,7 +10,9 @@ A Python toolbox for large-scale **Ca**lcium **Im**aging **An**alysis.
 CaImAn implements a set of essential methods required to analyze calcium and voltage imaging data. It provides fast and scalable algorithms for motion correction, source extraction, spike deconvolution, and registering neurons across multiple sessions. It is suitable for both two-photon and one-photon fluorescence microscopy data, and can be run in both offline and online modes. Documentation is [here](https://caiman.readthedocs.io/en/latest/). 
 
 # Quick start
-Follow these three steps to get started quickly, from installation to working through a demo notebook. If you do not already have conda installed, [you can find it here](https://github.com/conda-forge/miniforge). The miniforge distribution of conda is preferred; it will require fewer steps and likely encounter fewer issues. There is a video walkthrough of the following steps [here](https://youtu.be/b63zAmKihIY?si=m7WleTwdU0rJup_2).
+Follow these three steps to get started quickly, from installation to working through a demo notebook. If you do not already have conda installed, [you can find it here](https://github.com/conda-forge/miniforge). The miniforge distribution of conda is preferred; it will require fewer steps and likely encounter fewer issues. There is a video walkthrough of the following steps [here](https://youtu.be/b63zAmKihIY?si=m7WleTwdU0rJup_2). If you are using a different distro of conda, you will likely need to add `-c conda-forge` to the commands you use to make your environment.
+
+Windows users will temporarily need to use an alternative install path.
 
 ### Step 1: Install caiman
 The following is all done in your anaconda prompt, starting in your base environment:
@@ -18,8 +20,26 @@ The following is all done in your anaconda prompt, starting in your base environ
     mamba create -n caiman caiman # build a caiman environment
     conda activate caiman  # activate the environment
 
+### Step 1: Install caiman (alternative for Windows users)
+Windows users will need to follow an alternative set of steps because tensorflow does not have good packaging for Windows with conda (packaging changes are underway to solve this but are not available as of this writing).
+
+First, you will need to install Visual Studio 2019 or possibly a later version, with the C++ compiler and commandline utilities.
+Then you will clone this repo to your windows system, and enter the checkout directory.
+
+Next, you will build and activate a mostly-empty conda environment:
+
+    mamba create -n caiman python=3.11 pip vs2019_win-64
+    conda activate caiman
+
+Finally, you will use pip to install caiman's prerequisites and caiman itself:
+    pip install .
+
+This step may fail if the compiler is not correctly installed and is the most fragile part of this install route; reach out if you encounter issues.
+
+After this, assuming you succeed, leave the source directory. Later steps will not function correctly when run in the source/checkout directory.
+
 ### Step 2: Download code samples and data sets
-Create a working directory called `caiman_data` that includes code samples and related data. Run the following command from the same virtual environment that you created in Step 1:  
+Create a working directory called `caiman_data` that includes code samples and related data. Run the following command from the same conda environment that you created in Step 1:  
 
     caimanmanager install
 
