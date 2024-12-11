@@ -29,6 +29,7 @@ jobs:
           environment-file: environment-minimal.yml
           activate-environment: caiman
           conda-solver: libmamba
+          miniforge-version: latest
 
       - name: Install OS Dependencies
         shell: bash -l {0}
