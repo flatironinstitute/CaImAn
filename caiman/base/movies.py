@@ -2025,6 +2025,10 @@ def get_file_size(file_name, var_name_hdf5:str='mov') -> tuple[tuple, Union[int,
                     logger.error(f'The file does not contain a variable named {var_name_hdf5}')
                     raise Exception('Variable not found. Use one of the above')
                 T, dims = siz[0], siz[1:]
+            elif extension in ('.npy', ):
+                shape = np.load(file_name, allow_pickle=False).shape
+                T = shape[0]
+                dims = shape[1:]
             elif extension in ('.sbx'):
                 shape = caiman.utils.sbx_utils.sbx_shape(file_name[:-4])
                 T = shape[-1]
