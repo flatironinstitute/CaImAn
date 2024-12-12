@@ -2029,7 +2029,6 @@ def get_file_size(file_name, var_name_hdf5:str='mov') -> tuple[tuple, Union[int,
                 shape = np.load(file_name, allow_pickle=False).shape
                 T = shape[0]
                 dims = shape[1:]
-
             elif extension in ('.sbx'):
                 shape = caiman.utils.sbx_utils.sbx_shape(file_name[:-4])
                 T = shape[-1]
