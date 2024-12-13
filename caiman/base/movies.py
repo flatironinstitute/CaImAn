@@ -2026,7 +2026,7 @@ def get_file_size(file_name, var_name_hdf5:str='mov') -> tuple[tuple, Union[int,
                     raise Exception('Variable not found. Use one of the above')
                 T, dims = siz[0], siz[1:]
             elif extension in ('.npy', ):
-                with open(file_path, 'rb') as f:
+                with open(file_name, 'rb') as f:
                     version = np.lib.format.read_magic(f)
                     if version == (1, 0):
                         shape, _, _ = np.lib.format.read_array_header_1_0(f)
