@@ -2033,7 +2033,7 @@ def get_file_size(file_name, var_name_hdf5:str='mov') -> tuple[tuple, Union[int,
                     elif version == (2, 0):
                         shape, _, _ = np.lib.format.read_array_header_2_0(f)
                     else:
-                        raise ValueError(f"Unsupported .npy file version: {version}. Update this code to handle it.")
+                        raise ValueError(f"Unsupported .npy file version: {version}. Update caiman.base.movies.get_file_size() to handle it.")
                 T = shape[0]
                 dims = shape[1:]
             elif extension in ('.sbx'):
