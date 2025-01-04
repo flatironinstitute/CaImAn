@@ -1799,15 +1799,45 @@ def apply_shifts_dft(src_freq, shifts, diffphase, is_freq=True, border_nan=True)
 
     return new_img
 
-def sliding_window(image, overlaps, strides):
+def sliding_window_dims(dims: tuple[int, ...], overlaps: tuple[int, ...], strides: tuple[int, ...]):
+    """ computes dimensions for a sliding window with given image dims, overlaps, and strides
+
+    Args: 
+        dims: tuple
+            the dimensions of the image
+
+        overlaps: tuple
+            overlap of patches (except possibly last one) in each dimension
+
+        strides: tuple
+            stride in each dimension
+
+     Returns:
+         iterator containing 3 items:
+              inds: (x, y, ...) coordinates in the patch grid
+              corner: (x, y, ...) location of corner of the patch in the original matrix
+              size: (x, y, ...) size of patch in pixels
+    """
+    windowSizes = np.add(overlaps, strides)
+    ranges = [
+        list(range(0, dim - windowSize, stride)) + [dim - windowSize]
+        for dim, windowSize, stride in zip(dims, windowSizes, strides)
+    ]
+
+    for patch in itertools.product(*[enumerate(r) for r in ranges]):
+        inds, corners = zip(*patch)
+        yield (tuple(inds), tuple(corners), windowSizes)
+
+
+def sliding_window(image: np.ndarray, overlaps: tuple[int, int], strides: tuple[int, int]):
     """ efficiently and lazily slides a window across the image
 
     Args: 
-        img:ndarray 2D
-            image that needs to be slices
+        img: ndarray 2D
+            image that needs to be sliced
 
         overlaps: tuple
-            dimension of the patch
+            overlap of patches (except possibly last one) in each dimension 
 
         strides: tuple
             stride in each dimension
@@ -1816,28 +1846,25 @@ def sliding_window(image, overlaps, strides):
          iterator containing five items
               dim_1, dim_2 coordinates in the patch grid
               x, y: bottom border of the patch in the original matrix
-
               patch: the patch
-     """
-    windowSize = np.add(overlaps, strides)
-    range_1 = list(range(
-        0, image.shape[0] - windowSize[0], strides[0])) + [image.shape[0] - windowSize[0]]
-    range_2 = list(range(
-        0, image.shape[1] - windowSize[1], strides[1])) + [image.shape[1] - windowSize[1]]
-    for dim_1, x in enumerate(range_1):
-        for dim_2, y in enumerate(range_2):
-            # yield the current window
-            yield (dim_1, dim_2, x, y, image[x:x + windowSize[0], y:y + windowSize[1]])
+    """
+    if image.ndim != 2:
+        raise ValueError('Input to sliding_window must be 2D')
 
-def sliding_window_3d(image, overlaps, strides):
+    for inds, corner, size in sliding_window_dims(image.shape, overlaps, strides):
+        patch = image[corner[0]:corner[0] + size[0], corner[1]:corner[1] + size[1]]
+        yield inds + corner + (patch,)
+
+
+def sliding_window_3d(image: np.ndarray, overlaps: tuple[int, int, int], strides: tuple[int, int, int]):
     """ efficiently and lazily slides a window across the image
 
     Args: 
-        img:ndarray 3D
-            image that needs to be slices
+        img: ndarray 3D
+            image that needs to be sliced
 
         overlaps: tuple
-            dimension of the patch
+            overlap of patches (except possibly last one) in each dimension 
 
         strides: tuple
             stride in each dimension
@@ -1846,21 +1873,32 @@ def sliding_window_3d(image, overlaps, strides):
          iterator containing seven items
               dim_1, dim_2, dim_3 coordinates in the patch grid
               x, y, z: bottom border of the patch in the original matrix
-
               patch: the patch
      """
-    windowSize = np.add(overlaps, strides)
-    range_1 = list(range(
-        0, image.shape[0] - windowSize[0], strides[0])) + [image.shape[0] - windowSize[0]]
-    range_2 = list(range(
-        0, image.shape[1] - windowSize[1], strides[1])) + [image.shape[1] - windowSize[1]]
-    range_3 = list(range(
-        0, image.shape[2] - windowSize[2], strides[2])) + [image.shape[2] - windowSize[2]]
-    for dim_1, x in enumerate(range_1):
-        for dim_2, y in enumerate(range_2):
-            for dim_3, z in enumerate(range_3):
-                # yield the current window
-                yield (dim_1, dim_2, dim_3, x, y, z, image[x:x + windowSize[0], y:y + windowSize[1], z:z + windowSize[2]])
+    if image.ndim != 3:
+        raise ValueError('Input to sliding_window_3d must be 3D')
+
+    for inds, corner, size in sliding_window_dims(image.shape, overlaps, strides):
+        patch = image[corner[0]:corner[0] + size[0],
+                      corner[1]:corner[1] + size[1],
+                      corner[2]:corner[2] + size[2]]
+        yield inds + corner + (patch,)
+
+def get_patch_centers(dims: tuple[int, ...], strides: tuple[int, ...], overlaps: tuple[int, ...],
+                      upsample_factor_grid: int, shifts_opencv: bool) -> np.ndarray:
+    """
+    Infer x/y[/z] centers of patches in pixel units for pw_rigid correction
+    Returns n_patches x n_dims ndarray.
+    """
+    if not shifts_opencv:
+        # account for upsampling step
+        strides = tuple(np.round(np.divide(strides, upsample_factor_grid)).astype(int))
+    
+    return np.stack([
+        [c + (sz-1) / 2 for c, sz in zip(corner, patch_size)]  # from first pixel to center = (width-1)/2
+        for _, corner, patch_size in sliding_window_dims(dims, overlaps, strides)
+    ])
+
 
 def iqr(a):
     return np.percentile(a, 75) - np.percentile(a, 25)
