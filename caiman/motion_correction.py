@@ -1922,14 +1922,14 @@ def interpolate_shifts(shifts, coords_orig: tuple, coords_new: tuple) -> np.ndar
             patch center coordinates along each dimension (e.g. outputs of get_patch_centers)
         
         coords_new: tuple of float vectors
-            coordinates at which to output interpolated shifts
+            coordinates along each dimension at which to output interpolated shifts
     
     Returns:
         ndarray of interpolated shifts, of shape tuple(len(coords) for coords in coords_new)
     """
     # clip new coordinates to avoid extrapolation
     coords_new_clipped = [np.clip(coord, min(coord_orig), max(coord_orig)) for coord, coord_orig in zip(coords_new, coords_orig)]
-    coords_new_stacked = np.stack(coords_new_clipped, axis=-1)
+    coords_new_stacked = np.stack(np.meshgrid(*coords_new_clipped, indexing='ij'), axis=-1)
     shifts_grid = np.reshape(shifts, tuple(len(coord) for coord in coords_orig))
     return scipy.interpolate.interpn(coords_orig, shifts_grid, coords_new_stacked, method="cubic")
 
@@ -2169,8 +2169,8 @@ def tile_and_correct(img, template, strides, overlaps, max_shifts, newoverlaps=N
                 # get locations of patches
                 patch_centers = get_patch_centers(dims, strides=strides, overlaps=overlaps)
                 # the names of shift_img_x and shift_img_y are switched
-                shifts_x = interpolate_shifts(shift_img_y.astype(np.float32), patch_centers, (y_coords, x_coords))
-                shifts_y = interpolate_shifts(shift_img_x.astype(np.float32), patch_centers, (y_coords, x_coords))
+                shifts_x = interpolate_shifts(shift_img_y, patch_centers, (y_coords, x_coords)).astype(np.float32)
+                shifts_y = interpolate_shifts(shift_img_x, patch_centers, (y_coords, x_coords)).astype(np.float32)
             else:
                 shifts_x = cv2.resize(shift_img_y.astype(np.float32), dims[::-1])
                 shifts_y = cv2.resize(shift_img_x.astype(np.float32), dims[::-1])

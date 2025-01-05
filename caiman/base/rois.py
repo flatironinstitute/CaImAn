@@ -437,8 +437,8 @@ def register_ROIs(A1,
             shifts_x = np.reshape(_sh_[:, 1], patch_grid, order='C').astype(np.float32)
             shifts_y = np.reshape(_sh_[:, 0], patch_grid, order='C').astype(np.float32)
 
-            x_remap = interpolate_shifts(-shifts_x, patch_centers, tuple(range(d) for d in dims))
-            y_remap = interpolate_shifts(-shifts_y, patch_centers, tuple(range(d) for d in dims))
+            x_remap = interpolate_shifts(-shifts_x, patch_centers, tuple(range(d) for d in dims)).astype(np.float32)
+            y_remap = interpolate_shifts(-shifts_y, patch_centers, tuple(range(d) for d in dims)).astype(np.float32)
 
         A_2t = np.reshape(A2, dims + (-1,), order='F').transpose(2, 0, 1)
         A2 = np.stack([cv2.remap(img.astype(np.float32), x_remap, y_remap, cv2.INTER_NEAREST) for img in A_2t], axis=0)
