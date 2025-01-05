@@ -20,7 +20,7 @@ import time
 from typing import Any, Optional
 import zipfile
 
-from caiman.motion_correction import tile_and_correct
+from caiman.motion_correction import tile_and_correct, get_patch_centers, interpolate_shifts
 
 try:
     cv2.setNumThreads(0)
@@ -414,25 +414,31 @@ def register_ROIs(A1,
         if use_opt_flow:
             template1_norm = np.uint8(template1 * (template1 > 0) * 255)
             template2_norm = np.uint8(template2 * (template2 > 0) * 255)
-            flow = cv2.calcOpticalFlowFarneback(np.uint8(template1_norm * 255), np.uint8(template2_norm * 255), None,
+            flow = cv2.calcOpticalFlowFarneback(template1_norm, template2_norm, None,
                                                 0.5, 3, 128, 3, 7, 1.5, 0)
             x_remap = (flow[:, :, 0] + x_grid).astype(np.float32)
             y_remap = (flow[:, :, 1] + y_grid).astype(np.float32)
 
         else:
-            template2, shifts, _, xy_grid = tile_and_correct(template2,
-                                                             template1 - template1.min(),
-                                                             [int(dims[0] / 4), int(dims[1] / 4)], [16, 16], [10, 10],
-                                                             add_to_movie=template2.min(),
-                                                             shifts_opencv=True)
+            strides = (int(dims[0] / 4), int(dims[1] / 4))
+            overlaps = (16, 16)
+            max_shifts = (10, 10)
+            shifts_opencv = True
+            upsample_factor_grid = 4
+            template2, shifts, _, _ = tile_and_correct(
+                template2, template1 - template1.min(), strides=strides, overlaps=overlaps,
+                max_shifts=max_shifts, add_to_movie=template2.min(),
+                upsample_factor_grid=upsample_factor_grid, shifts_opencv=shifts_opencv, interp_shifts_precisely=True)
 
-            dims_grid = tuple(np.max(np.stack(xy_grid, axis=0), axis=0) - np.min(np.stack(xy_grid, axis=0), axis=0) + 1)
+            patch_centers = get_patch_centers(dims, overlaps=overlaps, strides=strides,
+                                              shifts_opencv=shifts_opencv, upsample_factor_grid=upsample_factor_grid)
+            patch_grid = tuple(len(centers) for centers in patch_centers)
             _sh_ = np.stack(shifts, axis=0)
-            shifts_x = np.reshape(_sh_[:, 1], dims_grid, order='C').astype(np.float32)
-            shifts_y = np.reshape(_sh_[:, 0], dims_grid, order='C').astype(np.float32)
+            shifts_x = np.reshape(_sh_[:, 1], patch_grid, order='C').astype(np.float32)
+            shifts_y = np.reshape(_sh_[:, 0], patch_grid, order='C').astype(np.float32)
 
-            x_remap = (-np.resize(shifts_x, dims) + x_grid).astype(np.float32)
-            y_remap = (-np.resize(shifts_y, dims) + y_grid).astype(np.float32)
+            x_remap = interpolate_shifts(-shifts_x, patch_centers, tuple(range(d) for d in dims))
+            y_remap = interpolate_shifts(-shifts_y, patch_centers, tuple(range(d) for d in dims))
 
         A_2t = np.reshape(A2, dims + (-1,), order='F').transpose(2, 0, 1)
         A2 = np.stack([cv2.remap(img.astype(np.float32), x_remap, y_remap, cv2.INTER_NEAREST) for img in A_2t], axis=0)
