@@ -312,6 +312,7 @@ def register_ROIs(A1,
                   D=None,
                   max_thr=0,
                   use_opt_flow=True,
+                  align_options: Optional[dict] = None,
                   thresh_cost=.7,
                   max_dist=10,
                   enclosed_thr=None,
@@ -350,6 +351,9 @@ def register_ROIs(A1,
 
         use_opt_flow: bool
             use dense optical flow to align templates
+
+        align_options: Optional[dict]
+            mcorr options to override defaults when align_flag is True and use_opt_flow is False
 
         thresh_cost: scalar
             maximum distance considered
@@ -420,25 +424,35 @@ def register_ROIs(A1,
             y_remap = (flow[:, :, 1] + y_grid).astype(np.float32)
 
         else:
-            strides = (int(dims[0] / 4), int(dims[1] / 4))
-            overlaps = (16, 16)
-            max_shifts = (10, 10)
-            shifts_opencv = True
-            upsample_factor_grid = 4
-            template2, shifts, _, _ = tile_and_correct(
-                template2, template1 - template1.min(), strides=strides, overlaps=overlaps,
-                max_shifts=max_shifts, add_to_movie=template2.min(),
-                upsample_factor_grid=upsample_factor_grid, shifts_opencv=shifts_opencv, interp_shifts_precisely=True)
+            align_defaults = {
+                "strides": (int(dims[0] / 4), int(dims[1] / 4)),
+                "overlaps": (16, 16),
+                "max_shifts": (10, 10),
+                "shifts_opencv": True,
+                "upsample_factor_grid": 4,
+                "interp_shifts_precisely": True
+                # any other argument to tile_and_correct can also be used in align_options
+            }
 
-            patch_centers = get_patch_centers(dims, overlaps=overlaps, strides=strides,
-                                              shifts_opencv=shifts_opencv, upsample_factor_grid=upsample_factor_grid)
+            if align_options is not None:
+                # override defaults with input options
+                align_defaults.update(align_options)
+            align_options = align_defaults
+
+            template2, shifts, _, _ = tile_and_correct(template2, template1 - template1.min(),
+                                                       add_to_movie=template2.min(), **align_options)
+
+            patch_centers = get_patch_centers(dims, overlaps=align_options["overlaps"], strides=align_options["strides"],
+                                              shifts_opencv=align_options["shifts_opencv"], upsample_factor_grid=align_options["upsample_factor_grid"])
             patch_grid = tuple(len(centers) for centers in patch_centers)
             _sh_ = np.stack(shifts, axis=0)
             shifts_x = np.reshape(_sh_[:, 1], patch_grid, order='C').astype(np.float32)
             shifts_y = np.reshape(_sh_[:, 0], patch_grid, order='C').astype(np.float32)
 
-            x_remap = interpolate_shifts(-shifts_x, patch_centers, tuple(range(d) for d in dims)).astype(np.float32)
-            y_remap = interpolate_shifts(-shifts_y, patch_centers, tuple(range(d) for d in dims)).astype(np.float32)
+            shifts_x_full = interpolate_shifts(-shifts_x, patch_centers, tuple(range(d) for d in dims))
+            shifts_y_full = interpolate_shifts(-shifts_y, patch_centers, tuple(range(d) for d in dims))
+            x_remap = (shifts_x_full + x_grid).astype(np.float32)
+            y_remap = (shifts_y_full + y_grid).astype(np.float32)
 
         A_2t = np.reshape(A2, dims + (-1,), order='F').transpose(2, 0, 1)
         A2 = np.stack([cv2.remap(img.astype(np.float32), x_remap, y_remap, cv2.INTER_NEAREST) for img in A_2t], axis=0)
