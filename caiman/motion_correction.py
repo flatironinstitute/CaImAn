@@ -52,7 +52,7 @@ from skimage.transform import warp as warp_sk
 import sys
 import tifffile
 from tqdm import tqdm
-from typing import Optional
+from typing import Optional, Sequence
 
 import caiman
 import caiman.base.movies
@@ -1811,9 +1811,14 @@ def get_patch_edges(dims: tuple[int, ...], overlaps: tuple[int, ...], strides: t
 
 
 def get_patch_centers(dims: tuple[int, ...], overlaps: tuple[int, ...], strides: tuple[int, ...],
-                      shifts_opencv: bool, upsample_factor_grid=1) -> tuple[list[int], ...]:
-    """For each dimension, return a vector of patch center locations for pw_rigid correction"""
-    if not shifts_opencv:
+                      shifts_opencv=False, upsample_factor_grid=1) -> tuple[list[float], ...]:
+    """
+    For each dimension, return a vector of patch center locations for pw_rigid correction
+    shifts_opencv just overrides upsample_factor_grid (forces it to 1), this is an easy way to
+    get the correct values by just providing the motion correction parameters, but
+    by default no extra upsampling is done.
+    """
+    if not shifts_opencv and upsample_factor_grid != 1:
         # account for upsampling step
         strides = tuple(np.round(np.divide(strides, upsample_factor_grid)).astype(int))
     
@@ -1903,6 +1908,30 @@ def sliding_window_3d(image: np.ndarray, overlaps: tuple[int, int, int], strides
                       corner[1]:corner[1] + size[1],
                       corner[2]:corner[2] + size[2]]
         yield inds + corner + (patch,)
+
+
+def interpolate_shifts(shifts, coords_orig: tuple, coords_new: tuple) -> np.ndarray:
+    """
+    Interpolate piecewise shifts onto new coordinates. Pixels outside the original coordinates will be filled with edge values.
+    
+    Args:
+        shifts: ndarray or other array-like
+            shifts to interpolate; must have the same number of elements as the outer product of coords_orig
+
+        coords_orig: tuple of float vectors
+            patch center coordinates along each dimension (e.g. outputs of get_patch_centers)
+        
+        coords_new: tuple of float vectors
+            coordinates at which to output interpolated shifts
+    
+    Returns:
+        ndarray of interpolated shifts, of shape tuple(len(coords) for coords in coords_new)
+    """
+    # clip new coordinates to avoid extrapolation
+    coords_new_clipped = [np.clip(coord, min(coord_orig), max(coord_orig)) for coord, coord_orig in zip(coords_new, coords_orig)]
+    coords_new_stacked = np.stack(coords_new_clipped, axis=-1)
+    shifts_grid = np.reshape(shifts, tuple(len(coord) for coord in coords_orig))
+    return scipy.interpolate.interpn(coords_orig, shifts_grid, coords_new_stacked, method="cubic")
 
 
 def iqr(a):
@@ -2052,7 +2081,6 @@ def tile_and_correct(img, template, strides, overlaps, max_shifts, newoverlaps=N
         
         interp_shifts_precisely: bool
             use patch locations to interpolate shifts rather than just upscaling to size of image. Default: False
-            currently only implemented for shifts_opencv.
 
     Returns:
         (new_img, total_shifts, start_step, xy_grid)
@@ -2134,18 +2162,15 @@ def tile_and_correct(img, template, strides, overlaps, max_shifts, newoverlaps=N
                 img = img_orig
 
             dims = img.shape
-            x_grid, y_grid = np.meshgrid(np.arange(0., dims[1]).astype(
-                np.float32), np.arange(0., dims[0]).astype(np.float32))
+            x_coords, y_coords = [np.arange(0., dims[dim]).astype(np.float32) for dim in (1, 0)]
+            x_grid, y_grid = np.meshgrid(x_coords, y_coords)
             
             if interp_shifts_precisely:
                 # get locations of patches
-                patch_centers = get_patch_centers(dims, strides=strides, overlaps=overlaps, shifts_opencv=True)
-                # clip destination pixels to avoid extrapolation
-                y_grid_clipped = np.clip(y_grid, min(patch_centers[0]), max(patch_centers[0]))
-                x_grid_clipped = np.clip(x_grid, min(patch_centers[1]), max(patch_centers[1]))
-                dest_grid = np.dstack((y_grid_clipped, x_grid_clipped))
-                shifts_x = scipy.interpolate.interpn(patch_centers, shift_img_y.astype(np.float32), dest_grid)
-                shifts_y = scipy.interpolate.interpn(patch_centers, shift_img_x.astype(np.float32), dest_grid)
+                patch_centers = get_patch_centers(dims, strides=strides, overlaps=overlaps)
+                # the names of shift_img_x and shift_img_y are switched
+                shifts_x = interpolate_shifts(shift_img_y.astype(np.float32), patch_centers, (y_coords, x_coords))
+                shifts_y = interpolate_shifts(shift_img_x.astype(np.float32), patch_centers, (y_coords, x_coords))
             else:
                 shifts_x = cv2.resize(shift_img_y.astype(np.float32), dims[::-1])
                 shifts_y = cv2.resize(shift_img_x.astype(np.float32), dims[::-1])
@@ -2175,15 +2200,22 @@ def tile_and_correct(img, template, strides, overlaps, max_shifts, newoverlaps=N
             img, overlaps=newoverlaps, strides=newstrides)]
 
         dim_new_grid = tuple(np.add(xy_grid[-1], 1))
-
-        shift_img_x = cv2.resize(
-            shift_img_x, dim_new_grid[::-1], interpolation=cv2.INTER_CUBIC)
-        shift_img_y = cv2.resize(
-            shift_img_y, dim_new_grid[::-1], interpolation=cv2.INTER_CUBIC)
-        diffs_phase_grid_us = cv2.resize(
-            diffs_phase_grid, dim_new_grid[::-1], interpolation=cv2.INTER_CUBIC)
-
         num_tiles = np.prod(dim_new_grid)
+
+        if interp_shifts_precisely:
+            patch_centers_orig = get_patch_centers(img.shape, strides=strides, overlaps=overlaps)
+            patch_centers_new = get_patch_centers(img.shape, strides=newstrides, overlaps=newoverlaps)
+            shift_img_x = interpolate_shifts(shift_img_x, patch_centers_orig, patch_centers_new)
+            shift_img_y = interpolate_shifts(shift_img_y, patch_centers_orig, patch_centers_new)
+            diffs_phase_grid_us = interpolate_shifts(diffs_phase_grid, patch_centers_orig, patch_centers_new)
+        else:
+            shift_img_x = cv2.resize(
+                shift_img_x, dim_new_grid[::-1], interpolation=cv2.INTER_CUBIC)
+            shift_img_y = cv2.resize(
+                shift_img_y, dim_new_grid[::-1], interpolation=cv2.INTER_CUBIC)
+            diffs_phase_grid_us = cv2.resize(
+                diffs_phase_grid, dim_new_grid[::-1], interpolation=cv2.INTER_CUBIC)
+
 
         max_shear = np.percentile(
             [np.max(np.abs(np.diff(ssshh, axis=xxsss))) for ssshh, xxsss in itertools.product(
@@ -2260,7 +2292,7 @@ def tile_and_correct(img, template, strides, overlaps, max_shifts, newoverlaps=N
 
 def tile_and_correct_3d(img:np.ndarray, template:np.ndarray, strides:tuple, overlaps:tuple, max_shifts:tuple, newoverlaps:Optional[tuple]=None, newstrides:Optional[tuple]=None, upsample_factor_grid:int=4,
                      upsample_factor_fft:int=10, show_movie:bool=False, max_deviation_rigid:int=2, add_to_movie:int=0, shifts_opencv:bool=True, gSig_filt=None,
-                     use_cuda:bool=False, border_nan:bool=True):
+                     use_cuda:bool=False, border_nan:bool=True, interp_shifts_precisely:bool=False):
     """ perform piecewise rigid motion correction iteration, by
         1) dividing the FOV in patches
         2) motion correcting each patch separately
@@ -2314,6 +2346,9 @@ def tile_and_correct_3d(img:np.ndarray, template:np.ndarray, strides:tuple, over
 
         border_nan : bool or string, optional
             specifies how to deal with borders. (True, False, 'copy', 'min')
+        
+        interp_shifts_precisely: bool
+            use patch locations to interpolate shifts rather than just upscaling to size of image. Default: False
 
     Returns:
         (new_img, total_shifts, start_step, xyz_grid)
@@ -2384,30 +2419,34 @@ def tile_and_correct_3d(img:np.ndarray, template:np.ndarray, strides:tuple, over
                 img = img_orig
 
             dims = img.shape
-            x_grid, y_grid, z_grid = np.meshgrid(np.arange(0., dims[1]).astype(
-                np.float32), np.arange(0., dims[0]).astype(np.float32),
-                np.arange(0., dims[2]).astype(np.float32))
+            x_coords, y_coords, z_coords = [np.arange(0., dims[dim]).astype(np.float32) for dim in (1, 0, 2)]
+            x_grid, y_grid, z_grid = np.meshgrid(x_coords, y_coords, z_coords)
+
+            if interp_shifts_precisely:
+                # get locations of patches
+                patch_centers = get_patch_centers(dims, strides=strides, overlaps=overlaps)
+                # the names of shift_img_x and shift_img_y are switched
+                coords_new = (y_coords, x_coords, z_coords)
+                shifts_x = interpolate_shifts(shift_img_y.astype(np.float32), patch_centers, coords_new)
+                shifts_y = interpolate_shifts(shift_img_x.astype(np.float32), patch_centers, coords_new)
+                shifts_z = interpolate_shifts(shift_img_z.astype(np.float32), patch_centers, coords_new)
+            else:
+                shifts_x = resize_sk(shift_img_y.astype(np.float32), dims)
+                shifts_y = resize_sk(shift_img_x.astype(np.float32), dims)
+                shifts_z = resize_sk(shift_img_z.astype(np.float32), dims)
+            
+            inverse_map = np.stack((shifts_y + y_grid, shifts_x + x_grid, shifts_z + z_grid), axis=0)
+
             if border_nan is not False:
                 if border_nan is True:
-                    m_reg = warp_sk(img, np.stack((resize_sk(shift_img_x.astype(np.float32), dims) + y_grid,
-                                    resize_sk(shift_img_y.astype(np.float32), dims) + x_grid,
-                                    resize_sk(shift_img_z.astype(np.float32), dims) + z_grid), axis=0),
-                                    order=3, mode='constant', cval=np.nan)
+                    m_reg = warp_sk(img, inverse_map, order=3, mode='constant', cval=np.nan)
                 elif border_nan == 'min':
-                    m_reg = warp_sk(img, np.stack((resize_sk(shift_img_x.astype(np.float32), dims) + y_grid,
-                                    resize_sk(shift_img_y.astype(np.float32), dims) + x_grid,
-                                    resize_sk(shift_img_z.astype(np.float32), dims) + z_grid), axis=0),
-                                    order=3, mode='constant', cval=np.min(img))
+                    m_reg = warp_sk(img, inverse_map, order=3, mode='constant', cval=np.min(img))
                 elif border_nan == 'copy':
-                    m_reg = warp_sk(img, np.stack((resize_sk(shift_img_x.astype(np.float32), dims) + y_grid,
-                                    resize_sk(shift_img_y.astype(np.float32), dims) + x_grid,
-                                    resize_sk(shift_img_z.astype(np.float32), dims) + z_grid), axis=0),
-                                    order=3, mode='edge')
+                    m_reg = warp_sk(img, inverse_map, order=3, mode='edge')
             else:
-                m_reg = warp_sk(img, np.stack((resize_sk(shift_img_x.astype(np.float32), dims) + y_grid,
-                                resize_sk(shift_img_y.astype(np.float32), dims) + x_grid,
-                                resize_sk(shift_img_z.astype(np.float32), dims) + z_grid), axis=0),
-                                order=3, mode='constant')
+                m_reg = warp_sk(img, inverse_map, order=3, mode='constant')
+
             total_shifts = [
                     (-x, -y, -z) for x, y, z in zip(shift_img_x.reshape(num_tiles), shift_img_y.reshape(num_tiles), shift_img_z.reshape(num_tiles))]
             return m_reg - add_to_movie, total_shifts, None, None
@@ -2431,17 +2470,24 @@ def tile_and_correct_3d(img:np.ndarray, template:np.ndarray, strides:tuple, over
             img, overlaps=newoverlaps, strides=newstrides)]
 
         dim_new_grid = tuple(np.add(xyz_grid[-1], 1))
-
-        shift_img_x = resize_sk(
-            shift_img_x, dim_new_grid[::-1], order=3)
-        shift_img_y = resize_sk(
-            shift_img_y, dim_new_grid[::-1], order=3)
-        shift_img_z = resize_sk(
-            shift_img_z, dim_new_grid[::-1], order=3)
-        diffs_phase_grid_us = resize_sk(
-            diffs_phase_grid, dim_new_grid[::-1], order=3)
-
         num_tiles = np.prod(dim_new_grid)
+
+        if interp_shifts_precisely:
+            patch_centers_orig = get_patch_centers(img.shape, strides=strides, overlaps=overlaps)
+            patch_centers_new = get_patch_centers(img.shape, strides=newstrides, overlaps=newoverlaps)
+            shift_img_x = interpolate_shifts(shift_img_x, patch_centers_orig, patch_centers_new)
+            shift_img_y = interpolate_shifts(shift_img_y, patch_centers_orig, patch_centers_new)
+            shift_img_z = interpolate_shifts(shift_img_z, patch_centers_orig, patch_centers_new)
+            diffs_phase_grid_us = interpolate_shifts(diffs_phase_grid, patch_centers_orig, patch_centers_new)
+        else:
+            shift_img_x = resize_sk(
+                shift_img_x, dim_new_grid[::-1], order=3)
+            shift_img_y = resize_sk(
+                shift_img_y, dim_new_grid[::-1], order=3)
+            shift_img_z = resize_sk(
+                shift_img_z, dim_new_grid[::-1], order=3)
+            diffs_phase_grid_us = resize_sk(
+                diffs_phase_grid, dim_new_grid[::-1], order=3)
 
         # what dimension shear should be looked at? shearing for 3d point scanning happens in y and z but not for plane-scanning
         max_shear = np.percentile(
