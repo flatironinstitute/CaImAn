@@ -34,7 +34,7 @@ jobs:
       - name: Install OS Dependencies
         shell: bash -l {0}
         run: |
-          sudo apt-get update && sudo apt-get install libglapi-mesa libegl-mesa0 libegl1 libopengl0 libgl1-mesa-glx
+          sudo apt-get update && sudo apt-get install libglapi-mesa libegl-mesa0 libegl1 libopengl0
 
       - name: Install Dependencies
         shell: bash -l {0}
