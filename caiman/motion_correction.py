@@ -1835,10 +1835,12 @@ def sliding_window_dims(dims: tuple[int, ...], overlaps: tuple[int, ...], stride
             the dimensions of the image
 
         overlaps: tuple
-            overlap of patches (except possibly last one) in each dimension
+            overlap of patches in each dimension, except that the last patch will be all the way
+            at the bottom/right regardless of overlap
 
         strides: tuple
-            stride in each dimension
+            stride in each dimension, except that the last patch will be all the way
+            at the bottom/right regardless of stride
 
      Returns:
          iterator containing 3 items:
@@ -1862,10 +1864,12 @@ def sliding_window(image: np.ndarray, overlaps: tuple[int, int], strides: tuple[
             image that needs to be sliced
 
         overlaps: tuple
-            overlap of patches (except possibly last one) in each dimension 
+            overlap of patches in each dimension, except that the last patch will be all the way
+            at the bottom/right regardless of overlap
 
         strides: tuple
-            stride in each dimension
+            stride in each dimension, except that the last patch will be all the way
+            at the bottom/right regardless of stride
 
      Returns:
          iterator containing five items
@@ -1889,10 +1893,12 @@ def sliding_window_3d(image: np.ndarray, overlaps: tuple[int, int, int], strides
             image that needs to be sliced
 
         overlaps: tuple
-            overlap of patches (except possibly last one) in each dimension 
+            overlap of patches in each dimension, except that the last patch will be all the way
+            at the bottom/right regardless of overlap 
 
         strides: tuple
-            stride in each dimension
+            stride in each dimension, except that the last patch will be all the way
+            at the bottom/right regardless of stride
 
      Returns:
          iterator containing seven items
