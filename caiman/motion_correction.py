@@ -79,7 +79,7 @@ class MotionCorrect(object):
                  strides=(96, 96), overlaps=(32, 32), splits_els=14, num_splits_to_process_els=None,
                  upsample_factor_grid=4, max_deviation_rigid=3, shifts_opencv=True, nonneg_movie=True, gSig_filt=None,
                  use_cuda=False, border_nan=True, pw_rigid=False, num_frames_split=80, var_name_hdf5='mov', is3D=False,
-                 indices=(slice(None), slice(None))):
+                 indices=(slice(None), slice(None)), interp_shifts_precisely=False):
         """
         Constructor class for motion correction operations
 
@@ -198,6 +198,7 @@ class MotionCorrect(object):
         self.var_name_hdf5 = var_name_hdf5
         self.is3D = bool(is3D)
         self.indices = indices
+        self.interp_shifts_precisely = interp_shifts_precisely
         if self.use_cuda:
             logger.warn("cuda is no longer supported; this kwarg will be removed in a future version of caiman")
 
@@ -301,7 +302,8 @@ class MotionCorrect(object):
                 border_nan=self.border_nan,
                 var_name_hdf5=self.var_name_hdf5,
                 is3D=self.is3D,
-                indices=self.indices)
+                indices=self.indices,
+                interp_shifts_precisely=self.interp_shifts_precisely)
             if template is None:
                 self.total_template_rig = _total_template_rig
 
@@ -362,7 +364,7 @@ class MotionCorrect(object):
                     num_splits_to_process=None, num_iter=num_iter, template=self.total_template_els,
                     shifts_opencv=self.shifts_opencv, save_movie=save_movie, nonneg_movie=self.nonneg_movie, gSig_filt=self.gSig_filt,
                     use_cuda=self.use_cuda, border_nan=self.border_nan, var_name_hdf5=self.var_name_hdf5, is3D=self.is3D,
-                    indices=self.indices)
+                    indices=self.indices, interp_shifts_precisely=self.interp_shifts_precisely)
             if not self.is3D:
                 if show_template:
                     plt.imshow(new_template_els)
@@ -2718,7 +2720,8 @@ def compute_metrics_motion_correction(fname, final_size_x, final_size_y, swap_di
 def motion_correct_batch_rigid(fname, max_shifts, dview=None, splits=56, num_splits_to_process=None, num_iter=1,
                                template=None, shifts_opencv=False, save_movie_rigid=False, add_to_movie=None,
                                nonneg_movie=False, gSig_filt=None, subidx=slice(None, None, 1), use_cuda=False,
-                               border_nan=True, var_name_hdf5='mov', is3D=False, indices=(slice(None), slice(None))):
+                               border_nan=True, var_name_hdf5='mov', is3D=False, indices=(slice(None), slice(None)),
+                               interp_shifts_precisely=False):
     """
     Function that perform memory efficient hyper parallelized rigid motion corrections while also saving a memory mappable file
 
@@ -2838,7 +2841,7 @@ def motion_correct_batch_rigid(fname, max_shifts, dview=None, splits=56, num_spl
                                                              dview=dview, save_movie=save_movie, base_name=base_name, subidx = subidx,
                                                              num_splits=num_splits_to_process, shifts_opencv=shifts_opencv, nonneg_movie=nonneg_movie, gSig_filt=gSig_filt,
                                                              use_cuda=use_cuda, border_nan=border_nan, var_name_hdf5=var_name_hdf5, is3D=is3D,
-                                                             indices=indices)
+                                                             indices=indices, interp_shifts_precisely=interp_shifts_precisely)
         if is3D:
             new_templ = np.nanmedian(np.stack([r[-1] for r in res_rig]), 0)           
         else:
@@ -2861,7 +2864,7 @@ def motion_correct_batch_pwrigid(fname, max_shifts, strides, overlaps, add_to_mo
                                  splits=56, num_splits_to_process=None, num_iter=1,
                                  template=None, shifts_opencv=False, save_movie=False, nonneg_movie=False, gSig_filt=None,
                                  use_cuda=False, border_nan=True, var_name_hdf5='mov', is3D=False,
-                                 indices=(slice(None), slice(None))):
+                                 indices=(slice(None), slice(None)), interp_shifts_precisely=False):
     """
     Function that perform memory efficient hyper parallelized rigid motion corrections while also saving a memory mappable file
 
@@ -2966,7 +2969,7 @@ def motion_correct_batch_pwrigid(fname, max_shifts, strides, overlaps, add_to_mo
                                                             base_name=base_name, num_splits=num_splits_to_process,
                                                             shifts_opencv=shifts_opencv, nonneg_movie=nonneg_movie, gSig_filt=gSig_filt,
                                                             use_cuda=use_cuda, border_nan=border_nan, var_name_hdf5=var_name_hdf5, is3D=is3D,
-                                                            indices=indices)
+                                                            indices=indices, interp_shifts_precisely=interp_shifts_precisely)
         if is3D:
             new_templ = np.nanmedian(np.stack([r[-1] for r in res_el]), 0)
         else:
@@ -3021,7 +3024,7 @@ def tile_and_correct_wrapper(params):
     img_name, out_fname, idxs, shape_mov, template, strides, overlaps, max_shifts,\
         add_to_movie, max_deviation_rigid, upsample_factor_grid, newoverlaps, newstrides, \
         shifts_opencv, nonneg_movie, gSig_filt, is_fiji, use_cuda, border_nan, var_name_hdf5, \
-        is3D, indices = params
+        is3D, indices, interp_shifts_precisely = params
 
 
     if isinstance(img_name, tuple):
@@ -3047,7 +3050,8 @@ def tile_and_correct_wrapper(params):
                                                                        upsample_factor_fft=10, show_movie=False,
                                                                        max_deviation_rigid=max_deviation_rigid,
                                                                        shifts_opencv=shifts_opencv, gSig_filt=gSig_filt,
-                                                                       use_cuda=use_cuda, border_nan=border_nan)
+                                                                       use_cuda=use_cuda, border_nan=border_nan,
+                                                                       interp_shifts_precisely=interp_shifts_precisely)
             shift_info.append([total_shift, start_step, xyz_grid])
             
         else:
@@ -3058,7 +3062,8 @@ def tile_and_correct_wrapper(params):
                                                                        upsample_factor_fft=10, show_movie=False,
                                                                        max_deviation_rigid=max_deviation_rigid,
                                                                        shifts_opencv=shifts_opencv, gSig_filt=gSig_filt,
-                                                                       use_cuda=use_cuda, border_nan=border_nan)
+                                                                       use_cuda=use_cuda, border_nan=border_nan,
+                                                                       interp_shifts_precisely=interp_shifts_precisely)
             shift_info.append([total_shift, start_step, xy_grid])
 
     if out_fname is not None:
@@ -3079,7 +3084,7 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
                                 upsample_factor_grid=4, order='F', dview=None, save_movie=True,
                                 base_name=None, subidx = None, num_splits=None, shifts_opencv=False, nonneg_movie=False, gSig_filt=None,
                                 use_cuda=False, border_nan=True, var_name_hdf5='mov', is3D=False,
-                                indices=(slice(None), slice(None))):
+                                indices=(slice(None), slice(None)), interp_shifts_precisely=False):
     """
 
     """
@@ -3134,7 +3139,7 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
         pars.append([fname, fname_tot, idx, shape_mov, template, strides, overlaps, max_shifts, np.array(
             add_to_movie, dtype=np.float32), max_deviation_rigid, upsample_factor_grid,
             newoverlaps, newstrides, shifts_opencv, nonneg_movie, gSig_filt, is_fiji,
-            use_cuda, border_nan, var_name_hdf5, is3D, indices])
+            use_cuda, border_nan, var_name_hdf5, is3D, indices, interp_shifts_precisely])
 
     if dview is not None:
         logger.info('** Starting parallel motion correction **')

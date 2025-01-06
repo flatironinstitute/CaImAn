@@ -558,6 +558,9 @@ class CNMFParams(object):
             gSig_filt: int or None, default: None
                 size of kernel for high pass spatial filtering in 1p data. If None no spatial filtering is performed
 
+            interp_shifts_precisely: bool, default: False
+                use patch locations to interpolate shifts rather than just upscaling to size of image (for pw_rigid only)
+
             is3D: bool, default: False
                 flag for 3D recordings for motion correction
 
@@ -858,6 +861,7 @@ class CNMFParams(object):
         self.motion = {
             'border_nan': 'copy',               # flag for allowing NaN in the boundaries
             'gSig_filt': None,                  # size of kernel for high pass spatial filtering in 1p data
+            'interp_shifts_precisely': False,   # interpolate shifts based on patch locations instead of reizing
             'is3D': False,                      # flag for 3D recordings for motion correction
             'max_deviation_rigid': 3,           # maximum deviation between rigid and non-rigid
             'max_shifts': (6, 6),               # maximum shifts per dimension (in pixels)
