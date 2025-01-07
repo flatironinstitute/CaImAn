@@ -78,7 +78,7 @@ class MotionCorrect(object):
                  strides=(96, 96), overlaps=(32, 32), splits_els=14, num_splits_to_process_els=None,
                  upsample_factor_grid=4, max_deviation_rigid=3, shifts_opencv=True, nonneg_movie=True, gSig_filt=None,
                  use_cuda=False, border_nan=True, pw_rigid=False, num_frames_split=80, var_name_hdf5='mov', is3D=False,
-                 indices=(slice(None), slice(None)), interp_shifts_precisely=False):
+                 indices=(slice(None), slice(None)), shifts_interpolate=False):
         """
         Constructor class for motion correction operations
 
@@ -156,6 +156,9 @@ class MotionCorrect(object):
 
            indices: tuple(slice), default: (slice(None), slice(None))
                Use that to apply motion correction only on a part of the FOV
+            
+           shifts_interpolate: bool, default: False
+               use patch locations to interpolate shifts rather than just upscaling to size of image (for pw_rigid only)
 
        Returns:
            self
@@ -197,7 +200,7 @@ class MotionCorrect(object):
         self.var_name_hdf5 = var_name_hdf5
         self.is3D = bool(is3D)
         self.indices = indices
-        self.interp_shifts_precisely = interp_shifts_precisely
+        self.shifts_interpolate = shifts_interpolate
         if self.use_cuda:
             logger.warn("cuda is no longer supported; this kwarg will be removed in a future version of caiman")
 
@@ -302,7 +305,7 @@ class MotionCorrect(object):
                 var_name_hdf5=self.var_name_hdf5,
                 is3D=self.is3D,
                 indices=self.indices,
-                interp_shifts_precisely=self.interp_shifts_precisely)
+                shifts_interpolate=self.shifts_interpolate)
             if template is None:
                 self.total_template_rig = _total_template_rig
 
@@ -363,7 +366,7 @@ class MotionCorrect(object):
                     num_splits_to_process=None, num_iter=num_iter, template=self.total_template_els,
                     shifts_opencv=self.shifts_opencv, save_movie=save_movie, nonneg_movie=self.nonneg_movie, gSig_filt=self.gSig_filt,
                     use_cuda=self.use_cuda, border_nan=self.border_nan, var_name_hdf5=self.var_name_hdf5, is3D=self.is3D,
-                    indices=self.indices, interp_shifts_precisely=self.interp_shifts_precisely)
+                    indices=self.indices, shifts_interpolate=self.shifts_interpolate)
             if not self.is3D:
                 if show_template:
                     plt.imshow(new_template_els)
@@ -452,7 +455,7 @@ class MotionCorrect(object):
                 m_reg = [
                     apply_pw_shifts_remap_3d(img, shifts_y=-x_shifts, shifts_x=-y_shifts, shifts_z=-z_shifts,
                                              patch_centers=patch_centers, border_nan=self.border_nan,
-                                             interp_shifts_precisely=self.interp_shifts_precisely)
+                                             shifts_interpolate=self.shifts_interpolate)
                     for img, x_shifts, y_shifts, z_shifts in zip(Y, self.x_shifts_els, self.y_shifts_els, self.z_shifts_els)
                 ]
 
@@ -460,7 +463,7 @@ class MotionCorrect(object):
                 # x_shifts_els and y_shifts_els are switched intentionally
                 m_reg = [
                     apply_pw_shifts_remap_2d(img, shifts_y=-x_shifts, shifts_x=-y_shifts, patch_centers=patch_centers,
-                                             border_nan=self.border_nan, interp_shifts_precisely=self.interp_shifts_precisely)
+                                             border_nan=self.border_nan, shifts_interpolate=self.shifts_interpolate)
                     for img, x_shifts, y_shifts in zip(Y, self.x_shifts_els, self.y_shifts_els)
                 ]
 
@@ -1980,7 +1983,7 @@ def high_pass_filter_space(img_orig, gSig_filt=None, freq=None, order=None):
 
 def tile_and_correct(img, template, strides, overlaps, max_shifts, newoverlaps=None, newstrides=None, upsample_factor_grid=4,
                      upsample_factor_fft=10, show_movie=False, max_deviation_rigid=2, add_to_movie=0, shifts_opencv=False, gSig_filt=None,
-                     use_cuda=False, border_nan=True, interp_shifts_precisely=False):
+                     use_cuda=False, border_nan=True, shifts_interpolate=False):
     """ perform piecewise rigid motion correction iteration, by
         1) dividing the FOV in patches
         2) motion correcting each patch separately
@@ -2036,7 +2039,7 @@ def tile_and_correct(img, template, strides, overlaps, max_shifts, newoverlaps=N
         border_nan : bool or string, optional
             specifies how to deal with borders. (True, False, 'copy', 'min')
         
-        interp_shifts_precisely: bool
+        shifts_interpolate: bool
             use patch locations to interpolate shifts rather than just upscaling to size of image. Default: False
 
     Returns:
@@ -2122,7 +2125,7 @@ def tile_and_correct(img, template, strides, overlaps, max_shifts, newoverlaps=N
             # shift_img_x and shift_img_y are switched intentionally
             m_reg = apply_pw_shifts_remap_2d(img, shifts_y=shift_img_x, shifts_x=shift_img_y,
                                              patch_centers=patch_centers, border_nan=border_nan,
-                                             interp_shifts_precisely=interp_shifts_precisely)
+                                             shifts_interpolate=shifts_interpolate)
             total_shifts = [
                     (-x, -y) for x, y in zip(shift_img_x.reshape(num_tiles), shift_img_y.reshape(num_tiles))]
             return m_reg - add_to_movie, total_shifts, None, None
@@ -2148,7 +2151,7 @@ def tile_and_correct(img, template, strides, overlaps, max_shifts, newoverlaps=N
         dim_new_grid = tuple(np.add(xy_grid[-1], 1))
         num_tiles = len(xy_grid)
 
-        if interp_shifts_precisely:
+        if shifts_interpolate:
             patch_centers_orig = get_patch_centers(img.shape, strides=strides, overlaps=overlaps)
             patch_centers_new = get_patch_centers(img.shape, strides=newstrides, overlaps=newoverlaps)
             shift_img_x = interpolate_shifts(shift_img_x, patch_centers_orig, patch_centers_new)
@@ -2238,7 +2241,7 @@ def tile_and_correct(img, template, strides, overlaps, max_shifts, newoverlaps=N
 
 def tile_and_correct_3d(img:np.ndarray, template:np.ndarray, strides:tuple, overlaps:tuple, max_shifts:tuple, newoverlaps:Optional[tuple]=None, newstrides:Optional[tuple]=None, upsample_factor_grid:int=4,
                      upsample_factor_fft:int=10, show_movie:bool=False, max_deviation_rigid:int=2, add_to_movie:int=0, shifts_opencv:bool=True, gSig_filt=None,
-                     use_cuda:bool=False, border_nan:bool=True, interp_shifts_precisely:bool=False):
+                     use_cuda:bool=False, border_nan:bool=True, shifts_interpolate:bool=False):
     """ perform piecewise rigid motion correction iteration, by
         1) dividing the FOV in patches
         2) motion correcting each patch separately
@@ -2293,7 +2296,7 @@ def tile_and_correct_3d(img:np.ndarray, template:np.ndarray, strides:tuple, over
         border_nan : bool or string, optional
             specifies how to deal with borders. (True, False, 'copy', 'min')
         
-        interp_shifts_precisely: bool
+        shifts_interpolate: bool
             use patch locations to interpolate shifts rather than just upscaling to size of image. Default: False
 
     Returns:
@@ -2371,7 +2374,7 @@ def tile_and_correct_3d(img:np.ndarray, template:np.ndarray, strides:tuple, over
             m_reg = apply_pw_shifts_remap_3d(
                 img, shifts_y=shift_img_x, shifts_x=shift_img_y, shifts_z=shift_img_z,
                 patch_centers=patch_centers, border_nan=border_nan,
-                interp_shifts_precisely=interp_shifts_precisely)
+                shifts_interpolate=shifts_interpolate)
 
             total_shifts = [
                     (-x, -y, -z) for x, y, z in zip(shift_img_x.reshape(num_tiles), shift_img_y.reshape(num_tiles), shift_img_z.reshape(num_tiles))]
@@ -2399,7 +2402,7 @@ def tile_and_correct_3d(img:np.ndarray, template:np.ndarray, strides:tuple, over
         dim_new_grid = tuple(np.add(xyz_grid[-1], 1))
         num_tiles = len(xyz_grid)
 
-        if interp_shifts_precisely:
+        if shifts_interpolate:
             patch_centers_orig = get_patch_centers(img.shape, strides=strides, overlaps=overlaps)
             patch_centers_new = get_patch_centers(img.shape, strides=newstrides, overlaps=newoverlaps)
             shift_img_x = interpolate_shifts(shift_img_x, patch_centers_orig, patch_centers_new)
@@ -2500,7 +2503,7 @@ def tile_and_correct_3d(img:np.ndarray, template:np.ndarray, strides:tuple, over
     
 def apply_pw_shifts_remap_2d(img: np.ndarray, shifts_y: np.ndarray, shifts_x: np.ndarray,
                              patch_centers: tuple[list[float], ...], border_nan: Union[bool, Literal['copy', 'min']],
-                             interp_shifts_precisely=False) -> np.ndarray:
+                             shifts_interpolate=False) -> np.ndarray:
     """
     Use OpenCV remap to apply 2D piecewise shifts
     Inputs:
@@ -2509,7 +2512,7 @@ def apply_pw_shifts_remap_2d(img: np.ndarray, shifts_y: np.ndarray, shifts_x: np
         shifts_x: array of x shifts for each patch (C order)
         patch_centers: tuple of patch locations in each dimension.
         border_nan: how to deal with borders when remapping
-        interp_shifts_precisely: if true, uses interpn to upsample shifts based on patch centers instead of resize
+        shifts_interpolate: if true, uses interpn to upsample shifts based on patch centers instead of resize
     Outputs:
         img_remapped: the remapped image
     """
@@ -2524,7 +2527,7 @@ def apply_pw_shifts_remap_2d(img: np.ndarray, shifts_y: np.ndarray, shifts_x: np
     x_grid, y_grid = np.meshgrid(x_coords, y_coords)
 
     # up-sample shifts
-    if interp_shifts_precisely:
+    if shifts_interpolate:
         shifts_y = interpolate_shifts(shift_img_y, patch_centers, (y_coords, x_coords)).astype(np.float32)
         shifts_x = interpolate_shifts(shift_img_x, patch_centers, (y_coords, x_coords)).astype(np.float32)
     else:
@@ -2552,7 +2555,7 @@ def apply_pw_shifts_remap_2d(img: np.ndarray, shifts_y: np.ndarray, shifts_x: np
 
 def apply_pw_shifts_remap_3d(img: np.ndarray, shifts_y: np.ndarray, shifts_x: np.ndarray, shifts_z: np.ndarray,
                              patch_centers: tuple[list[float], ...], border_nan: Union[bool, Literal['copy', 'min']],
-                             interp_shifts_precisely=False) -> np.ndarray:
+                             shifts_interpolate=False) -> np.ndarray:
     """
     Use skimage warp to apply 3D piecewise shifts
     Inputs:
@@ -2562,7 +2565,7 @@ def apply_pw_shifts_remap_3d(img: np.ndarray, shifts_y: np.ndarray, shifts_x: np
         shifts_z: array of z shifts for each patch (C order)
         patch_centers: tuple of patch locations in each dimension.
         border_nan: how to deal with borders when remapping
-        interp_shifts_precisely: if true, uses interpn to upsample shifts based on patch centers instead of resize
+        shifts_interpolate: if true, uses interpn to upsample shifts based on patch centers instead of resize
     Outputs:
         img_remapped: the remapped image
     """
@@ -2578,7 +2581,7 @@ def apply_pw_shifts_remap_3d(img: np.ndarray, shifts_y: np.ndarray, shifts_x: np
     x_grid, y_grid, z_grid = np.meshgrid(x_coords, y_coords, z_coords)
 
     # up-sample shifts
-    if interp_shifts_precisely:
+    if shifts_interpolate:
         coords_new = (y_coords, x_coords, z_coords)
         shifts_y = interpolate_shifts(shift_img_y, patch_centers, coords_new).astype(np.float32)
         shifts_x = interpolate_shifts(shift_img_x, patch_centers, coords_new).astype(np.float32)
@@ -2751,7 +2754,7 @@ def motion_correct_batch_rigid(fname, max_shifts, dview=None, splits=56, num_spl
                                template=None, shifts_opencv=False, save_movie_rigid=False, add_to_movie=None,
                                nonneg_movie=False, gSig_filt=None, subidx=slice(None, None, 1), use_cuda=False,
                                border_nan=True, var_name_hdf5='mov', is3D=False, indices=(slice(None), slice(None)),
-                               interp_shifts_precisely=False):
+                               shifts_interpolate=False):
     """
     Function that perform memory efficient hyper parallelized rigid motion corrections while also saving a memory mappable file
 
@@ -2871,7 +2874,7 @@ def motion_correct_batch_rigid(fname, max_shifts, dview=None, splits=56, num_spl
                                                              dview=dview, save_movie=save_movie, base_name=base_name, subidx = subidx,
                                                              num_splits=num_splits_to_process, shifts_opencv=shifts_opencv, nonneg_movie=nonneg_movie, gSig_filt=gSig_filt,
                                                              use_cuda=use_cuda, border_nan=border_nan, var_name_hdf5=var_name_hdf5, is3D=is3D,
-                                                             indices=indices, interp_shifts_precisely=interp_shifts_precisely)
+                                                             indices=indices, shifts_interpolate=shifts_interpolate)
         if is3D:
             new_templ = np.nanmedian(np.stack([r[-1] for r in res_rig]), 0)           
         else:
@@ -2894,7 +2897,7 @@ def motion_correct_batch_pwrigid(fname, max_shifts, strides, overlaps, add_to_mo
                                  splits=56, num_splits_to_process=None, num_iter=1,
                                  template=None, shifts_opencv=False, save_movie=False, nonneg_movie=False, gSig_filt=None,
                                  use_cuda=False, border_nan=True, var_name_hdf5='mov', is3D=False,
-                                 indices=(slice(None), slice(None)), interp_shifts_precisely=False):
+                                 indices=(slice(None), slice(None)), shifts_interpolate=False):
     """
     Function that perform memory efficient hyper parallelized rigid motion corrections while also saving a memory mappable file
 
@@ -2999,7 +3002,7 @@ def motion_correct_batch_pwrigid(fname, max_shifts, strides, overlaps, add_to_mo
                                                             base_name=base_name, num_splits=num_splits_to_process,
                                                             shifts_opencv=shifts_opencv, nonneg_movie=nonneg_movie, gSig_filt=gSig_filt,
                                                             use_cuda=use_cuda, border_nan=border_nan, var_name_hdf5=var_name_hdf5, is3D=is3D,
-                                                            indices=indices, interp_shifts_precisely=interp_shifts_precisely)
+                                                            indices=indices, shifts_interpolate=shifts_interpolate)
         if is3D:
             new_templ = np.nanmedian(np.stack([r[-1] for r in res_el]), 0)
         else:
@@ -3054,7 +3057,7 @@ def tile_and_correct_wrapper(params):
     img_name, out_fname, idxs, shape_mov, template, strides, overlaps, max_shifts,\
         add_to_movie, max_deviation_rigid, upsample_factor_grid, newoverlaps, newstrides, \
         shifts_opencv, nonneg_movie, gSig_filt, is_fiji, use_cuda, border_nan, var_name_hdf5, \
-        is3D, indices, interp_shifts_precisely = params
+        is3D, indices, shifts_interpolate = params
 
 
     if isinstance(img_name, tuple):
@@ -3081,7 +3084,7 @@ def tile_and_correct_wrapper(params):
                                                                        max_deviation_rigid=max_deviation_rigid,
                                                                        shifts_opencv=shifts_opencv, gSig_filt=gSig_filt,
                                                                        use_cuda=use_cuda, border_nan=border_nan,
-                                                                       interp_shifts_precisely=interp_shifts_precisely)
+                                                                       shifts_interpolate=shifts_interpolate)
             shift_info.append([total_shift, start_step, xyz_grid])
             
         else:
@@ -3093,7 +3096,7 @@ def tile_and_correct_wrapper(params):
                                                                        max_deviation_rigid=max_deviation_rigid,
                                                                        shifts_opencv=shifts_opencv, gSig_filt=gSig_filt,
                                                                        use_cuda=use_cuda, border_nan=border_nan,
-                                                                       interp_shifts_precisely=interp_shifts_precisely)
+                                                                       shifts_interpolate=shifts_interpolate)
             shift_info.append([total_shift, start_step, xy_grid])
 
     if out_fname is not None:
@@ -3114,7 +3117,7 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
                                 upsample_factor_grid=4, order='F', dview=None, save_movie=True,
                                 base_name=None, subidx = None, num_splits=None, shifts_opencv=False, nonneg_movie=False, gSig_filt=None,
                                 use_cuda=False, border_nan=True, var_name_hdf5='mov', is3D=False,
-                                indices=(slice(None), slice(None)), interp_shifts_precisely=False):
+                                indices=(slice(None), slice(None)), shifts_interpolate=False):
     """
 
     """
@@ -3169,7 +3172,7 @@ def motion_correction_piecewise(fname, splits, strides, overlaps, add_to_movie=0
         pars.append([fname, fname_tot, idx, shape_mov, template, strides, overlaps, max_shifts, np.array(
             add_to_movie, dtype=np.float32), max_deviation_rigid, upsample_factor_grid,
             newoverlaps, newstrides, shifts_opencv, nonneg_movie, gSig_filt, is_fiji,
-            use_cuda, border_nan, var_name_hdf5, is3D, indices, interp_shifts_precisely])
+            use_cuda, border_nan, var_name_hdf5, is3D, indices, shifts_interpolate])
 
     if dview is not None:
         logger.info('** Starting parallel motion correction **')

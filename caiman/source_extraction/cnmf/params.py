@@ -558,9 +558,6 @@ class CNMFParams(object):
             gSig_filt: int or None, default: None
                 size of kernel for high pass spatial filtering in 1p data. If None no spatial filtering is performed
 
-            interp_shifts_precisely: bool, default: False
-                use patch locations to interpolate shifts rather than just upscaling to size of image (for pw_rigid only)
-
             is3D: bool, default: False
                 flag for 3D recordings for motion correction
 
@@ -590,6 +587,9 @@ class CNMFParams(object):
 
             pw_rigid: bool, default: False
                 flag for performing pw-rigid motion correction.
+
+            shifts_interpolate: bool, default: False
+                use patch locations to interpolate shifts rather than just upscaling to size of image (for pw_rigid only)
 
             shifts_opencv: bool, default: True
                 flag for applying shifts using cubic interpolation (otherwise FFT)
@@ -861,7 +861,6 @@ class CNMFParams(object):
         self.motion = {
             'border_nan': 'copy',               # flag for allowing NaN in the boundaries
             'gSig_filt': None,                  # size of kernel for high pass spatial filtering in 1p data
-            'interp_shifts_precisely': False,   # interpolate shifts based on patch locations instead of reizing
             'is3D': False,                      # flag for 3D recordings for motion correction
             'max_deviation_rigid': 3,           # maximum deviation between rigid and non-rigid
             'max_shifts': (6, 6),               # maximum shifts per dimension (in pixels)
@@ -873,6 +872,7 @@ class CNMFParams(object):
             'num_splits_to_process_rig': None,  # DO NOT MODIFY
             'overlaps': (32, 32),               # overlap between patches in pw-rigid motion correction
             'pw_rigid': False,                  # flag for performing pw-rigid motion correction
+            'shifts_interpolate': False,        # interpolate shifts based on patch locations instead of resizing
             'shifts_opencv': True,              # flag for applying shifts using cubic interpolation (otherwise FFT)
             'splits_els': 14,                   # number of splits across time for pw-rigid registration
             'splits_rig': 14,                   # number of splits across time for rigid registration

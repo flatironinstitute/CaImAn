@@ -430,12 +430,12 @@ def register_ROIs(A1,
                 "max_shifts": (10, 10),
                 "shifts_opencv": True,
                 "upsample_factor_grid": 4,
-                "interp_shifts_precisely": True,
+                "shifts_interpolate": True,
                 "max_deviation_rigid": 2
                 # any other argument to tile_and_correct can also be used in align_options
             }
 
-            if align_options is not None:
+            if align_options:
                 # override defaults with input options
                 align_defaults.update(align_options)
             align_options = align_defaults
