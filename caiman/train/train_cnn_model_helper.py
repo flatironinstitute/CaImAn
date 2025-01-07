@@ -1,6 +1,10 @@
 import numpy as np
 import os
 import keras 
+from keras.layers import Input, Conv2D, Activation, MaxPooling2D, Dropout, Flatten, Dense 
+from keras.models import save_model, load_model 
+from sklearn.model_selection import train_test_split
+from sklearn.utils import class_weight as cw
 import torch 
 import torch.nn as nn 
 import torch.nn.functional as F
@@ -8,6 +12,9 @@ from torch.utils.data import Dataset, random_split
 
 import caiman as cm
 from caiman.paths import caiman_datadir
+from caiman.utils.image_preprocessing_keras import ImageDataGenerator
+
+os.environ["KERAS_BACKEND"] = "torch"
 
 class cnn_model_pytorch(torch.nn.Module): 
     def __init__(self, in_channels, num_classes):
@@ -61,7 +68,6 @@ def get_batch_accuracy(output, y, N):
     return correct / N
 
 def train(model, train_loader, loss_function, optimizer, train_N, augment):
-
     loss = 0
     accuracy = 0
 
@@ -78,7 +84,6 @@ def train(model, train_loader, loss_function, optimizer, train_N, augment):
     print('Train - Loss: {:.4f} Accuracy: {:.4f}'.format(loss, accuracy))
 
 def validate(model, valid_loader, loss_function, optimizer, valid_N, augment):
-
     loss = 0
     accuracy = 0
 
@@ -91,22 +96,37 @@ def validate(model, valid_loader, loss_function, optimizer, valid_N, augment):
             accuracy += get_batch_accuracy(output, y, valid_N)
     print('Valid - Loss: {:.4f} Accuracy: {:.4f}'.format(loss, accuracy))
 
-if __name__ == "__main__": 
-    batch_size = 128
-    num_classes = 2
-    epochs = 5000
-    test_fraction = 0.25
-    augmentation = True
-    img_rows, img_cols = 50, 50 # input image dimensions
+def cnn_model_keras(input_shape, num_classes): 
+    sequential_model = keras.Sequential([   
+        Input(shape=input_shape, dtype="float32"), 
+        Conv2D(filters=32, kernel_size=(3,3), strides=(1, 1), 
+        activation="relu"), 
+        Conv2D(filters=32, kernel_size=(3,3), strides=(1, 1), 
+        activation="relu"), 
+        MaxPooling2D(pool_size=(2, 2)), 
+        Dropout(rate=0.25),
+        Conv2D(filters=64, kernel_size=(3,3), strides=(1, 1), 
+        padding="same", activation="relu"),
+        Conv2D(filters=64, kernel_size=(3,3), strides=(1, 1), 
+        activation="relu"),  
+        MaxPooling2D(pool_size=(2, 2)), 
+        Dropout(rate=0.25),
+        Flatten(),
+        Dense(units=512, activation="relu"),
+        Dropout(rate=0.5),
+        Dense(units=num_classes, activation="relu"),
+    ])
+    return sequential_model 
 
-    with np.load('/mnt/ceph/data/neuro/caiman/data_minions/ground_truth_components_curated_minions.npz') as ld:
-        all_masks_gt = ld['all_masks_gt']
-        labels_gt = ld['labels_gt_cur']
-    
-    in_channels = 1
-    cnn_model = pytorch_cnn_model(in_channels, num_classes)
+def save_model_keras(model, name: str):
+    model_name = os.path.join(caiman_datadir(), 'model', name)
+    model_path = model_name + ".keras"
+    model.save(model_path)
+    print('Saved trained model at %s ' % model_path)
+    return model_path 
 
-    # model_path = save_model_pytorch(cnn_model) 
-    # loaded_model = load_model_pytorch(model_path)
-    # print(loaded_model)
+def load_model_keras(model_path: str):
+    loaded_model = load_model(model_path)
+    print('Load trained model at %s ' % model_path)
+    return loaded_model  
 
