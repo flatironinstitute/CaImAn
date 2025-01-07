@@ -47,12 +47,11 @@ from numpy.fft import ifftshift
 import os
 import scipy
 import scipy.interpolate
-from skimage.transform import resize as resize_sk
-from skimage.transform import warp as warp_sk
+from skimage.transform import resize as resize_sk, rescale as rescale_sk, warp as warp_sk
 import sys
 import tifffile
 from tqdm import tqdm
-from typing import Optional, Sequence
+from typing import Optional, Literal, Union
 
 import caiman
 import caiman.base.movies
@@ -255,7 +254,7 @@ class MotionCorrect(object):
         self.mmap_file = self.fname_tot_els if self.pw_rigid else self.fname_tot_rig
         return self
 
-    def motion_correct_rigid(self, template=None, save_movie=False) -> None:
+    def motion_correct_rigid(self, template: Optional[np.ndarray] = None, save_movie=False) -> None:
         """
         Perform rigid motion correction
 
@@ -311,7 +310,7 @@ class MotionCorrect(object):
             self.fname_tot_rig += [_fname_tot_rig]
             self.shifts_rig += _shifts_rig
 
-    def motion_correct_pwrigid(self, save_movie:bool=True, template:np.ndarray=None, show_template:bool=False) -> None:
+    def motion_correct_pwrigid(self, save_movie:bool=True, template: Optional[np.ndarray] = None, show_template:bool=False) -> None:
         """Perform pw-rigid motion correction
 
         Args:
@@ -384,8 +383,8 @@ class MotionCorrect(object):
                 self.z_shifts_els += _z_shifts_els
             self.coord_shifts_els += _coord_shifts_els
 
-    def apply_shifts_movie(self, fname, rigid_shifts:bool=None, save_memmap:bool=False,
-                           save_base_name:str='MC', order:str='F', remove_min:bool=True):
+    def apply_shifts_movie(self, fname, rigid_shifts: Optional[bool] = None, save_memmap:bool=False,
+                           save_base_name:str='MC', order: Literal['C', 'F'] = 'F', remove_min:bool=True):
         """
         Applies shifts found by registering one file to a different file. Useful
         for cases when shifts computed from a structural channel are applied to a
@@ -444,81 +443,27 @@ class MotionCorrect(object):
                     sh[0], sh[1]), 0, is_freq=False, border_nan=self.border_nan) for img, sh in zip(
                     Y, self.shifts_rig)]
         else:
+            # take potential upsampling into account when recreating patch grid
+            dims = Y.shape[1:]
+            patch_centers = get_patch_centers(dims, overlaps=self.overlaps, strides=self.strides,
+                                              shifts_opencv=self.shifts_opencv, upsample_factor_grid=self.upsample_factor_grid)
             if self.is3D:
-                xyz_grid = [(it[0], it[1], it[2]) for it in sliding_window_3d(
-                            Y[0], self.overlaps, self.strides)]
-                dims_grid = tuple(np.add(xyz_grid[-1], 1))
-                shifts_x = np.stack([np.reshape(_sh_, dims_grid, order='C').astype(
-                    np.float32) for _sh_ in self.x_shifts_els], axis=0)
-                shifts_y = np.stack([np.reshape(_sh_, dims_grid, order='C').astype(
-                    np.float32) for _sh_ in self.y_shifts_els], axis=0)
-                shifts_z = np.stack([np.reshape(_sh_, dims_grid, order='C').astype(
-                    np.float32) for _sh_ in self.z_shifts_els], axis=0)
-                dims = Y.shape[1:]
-                x_grid, y_grid, z_grid = np.meshgrid(np.arange(0., dims[1]).astype(
-                    np.float32), np.arange(0., dims[0]).astype(np.float32),
-                    np.arange(0., dims[2]).astype(np.float32))
-                if self.border_nan is not False:
-                    if self.border_nan is True:
-                        m_reg = [warp_sk(img, np.stack((resize_sk(shiftX.astype(np.float32), dims) + y_grid,
-                                                        resize_sk(shiftY.astype(np.float32), dims) + x_grid,
-                                                        resize_sk(shiftZ.astype(np.float32), dims) + z_grid), axis=0),
-                                         order=3, mode='constant', cval=np.nan)
-                                 for img, shiftX, shiftY, shiftZ in zip(Y, shifts_x, shifts_y, shifts_z)]
-                    elif self.border_nan == 'min':
-                        m_reg = [warp_sk(img, np.stack((resize_sk(shiftX.astype(np.float32), dims) + y_grid,
-                                                        resize_sk(shiftY.astype(np.float32), dims) + x_grid,
-                                                        resize_sk(shiftZ.astype(np.float32), dims) + z_grid), axis=0),
-                                         order=3, mode='constant', cval=np.min(img))
-                                 for img, shiftX, shiftY, shiftZ in zip(Y, shifts_x, shifts_y, shifts_z)]
-                    elif self.border_nan == 'copy':
-                        m_reg = [warp_sk(img, np.stack((resize_sk(shiftX.astype(np.float32), dims) + y_grid,
-                                                        resize_sk(shiftY.astype(np.float32), dims) + x_grid,
-                                                        resize_sk(shiftZ.astype(np.float32), dims) + z_grid), axis=0),
-                                         order=3, mode='edge')
-                                 for img, shiftX, shiftY, shiftZ in zip(Y, shifts_x, shifts_y, shifts_z)]
-                else:
-                    m_reg = [warp_sk(img, np.stack((resize_sk(shiftX.astype(np.float32), dims) + y_grid,
-                                     resize_sk(shiftY.astype(np.float32), dims) + x_grid,
-                                     resize_sk(shiftZ.astype(np.float32), dims) + z_grid), axis=0),
-                                     order=3, mode='constant')
-                             for img, shiftX, shiftY, shiftZ in zip(Y, shifts_x, shifts_y, shifts_z)]
-            else:
-                xy_grid = [(it[0], it[1]) for it in sliding_window(Y[0], self.overlaps, self.strides)]
-                dims_grid = tuple(np.max(np.stack(xy_grid, axis=1), axis=1) - np.min(
-                    np.stack(xy_grid, axis=1), axis=1) + 1)
-                shifts_x = np.stack([np.reshape(_sh_, dims_grid, order='C').astype(
-                    np.float32) for _sh_ in self.x_shifts_els], axis=0)
-                shifts_y = np.stack([np.reshape(_sh_, dims_grid, order='C').astype(
-                    np.float32) for _sh_ in self.y_shifts_els], axis=0)
-                dims = Y.shape[1:]
-                x_grid, y_grid = np.meshgrid(np.arange(0., dims[1]).astype(
-                    np.float32), np.arange(0., dims[0]).astype(np.float32))
-                if self.border_nan is not False:
-                    if self.border_nan is True:
-                        m_reg = [cv2.remap(img, -cv2.resize(shiftY, dims[::-1]) + x_grid,
-                                           -cv2.resize(shiftX, dims[::-1]) + y_grid,
-                                           cv2.INTER_CUBIC, borderMode=cv2.BORDER_CONSTANT,
-                                           borderValue=np.nan)
-                                 for img, shiftX, shiftY in zip(Y, shifts_x, shifts_y)]
+                # x_shifts_els and y_shifts_els are switched intentionally
+                m_reg = [
+                    apply_pw_shifts_remap_3d(img, shifts_y=-x_shifts, shifts_x=-y_shifts, shifts_z=-z_shifts,
+                                             patch_centers=patch_centers, border_nan=self.border_nan,
+                                             interp_shifts_precisely=self.interp_shifts_precisely)
+                    for img, x_shifts, y_shifts, z_shifts in zip(Y, self.x_shifts_els, self.y_shifts_els, self.z_shifts_els)
+                ]
 
-                    elif self.border_nan == 'min':
-                        m_reg = [cv2.remap(img, -cv2.resize(shiftY, dims[::-1]) + x_grid,
-                                           -cv2.resize(shiftX, dims[::-1]) + y_grid,
-                                           cv2.INTER_CUBIC, borderMode=cv2.BORDER_CONSTANT,
-                                           borderValue=np.min(img))
-                                 for img, shiftX, shiftY in zip(Y, shifts_x, shifts_y)]
-                    elif self.border_nan == 'copy':
-                        m_reg = [cv2.remap(img, -cv2.resize(shiftY, dims[::-1]) + x_grid,
-                                           -cv2.resize(shiftX, dims[::-1]) + y_grid,
-                                           cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
-                                 for img, shiftX, shiftY in zip(Y, shifts_x, shifts_y)]
-                else:
-                    m_reg = [cv2.remap(img, -cv2.resize(shiftY, dims[::-1]) + x_grid,
-                                       -cv2.resize(shiftX, dims[::-1]) + y_grid,
-                                       cv2.INTER_CUBIC, borderMode=cv2.BORDER_CONSTANT,
-                                       borderValue=0.0)
-                             for img, shiftX, shiftY in zip(Y, shifts_x, shifts_y)]
+            else:
+                # x_shifts_els and y_shifts_els are switched intentionally
+                m_reg = [
+                    apply_pw_shifts_remap_2d(img, shifts_y=-x_shifts, shifts_x=-y_shifts, patch_centers=patch_centers,
+                                             border_nan=self.border_nan, interp_shifts_precisely=self.interp_shifts_precisely)
+                    for img, x_shifts, y_shifts in zip(Y, self.x_shifts_els, self.y_shifts_els)
+                ]
+
         del Y
         m_reg = np.stack(m_reg, axis=0)
         if save_memmap:
@@ -533,12 +478,12 @@ class MotionCorrect(object):
         else:
             return caiman.movie(m_reg)
 
-def apply_shift_iteration(img, shift, border_nan:bool=False, border_type=cv2.BORDER_REFLECT):
+def apply_shift_iteration(img, shift, border_nan=False, border_type=cv2.BORDER_REFLECT):
     # todo todocument
 
     sh_x_n, sh_y_n = shift
     w_i, h_i = img.shape
-    M = np.float32([[1, 0, sh_y_n], [0, 1, sh_x_n]])
+    M = np.array([[1, 0, sh_y_n], [0, 1, sh_x_n]], dtype=np.float32)
     min_, max_ = np.nanmin(img), np.nanmax(img)
     img = np.clip(cv2.warpAffine(img, M, (h_i, w_i),
                                  flags=cv2.INTER_CUBIC, borderMode=border_type), min_, max_)
@@ -571,10 +516,12 @@ def apply_shift_iteration(img, shift, border_nan:bool=False, border_type=cv2.BOR
                 img[:, :max_w] = img[:, max_w, np.newaxis]
             if min_w < 0:
                 img[:, min_w:] = img[:, min_w-1, np.newaxis]
+        else:
+            logging.warning(f'Unknown value of border_nan ({border_nan}); treating as False')
 
     return img
 
-def apply_shift_online(movie_iterable, xy_shifts, save_base_name=None, order='F'):
+def apply_shift_online(movie_iterable, xy_shifts, save_base_name=None, order: Literal['C', 'F'] = 'F'):
     """
     Applies rigid shifts to a loaded movie. Useful when processing a dataset
     with CaImAn online and you want to obtain the registered movie after
@@ -780,7 +727,7 @@ def motion_correct_online_multifile(list_files, add_to_movie, order='C', **kwarg
 
     return all_names, all_shifts, all_xcorrs, all_templates
 
-def motion_correct_online(movie_iterable, add_to_movie, max_shift_w=25, max_shift_h=25, save_base_name=None, order='C',
+def motion_correct_online(movie_iterable, add_to_movie, max_shift_w=25, max_shift_h=25, save_base_name=None, order: Literal['F', 'C']='C',
                           init_frames_template=100, show_movie=False, bilateral_blur=False, template=None, min_count=1000,
                           border_to_0=0, n_iter=1, remove_blanks=False, show_template=False, return_mov=False,
                           use_median_as_template=False):
@@ -1413,7 +1360,7 @@ def register_translation_3d(src_image, target_image, upsample_factor = 1,
     del cross_correlation
 
     if (shifts_lb is not None) or (shifts_ub is not None):
-
+        # TODO this will fail if only one is not none - should this be an "and"?
         if (shifts_lb[0] < 0) and (shifts_ub[0] >= 0):
             new_cross_corr[shifts_ub[0]:shifts_lb[0], :, :] = 0
         else:
@@ -1799,6 +1746,8 @@ def apply_shifts_dft(src_freq, shifts, diffphase, is_freq=True, border_nan=True)
                     new_img[:, :, :max_d] = new_img[:, :, max_d, np.newaxis]
                 if min_d < 0:
                     new_img[:, :, min_d:] = new_img[:, :, min_d-1, np.newaxis]
+        else:
+            logging.warning(f'Unknown value of border_nan ({border_nan}); treating as False')
 
     return new_img
 
@@ -2132,24 +2081,23 @@ def tile_and_correct(img, template, strides, overlaps, max_shifts, newoverlaps=N
     else:
         # extract patches
         logger.info("Extracting patches")
-        templates = [
-            it[-1] for it in sliding_window(template, overlaps=overlaps, strides=strides)]
-        xy_grid = [(it[0], it[1]) for it in sliding_window(
-            template, overlaps=overlaps, strides=strides)]
-        num_tiles = np.prod(np.add(xy_grid[-1], 1))
-        imgs = [it[-1]
-                for it in sliding_window(img, overlaps=overlaps, strides=strides)]
+        xy_grid: list[tuple[int, int]] = []
+        templates: list[np.ndarray] = []
+
+        for (xind, yind, _, _, patch) in sliding_window(template, overlaps=overlaps, strides=strides):
+            xy_grid.append((xind, yind))
+            templates.append(patch)
+
+        imgs = [it[-1] for it in sliding_window(img, overlaps=overlaps, strides=strides)]
         dim_grid = tuple(np.add(xy_grid[-1], 1))
+        num_tiles = len(xy_grid)
 
         if max_deviation_rigid is not None:
-
             lb_shifts = np.ceil(np.subtract(
                 rigid_shts, max_deviation_rigid)).astype(int)
             ub_shifts = np.floor(
                 np.add(rigid_shts, max_deviation_rigid)).astype(int)
-
         else:
-
             lb_shifts = None
             ub_shifts = None
 
@@ -2170,21 +2118,11 @@ def tile_and_correct(img, template, strides, overlaps, max_shifts, newoverlaps=N
                 img = img_orig
 
             dims = img.shape
-            x_coords, y_coords = [np.arange(0., dims[dim]).astype(np.float32) for dim in (1, 0)]
-            x_grid, y_grid = np.meshgrid(x_coords, y_coords)
-            
-            if interp_shifts_precisely:
-                # get locations of patches
-                patch_centers = get_patch_centers(dims, strides=strides, overlaps=overlaps)
-                # the names of shift_img_x and shift_img_y are switched
-                shifts_x = interpolate_shifts(shift_img_y, patch_centers, (y_coords, x_coords)).astype(np.float32)
-                shifts_y = interpolate_shifts(shift_img_x, patch_centers, (y_coords, x_coords)).astype(np.float32)
-            else:
-                shifts_x = cv2.resize(shift_img_y.astype(np.float32), dims[::-1])
-                shifts_y = cv2.resize(shift_img_x.astype(np.float32), dims[::-1])
-
-            m_reg = cv2.remap(img, shifts_x + x_grid, shifts_y + y_grid,
-                              cv2.INTER_CUBIC, borderMode=cv2.BORDER_REPLICATE)
+            patch_centers = get_patch_centers(dims, strides=strides, overlaps=overlaps)
+            # shift_img_x and shift_img_y are switched intentionally
+            m_reg = apply_pw_shifts_remap_2d(img, shifts_y=shift_img_x, shifts_x=shift_img_y,
+                                             patch_centers=patch_centers, border_nan=border_nan,
+                                             interp_shifts_precisely=interp_shifts_precisely)
             total_shifts = [
                     (-x, -y) for x, y in zip(shift_img_x.reshape(num_tiles), shift_img_y.reshape(num_tiles))]
             return m_reg - add_to_movie, total_shifts, None, None
@@ -2198,17 +2136,17 @@ def tile_and_correct(img, template, strides, overlaps, max_shifts, newoverlaps=N
 
         newshapes = np.add(newstrides, newoverlaps)
 
-        imgs = [it[-1]
-                for it in sliding_window(img, overlaps=newoverlaps, strides=newstrides)]
+        xy_grid: list[tuple[int, int]] = []
+        start_step: list[tuple[int, int]] = []
+        imgs: list[np.ndarray] = []
 
-        xy_grid = [(it[0], it[1]) for it in sliding_window(
-            img, overlaps=newoverlaps, strides=newstrides)]
-
-        start_step = [(it[2], it[3]) for it in sliding_window(
-            img, overlaps=newoverlaps, strides=newstrides)]
+        for (xind, yind, xstart, ystart, patch) in sliding_window(img, overlaps=newoverlaps, strides=newstrides):
+            xy_grid.append((xind, yind))
+            start_step.append((xstart, ystart))
+            imgs.append(patch)
 
         dim_new_grid = tuple(np.add(xy_grid[-1], 1))
-        num_tiles = np.prod(dim_new_grid)
+        num_tiles = len(xy_grid)
 
         if interp_shifts_precisely:
             patch_centers_orig = get_patch_centers(img.shape, strides=strides, overlaps=overlaps)
@@ -2391,14 +2329,16 @@ def tile_and_correct_3d(img:np.ndarray, template:np.ndarray, strides:tuple, over
         return new_img - add_to_movie, (-rigid_shts[0], -rigid_shts[1], -rigid_shts[2]), None, None
     else:
         # extract patches
-        templates = [
-            it[-1] for it in sliding_window_3d(template, overlaps=overlaps, strides=strides)]
-        xyz_grid = [(it[0], it[1], it[2]) for it in sliding_window_3d(
-            template, overlaps=overlaps, strides=strides)]
-        num_tiles = np.prod(np.add(xyz_grid[-1], 1))
-        imgs = [it[-1]
-                for it in sliding_window_3d(img, overlaps=overlaps, strides=strides)]
+        xyz_grid: list[tuple[int, int, int]] = []
+        templates: list[np.ndarray] = []
+
+        for (xind, yind, zind, _, _, _, patch) in sliding_window_3d(template, overlaps=overlaps, strides=strides):
+            xyz_grid.append((xind, yind, zind))
+            templates.append(patch)
+
+        imgs = [it[-1] for it in sliding_window_3d(img, overlaps=overlaps, strides=strides)]
         dim_grid = tuple(np.add(xyz_grid[-1], 1))
+        num_tiles = len(xyz_grid)
 
         if max_deviation_rigid is not None:
             lb_shifts = np.ceil(np.subtract(
@@ -2425,35 +2365,13 @@ def tile_and_correct_3d(img:np.ndarray, template:np.ndarray, strides:tuple, over
         if shifts_opencv:
             if gSig_filt is not None:
                 img = img_orig
-
-            dims = img.shape
-            x_coords, y_coords, z_coords = [np.arange(0., dims[dim]).astype(np.float32) for dim in (1, 0, 2)]
-            x_grid, y_grid, z_grid = np.meshgrid(x_coords, y_coords, z_coords)
-
-            if interp_shifts_precisely:
-                # get locations of patches
-                patch_centers = get_patch_centers(dims, strides=strides, overlaps=overlaps)
-                # the names of shift_img_x and shift_img_y are switched
-                coords_new = (y_coords, x_coords, z_coords)
-                shifts_x = interpolate_shifts(shift_img_y.astype(np.float32), patch_centers, coords_new)
-                shifts_y = interpolate_shifts(shift_img_x.astype(np.float32), patch_centers, coords_new)
-                shifts_z = interpolate_shifts(shift_img_z.astype(np.float32), patch_centers, coords_new)
-            else:
-                shifts_x = resize_sk(shift_img_y.astype(np.float32), dims)
-                shifts_y = resize_sk(shift_img_x.astype(np.float32), dims)
-                shifts_z = resize_sk(shift_img_z.astype(np.float32), dims)
             
-            inverse_map = np.stack((shifts_y + y_grid, shifts_x + x_grid, shifts_z + z_grid), axis=0)
-
-            if border_nan is not False:
-                if border_nan is True:
-                    m_reg = warp_sk(img, inverse_map, order=3, mode='constant', cval=np.nan)
-                elif border_nan == 'min':
-                    m_reg = warp_sk(img, inverse_map, order=3, mode='constant', cval=np.min(img))
-                elif border_nan == 'copy':
-                    m_reg = warp_sk(img, inverse_map, order=3, mode='edge')
-            else:
-                m_reg = warp_sk(img, inverse_map, order=3, mode='constant')
+            patch_centers = get_patch_centers(img.shape, strides=strides, overlaps=overlaps)
+            # shift_img_x and shift_img_y are switched intentionally
+            m_reg = apply_pw_shifts_remap_3d(
+                img, shifts_y=shift_img_x, shifts_x=shift_img_y, shifts_z=shift_img_z,
+                patch_centers=patch_centers, border_nan=border_nan,
+                interp_shifts_precisely=interp_shifts_precisely)
 
             total_shifts = [
                     (-x, -y, -z) for x, y, z in zip(shift_img_x.reshape(num_tiles), shift_img_y.reshape(num_tiles), shift_img_z.reshape(num_tiles))]
@@ -2468,17 +2386,18 @@ def tile_and_correct_3d(img:np.ndarray, template:np.ndarray, strides:tuple, over
 
         newshapes = np.add(newstrides, newoverlaps)
 
-        imgs = [it[-1]
-                for it in sliding_window_3d(img, overlaps=newoverlaps, strides=newstrides)]
+        xyz_grid: list[tuple[int, int, int]] = []
+        start_step: list[tuple[int, int, int]] = []
+        imgs: list[np.ndarray] = []
 
-        xyz_grid = [(it[0], it[1], it[2]) for it in sliding_window_3d(
-            img, overlaps=newoverlaps, strides=newstrides)]
-
-        start_step = [(it[3], it[4], it[5]) for it in sliding_window_3d(
-            img, overlaps=newoverlaps, strides=newstrides)]
+        for (xind, yind, zind, xstart, ystart, zstart, patch) in sliding_window_3d(
+            img, overlaps=newoverlaps, strides=newstrides):
+            xyz_grid.append((xind, yind, zind))
+            start_step.append((xstart, ystart, zstart))
+            imgs.append(patch)
 
         dim_new_grid = tuple(np.add(xyz_grid[-1], 1))
-        num_tiles = np.prod(dim_new_grid)
+        num_tiles = len(xyz_grid)
 
         if interp_shifts_precisely:
             patch_centers_orig = get_patch_centers(img.shape, strides=strides, overlaps=overlaps)
@@ -2567,7 +2486,7 @@ def tile_and_correct_3d(img:np.ndarray, template:np.ndarray, strides:tuple, over
                 sfr_freq, (-rigid_shts[0], -rigid_shts[1], -rigid_shts[2]), diffphase, border_nan=border_nan)
             img_show = np.vstack([new_img, img])
 
-            img_show = resize_sk(img_show, None, fx=1, fy=1, fz=1)
+            img_show = rescale_sk(img_show, 1)  # TODO does this actually do anything??
 
             cv2.imshow('frame', img_show / np.percentile(template, 99))
             cv2.waitKey(int(1. / 500 * 1000))
@@ -2578,6 +2497,117 @@ def tile_and_correct_3d(img:np.ndarray, template:np.ndarray, strides:tuple, over
             except:
                 pass
         return new_img - add_to_movie, total_shifts, start_step, xyz_grid
+    
+def apply_pw_shifts_remap_2d(img: np.ndarray, shifts_y: np.ndarray, shifts_x: np.ndarray,
+                             patch_centers: tuple[list[float], ...], border_nan: Union[bool, Literal['copy', 'min']],
+                             interp_shifts_precisely=False) -> np.ndarray:
+    """
+    Use OpenCV remap to apply 2D piecewise shifts
+    Inputs:
+        img: the 2D image to apply shifts to
+        shifts_y: array of y shifts for each patch (C order) (this is the actual Y i.e. the first dimension of the image)
+        shifts_x: array of x shifts for each patch (C order)
+        patch_centers: tuple of patch locations in each dimension.
+        border_nan: how to deal with borders when remapping
+        interp_shifts_precisely: if true, uses interpn to upsample shifts based on patch centers instead of resize
+    Outputs:
+        img_remapped: the remapped image
+    """
+    # reshape shifts_y and shifts_x based on patch grid
+    patch_grid = tuple(len(centers) for centers in patch_centers)
+    shift_img_y = np.reshape(shifts_y, patch_grid)
+    shift_img_x = np.reshape(shifts_x, patch_grid)
+
+    # get full image shape/coordinates
+    dims = img.shape
+    x_coords, y_coords = [np.arange(0., dims[dim]).astype(np.float32) for dim in (1, 0)]
+    x_grid, y_grid = np.meshgrid(x_coords, y_coords)
+
+    # up-sample shifts
+    if interp_shifts_precisely:
+        shifts_y = interpolate_shifts(shift_img_y, patch_centers, (y_coords, x_coords)).astype(np.float32)
+        shifts_x = interpolate_shifts(shift_img_x, patch_centers, (y_coords, x_coords)).astype(np.float32)
+    else:
+        shifts_y = cv2.resize(shift_img_y.astype(np.float32), dims[::-1])
+        shifts_x = cv2.resize(shift_img_x.astype(np.float32), dims[::-1])
+    
+    # apply to image
+    if border_nan is False:
+        mode = cv2.BORDER_CONSTANT
+        value = 0.0
+    elif border_nan is True:
+        mode = cv2.BORDER_CONSTANT
+        value = np.nan
+    elif border_nan == 'min':
+        mode = cv2.BORDER_CONSTANT
+        value = np.min(img)
+    elif border_nan == 'copy':
+        mode = cv2.BORDER_REPLICATE
+        value = 0.0
+    else:
+        raise ValueError(f'Unknown value of border_nan ({border_nan})')
+    
+    return cv2.remap(img, shifts_x + x_grid, shifts_y + y_grid, cv2.INTER_CUBIC,
+                     borderMode=mode, borderValue=value)
+
+def apply_pw_shifts_remap_3d(img: np.ndarray, shifts_y: np.ndarray, shifts_x: np.ndarray, shifts_z: np.ndarray,
+                             patch_centers: tuple[list[float], ...], border_nan: Union[bool, Literal['copy', 'min']],
+                             interp_shifts_precisely=False) -> np.ndarray:
+    """
+    Use skimage warp to apply 3D piecewise shifts
+    Inputs:
+        img: the 3D image to apply shifts to
+        shifts_y: array of y shifts for each patch (C order) (this is the actual Y i.e. the first dimension of the image)
+        shifts_x: array of x shifts for each patch (C order)
+        shifts_z: array of z shifts for each patch (C order)
+        patch_centers: tuple of patch locations in each dimension.
+        border_nan: how to deal with borders when remapping
+        interp_shifts_precisely: if true, uses interpn to upsample shifts based on patch centers instead of resize
+    Outputs:
+        img_remapped: the remapped image
+    """
+    # reshape shifts based on patch grid
+    patch_grid = tuple(len(centers) for centers in patch_centers)
+    shift_img_y = np.reshape(shifts_y, patch_grid)
+    shift_img_x = np.reshape(shifts_x, patch_grid)
+    shift_img_z = np.reshape(shifts_z, patch_grid)
+
+    # get full image shape/coordinates
+    dims = img.shape
+    x_coords, y_coords, z_coords = [np.arange(0., dims[dim]).astype(np.float32) for dim in (1, 0, 2)]
+    x_grid, y_grid, z_grid = np.meshgrid(x_coords, y_coords, z_coords)
+
+    # up-sample shifts
+    if interp_shifts_precisely:
+        coords_new = (y_coords, x_coords, z_coords)
+        shifts_y = interpolate_shifts(shift_img_y, patch_centers, coords_new).astype(np.float32)
+        shifts_x = interpolate_shifts(shift_img_x, patch_centers, coords_new).astype(np.float32)
+        shifts_z = interpolate_shifts(shift_img_z, patch_centers, coords_new).astype(np.float32)
+    else:
+        shifts_y = resize_sk(shift_img_y.astype(np.float32), dims)
+        shifts_x = resize_sk(shift_img_x.astype(np.float32), dims)
+        shifts_z = resize_sk(shift_img_z.astype(np.float32), dims)
+    
+    shift_map = np.stack((shifts_y + y_grid, shifts_x + x_grid, shifts_z + z_grid), axis=0)
+    
+    # apply to image
+    if border_nan is False:
+        mode = 'constant'
+        value = 0.0
+    elif border_nan is True:
+        mode = 'constant'
+        value = np.nan
+    elif border_nan == 'min':
+        mode = 'constant'
+        value = np.min(img)
+    elif border_nan == 'copy':
+        mode = 'edge'
+        value = 0.0
+    else:
+        raise ValueError(f'Unknown value of border_nan ({border_nan})')
+
+    return warp_sk(img, shift_map, order=3, mode=mode, cval=value)
+
 
 def compute_flow_single_frame(frame, templ, pyr_scale=.5, levels=3, winsize=100, iterations=15, poly_n=5,
                               poly_sigma=1.2 / 5, flags=0):
