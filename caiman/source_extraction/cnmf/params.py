@@ -588,6 +588,9 @@ class CNMFParams(object):
             pw_rigid: bool, default: False
                 flag for performing pw-rigid motion correction.
 
+            shifts_interpolate: bool, default: False
+                use patch locations to interpolate shifts rather than just upscaling to size of image (for pw_rigid only)
+
             shifts_opencv: bool, default: True
                 flag for applying shifts using cubic interpolation (otherwise FFT)
 
@@ -869,6 +872,7 @@ class CNMFParams(object):
             'num_splits_to_process_rig': None,  # DO NOT MODIFY
             'overlaps': (32, 32),               # overlap between patches in pw-rigid motion correction
             'pw_rigid': False,                  # flag for performing pw-rigid motion correction
+            'shifts_interpolate': False,        # interpolate shifts based on patch locations instead of resizing
             'shifts_opencv': True,              # flag for applying shifts using cubic interpolation (otherwise FFT)
             'splits_els': 14,                   # number of splits across time for pw-rigid registration
             'splits_rig': 14,                   # number of splits across time for rigid registration
