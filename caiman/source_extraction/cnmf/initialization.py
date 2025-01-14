@@ -339,7 +339,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
     elif method == 'sparse_nmf':
         Ain, Cin, _, b_in, f_in = sparseNMF(
             Y_ds, nr=K, nb=nb, max_iter_snmf=max_iter_snmf, alpha=alpha_snmf,
-            sigma_smooth=sigma_smooth_snmf, remove_baseline=remove_baseline, perc_baseline=perc_baseline_snmf)
+            sigma_smooth=sigma_smooth_snmf, remove_baseline=remove_baseline, perc_baseline=perc_baseline_snmf, options=options_total)
 
     elif method == 'compressed_nmf':
         Ain, Cin, _, b_in, f_in = compressedNMF(
@@ -485,7 +485,7 @@ def ICA_PCA(Y_ds, nr, sigma_smooth=(.5, .5, .5), truncate=2, fun='logcosh',
     return A_in, C_in, center, b_in, f_in
 
 def sparseNMF(Y_ds, nr, max_iter_snmf=200, alpha=0.5, sigma_smooth=(.5, .5, .5),
-              remove_baseline=True, perc_baseline=20, nb=1, truncate=2):
+              remove_baseline=True, perc_baseline=20, nb=1, truncate=2, options=None):
     """
     Initialization using sparse NMF
 
@@ -511,6 +511,9 @@ def sparseNMF(Y_ds, nr, max_iter_snmf=200, alpha=0.5, sigma_smooth=(.5, .5, .5),
         nb: int
             Number of background components
 
+        options: dict
+            Extra options for sparseNMF
+
     Returns:
         A: np.array
             2d array of size (# of pixels) x nr with the spatial components.
@@ -523,6 +526,12 @@ def sparseNMF(Y_ds, nr, max_iter_snmf=200, alpha=0.5, sigma_smooth=(.5, .5, .5),
             2d array of size nr x 2 [ or 3] with the components centroids
     """
     logger = logging.getLogger("caiman")
+
+    if options is not None and 'l1_ratio' in options:
+        l1_ratio_thresh = options['l1_ratio']
+    else:
+        l1_ratio_thresh = 0.0
+
     m = scipy.ndimage.gaussian_filter(np.transpose(
         Y_ds, np.roll(np.arange(Y_ds.ndim), 1)), sigma=sigma_smooth,
         mode='nearest', truncate=truncate)
@@ -539,7 +548,7 @@ def sparseNMF(Y_ds, nr, max_iter_snmf=200, alpha=0.5, sigma_smooth=(.5, .5, .5),
     d = np.prod(dims)
     yr = np.reshape(m1, [T, d], order='F')
 
-    logger.debug(f"Running SparseNMF with alpha_W={alpha}")
+    logger.debug(f"Running SparseNMF with alpha_W={alpha} and l1_ratio={l1_ratio_thresh}")
     mdl = NMF(n_components=nr, 
               verbose=False, 
               init='nndsvd', 
@@ -547,7 +556,7 @@ def sparseNMF(Y_ds, nr, max_iter_snmf=200, alpha=0.5, sigma_smooth=(.5, .5, .5),
               max_iter=max_iter_snmf, 
               shuffle=False, 
               alpha_W=alpha, 
-              l1_ratio=0.0)
+              l1_ratio=l1_ratio_thresh)
     C = mdl.fit_transform(yr).T
     A = mdl.components_.T
     A_in = A
