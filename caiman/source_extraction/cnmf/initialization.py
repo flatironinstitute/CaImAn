@@ -148,7 +148,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
                           min_corr=0.8, min_pnr=10, seed_method='auto', ring_size_factor=1.5,
                           center_psf=False, ssub_B=2, init_iter=2, remove_baseline = True,
                           SC_kernel='heat', SC_sigma=1, SC_thr=0, SC_normalize=True, SC_use_NN=False,
-                          SC_nnn=20, lambda_gnmf=1):
+                          SC_nnn=20, lambda_gnmf=1, l1_ratio:float=0.0):
     """
     Initialize components. This function initializes the spatial footprints, temporal components,
     and background which are then further refined by the CNMF iterations. There are four
@@ -256,6 +256,9 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
         init_iter: int, optional
             number of iterations for 1-photon imaging initialization
 
+        l1_ratio: float
+            Used only by sparse NMF, passed to NMF call
+
     Returns:
         Ain: np.ndarray
             (d1 * d2 [ * d3]) x K , spatial filter of each neuron.
@@ -271,11 +274,6 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
 
         fin: np.ndarray
             nb x T matrix, initialization of temporal background
-
-    Raises:
-        Exception "Unsupported method"
-
-        Exception 'You need to define arguments for local NMF'
 
     """
     logger = logging.getLogger("caiman")
@@ -339,7 +337,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
     elif method == 'sparse_nmf':
         Ain, Cin, _, b_in, f_in = sparseNMF(
             Y_ds, nr=K, nb=nb, max_iter_snmf=max_iter_snmf, alpha=alpha_snmf,
-            sigma_smooth=sigma_smooth_snmf, remove_baseline=remove_baseline, perc_baseline=perc_baseline_snmf, options=options_total)
+            sigma_smooth=sigma_smooth_snmf, remove_baseline=remove_baseline, perc_baseline=perc_baseline_snmf, l1_ratio=l1_ratio)
 
     elif method == 'compressed_nmf':
         Ain, Cin, _, b_in, f_in = compressedNMF(
@@ -485,7 +483,7 @@ def ICA_PCA(Y_ds, nr, sigma_smooth=(.5, .5, .5), truncate=2, fun='logcosh',
     return A_in, C_in, center, b_in, f_in
 
 def sparseNMF(Y_ds, nr, max_iter_snmf=200, alpha=0.5, sigma_smooth=(.5, .5, .5),
-              remove_baseline=True, perc_baseline=20, nb=1, truncate=2, options=None):
+              remove_baseline=True, perc_baseline=20, nb=1, truncate=2, l1_ratio=0.0):
     """
     Initialization using sparse NMF
 
@@ -511,8 +509,8 @@ def sparseNMF(Y_ds, nr, max_iter_snmf=200, alpha=0.5, sigma_smooth=(.5, .5, .5),
         nb: int
             Number of background components
 
-        options: dict
-            Extra options for sparseNMF
+        l1_ratio: float
+            Parameter to NMF call
 
     Returns:
         A: np.array
@@ -526,11 +524,6 @@ def sparseNMF(Y_ds, nr, max_iter_snmf=200, alpha=0.5, sigma_smooth=(.5, .5, .5),
             2d array of size nr x 2 [ or 3] with the components centroids
     """
     logger = logging.getLogger("caiman")
-
-    if options is not None and 'l1_ratio' in options:
-        l1_ratio_thresh = options['l1_ratio']
-    else:
-        l1_ratio_thresh = 0.0
 
     m = scipy.ndimage.gaussian_filter(np.transpose(
         Y_ds, np.roll(np.arange(Y_ds.ndim), 1)), sigma=sigma_smooth,
@@ -556,7 +549,7 @@ def sparseNMF(Y_ds, nr, max_iter_snmf=200, alpha=0.5, sigma_smooth=(.5, .5, .5),
               max_iter=max_iter_snmf, 
               shuffle=False, 
               alpha_W=alpha, 
-              l1_ratio=l1_ratio_thresh)
+              l1_ratio=l1_ratio)
     C = mdl.fit_transform(yr).T
     A = mdl.components_.T
     A_in = A
