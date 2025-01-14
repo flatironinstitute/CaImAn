@@ -719,7 +719,7 @@ class CNMFParams(object):
             'init_iter': init_iter,
             'kernel': None,           # user specified template for greedyROI
             'lambda_gnmf': 1,         # regularization weight for graph NMF
-            'l1_ratio': 0.0,
+            'snmf_l1_ratio': 0.0,     # L1 ratio, used by sparse nmf mode only
             'maxIter': 5,             # number of HALS iterations
             'max_iter_snmf': 500,
             'method_init': method_init,    # can be greedy_roi, corr_pnr sparse_nmf, local_NMF
