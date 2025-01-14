@@ -9,8 +9,17 @@ A Python toolbox for large-scale **Ca**lcium **Im**aging **An**alysis.
 
 Caiman implements a set of essential methods required to analyze calcium and voltage imaging data. It provides fast and scalable algorithms for motion correction, source extraction, spike deconvolution, and registering neurons across multiple sessions. It is suitable for both two-photon and one-photon fluorescence microscopy data, and can be run in both offline and online modes. Documentation is [here](https://caiman.readthedocs.io/en/latest/). 
 
-# Quick start
-Follow these three steps to get started quickly, from installation to working through a demo notebook. If you do not already have conda installed, [you can find it here](https://github.com/conda-forge/miniforge). The miniforge distribution of conda is preferred; it will require fewer steps and likely encounter fewer issues. There is a video walkthrough of the following steps [here](https://youtu.be/b63zAmKihIY?si=m7WleTwdU0rJup_2). If you are using a different distro of conda, you will likely need to add `-c conda-forge` to the commands you use to make your environment.
+# Installation
+There are two primary ways to install Caiman.
+
+## Route A
+The easiest route is to install the miniforge distribution of Anaconda, and use that to install the rest using prebuilt packages. Most users should take this path.
+
+## Route B
+The alternative route is to make sure you have a working compiler, create a python virtualenv, grab the caiman sources, and use pip to populate the virtualenv and build Caiman. This route is not as tested and is not presently documented; it is a standard pip-based install.
+
+# Quick start (Route A)
+Follow these three steps to get started quickly, from installation to working through a demo notebook. If you do not already have conda installed, [you can find it here](https://github.com/conda-forge/miniforge). The miniforge distribution of conda is preferred; it will require fewer steps and likely encounter fewer issues. If you are using a different distro of conda, you will likely need to add `-c conda-forge` to the commands you use to make your environment.
 
 Windows users will temporarily need to use an alternative install path.
 
@@ -139,8 +148,7 @@ If possible, we'd also ask that you cite the papers where the original algorithm
 * Kushal Kolar, **Flatiron Institute, Simons Foundation**
 * Pat Gunn, **Flatiron Institute, Simons Foundation**
 
-A complete list of contributors can be found [here](https://github.com/flatironinstitute/Caiman/graphs/contributors). Currently Pat Gunn and Kushal Kolar are the most active contributors.
-
+A complete list of contributors can be found [here](https://github.com/flatironinstitute/Caiman/graphs/contributors).
 
 # Acknowledgements 
 Special thanks to the following people for letting us use their datasets in demo files:
@@ -151,6 +159,7 @@ Special thanks to the following people for letting us use their datasets in demo
 * Manolis Froudarakis, Jake Reimers, Andreas Tolias, Baylor College of Medicine
 * Clay Lacefield, Randy Bruno, Columbia University
 * Daniel Aharoni, Peyman Golshani, UCLA
+* Darcy Peterka, Columbia
 
 Also a special thanks to:
 * Eric Thompson, for various strong contributions to code and demos, both before and during his employment at the Flatiron Institute.
