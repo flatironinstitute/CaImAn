@@ -541,7 +541,7 @@ def sparseNMF(Y_ds, nr, max_iter_snmf=200, alpha=0.5, sigma_smooth=(.5, .5, .5),
     d = np.prod(dims)
     yr = np.reshape(m1, [T, d], order='F')
 
-    logger.debug(f"Running SparseNMF with alpha_W={alpha} and l1_ratio={l1_ratio_thresh}")
+    logger.debug(f"Running SparseNMF with alpha_W={alpha} and l1_ratio={l1_ratio}")
     mdl = NMF(n_components=nr, 
               verbose=False, 
               init='nndsvd', 
