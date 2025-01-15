@@ -10,11 +10,10 @@ Demos
 
    .. code:: bash
 
-          jupyter notebook --NotebookApp.iopub_data_rate_limit=1.0e10
+          jupyter lab --ZMQChannelsWebsocketConnection.iopub_data_rate_limit=1.0e10
 
-   and select the notebook from within Jupyter’s browser. The argument
-   ``--NotebookApp.iopub_data_rate_limit=1.0e10`` will prevent any
-   memory issues while plotting on a notebook.
+   and select the notebook from within Jupyter’s browser. The argument provided
+   will prevent any output from being lost while using a notebook
 
 -  demo files are also found in the demos/general subfolder. We suggest
    trying demo_pipeline.py first as it contains most of the tasks

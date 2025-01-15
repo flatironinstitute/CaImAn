@@ -125,31 +125,31 @@ def do_check_install(targdir: str, inplace: bool = False) -> None:
         raise Exception("Install is dirty")
 
 
-def do_run_nosetests(targdir: str) -> None:
-    out, err, ret = runcmd(["nosetests", "--verbose", "--traverse-namespace", "caiman"])
+def do_run_pytest(targdir: str) -> None:
+    out, err, ret = runcmd(["pytest", "--verbose", "--pyargs", "caiman"])
     if ret != 0:
-        print(f"Nosetests failed with return code {ret}")
+        print(f"pytest failed with return code {ret}")
         sys.exit(ret)
     else:
-        print("Nosetests success!")
+        print("pytest success!")
 
-def do_run_coverage_nosetests(targdir: str) -> None:
-    # Run nosetests, but invoke coverage so we get statistics on how much our tests actually exercise
+def do_run_coverage_pytest(targdir: str) -> None:
+    # Run pytest, but invoke coverage so we get statistics on how much our tests actually exercise
     # the code. It would probably be a mistake to do CI testing around these figures (as we often add things to
     # the codebase before they're fully fleshed out), but we can at least make the command below easier to invoke
     # with this frontend.
     #
     # This command will not function from the conda package, because there would be no reason to use it in that case.
     # If we ever change our mind on this, it's a simple addition of the coverage package to the feedstock.
-    out, err, ret = runcmd(["nosetests", "--verbose", "--with-coverage", "--cover-package=caiman", "--cover-erase", "--traverse-namespace", "caiman"])
+    out, err, ret = runcmd(["pytest", "--verbose", "--cov=caiman", "caiman"])
     if ret != 0:
-        print("Nosetests failed with return code " + str(ret))
+        print("pytestfailed with return code " + str(ret))
         print("If it failed due to a message like the following, it is a known issue:")
         print("ValueError: cannot resize an array that references or is referenced by another array in this way.")
         print("We believe this to be harmless and caused by coverage having additional rules for code")
         sys.exit(ret)
     else:
-        print("Nosetests success!")
+        print("pytest success!")
 
 
 def do_run_demotests(targdir: str) -> None:
@@ -255,9 +255,9 @@ def main():
     elif cfg.command == 'check':
         do_check_install(cfg.userdir, cfg.inplace)
     elif cfg.command == 'test':
-        do_run_nosetests(cfg.userdir)
+        do_run_pytest(cfg.userdir)
     elif cfg.command == 'covtest':
-        do_run_coverage_nosetests(cfg.userdir)
+        do_run_coverage_pytest(cfg.userdir)
     elif cfg.command == 'demotest':
         if os.name == 'nt':
             do_nt_run_demotests(cfg.userdir)

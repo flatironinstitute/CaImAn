@@ -588,6 +588,9 @@ class CNMFParams(object):
             pw_rigid: bool, default: False
                 flag for performing pw-rigid motion correction.
 
+            shifts_interpolate: bool, default: False
+                use patch locations to interpolate shifts rather than just upscaling to size of image (for pw_rigid only)
+
             shifts_opencv: bool, default: True
                 flag for applying shifts using cubic interpolation (otherwise FFT)
 
@@ -715,7 +718,8 @@ class CNMFParams(object):
             'gSiz': gSiz,
             'init_iter': init_iter,
             'kernel': None,           # user specified template for greedyROI
-            'lambda_gnmf' :1,         # regularization weight for graph NMF
+            'lambda_gnmf': 1,         # regularization weight for graph NMF
+            'snmf_l1_ratio': 0.0,     # L1 ratio, used by sparse nmf mode only
             'maxIter': 5,             # number of HALS iterations
             'max_iter_snmf': 500,
             'method_init': method_init,    # can be greedy_roi, corr_pnr sparse_nmf, local_NMF
@@ -869,6 +873,7 @@ class CNMFParams(object):
             'num_splits_to_process_rig': None,  # DO NOT MODIFY
             'overlaps': (32, 32),               # overlap between patches in pw-rigid motion correction
             'pw_rigid': False,                  # flag for performing pw-rigid motion correction
+            'shifts_interpolate': False,        # interpolate shifts based on patch locations instead of resizing
             'shifts_opencv': True,              # flag for applying shifts using cubic interpolation (otherwise FFT)
             'splits_els': 14,                   # number of splits across time for pw-rigid registration
             'splits_rig': 14,                   # number of splits across time for rigid registration

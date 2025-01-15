@@ -1,30 +1,54 @@
 <a href="https://colab.research.google.com/drive/1vkp-uPV8tKavmX12bcN2L-jYH8_MgmHL?usp=sharing"><img src="https://img.shields.io/badge/-Colab%20Demo-blue" /></a>
 
 
-CaImAn
+Caiman
 ======
 <img src="https://github.com/flatironinstitute/CaImAn/blob/main/docs/LOGOS/Caiman_logo_2.png" width="400" align="right">
 
 A Python toolbox for large-scale **Ca**lcium **Im**aging **An**alysis.    
 
-CaImAn implements a set of essential methods required to analyze calcium and voltage imaging data. It provides fast and scalable algorithms for motion correction, source extraction, spike deconvolution, and registering neurons across multiple sessions. It is suitable for both two-photon and one-photon fluorescence microscopy data, and can be run in both offline and online modes. Documentation is [here](https://caiman.readthedocs.io/en/latest/). 
+Caiman implements a set of essential methods required to analyze calcium and voltage imaging data. It provides fast and scalable algorithms for motion correction, source extraction, spike deconvolution, and registering neurons across multiple sessions. It is suitable for both two-photon and one-photon fluorescence microscopy data, and can be run in both offline and online modes. Documentation is [here](https://caiman.readthedocs.io/en/latest/). 
 
-Caiman Central
---------------
-- [Caiman Central](https://github.com/flatironinstitute/caiman_central) is the hub for sharing information about CaImAn. Information on quarterly community meetings, workshops, other events, and any other communications between the developers and the user community can be found there.
+# Installation
+There are two primary ways to install Caiman.
 
-# Quick start
-Follow these three steps to get started quickly, from installation to working through a demo notebook. If you do not already have conda installed, [you can find it here](https://docs.conda.io/en/latest/miniconda.html). There is a video walkthrough of the following steps [here](https://youtu.be/b63zAmKihIY?si=m7WleTwdU0rJup_2).
+## Route A
+The easiest route is to install the miniforge distribution of Anaconda, and use that to install the rest using prebuilt packages. Most users should take this path.
 
-### Step 1: Install caiman
+## Route B
+The alternative route is to make sure you have a working compiler, create a python virtualenv, grab the caiman sources, and use pip to populate the virtualenv and build Caiman. This route is not as tested and is not presently documented; it is a standard pip-based install.
+
+# Quick start (Route A)
+Follow these three steps to get started quickly, from installation to working through a demo notebook. If you do not already have conda installed, [you can find it here](https://github.com/conda-forge/miniforge). The miniforge distribution of conda is preferred; it will require fewer steps and likely encounter fewer issues. If you are using a different distro of conda, you will likely need to add `-c conda-forge` to the commands you use to make your environment.
+
+Windows users will temporarily need to use an alternative install path.
+
+### Step 1: Install Caiman
 The following is all done in your anaconda prompt, starting in your base environment:
   
-    conda install -n base -c conda-forge mamba   # install mamba in base environment
-    mamba create -n caiman -c conda-forge caiman # install caiman
-    conda activate caiman  # activate virtual environment
+    mamba create -n caiman caiman # build a caiman environment
+    conda activate caiman  # activate the environment
+
+### Step 1: Install Caiman (alternative for Windows users)
+Windows users will need to follow an alternative set of steps because tensorflow does not have good packaging for Windows with conda (packaging changes are underway to solve this but are not available as of this writing).
+
+First, you will need to install Visual Studio 2019 or possibly a later version, with the C++ compiler and commandline utilities.
+Then you will clone this repo to your windows system, and enter the checkout directory.
+
+Next, you will build and activate a mostly-empty conda environment:
+
+    mamba create -n caiman python=3.11 pip vs2019_win-64
+    conda activate caiman
+
+Finally, you will use pip to install Caiman's prerequisites and Caiman itself:
+    pip install .
+
+This step may fail if the compiler is not correctly installed and is the most fragile part of this install route; reach out if you encounter issues.
+
+After this, assuming you succeed, leave the source directory. Later steps will not function correctly when run in the source/checkout directory.
 
 ### Step 2: Download code samples and data sets
-Create a working directory called `caiman_data` that includes code samples and related data. Run the following command from the same virtual environment that you created in Step 1:  
+Create a working directory called `caiman_data` that includes code samples and related data. Run the following command from the same conda environment that you created in Step 1:  
 
     caimanmanager install
 
@@ -32,14 +56,14 @@ Create a working directory called `caiman_data` that includes code samples and r
 Go into the working directory you created in Step 2, and open a Jupyter notebook:
 
     cd <your home>/caiman_data/
-    jupyter notebook 
+    jupyter lab
 
 Jupyter will open. Navigate to demos/notebooks/ and click on `demo_pipeline.ipynb` to get started with a demo.
 
-> Note that what counts as `<your home>` in the first line depends on your OS/computer. Be sure to fill in your actual home directory. On Linux/Mac it is `~` while on Windows it will be something like `C:\Users\your_user_name\` 
+> `<your home>` in the first line is your home directory, its location depdnding on your OS/computer. On Linux/Mac it is `~` while on Windows it will be something like `C:\Users\your_user_name\` 
 
 ## For installation help
-Caiman should install easily on Linux, Mac, and Windows. If you run into problems, we have a dedicated [installation page](./docs/source/Installation.rst): the details there should help you troubleshoot. If you don't find what you need there, *please* [create an issue](https://github.com/flatironinstitute/CaImAn/issues) at GitHub, and we will help you get it sorted out. 
+Caiman should install easily on Linux, Mac, and Windows. If you run into problems, we have a dedicated [installation page](./docs/source/Installation.rst). If you don't find what you need there, [create an issue](https://github.com/flatironinstitute/Caiman/issues) on GitHub.
 
 # Demo notebooks
 Caiman provides demo notebooks to showcase each of our main features, from motion correction to online CNMF. We recommend starting with the CNMF notebook (`demo_pipeline.ipynb`), which contains more explanation and details than the other notebooks: it covers many concepts that will be used without explanation in the other notebooks. The CNMFE notebook (`demo_pipeline_cnmfE.ipynb`), is also more detailed. Once you've gotten things set up and worked through those "anchor" notebooks, the best way to get started is to work through the demo notebook that most closely matches your use case; you should be able to adapt it for your particular needs.
@@ -67,9 +91,9 @@ Caiman also provides commandline demos, similar to the notebooks, demonstrating 
 
 # How to get help
 - [Online documentation](https://caiman.readthedocs.io/en/latest/) contains a lot of general information about Caiman, the parameters, how to interpret its outputs, and more.
-- [GitHub Discussions](https://github.com/flatironinstitute/CaImAn/discussions) is our preferred venue for users to ask for help.
+- [GitHub Discussions](https://github.com/flatironinstitute/Caiman/discussions) is our preferred venue for users to ask for help.
 - The [Gitter forum](https://app.gitter.im/#/room/#agiovann_Constrained_NMF:gitter.im) is our old forum: we sometimes will ask people to join us there when something can best be solved in real time (e.g., installation problems).
-- If you have found a bug, we recommend searching the [issues at github](https://github.com/flatironinstitute/CaImAn/issues) and opening a new issue if you can't find the solution there. 
+- If you have found a bug, we recommend searching the [issues at github](https://github.com/flatironinstitute/Caiman/issues) and opening a new issue if you can't find the solution there. 
 - If there is a feature you would like to see implemented, feel free to come chat at the above forums or open an issue at Github.
 
 # How to contribute
@@ -119,13 +143,12 @@ If possible, we'd also ask that you cite the papers where the original algorithm
 # Main developers
 * (emeritus) Eftychios A. Pnevmatikakis, **Flatiron Institute, Simons Foundation** 
 * (emeritus) Andrea Giovannucci, **University of North Carolina, Chapel Hill**
-* Johannes Friedrich, **Allen Institute, Seattle Washington**
-* Changjia Cai, **University of North Carolina, Chapel Hill**
+* (emeritus) Johannes Friedrich, **Allen Institute, Seattle Washington**
+* (emeritus) Changjia Cai, **University of North Carolina, Chapel Hill**
+* Kushal Kolar, **Flatiron Institute, Simons Foundation**
 * Pat Gunn, **Flatiron Institute, Simons Foundation**
-* Eric Thomson, **Flatiron Institute, Simons Foundation**
 
-A complete list of contributors can be found [here](https://github.com/flatironinstitute/Caiman/graphs/contributors). Currently Pat Gunn, Johannes Friedrich, and Eric Thomson are the most active contributors.
-
+A complete list of contributors can be found [here](https://github.com/flatironinstitute/Caiman/graphs/contributors).
 
 # Acknowledgements 
 Special thanks to the following people for letting us use their datasets in demo files:
@@ -136,6 +159,12 @@ Special thanks to the following people for letting us use their datasets in demo
 * Manolis Froudarakis, Jake Reimers, Andreas Tolias, Baylor College of Medicine
 * Clay Lacefield, Randy Bruno, Columbia University
 * Daniel Aharoni, Peyman Golshani, UCLA
+* Darcy Peterka, Columbia
+
+Also a special thanks to:
+* Eric Thompson, for various strong contributions to code and demos, both before and during his employment at the Flatiron Institute.
+* Cai Changjia, for Volpy
+* Ethan Blackwood, for several contributions in various areas
 
 # License
 This program is free software; you can redistribute it and/or

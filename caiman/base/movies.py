@@ -2025,6 +2025,17 @@ def get_file_size(file_name, var_name_hdf5:str='mov') -> tuple[tuple, Union[int,
                     logger.error(f'The file does not contain a variable named {var_name_hdf5}')
                     raise Exception('Variable not found. Use one of the above')
                 T, dims = siz[0], siz[1:]
+            elif extension in ('.npy', ):
+                with open(file_name, 'rb') as f:
+                    version = np.lib.format.read_magic(f)
+                    if version == (1, 0):
+                        shape, _, _ = np.lib.format.read_array_header_1_0(f)
+                    elif version == (2, 0):
+                        shape, _, _ = np.lib.format.read_array_header_2_0(f)
+                    else:
+                        raise ValueError(f"Unsupported .npy file version: {version}. Update caiman.base.movies.get_file_size() to handle it.")
+                T = shape[0]
+                dims = shape[1:]
             elif extension in ('.sbx'):
                 shape = caiman.utils.sbx_utils.sbx_shape(file_name[:-4])
                 T = shape[-1]
