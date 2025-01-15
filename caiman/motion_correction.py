@@ -2083,7 +2083,7 @@ def tile_and_correct(img, template, strides, overlaps, max_shifts, newoverlaps=N
         return new_img - add_to_movie, (-rigid_shts[0], -rigid_shts[1]), None, None
     else:
         # extract patches
-        logger.info("Extracting patches")
+        logger.debug("Extracting patches")
         xy_grid: list[tuple[int, int]] = []
         templates: list[np.ndarray] = []
 
@@ -2105,7 +2105,7 @@ def tile_and_correct(img, template, strides, overlaps, max_shifts, newoverlaps=N
             ub_shifts = None
 
         # extract shifts for each patch
-        logger.info("extracting shifts for each patch")
+        logger.debug("Extracting shifts for each patch")
         shfts_et_all = [register_translation(
             a, b, c, shifts_lb=lb_shifts, shifts_ub=ub_shifts, max_shifts=max_shifts, use_cuda=use_cuda) for a, b, c in zip(
             imgs, templates, [upsample_factor_fft] * num_tiles)]
