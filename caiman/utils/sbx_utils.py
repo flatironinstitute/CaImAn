@@ -235,50 +235,36 @@ def sbx_shape(filename: str, info: Optional[dict[str, Any]] = None) -> tuple[int
     # Image size
     if 'sz' not in info:
         info['sz'] = np.array([512, 796])
-    
-    # Scan mode (0 indicates bidirectional)
-    if 'scanmode' in info and info['scanmode'] == 0:
-        info['recordsPerBuffer'] *= 2
 
     # Fold lines (multiple subframes per scan) - basically means the frames are smaller and
     # there are more of them than is reflected in the info file
     if 'fold_lines' in info and info['fold_lines'] > 0:
-        if info['recordsPerBuffer'] % info['fold_lines'] != 0:
+        if info['sz'][0] % info['fold_lines'] != 0:
             raise Exception('Non-integer folds per frame not supported')
-        n_folds = round(info['recordsPerBuffer'] / info['fold_lines'])
-        info['recordsPerBuffer'] = info['fold_lines']
+
         info['sz'][0] = info['fold_lines']
         if 'bytesPerBuffer' in info:
+            n_folds = round(info['sz'][0] / info['fold_lines'])
             info['bytesPerBuffer'] /= n_folds
-    else:
-        n_folds = 1   
+
 
     # Defining number of channels/size factor
     if 'chan' in info:
         info['nChan'] = info['chan']['nchan']
-        factor = 1  # should not be used
+    elif info['channels'] == 1:
+        info['nChan'] = 2
     else:
-        if info['channels'] == 1:
-            info['nChan'] = 2
-            factor = 1
-        elif info['channels'] == 2:
-            info['nChan'] = 1
-            factor = 2
-        elif info['channels'] == 3:
-            info['nChan'] = 1
-            factor = 2
+        info['nChan'] = 1
 
     # Determine number of frames in whole file
     filesize = os.path.getsize(filename + '.sbx')
     if 'scanbox_version' in info:
-        if info['scanbox_version'] == 2:
-            info['max_idx'] = filesize / info['recordsPerBuffer'] / info['sz'][1] * factor / 4 - 1
-        elif info['scanbox_version'] == 3:
+        if info['scanbox_version'] in [2, 3]:
             info['max_idx'] = filesize / np.prod(info['sz']) / info['nChan'] / 2 - 1
         else:
             raise Exception('Invalid Scanbox version')
     else:
-        info['max_idx'] = filesize / info['bytesPerBuffer'] * factor - 1
+        info['max_idx'] = filesize / info['bytesPerBuffer'] * (2 // info['nChan']) - 1
 
     n_frames = info['max_idx'] + 1    # Last frame
 
@@ -291,7 +277,7 @@ def sbx_shape(filename: str, info: Optional[dict[str, Any]] = None) -> tuple[int
         n_planes = 1
     n_frames //= n_planes
 
-    x = (int(info['nChan']), int(info['sz'][1]), int(info['recordsPerBuffer']), int(n_planes), int(n_frames))
+    x = (int(info['nChan']), int(info['sz'][1]), int(info['sz'][0]), int(n_planes), int(n_frames))
     return x
 
 
