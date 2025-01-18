@@ -197,10 +197,8 @@ def sbx_chain_to_tif(filenames: list[str], fileout: str, subindices: Optional[Ch
 
     dtype = np.float32 if to32 else np.uint16
     # Make the file first so we can pass in bigtiff and imagej options; otherwise could create using tifffile.memmap directly
-    res = tifffile.imwrite(fileout, data=None, shape=save_shape, bigtiff=bigtiff, imagej=imagej,
-                           dtype=dtype, photometric='MINISBLACK', align=tifffile.TIFF.ALLOCATIONGRANULARITY)
-    if res is None:
-        raise RuntimeError('Tiff file is not memmappable')
+    tifffile.imwrite(fileout, data=None, shape=save_shape, bigtiff=bigtiff, imagej=imagej,
+                     dtype=dtype, photometric='MINISBLACK', align=tifffile.TIFF.ALLOCATIONGRANULARITY)
 
     # Now convert each file
     tif_memmap = tifffile.memmap(fileout, series=0)
