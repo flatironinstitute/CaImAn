@@ -29,12 +29,30 @@ def test_load_2d():
     assert data_2d.ndim == 3, 'Loaded 2D data has wrong dimensionality'
     assert data_2d.shape == SHAPE_2D, 'Loaded 2D data has wrong shape'
     assert data_2d.shape == (meta_2d['num_frames'], *meta_2d['frame_size']), 'Shape in metadata does not match loaded data'
+    assert meta_2d['frame_rate'] == 15.625, 'Frame rate in metadata is incorrect (unidirectional)'
     npt.assert_array_equal(data_2d[0, 0, :10], [712, 931, 1048, 825, 1383, 882, 601, 798, 1022, 966], 'Loaded 2D data has wrong values')
 
     data_2d_movie = cm.load(file_2d)
     assert data_2d_movie.ndim == data_2d.ndim, 'Movie loaded with cm.load has wrong dimensionality'
     assert data_2d_movie.shape == data_2d.shape, 'Movie loaded with cm.load has wrong shape'
     npt.assert_array_almost_equal(data_2d_movie, data_2d, err_msg='Movie loaded with cm.load has wrong values')
+
+
+def test_load_2d_bidi():
+    file_2d_bidi = os.path.join(TESTDATA_PATH, '2d_sbx_bidi.sbx')
+    data_2d_bidi = sbx_utils.sbxread(file_2d_bidi)
+    meta_2d_bidi = sbx_utils.sbx_meta_data(file_2d_bidi)
+
+    assert data_2d_bidi.ndim == 3, 'Loaded 2D bidirectional data has wrong dimensionality'
+    assert data_2d_bidi.shape == SHAPE_2D, 'Loaded 2D bidirectional data has wrong shape'
+    assert data_2d_bidi.shape == (meta_2d_bidi['num_frames'], *meta_2d_bidi['frame_size']), 'Shape in metadata does not match loaded data'
+    assert meta_2d_bidi['frame_rate'] == 31.25, 'Frame rate in metadata is incorrect (bidirectional)'
+    npt.assert_array_equal(data_2d_bidi[0, 0, :10], [2833, 1538, 1741, 1837, 2079, 2038, 1946, 1631, 2260, 2073], 'Loaded 2D bidirectional data has wrong values')
+
+    data_2d_bidi_movie = cm.load(file_2d_bidi)
+    assert data_2d_bidi_movie.ndim == data_2d_bidi.ndim, 'Movie loaded with cm.load has wrong dimensionality'
+    assert data_2d_bidi_movie.shape == data_2d_bidi.shape, 'Movie loaded with cm.load has wrong shape'
+    npt.assert_array_almost_equal(data_2d_bidi_movie, data_2d_bidi, err_msg='Movie loaded with cm.load has wrong values')
 
 
 def test_load_3d():
@@ -45,6 +63,7 @@ def test_load_3d():
     assert data_3d.ndim == 4, 'Loaded 3D data has wrong dimensionality'
     assert data_3d.shape == SHAPE_3D, 'Loaded 3D data has wrong shape'
     assert data_3d.shape == (meta_3d['num_frames'], *meta_3d['frame_size'], meta_3d['num_planes']), 'Shape in metadata does not match loaded data'
+    assert meta_3d['frame_rate'] == 15.625 / meta_3d['num_planes'], 'Frame rate in metadata is incorrect (bidirectional 3D)'
     npt.assert_array_equal(data_3d[0, 0, :10, 0], [2167, 2525, 1713, 1747, 1887, 1741, 1873, 1244, 1747, 1637], 'Loaded 2D data has wrong values')
 
     data_3d_movie = cm.load(file_3d, is3D=True)
