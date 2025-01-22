@@ -15,18 +15,19 @@ import pyqtgraph as pg
 from pyqtgraph import FileDialog
 from pyqtgraph.Qt import QtGui
 from pyqtgraph.parametertree import Parameter, ParameterTree
-import PyQt5
-from PyQt5 import QtWidgets
-from PyQt5.QtWidgets import QApplication, QShortcut
+import PySide6
+from PySide6 import QtWidgets
+from PySide6.QtWidgets import QApplication
+from PySide6.QtGui import QShortcut
 import random
 from skimage.draw import polygon
 import sys
 
 import caiman as cm
 from caiman.external.cell_magic_wand import cell_magic_wand_single_point
-    
+
 os.environ["QT_QPA_PLATFORM_PLUGIN_PATH"] = os.fspath(
-    Path(PyQt5.__file__).resolve().parent / "Qt5" / "plugins")
+    Path(PySide6.__file__).resolve().parent / "Qt5" / "plugins")
 
 
 def mouseClickEvent(event):
@@ -70,7 +71,7 @@ def mouseClickEvent(event):
             roi = roi * 1.
         except:
             pass
-    
+
     elif mode == 'CHOOSE NEURONS':
         pos = img.mapFromScene(event.pos())
         p1.clear()
@@ -104,7 +105,7 @@ def add():
         roi = np.zeros((dims[1], dims[0]))
         ff = np.array(polygon(np.array(pts)[:,0], np.array(pts)[:,1]))
         roi[ff[1],[ff[0]]] = 1
-    
+
     if len(pts) > 2 :
         flag = True
         while flag:
@@ -187,7 +188,7 @@ def load_rois():
     if (l_ROIs.shape[2], l_ROIs.shape[1]) != dims:
         print(dims);print(l_ROIs.shape[1:])
         raise ValueError('Dimentions of movie and rois do not accord')
-    
+
     for roi in l_ROIs:
         flag = True
         while flag:
@@ -213,7 +214,7 @@ def save():
     print(ffll[0])
     save_ROIs = np.array(list(all_ROIs.values())).copy()
     save_ROIs = np.flip(save_ROIs, axis=1)
-    
+
     if os.path.splitext(ffll[0])[1] == '.hdf5':
         cm.movie(save_ROIs).save(ffll[0])
     summary_images = summary_images.transpose([0, 2, 1])
@@ -294,10 +295,10 @@ def overlay(all_ROIs):
 if __name__ == "__main__":    
     ## Always start by initializing Qt (only once per application)
     app = QApplication(sys.argv)
-    
+
     ## Define a top-level widget to hold everything
     w = QtWidgets.QWidget()
-    
+
     ## Create some widgets to be placed inside
     hist = pg.HistogramLUTItem()  # Contrast/color control
     win = pg.GraphicsLayoutWidget()
@@ -307,11 +308,11 @@ if __name__ == "__main__":
     p1 = pg.PlotWidget()
     neuron_action = ParameterTree()
     neuron_list = QtWidgets.QListWidget()
-    
+
     ## Create a grid layout to manage the widgets size and position
     layout = QtWidgets.QGridLayout()
     w.setLayout(layout)
-    
+
     ## Add widgets to the layout in their proper positions
     layout.addWidget(win, 0, 1)  
     layout.addWidget(p1, 0, 2)  
@@ -320,7 +321,7 @@ if __name__ == "__main__":
     img = pg.ImageItem()
     p1.addItem(img)
     hist.setImageItem(img)
-    
+
     # Add actions    
     params_action = [{'name': 'LOAD DATA', 'type':'action'},
                      {'name': 'LOAD ROIS', 'type':'action'},
@@ -335,12 +336,12 @@ if __name__ == "__main__":
                      {'name': 'MAGIC WAND PARAMS', 'type': 'group', 'children': [{'name': 'MIN RADIUS', 'type': 'int', 'value': 4},
                                                                         {'name': 'MAX RADIUS', 'type': 'int', 'value': 10},
                                                                         {'name': 'ROUGHNESS', 'type': 'int', 'value': 1}]}]
-    
+
     pars_action = Parameter.create(name='params_action', type='group', children=params_action) 
     neuron_action.setParameters(pars_action, showTop=False)
     neuron_action.setWindowTitle('Parameter Action')
     mode = pars_action.getValues()['MODE'][0]
-    
+
     # Add event
     p1.mousePressEvent = mouseClickEvent
     p1.mouseReleaseEvent = release
@@ -358,7 +359,7 @@ if __name__ == "__main__":
     shortcut_up = QShortcut(QtGui.QKeySequence("up"), w)
     shortcut_up.activated.connect(up)
     neuron_list.itemClicked.connect(show_neuron)
-    
+
     # Create dictionary for saving 
     F = FileDialog()
     all_pts = {}
@@ -366,12 +367,9 @@ if __name__ == "__main__":
     all_ROIs = {}
     pts = []
     pen = pg.mkPen(color=(255, 255, 0), width=4)#, style=Qt.DashDotLine)
-    
+
     ## Display the widget as a new window
     w.show()
-    
+
     ## Start the Qt event loop
-    app.exec_()
-        
-        
-        
+    app.exec()
