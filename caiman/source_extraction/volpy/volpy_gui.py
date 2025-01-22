@@ -6,6 +6,13 @@ VolPy GUI uses summary images and ROIs as the input. It outputs binary masks for
 and spike extraction step of VolPy.
 @author: @caichangjia
 """
+
+# These imports apparently must come before importing pyqtgraph on some platforms
+import PySide6
+from PySide6 import QtWidgets
+from PySide6.QtWidgets import QApplication
+from PySide6.QtGui import QShortcut
+
 import cv2
 import h5py
 import numpy as np
@@ -15,10 +22,6 @@ import pyqtgraph as pg
 from pyqtgraph import FileDialog
 from pyqtgraph.Qt import QtGui
 from pyqtgraph.parametertree import Parameter, ParameterTree
-import PySide6
-from PySide6 import QtWidgets
-from PySide6.QtWidgets import QApplication
-from PySide6.QtGui import QShortcut
 import random
 from skimage.draw import polygon
 import sys
