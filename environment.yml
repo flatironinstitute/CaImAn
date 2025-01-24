@@ -27,6 +27,7 @@ dependencies:
 - psutil
 - pynwb
 - pyqtgraph
+- pyside6
 - scikit-image >=0.19.0
 - scikit-learn >=1.2
 - scipy >= 1.10.1
