@@ -32,6 +32,7 @@ dependencies = [
   "pims",
   "psutil",
   "pynwb",
+  "pyside6",
   "scikit-image",
   "scikit-learn",
   "scipy",
