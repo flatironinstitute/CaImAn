@@ -394,6 +394,10 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
 
         f_in = resize(np.atleast_2d(f_in), [b_in.shape[-1], T])
 
+    elif nb == 0:
+        b_in = np.empty((np.prod(d), 0), dtype=np.float32, order='F')
+        f_in = np.empty((0, T), dtype=np.float32)
+
     if Ain.size > 0:
         Cin = resize(Cin, [K, T])
         center = np.asarray(
@@ -926,11 +930,13 @@ def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1,
 
     res = np.reshape(Y, (np.prod(d[0:-1]), d[-1]),
                      order='F') + med.flatten(order='F')[:, None]
-#    model = NMF(n_components=nb, init='random', random_state=0)
-    model = NMF(n_components=nb, init='nndsvdar')
-    b_in = model.fit_transform(np.maximum(res, 0)).astype(np.float32)
-    f_in = model.components_.astype(np.float32)
-
+    if nb > 0:
+        model = NMF(n_components=nb, init='nndsvdar')
+        b_in = model.fit_transform(np.maximum(res, 0)).astype(np.float32)
+        f_in = model.components_.astype(np.float32)
+    else:
+        b_in = np.empty((A.shape[0], 0), dtype=np.float32, order='F')
+        f_in = np.empty((0, C.shape[1]), dtype=np.float32)
     return A, C, np.array(center, dtype='uint16'), b_in, f_in
 
 def finetune(Y, cin, nIter=5):
@@ -1093,7 +1099,7 @@ def hals(Y, A, C, b, f, bSiz=3, maxIter=5):
     else:
         ind_A = A>1e-10
 
-    ind_A = spr.csc_matrix(ind_A)  # indicator of nonnero pixels
+    ind_A = spr.csc_matrix(ind_A)  # indicator of nonzero pixels
 
     def HALS4activity(Yr, A, C, iters=2):
         U = A.T.dot(Yr)
@@ -1119,13 +1125,16 @@ def hals(Y, A, C, b, f, bSiz=3, maxIter=5):
         return A
 
     Ab = np.c_[A, b]
-    Cf = np.r_[C, f.reshape(nb, -1)]
+    Cf = np.r_[C, f]
     for _ in range(maxIter):
         Cf = HALS4activity(np.reshape(
             Y, (np.prod(dims), T), order='F'), Ab, Cf)
         Ab = HALS4shape(np.reshape(Y, (np.prod(dims), T), order='F'), Ab, Cf)
 
-    return Ab[:, :-nb], Cf[:-nb], Ab[:, -nb:], Cf[-nb:].reshape(nb, -1)
+    if nb == 0:
+        return Ab, Cf, b, f
+    else:
+        return Ab[:, :-nb], Cf[:-nb], Ab[:, -nb:], Cf[-nb:].reshape(nb, -1)
 
 
 @profile
@@ -1339,7 +1348,7 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
             b_in, s_in, f_in = spr.linalg.svds(B, k=nb)
             f_in *= s_in[:, np.newaxis]
     else:
-        b_in = np.empty((A.shape[0], 0))
+        b_in = np.empty((A.shape[0], 0), order='F')
         f_in = np.empty((0, T))
         if nb == 0:
             logger.info('Returning background as b0 and W')
