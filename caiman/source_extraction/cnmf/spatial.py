@@ -180,7 +180,7 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
         A_in = caiman.utils.stats.csc_column_remove(A_in, list(ff))
         C = np.delete(C, list(ff), 0)
         # update indices
-        ind_list = list(range(nr-np.size(ff)))
+        ind_list = list(range(nr+nb-np.size(ff)))
         for i in ff:
             ind_list.insert(i, 0)
         ind_list = np.array(ind_list, dtype=int)
