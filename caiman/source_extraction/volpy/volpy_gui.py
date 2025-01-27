@@ -30,7 +30,7 @@ import caiman as cm
 from caiman.external.cell_magic_wand import cell_magic_wand_single_point
 
 os.environ["QT_QPA_PLATFORM_PLUGIN_PATH"] = os.fspath(
-    Path(PySide6.__file__).resolve().parent / "Qt5" / "plugins")
+    Path(PySide6.__file__).resolve().parent / "Qt6" / "plugins")
 
 
 def mouseClickEvent(event):
