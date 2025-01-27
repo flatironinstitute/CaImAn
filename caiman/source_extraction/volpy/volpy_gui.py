@@ -328,16 +328,16 @@ if __name__ == "__main__":
     hist.setImageItem(img)
 
     # Add actions    
-    params_action = [{'name': 'LOAD DATA', 'type':'action'},
-                     {'name': 'LOAD ROIS', 'type':'action'},
-                     {'name': 'SAVE', 'type':'action'},                 
-                     {'name': 'ADD', 'type': 'action'}, 
-                     {'name': 'REMOVE', 'type': 'action'}, 
-                     {'name': 'SHOW ALL', 'type': 'action'},
-                     {'name': 'CLEAR', 'type': 'action'}, 
-                     {'name': 'IMAGES', 'type': 'list', 'values': ['MEAN','CORR']},
-                     {'name': 'DISPLAY', 'type': 'list', 'values': ['CONTOUR','SPATIAL FOOTPRINTS']},
-                     {'name': 'MODE', 'type': 'list', 'values': ['POLYGON','CELL MAGIC WAND', 'CHOOSE NEURONS']},
+    params_action = [{'name': 'LOAD DATA', 'type': 'action'},
+                     {'name': 'LOAD ROIS', 'type': 'action'},
+                     {'name': 'SAVE',      'type': 'action'},
+                     {'name': 'ADD',       'type': 'action'},
+                     {'name': 'REMOVE',    'type': 'action'},
+                     {'name': 'SHOW ALL',  'type': 'action'},
+                     {'name': 'CLEAR',     'type': 'action'},
+                     {'name': 'IMAGES',    'type': 'list', 'limits': ['MEAN','CORR']},
+                     {'name': 'DISPLAY',   'type': 'list', 'limits': ['CONTOUR', 'SPATIAL FOOTPRINTS']},
+                     {'name': 'MODE',      'type': 'list', 'limits': ['POLYGON', 'CELL MAGIC WAND', 'CHOOSE NEURONS']},
                      {'name': 'MAGIC WAND PARAMS', 'type': 'group', 'children': [{'name': 'MIN RADIUS', 'type': 'int', 'value': 4},
                                                                         {'name': 'MAX RADIUS', 'type': 'int', 'value': 10},
                                                                         {'name': 'ROUGHNESS', 'type': 'int', 'value': 1}]}]
