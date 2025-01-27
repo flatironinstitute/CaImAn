@@ -297,6 +297,8 @@ def overlay(all_ROIs):
 
 if __name__ == "__main__":    
     ## Always start by initializing Qt (only once per application)
+    if sys.platform == 'darwin':
+        PySide6.QtWidgets.QApplication.setStyle("fusion")
     app = QApplication(sys.argv)
 
     ## Define a top-level widget to hold everything
