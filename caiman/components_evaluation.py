@@ -273,35 +273,35 @@ def evaluate_components_CNN(A,
     if not isGPU and 'CAIMAN_ALLOW_GPU' not in os.environ:
         print("GPU run not requested, disabling use of GPUs")
         os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
-    try: 
-        os.environ["KERAS_BACKEND"] = "torch"
-        from keras.models import model_load 
-        use_keras = True 
-        logging.info('Using Keras')
-    except (ModuleNotFoundError):
-        use_keras = False 
-        logging.info('Using Torch')
+    # try: 
+    #    os.environ["KERAS_BACKEND"] = "torch"
+    #    from keras.models import model_load 
+    #    use_keras = True 
+    #    logging.info('Using Keras')
+    # except (ModuleNotFoundError):
+    # use_keras = False 
+    logging.info('Using Torch')
 
     if loaded_model is None:
-        if use_keras:
-            if os.path.isfile(os.path.join(caiman_datadir(), model_name + ".keras")):
-                model_file = os.path.join(caiman_datadir(), model_name + ".keras")
-            elif os.path.isfile(model_name + ".keras"):
-                model_file = model_name + ".keras"
-            else:
-                raise FileNotFoundError(f"File for requested model {model_name} not found")
-            
-            print(f"USING MODEL (keras API): {model_file}")
-            loaded_model = model_load(model_file)
+        # if use_keras:
+        #    if os.path.isfile(os.path.join(caiman_datadir(), model_name + ".keras")):
+        #        model_file = os.path.join(caiman_datadir(), model_name + ".keras")
+        #    elif os.path.isfile(model_name + ".keras"):
+        #        model_file = model_name + ".keras"
+        #    else:
+        #        raise FileNotFoundError(f"File for requested model {model_name} not found")
+        #    
+        #    print(f"USING MODEL (keras API): {model_file}")
+        #    loaded_model = model_load(model_file)
+        #else:
+        if os.path.isfile(os.path.join(caiman_datadir(), model_name + ".pt")):
+            model_file = os.path.join(caiman_datadir(), model_name + ".pt")
+        elif os.path.isfile(model_name + ".pt"):
+            model_file = model_name + ".pt"
         else:
-            if os.path.isfile(os.path.join(caiman_datadir(), model_name + ".pt")):
-                model_file = os.path.join(caiman_datadir(), model_name + ".pt")
-            elif os.path.isfile(model_name + ".pt"):
-                model_file = model_name + ".pt"
-            else:
-                raise FileNotFoundError(f"File for requested model {model_name} not found")
-            print(f"USING MODEL (tensorflow API): {model_file}")
-            loaded_model = torch.load(model_file)
+            raise FileNotFoundError(f"File for requested model {model_name} not found")
+        print(f"USING MODEL (PyTorch API): {model_file}")
+        loaded_model = torch.load(model_file)
 
         logging.debug("Loaded model from disk")
 
@@ -315,14 +315,14 @@ def evaluate_components_CNN(A,
                                               half_crop[1]:com[1] + half_crop[1]] for mm, com in zip(A.tocsc().T, coms)
     ]
     final_crops = np.array([cv2.resize(im / np.linalg.norm(im), (patch_size, patch_size)) for im in crop_imgs])
-    if use_keras:
-        predictions = loaded_model.predict(final_crops[:, :, :, np.newaxis], batch_size=32, verbose=1)
-    else:
-        final_crops = torch.tensor(final_crops, dtype=torch.float32)
-        final_crops = torch.reshape(final_crops, (-1, final_crops.shape[-1], 
-                        final_crops.shape[1], final_crops.shape[2])) 
-        with torch.no_grad():
-            prediction = loaded_model(final_crops[:, np.newaxis, :, :])
+    # if use_keras:
+    #    predictions = loaded_model.predict(final_crops[:, :, :, np.newaxis], batch_size=32, verbose=1)
+    # else:
+    final_crops = torch.tensor(final_crops, dtype=torch.float32)
+    final_crops = torch.reshape(final_crops, (-1, final_crops.shape[-1], 
+                    final_crops.shape[1], final_crops.shape[2])) 
+    with torch.no_grad():
+        predictions = loaded_model(final_crops[:, np.newaxis, :, :])
 
     return predictions, final_crops
 

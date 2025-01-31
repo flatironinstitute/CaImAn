@@ -37,12 +37,15 @@ import caiman.summary_images
 import caiman.utils.sbx_utils
 import caiman.utils.visualization
 
+from caiman.base.timeseries import timeseries
+from caiman.base.traces import trace 
+
 try:
     cv2.setNumThreads(0)
 except:
     pass
 
-class movie(caiman.base.timeseries.timeseries):
+class movie(timeseries):
     """
     Class representing a movie. This class subclasses timeseries,
     that in turn subclasses ndarray
@@ -895,7 +898,7 @@ class movie(caiman.base.timeseries.timeseries):
         fovs = cv2.resize(np.uint8(fovs), (w1, h1), 1. / fx, 1. / fy, interpolation=cv2.INTER_NEAREST)
         return np.uint8(fovs), mcoef, distanceMatrix
 
-    def extract_traces_from_masks(self, masks: np.ndarray) -> caiman.base.traces.trace:
+    def extract_traces_from_masks(self, masks: np.ndarray) -> trace:
         """
         Args:
             masks: array, 3D with each 2D slice bein a mask (integer or fractional)
@@ -914,7 +917,7 @@ class movie(caiman.base.timeseries.timeseries):
 
         pixelsA = np.sum(A, axis=1)
         A = A / pixelsA[:, None]       # obtain average over ROI
-        traces = caiman.base.traces.trace(np.dot(A, np.transpose(Y)).T, **self.__dict__)
+        traces = trace(np.dot(A, np.transpose(Y)).T, **self.__dict__)
         return traces
 
     def resize(self, fx=1, fy=1, fz=1, interpolation=cv2.INTER_AREA):

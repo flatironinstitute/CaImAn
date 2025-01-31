@@ -5,16 +5,8 @@ This file contains a set of methods for the online analysis of microendoscopic
 one photon data using a "ring-CNN" background model.
 """
 
-import numpy as np
-import os
-os.environ["KERAS_BACKEND"] = "torch"
-import time
-
-import torch 
-import torch.nn.functional as F
-import torch.nn as nn
 import keras 
-import keras.ops as ops  
+from keras import ops
 from keras.constraints import Constraint 
 from keras.layers import Input, Dense, Reshape, Layer, Activation
 from keras.models import Model
@@ -22,6 +14,15 @@ from keras.optimizers import Adam
 from keras.callbacks import ModelCheckpoint, EarlyStopping, LearningRateScheduler
 from keras.initializers import Constant, RandomUniform
 from keras.utils import Sequence
+
+import os
+os.environ["KERAS_BACKEND"] = "torch"
+import numpy as np
+
+import time
+import torch 
+import torch.nn.functional as F
+import torch.nn as nn
 
 import caiman.base.movies
 from caiman.paths import caiman_datadir

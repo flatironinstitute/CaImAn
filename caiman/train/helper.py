@@ -129,4 +129,3 @@ def load_model_keras(model_path: str):
     loaded_model = load_model(model_path)
     print('Load trained model at %s ' % model_path)
     return loaded_model  
-

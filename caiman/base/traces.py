@@ -8,6 +8,7 @@ import matplotlib.pyplot as plt
 plt.ion()
 
 import caiman.base.timeseries
+from caiman.base.timeseries import timeseries
 
 try:
     cv2.setNumThreads(0)
@@ -18,7 +19,7 @@ except:
 # This holds the trace class, which is a specialised Caiman timeseries class.
 
 
-class trace(caiman.base.timeseries.timeseries):
+class trace(timeseries):
     """
     Class representing a trace.
 

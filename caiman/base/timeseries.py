@@ -33,7 +33,7 @@ except:
     pass
 
 
-class timeseries(np.ndarray):
+class timeseries(np.ndarray): 
     """
     Class representing a time series.
     """
@@ -88,7 +88,7 @@ class timeseries(np.ndarray):
         if context is not None:
             inputs = context[1]
             for inp in inputs:
-                if isinstance(inp, timeseries):
+                if isinstance(inp, timeseries): 
                     if frRef is None:
                         frRef = inp.fr
                     else:

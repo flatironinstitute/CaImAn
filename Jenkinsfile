@@ -27,7 +27,7 @@ pipeline {
             sh 'mamba env create -q -f environment.yml -p $CONDA_ENV'
             sh '''#!/bin/bash -ex
               source activate $CONDA_ENV
-              export KERAS_BACKEND=tensorflow
+              export KERAS_BACKEND=torch
               pip install .
               TEMPDIR=$(mktemp -d)
               export CAIMAN_DATA=$TEMPDIR/caiman_data
