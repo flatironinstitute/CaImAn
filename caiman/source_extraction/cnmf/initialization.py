@@ -1253,7 +1253,7 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
         logger.info('Merging components')
         A, C = caiman.source_extraction.cnmf.merging.merge_components(
             B, A, [], C, None, [], C, [], o, options['spatial'],
-            dview=None, thr=options['merging']['merge_thr'], mx=np.Inf, fast_merge=True)[:2]
+            dview=None, thr=options['merging']['merge_thr'], mx=np.inf, fast_merge=True)[:2]
         A = A.astype(np.float32)
         C = C.astype(np.float32)
         logger.info('Updating spatial components')
@@ -1302,7 +1302,7 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
         logger.info('Merging components')
         A, C = caiman.source_extraction.cnmf.merging.merge_components(
             B, A, [], C, None, [], C, [], o, options['spatial'],
-            dview=None, thr=options['merging']['merge_thr'], mx=np.Inf, fast_merge=True)[:2]
+            dview=None, thr=options['merging']['merge_thr'], mx=np.inf, fast_merge=True)[:2]
         A = A.astype(np.float32)
         C = C.astype(np.float32)
         logger.info('Updating spatial components')

@@ -594,7 +594,7 @@ class CNMF(object):
                 if self.params.get('patch', 'nb_patch') > 0:
 
                     while len(self.estimates.merged_ROIs) > 0:
-                        self.merge_comps(Yr, mx=np.Inf, fast_merge=True)
+                        self.merge_comps(Yr, mx=np.inf, fast_merge=True)
 
                     logger.info("update temporal")
                     self.update_temporal(Yr, use_init=False)
@@ -607,7 +607,7 @@ class CNMF(object):
                     self.update_temporal(Yr, use_init=False)
                 else:
                     while len(self.estimates.merged_ROIs) > 0:
-                        self.merge_comps(Yr, mx=np.Inf, fast_merge=True)
+                        self.merge_comps(Yr, mx=np.inf, fast_merge=True)
                         #if len(self.estimates.merged_ROIs) > 0:
                             #not_merged = np.setdiff1d(list(range(len(self.estimates.YrA))),
                             #                          np.unique(np.concatenate(self.estimates.merged_ROIs)))
@@ -626,7 +626,7 @@ class CNMF(object):
                         self.estimates.S = self.estimates.C
             else:
                 while len(self.estimates.merged_ROIs) > 0:
-                    self.merge_comps(Yr, mx=np.Inf)
+                    self.merge_comps(Yr, mx=np.inf)
 
                 logger.info("update temporal")
                 self.update_temporal(Yr, use_init=False)

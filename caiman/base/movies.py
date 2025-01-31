@@ -671,7 +671,7 @@ class movie(caiman.base.timeseries.timeseries):
         T, h, w = self.shape
         Y = np.reshape(self, (T, h * w))
         Y = Y - np.percentile(Y, 1)
-        Y = np.clip(Y, 0, np.Inf)
+        Y = np.clip(Y, 0, np.inf)
         estimator = sklearn.decomposition.NMF(n_components=n_components, init=init, tol=tol, **kwargs)
         time_components = estimator.fit_transform(Y)
         components_ = estimator.components_
