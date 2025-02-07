@@ -118,7 +118,7 @@ def pipeline(D, params_dict, name):
         images = np.reshape(images.T, (T,) + dims, order='F')
         params.change_params({'data': {'fnames': [mmap_name]}}) 
     
-    cnm = cnm.fit(images)
+    cnm.fit(images)
 
     # VERIFY HIGH CORRELATION WITH GROUND TRUTH
     sorting = [np.argmax([np.corrcoef(tc, c)[0, 1] for tc in trueC]) for c in cnm.estimates.C]
