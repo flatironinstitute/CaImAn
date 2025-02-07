@@ -118,7 +118,7 @@ def main():
 
     #opts.change_params({'p': 0})
     cnm = cnmf.CNMF(n_processes, params=opts, dview=dview)
-    cnm = cnm.fit(images)
+    cnm.fit(images)
 
     # plot contours of found components
     Cns = local_correlations_movie_offline(mc.mmap_file[0],
