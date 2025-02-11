@@ -738,7 +738,7 @@ class CNMF(object):
         self.estimates.lam = [results[8][i] for i in order]
         self.estimates.YrA = F - self.estimates.C
 
-    def update_temporal(self, Y, use_init=True, **kwargs):
+    def update_temporal(self, Y, use_init=True, **kwargs) -> None:
         """Updates temporal components
 
         Args:
@@ -757,17 +757,16 @@ class CNMF(object):
             kwargs_new.update(kwargs)
         self.params.set('temporal', kwargs_new)
 
-
         self.estimates.C, self.estimates.A, self.estimates.b, self.estimates.f, self.estimates.S, \
         self.estimates.bl, self.estimates.c1, self.estimates.neurons_sn, \
         self.estimates.g, self.estimates.YrA, self.estimates.lam = update_temporal_components(
                 Y, self.estimates.A, self.estimates.b, self.estimates.C, self.estimates.f, dview=self.dview,
                 **self.params.get_group('temporal'))
         self.estimates.R = self.estimates.YrA
-        return self
 
-    def update_spatial(self, Y, use_init=True, **kwargs):
+    def update_spatial(self, Y, use_init=True, **kwargs) -> None:
         """Updates spatial components
+        modifies values self.estimates.A, self.estimates.b possibly self.estimates.C, self.estimates.f
 
         Args:
             Y:  np.array (d1*d2) x T
@@ -775,19 +774,12 @@ class CNMF(object):
             use_init: bool
                 use Cin, f_in for computing A, b otherwise use C, f
 
-        Returns:
-            self
-                modified values self.estimates.A, self.estimates.b possibly self.estimates.C, self.estimates.f
         """
         lc = locals()
         pr = inspect.signature(self.update_spatial)
         params = [k for k, v in pr.parameters.items() if '=' in str(v)]
         kw2 = {k: lc[k] for k in params}
-        try:
-            kwargs_new = {**kw2, **kwargs}
-        except():  # python 2.7
-            kwargs_new = kw2.copy()
-            kwargs_new.update(kwargs)
+        kwargs_new = {**kw2, **kwargs}
         self.params.set('spatial', kwargs_new)
         for key in kwargs_new:
             if hasattr(self, key):
@@ -797,9 +789,7 @@ class CNMF(object):
                                       b_in=self.estimates.b, dview=self.dview,
                                       sn=self.estimates.sn, dims=self.dims, **self.params.get_group('spatial'))
 
-        return self
-
-    def merge_comps(self, Y, mx=50, fast_merge=True):
+    def merge_comps(self, Y, mx=50, fast_merge=True) -> None:
         """merges components
         """
         self.estimates.A, self.estimates.C, self.estimates.nr, self.estimates.merged_ROIs, self.estimates.S, \
@@ -812,9 +802,7 @@ class CNMF(object):
                              g=self.estimates.g, thr=self.params.get('merging', 'merge_thr'), mx=mx,
                              fast_merge=fast_merge, merge_parallel=self.params.get('merging', 'merge_parallel'))
 
-        return self
-
-    def initialize(self, Y, **kwargs):
+    def initialize(self, Y, **kwargs) -> None:
         """Component initialization
         """
         self.params.set('init', kwargs)
@@ -838,8 +826,6 @@ class CNMF(object):
 
         self.estimates = estim
 
-        return self
-
     def preprocess(self, Yr):
         """
         Examines data to remove corrupted pixels and computes the noise level
@@ -850,6 +836,7 @@ class CNMF(object):
                 2d array of data (pixels x timesteps) typically in memory
                 mapped form
         """
+        # TODO Weird that this returns Yr
         Yr, self.estimates.sn, self.estimates.g, self.estimates.psx = preprocess_data(
             Yr, dview=self.dview, **self.params.get_group('preprocess'))
         return Yr
