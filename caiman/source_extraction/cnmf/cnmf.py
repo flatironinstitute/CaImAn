@@ -654,7 +654,7 @@ class CNMF(object):
                 self.params.get('online', 'expected_comps'))
         self.params.set('online', {'expected_comps': expected_comps})
 
-    def compute_residuals(self, Yr):
+    def compute_residuals(self, Yr) -> None:
         """
         Compute residual trace for each component (variable YrA).
         WARNING: At the moment this method is valid only for the 2p processing
@@ -689,11 +689,8 @@ class CNMF(object):
         self.estimates.YrA = (YA - (AA.T.dot(Cf)).T)[:, :self.estimates.A.shape[-1]].T
         self.estimates.R = self.estimates.YrA
 
-        return self
-
-
     def deconvolve(self, p=None, method_deconvolution=None, bas_nonneg=None,
-                   noise_method=None, optimize_g=0, s_min=None, **kwargs):
+                   noise_method=None, optimize_g=0, s_min=None, **kwargs) -> None:
         """Performs deconvolution on already extracted traces using
         constrained foopsi.
         """
@@ -729,10 +726,7 @@ class CNMF(object):
         else:
             results = list(map(constrained_foopsi_parallel, args_in))
 
-        if sys.version_info >= (3, 0):
-            results = list(zip(*results))
-        else:  # python 2
-            results = zip(*results)
+        results = list(zip(*results))
 
         order = list(results[7])
         self.estimates.C = np.stack([results[0][i] for i in order])
@@ -743,7 +737,6 @@ class CNMF(object):
         self.estimates.neurons_sn = [results[5][i] for i in order]
         self.estimates.lam = [results[8][i] for i in order]
         self.estimates.YrA = F - self.estimates.C
-        return self
 
     def HALS4traces(self, Yr, groups=None, use_groups=False, order=None,
                     update_bck=True, bck_non_neg=True, **kwargs):
