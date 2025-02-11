@@ -405,17 +405,18 @@ class CNMF(object):
         cnm.mmap_file = self.mmap_file
         return cnm.fit(images)
 
-    def fit(self, images, indices=(slice(None), slice(None))):
+    def fit(self, images, indices=(slice(None), slice(None))) -> None:
         """
         This method uses the cnmf algorithm to find sources in data.
+        After it finishes, the C, A, S, b, and f fields will be populated.
 
         Args:
             images : mapped np.ndarray of shape (t,x,y[,z]) containing the images that vary over time.
 
             indices: list of slice objects along dimensions (x,y[,z]) for processing only part of the FOV
 
-        Returns:
-            self: updated using the cnmf algorithm with C,A,S,b,f computed according to the given initial values
+        #Returns:
+        #    self: updated using the cnmf algorithm with C,A,S,b,f computed according to the given initial values
 
         http://www.cell.com/neuron/fulltext/S0896-6273(15)01084-3
 
@@ -455,13 +456,6 @@ class CNMF(object):
             self.mmap_file = images.filename
         except AttributeError:  # if no memmapping cause working with small data
             pass
-
-        # update/set all options that depend on data dimensions
-        # number of rows, columns [and depths]
-        # self.params.set('spatial', {'medw': (3,) * len(self.dims),
-        #                             'se': np.ones((3,) * len(self.dims), dtype=np.uint8),
-        #                             'ss': np.ones((3,) * len(self.dims), dtype=np.uint8)
-        #                             })
 
         logger.info(f"Using {self.params.get('patch', 'n_processes')} processes")
         # FIXME The code below is really ugly and it's hard to tell if it's doing the right thing
@@ -516,8 +510,7 @@ class CNMF(object):
                     self.estimates.YrA = self.estimates.YrA[idx_components]
 
                 self.estimates.normalize_components()
-
-                return self
+                return
 
             logger.info('update spatial ...')
             self.update_spatial(Yr, use_init=True)
@@ -545,9 +538,6 @@ class CNMF(object):
                 self.params.set('temporal', {'p': self.params.get('preprocess', 'p')})
                 logger.info('update temporal ...')
                 self.update_temporal(Yr, use_init=False)
-            # else:
-            #     todo : ask for those..
-                # C, f, S, bl, c1, neurons_sn, g1, YrA, lam = self.estimates.C, self.estimates.f, self.estimates.S, self.estimates.bl, self.estimates.c1, self.estimates.neurons_sn, self.estimates.g, self.estimates.YrA, self.estimates.lam
 
             # embed in the whole FOV
             if is_sliced:
@@ -608,17 +598,14 @@ class CNMF(object):
                 else:
                     while len(self.estimates.merged_ROIs) > 0:
                         self.merge_comps(Yr, mx=np.inf, fast_merge=True)
-                        #if len(self.estimates.merged_ROIs) > 0:
-                            #not_merged = np.setdiff1d(list(range(len(self.estimates.YrA))),
-                            #                          np.unique(np.concatenate(self.estimates.merged_ROIs)))
-                            #self.estimates.YrA = np.concatenate([self.estimates.YrA[not_merged],
-                            #                           np.array([self.estimates.YrA[m].mean(0) for ind, m in enumerate(self.estimates.merged_ROIs) if not self.empty_merged[ind]])])
+
                     if self.params.get('init', 'nb') == 0:
                         self.estimates.W, self.estimates.b0 = compute_W(
                             Yr, self.estimates.A.toarray(), self.estimates.C, self.dims,
                             self.params.get('init', 'ring_size_factor') *
                             self.params.get('init', 'gSiz')[0],
                             ssub=self.params.get('init', 'ssub_B'))
+
                     if len(self.estimates.C):
                         self.deconvolve()
                         self.estimates.C = self.estimates.C.astype(np.float32)
@@ -632,8 +619,6 @@ class CNMF(object):
                 self.update_temporal(Yr, use_init=False)
 
         self.estimates.normalize_components()
-        return self
-
 
     def save(self, filename):
         '''save object in hdf5 file format
