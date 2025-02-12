@@ -421,6 +421,7 @@ class OnACID(object):
             num_iters_hals: int, optional
                 maximal number of iterations for HALS (NNLS via blockCD)
         """
+        # FIXME This whole function is overly complex; should rewrite it for legibility
         logger = logging.getLogger("caiman")
         t_start = time()
 
@@ -490,7 +491,6 @@ class OnACID(object):
         t_new = time()
         num_added = 0
         if self.params.get('online', 'update_num_comps'):
-
             if self.params.get('online', 'use_corr_img'):
                 corr_img_mode = 'simple'  #'exponential'  # 'cumulative'
                 self.estimates.corr_img = caiman.summary_images.update_local_correlations(
@@ -523,6 +523,7 @@ class OnACID(object):
             else:
                 g_est = 0
             use_corr = self.params.get('online', 'use_corr_img')
+            # FIXME The next statement is really hard to read
             (self.estimates.Ab, Cf_temp, self.estimates.Yres_buf, self.estimates.rho_buf,
                 self.estimates.CC, self.estimates.CY, self.ind_A, self.estimates.sv,
                 self.estimates.groups, self.estimates.ind_new, self.ind_new_all,

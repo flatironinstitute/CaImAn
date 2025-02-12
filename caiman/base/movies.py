@@ -381,7 +381,6 @@ class movie(caiman.base.timeseries.timeseries):
                                   min_, max_)
 
             elif method == 'skimage':
-
                 tform = skimage.transform.AffineTransform(translation=(-sh_y_n, -sh_x_n))
                 self[i] = skimage.transform.warp(frame, tform, preserve_range=True, order=interpolation)
 
