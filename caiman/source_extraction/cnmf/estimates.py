@@ -171,7 +171,7 @@ class Estimates(object):
 
     def plot_contours(self, img=None, idx=None, thr_method='max',
                       thr=0.2, display_numbers=True, params=None,
-                      cmap='viridis'):
+                      cmap='viridis') -> None:
         """view contours of all spatial footprints.
 
         Args:
@@ -226,10 +226,9 @@ class Estimates(object):
                                                      display_numbers=display_numbers,
                                                      cmap=cmap)
             plt.title('Rejected Components')
-        return self
 
     def plot_contours_nb(self, img=None, idx=None, thr_method='max',
-                         thr=0.2, params=None, line_color='white', cmap='viridis'):
+                         thr=0.2, params=None, line_color='white', cmap='viridis') -> None:
         """view contours of all spatial footprints (notebook environment).
 
         Args:
@@ -309,9 +308,8 @@ class Estimates(object):
             print("Using non-interactive plot as fallback")
             self.plot_contours(img=img, idx=idx, thr_method=thr_method,
                                thr=thr, params=params, cmap=cmap)
-        return self
 
-    def view_components(self, Yr=None, img=None, idx=None):
+    def view_components(self, Yr=None, img=None, idx=None) -> None -> None -> None -> None -> None:
         """view spatial and temporal components interactively
 
         Args:
@@ -352,10 +350,9 @@ class Estimates(object):
                 r_values=None if self.r_values is None else self.r_values[idx],
                 SNR=None if self.SNR_comp is None else self.SNR_comp[idx],
                 cnn_preds=None if np.sum(self.cnn_preds) in (0, None) else self.cnn_preds[idx])
-        return self
 
     def nb_view_components(self, Yr=None, img=None, idx=None,
-                           denoised_color=None, cmap='jet', thr=0.99):
+                           denoised_color=None, cmap='jet', thr=0.99) -> None:
         """view spatial and temporal components interactively in a notebook
 
         Args:
@@ -407,7 +404,6 @@ class Estimates(object):
                 r_values=None if self.r_values is None else self.r_values[idx],
                 SNR=None if self.SNR_comp is None else self.SNR_comp[idx],
                 cnn_preds=None if np.sum(self.cnn_preds) in (0, None) else self.cnn_preds[idx])
-        return self
 
     def hv_view_components(self, Yr=None, img=None, idx=None,
                            denoised_color=None, cmap='viridis'):
@@ -463,7 +459,7 @@ class Estimates(object):
 
     def nb_view_components_3d(self, Yr=None, image_type='mean', dims=None,
                               max_projection=False, axis=0,
-                              denoised_color=None, cmap='jet', thr=0.9):
+                              denoised_color=None, cmap='jet', thr=0.9) -> None:
         """view spatial and temporal components interactively in a notebook
         (version for 3d data)
 
@@ -514,8 +510,6 @@ class Estimates(object):
                     dims=dims, image_type=image_type, Yr=Yr,
                     max_projection=max_projection, axis=axis, thr=thr,
                     denoised_color=denoised_color, cmap=cmap)
-
-        return self
 
     def make_color_movie(self, imgs, q_max=99.75, q_min=2, gain_res=1,
                          magnification=1, include_bck=True,
@@ -739,7 +733,7 @@ class Estimates(object):
                     (-1, B.shape[-1]), order='F')
                 return B
 
-    def compute_residuals(self, Yr):
+    def compute_residuals(self, Yr) -> None:
         """compute residual for each component (variable R)
 
          Args:
@@ -771,11 +765,9 @@ class Estimates(object):
         AA = Ab.T.dot(Ab) * nA2_inv_mat
         self.R = (YA - (AA.T.dot(Cf)).T)[:, :self.A.shape[-1]].T
 
-        return self
-
     def detrend_df_f(self, quantileMin=8, frames_window=500,
                      flag_auto=True, use_fast=False, use_residuals=True,
-                     detrend_only=False):
+                     detrend_only=False) -> None:
         """Computes DF/F normalized fluorescence for the extracted traces. See
         caiman.source.extraction.utilities.detrend_df_f for details
 
@@ -828,9 +820,8 @@ class Estimates(object):
                                   frames_window=frames_window,
                                   flag_auto=flag_auto, use_fast=use_fast,
                                   detrend_only=detrend_only)
-        return self
 
-    def normalize_components(self):
+    def normalize_components(self) -> None:
         """ Normalizes components such that spatial components have l_2 norm 1
         """
         if 'csc_matrix' not in str(type(self.A)):
@@ -865,9 +856,8 @@ class Estimates(object):
             nB_inv_mat = scipy.sparse.spdiags(1. / (nB + np.finfo(np.float32).eps), 0, nB.shape[0], nB.shape[0])
             self.b = self.b * nB_inv_mat
             self.f = nB_mat * self.f
-        return self
 
-    def select_components(self, idx_components=None, use_object=False, save_discarded_components=True):
+    def select_components(self, idx_components=None, use_object=False, save_discarded_components=True) -> None:
         """Keeps only a selected subset of components and removes the rest.
         The subset can be either user defined with the variable idx_components
         or read from the estimates object. The flag use_object determines this
@@ -946,9 +936,7 @@ class Estimates(object):
             self.idx_components = None
             self.idx_components_bad = None
 
-        return self
-
-    def restore_discarded_components(self):
+    def restore_discarded_components(self) -> None:
         ''' Recover components that are filtered out with the select_components method
         '''
         logger = logging.getLogger("caiman")
@@ -977,7 +965,7 @@ class Estimates(object):
 
             self.nr = self.A.shape[-1]
 
-    def evaluate_components_CNN(self, params, neuron_class=1):
+    def evaluate_components_CNN(self, params, neuron_class=1) -> None:
         """Estimates the quality of inferred spatial components using a
         pretrained CNN classifier.
 
@@ -998,9 +986,8 @@ class Estimates(object):
         predictions = evaluate_components_CNN(self.A, dims, gSig)[0]
         self.cnn_preds = predictions[:, neuron_class]
         self.idx_components = np.where(self.cnn_preds >= min_cnn_thr)[0]
-        return self
 
-    def evaluate_components(self, imgs, params, dview=None):
+    def evaluate_components(self, imgs, params, dview=None) -> None:
         """Computes the quality metrics for each component and stores the
         indices of the components that pass user specified thresholds. The
         various thresholds and parameters can be passed as inputs. If left
@@ -1075,9 +1062,8 @@ class Estimates(object):
                                                  np.setdiff1d(self.idx_components,
                                                               idx_ecc))
             self.idx_components = np.intersect1d(self.idx_components, idx_ecc)
-        return self
 
-    def filter_components(self, imgs, params, new_dict={}, dview=None, select_mode:str='All'):
+    def filter_components(self, imgs, params, new_dict={}, dview=None, select_mode:str='All') -> None:
         """
         Filters components based on given thresholds without re-computing
         the quality metrics. If the quality metrics are not present then it
@@ -1164,8 +1150,6 @@ class Estimates(object):
            self.idx_components = np.array(np.setdiff1d(self.idx_components,np.union1d(self.rejected_list,self.accepted_list)))
 
         self.idx_components_bad = np.array(np.setdiff1d(range(len(self.SNR_comp)),self.idx_components))
-
-        return self
 
     def deconvolve(self, params, dview=None, dff_flag=False):
         ''' performs deconvolution on the estimated traces using the parameters
