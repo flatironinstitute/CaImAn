@@ -309,7 +309,7 @@ class Estimates(object):
             self.plot_contours(img=img, idx=idx, thr_method=thr_method,
                                thr=thr, params=params, cmap=cmap)
 
-    def view_components(self, Yr=None, img=None, idx=None) -> None
+    def view_components(self, Yr=None, img=None, idx=None) -> None:
         """view spatial and temporal components interactively
 
         Args:
