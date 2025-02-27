@@ -400,7 +400,8 @@ class CNMF(object):
         estimates.coordinates = None
         cnm.estimates = estimates
         cnm.mmap_file = self.mmap_file
-        return cnm.fit(images)
+        cnm.fit(images)
+        return cnm
 
     def fit(self, images, indices=(slice(None), slice(None))) -> None:
         """
