@@ -2441,7 +2441,7 @@ def initialize_movie_online(Y, K, gSig, rf, stride, base_name,
                                               update_num_comps=True, rval_thr=rval_thr_online, thresh_fitness_delta=thresh_fitness_delta_online, thresh_fitness_raw=thresh_fitness_raw_online,
                                               batch_update_suff_stat=True, max_comp_update_shape=5)
 
-    cnm_init = cnm_init.fit(images)
+    cnm_init.fit(images)
     A_tot = cnm_init.A
     C_tot = cnm_init.C
     YrA_tot = cnm_init.YrA
@@ -2476,7 +2476,7 @@ def initialize_movie_online(Y, K, gSig, rf, stride, base_name,
                                                 update_num_comps=True, rval_thr=rval_thr_refine, thresh_fitness_delta=thresh_fitness_delta_refine, thresh_fitness_raw=thresh_fitness_raw_refine,
                                                 batch_update_suff_stat=True, max_comp_update_shape=5)
 
-    cnm_refine = cnm_refine.fit(images)
+    cnm_refine.fit(images)
 
     A, C, b, f, YrA = cnm_refine.A, cnm_refine.C, cnm_refine.b, cnm_refine.f, cnm_refine.YrA
 
