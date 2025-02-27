@@ -364,12 +364,9 @@ class CNMF(object):
         Cn = caiman.summary_images.local_correlations(images[::max(T//1000, 1)], swap_dim=False)
         Cn[np.isnan(Cn)] = 0
         fit_cnm.save(fname_new[:-5] + '_init.hdf5')
-        #fit_cnm.params.change_params({'p': self.params.get('preprocess', 'p')})
-        # RE-RUN seeded CNMF on accepted patches to refine and perform deconvolution
+        # Rerun seeded CNMF on accepted patches to refine and perform deconvolution
         cnm2 = fit_cnm.refit(images, dview=self.dview)
         cnm2.estimates.evaluate_components(images, cnm2.params, dview=self.dview)
-        # update object with selected components
-        #cnm2.estimates.select_components(use_object=True)
         # Extract DF/F values
         cnm2.estimates.detrend_df_f(quantileMin=8, frames_window=250)
         cnm2.estimates.Cn = Cn
@@ -415,9 +412,6 @@ class CNMF(object):
 
             indices: list of slice objects along dimensions (x,y[,z]) for processing only part of the FOV
 
-        #Returns:
-        #    self: updated using the cnmf algorithm with C,A,S,b,f computed according to the given initial values
-
         http://www.cell.com/neuron/fulltext/S0896-6273(15)01084-3
 
         """
@@ -425,11 +419,14 @@ class CNMF(object):
         # Todo : to compartment
         if isinstance(indices, slice):
             indices = [indices]
+
         if isinstance(indices, tuple):
             indices = list(indices)
+
         indices = [slice(None)] + indices
         if len(indices) < len(images.shape):
             indices = indices + [slice(None)]*(len(images.shape) - len(indices))
+
         dims_orig = images.shape[1:]
         dims_sliced = images[tuple(indices)].shape[1:]
         is_sliced = (dims_orig != dims_sliced)
@@ -441,7 +438,6 @@ class CNMF(object):
         T = images.shape[0]
         self.params.set('online', {'init_batch': T})
         self.dims = images.shape[1:]
-        #self.params.data['dims'] = images.shape[1:]
         Y = np.transpose(images, list(range(1, len(self.dims) + 1)) + [0])
         Yr = np.transpose(np.reshape(images, (T, -1), order='F'))
         if np.isfortran(Yr):
@@ -449,19 +445,18 @@ class CNMF(object):
 
         logger.info((T,) + self.dims)
 
-        # Make sure filename is pointed correctly (numpy sets it to None sometimes)
+        # Make sure filename is correctly set (numpy sets it to None sometimes)
         try:
             Y.filename = images.filename
             Yr.filename = images.filename
             self.mmap_file = images.filename
-        except AttributeError:  # if no memmapping cause working with small data
+        except AttributeError:  # if no memmapping because we're working with small data
             pass
 
         logger.info(f"Using {self.params.get('patch', 'n_processes')} processes")
         # FIXME The code below is really ugly and it's hard to tell if it's doing the right thing
         if self.params.get('preprocess', 'n_pixels_per_process') is None:
-            avail_memory_per_process = psutil.virtual_memory()[
-                1] / 2.**30 / self.params.get('patch', 'n_processes')
+            avail_memory_per_process = psutil.virtual_memory()[1] / 2.**30 / self.params.get('patch', 'n_processes')
             mem_per_pix = 3.6977678498329843e-09
             npx_per_proc = int(avail_memory_per_process / 8. / mem_per_pix / T)
             npx_per_proc = int(np.minimum(npx_per_proc, np.prod(self.dims) // self.params.get('patch', 'n_processes')))
@@ -489,22 +484,21 @@ class CNMF(object):
 
 
                 if self.remove_very_bad_comps:
-                    logger.info('removing bad components : ')
+                    logger.info('Removing bad components')
                     final_frate = 10
                     r_values_min = 0.5  # threshold on space consistency
                     fitness_min = -15  # threshold on time variability
                     fitness_delta_min = -15
                     Npeaks = 10
                     traces = np.array(self.C)
-                    logger.info('estimating the quality...')
+                    logger.info('Estimating component qualities...')
                     idx_components, idx_components_bad, fitness_raw,\
                         fitness_delta, r_values = estimate_components_quality(
                             traces, Y, self.estimates.A, self.estimates.C, self.estimates.b, self.estimates.f,
                             final_frate=final_frate, Npeaks=Npeaks, r_values_min=r_values_min,
                             fitness_min=fitness_min, fitness_delta_min=fitness_delta_min, return_all=True, N=5)
 
-                    logger.info(('Keeping ' + str(len(idx_components)) +
-                           ' and discarding  ' + str(len(idx_components_bad))))
+                    logger.info(f"Keeping {len(idx_components)} components and discarding {len(idx_components_bad)} components")
                     self.estimates.C = self.estimates.C[idx_components]
                     self.estimates.A = self.estimates.A[:, idx_components] # type: ignore # not provable that self.initialise provides a value
                     self.estimates.YrA = self.estimates.YrA[idx_components]
@@ -566,6 +560,12 @@ class CNMF(object):
                 raise Exception(
                     'You need to provide a memory mapped file as input if you use patches!!')
 
+            # We sometimes need to investigate what changes between before run_CNMF_patches and after that/before we update
+            # components. This code block here is ready to uncomment for such debugging.
+            #print("D: About to run run_CNMF_patches(), entering a shell. Will open a shell again afterwards")
+            #import code
+            #code.interact(local=dict(globals(), **locals()) )
+
             self.estimates.A, self.estimates.C, self.estimates.YrA, self.estimates.b, self.estimates.f, \
                 self.estimates.sn, self.estimates.optional_outputs = run_CNMF_patches(
                     images.filename, self.dims + (T,), self.params,
@@ -575,8 +575,14 @@ class CNMF(object):
                     del_duplicates=self.params.get('patch', 'del_duplicates'),
                     indices=indices)
 
+            #print("D: Finished with run_CNMF_patches(), self.estimates.* are populated. Next step would be update_temporal() but first: Entering a shell.")
+            #code.interact(local=dict(globals(), **locals()) )
+
+            if len(list(np.where(~self.estimates.b.any(axis=0))[0])) > 0: # If any of the background ended up completely empty
+                raise Exception("After run_CNMF_patches(), one or more of the background components is empty. Please restart analysis with init/nb set to a lower value")
+
             self.estimates.bl, self.estimates.c1, self.estimates.g, self.estimates.neurons_sn = None, None, None, None
-            logger.info("merging")
+            logger.info("Merging")
             self.estimates.merged_ROIs = [0]
 
 
@@ -615,7 +621,7 @@ class CNMF(object):
                 while len(self.estimates.merged_ROIs) > 0:
                     self.merge_comps(Yr, mx=np.inf)
 
-                logger.info("update temporal")
+                logger.info("Updating temporal components")
                 self.update_temporal(Yr, use_init=False)
 
         self.estimates.normalize_components()
@@ -750,11 +756,7 @@ class CNMF(object):
         pr = inspect.signature(self.update_temporal)
         params = [k for k, v in pr.parameters.items() if '=' in str(v)]
         kw2 = {k: lc[k] for k in params}
-        try:
-            kwargs_new = {**kw2, **kwargs}
-        except():  # python 2.7
-            kwargs_new = kw2.copy()
-            kwargs_new.update(kwargs)
+        kwargs_new = {**kw2, **kwargs}
         self.params.set('temporal', kwargs_new)
 
         self.estimates.C, self.estimates.A, self.estimates.b, self.estimates.f, self.estimates.S, \
