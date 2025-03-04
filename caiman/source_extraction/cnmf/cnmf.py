@@ -290,6 +290,31 @@ class CNMF(object):
         self.estimates = Estimates(A=Ain, C=Cin, b=b_in, f=f_in,
                                    dims=self.params.data['dims'])
 
+    def __str__(self):
+        ret = f"Caiman CNMF Object. subfields:{list(self.__dict__.keys()) }"
+        if hasattr(self.estimates, 'A') and self.estimates.A is not None:
+            ret += f" A.shape={self.estimates.A.shape}"
+        if hasattr(self.estimates, 'b') and self.estimates.b is not None:
+            ret += f" b.shape={self.estimates.b.shape}"
+        if hasattr(self.estimates, 'C') and self.estimates.C is not None:
+            ret += f" C.shape={self.estimates.C.shape}"
+        return ret
+    
+    def __repr__(self):
+        ret = f"Caiman CNMF Object"
+        if hasattr(self.estimates, 'A') and self.estimates.A is not None:
+            ret += f" A.shape={self.estimates.A.shape}"
+        if hasattr(self.estimates, 'b') and self.estimates.b is not None and len(self.estimates.b.shape) > 1:
+            ret += f" bg components={self.estimates.b.shape[1]}"
+        if hasattr(self.estimates, 'C') and self.estimates.C is not None:
+            ret += f" C.shape={self.estimates.C.shape}"
+        ret += " Use str() for more details"
+        return ret
+
+    def __getitem__(self, idx):
+        return getattr(self, idx)
+    # We want subscripting to be read-only so we do not define a __setitem__ method
+
     def fit_file(self, motion_correct=False, indices=None, include_eval=False):
         """
         This method packages the analysis pipeline (motion correction, memory

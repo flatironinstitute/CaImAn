@@ -167,7 +167,31 @@ class Estimates(object):
         self.A_thr = None
         self.discarded_components = None
 
+    def __str__(self):
+        ret = f"Caiman CNMF Estimates Object. subfields:{list(self.__dict__.keys())}"
+        if hasattr(self, 'A') and self.A is not None:
+            ret += f" A.shape={self.A.shape}"
+        if hasattr(self, 'b') and self.b is not None:
+            ret += f" b.shape={self.b.shape}"
+        if hasattr(self, 'C') and self.C is not None:
+            ret += f" C.shape={self.C.shape}"
+        return ret
 
+    def __repr__(self):
+        ret = f"Caiman CNMF Estimates Object"
+        if hasattr(self, 'A') and self.A is not None:
+            ret += f" A.shape={self.A.shape}"
+        if hasattr(self, 'b') and self.b is not None and len(self.b.shape) > 1:
+            ret += f" bg components={self.b.shape[1]}"
+        if hasattr(self, 'C') and self.C is not None:
+            ret += f" C.shape={self.C.shape}"
+        ret += " Use str() for more details"
+        return ret
+
+
+    def __getitem__(self, idx):
+        return getattr(self, idx)
+    # We want subscripting to be read-only so we do not define a __setitem__ method
 
     def plot_contours(self, img=None, idx=None, thr_method='max',
                       thr=0.2, display_numbers=True, params=None,
