@@ -941,7 +941,7 @@ def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1,
         if 'init_method' in nmf_overrides:
             nmf_init_method = nmf_overrides['init_method']
 
-    model = NMF(n_components=nb, max_iter=max_iter_greedyroi, init=greedyroi_nmf_imethod)
+    model = NMF(n_components=nb, max_iter=nmf_max_iter, init=nmf_init_method)
 
     b_in = model.fit_transform(np.maximum(res, 0)).astype(np.float32)
     f_in = model.components_.astype(np.float32)
