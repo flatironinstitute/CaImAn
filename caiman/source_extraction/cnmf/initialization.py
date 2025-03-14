@@ -148,7 +148,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
                           min_corr=0.8, min_pnr=10, seed_method='auto', ring_size_factor=1.5,
                           center_psf=False, ssub_B=2, init_iter=2, remove_baseline = True,
                           SC_kernel='heat', SC_sigma=1, SC_thr=0, SC_normalize=True, SC_use_NN=False,
-                          SC_nnn=20, lambda_gnmf=1, snmf_l1_ratio:float=0.0):
+                          SC_nnn=20, lambda_gnmf=1, snmf_l1_ratio:float=0.0, method_args=None):
     """
     Initialize components. This function initializes the spatial footprints, temporal components,
     and background which are then further refined by the CNMF iterations. There are four
@@ -259,6 +259,11 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
         snmf_l1_ratio: float
             Used only by sparse NMF, passed to NMF call
 
+        method_args: dict
+            This is used to pass extra arguments specific to the method.
+            Currently only defined for the "greedy_roi" method; passing arguments
+            to other methods is currently ignored but may change behaviour in the future.
+
     Returns:
         Ain: np.ndarray
             (d1 * d2 [ * d3]) x K , spatial filter of each neuron.
@@ -322,7 +327,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
     if method == 'greedy_roi':
         Ain, Cin, _, b_in, f_in = greedyROI(
             Y_ds, nr=K, gSig=gSig, gSiz=gSiz, nIter=nIter, kernel=kernel, nb=nb,
-            rolling_sum=rolling_sum, rolling_length=rolling_length, seed_method=seed_method)
+            rolling_sum=rolling_sum, rolling_length=rolling_length, seed_method=seed_method, nmf_overrides=method_args)
 
         if use_hals:
             logger.info('Refining Components using HALS NMF iterations')
@@ -678,7 +683,7 @@ def graphNMF(Y_ds, nr, max_iter_snmf=500, lambda_gnmf=1,
     return A_in, C_in, center, b_in, f_in
 
 def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1,
-              rolling_sum=False, rolling_length:int=100, seed_method:str='auto', nmf_overrides:dict = {}):
+              rolling_sum=False, rolling_length:int=100, seed_method:str='auto', nmf_overrides:dict = None):
     """
     Greedy initialization of spatial and temporal components using spatial Gaussian filtering
 
@@ -935,7 +940,7 @@ def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1,
     nmf_init_method = 'nndsvdar'
     nmf_max_iter = 200
     # Apply overrides
-    if nmf_overrides is not None and len(nmf_overrides) > 1: # None check is just in case
+    if nmf_overrides is not None and len(nmf_overrides) > 1:
         if 'max_iter' in nmf_overrides:
             nmf_max_iter = int(nmf_overrides['max_iter'])
         if 'init_method' in nmf_overrides:
