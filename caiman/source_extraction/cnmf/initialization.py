@@ -148,7 +148,8 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
                           min_corr=0.8, min_pnr=10, seed_method='auto', ring_size_factor=1.5,
                           center_psf=False, ssub_B=2, init_iter=2, remove_baseline = True,
                           SC_kernel='heat', SC_sigma=1, SC_thr=0, SC_normalize=True, SC_use_NN=False,
-                          SC_nnn=20, lambda_gnmf=1, snmf_l1_ratio:float=0.0, method_args=None):
+                          SC_nnn=20, lambda_gnmf=1, snmf_l1_ratio:float=0.0,
+                          greedyroi_nmf_init_method:str='nndsvdar', greedyroi_nmf_max_iter:int=200):
     """
     Initialize components. This function initializes the spatial footprints, temporal components,
     and background which are then further refined by the CNMF iterations. There are four
@@ -167,6 +168,12 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
 
     It is also by default followed by hierarchical alternative least squares (HALS) NMF.
     Optional use of spatio-temporal downsampling to boost speed.
+
+    TODO: Parameters are a mess for this and threading new parameters down to the called code
+    is awful. In the future we should both clean up the parameters object and just pass it in,
+    either whole or in some limited (or nested-dict) form, rather than have this many
+    arguments. This will need to be a complete overhaul because the way params are passed in now
+    make the structure of CNMFParams closely tied to the function signature.
 
     Args:
         Y: np.ndarray
@@ -259,10 +266,11 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
         snmf_l1_ratio: float
             Used only by sparse NMF, passed to NMF call
 
-        method_args: dict
-            This is used to pass extra arguments specific to the method.
-            Currently only defined for the "greedy_roi" method; passing arguments
-            to other methods is currently ignored but may change behaviour in the future.
+        greedyroi_nmf_init_method
+            If greedy_roi is used, this specifies the NMF init method
+
+        greedyroi_nmf_max_iter
+            If greedy_roi is used, this specifies the max_iter to NMF
 
     Returns:
         Ain: np.ndarray
@@ -323,11 +331,11 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
     if nb > min(np.prod(ds), Y_ds.shape[-1]):
         nb = -1
 
-    logger.info('Roi Initialization...')
+    logger.info(f'Roi Initialization with method {method}...')
     if method == 'greedy_roi':
         Ain, Cin, _, b_in, f_in = greedyROI(
             Y_ds, nr=K, gSig=gSig, gSiz=gSiz, nIter=nIter, kernel=kernel, nb=nb,
-            rolling_sum=rolling_sum, rolling_length=rolling_length, seed_method=seed_method, nmf_overrides=method_args)
+            rolling_sum=rolling_sum, rolling_length=rolling_length, seed_method=seed_method, nmf_overrides={'init_method': greedyroi_nmf_init_method, 'max_iter': greedyroi_nmf_max_iter})
 
         if use_hals:
             logger.info('Refining Components using HALS NMF iterations')
@@ -757,7 +765,7 @@ def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1,
 
     """
     logger = logging.getLogger("caiman")
-    logger.info("Greedy initialization of spatial and temporal components using spatial Gaussian filtering")
+    logger.info(f"Greedy initialization of spatial and temporal components using spatial Gaussian filtering. Params={nmf_overrides}")
     d = np.shape(Y)
     Y[np.isnan(Y)] = 0
     med = np.median(Y, axis=-1)
