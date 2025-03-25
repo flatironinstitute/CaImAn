@@ -148,7 +148,8 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
                           min_corr=0.8, min_pnr=10, seed_method='auto', ring_size_factor=1.5,
                           center_psf=False, ssub_B=2, init_iter=2, remove_baseline = True,
                           SC_kernel='heat', SC_sigma=1, SC_thr=0, SC_normalize=True, SC_use_NN=False,
-                          SC_nnn=20, lambda_gnmf=1, snmf_l1_ratio:float=0.0):
+                          SC_nnn=20, lambda_gnmf=1, snmf_l1_ratio:float=0.0,
+                          greedyroi_nmf_init_method:str='nndsvdar', greedyroi_nmf_max_iter:int=200):
     """
     Initialize components. This function initializes the spatial footprints, temporal components,
     and background which are then further refined by the CNMF iterations. There are four
@@ -167,6 +168,12 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
 
     It is also by default followed by hierarchical alternative least squares (HALS) NMF.
     Optional use of spatio-temporal downsampling to boost speed.
+
+    TODO: Parameters are a mess for this and threading new parameters down to the called code
+    is awful. In the future we should both clean up the parameters object and just pass it in,
+    either whole or in some limited (or nested-dict) form, rather than have this many
+    arguments. This will need to be a complete overhaul because the way params are passed in now
+    make the structure of CNMFParams closely tied to the function signature.
 
     Args:
         Y: np.ndarray
@@ -259,6 +266,12 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
         snmf_l1_ratio: float
             Used only by sparse NMF, passed to NMF call
 
+        greedyroi_nmf_init_method
+            If greedy_roi is used, this specifies the NMF init method
+
+        greedyroi_nmf_max_iter
+            If greedy_roi is used, this specifies the max_iter to NMF
+
     Returns:
         Ain: np.ndarray
             (d1 * d2 [ * d3]) x K , spatial filter of each neuron.
@@ -318,11 +331,11 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
     if nb > min(np.prod(ds), Y_ds.shape[-1]):
         nb = -1
 
-    logger.info('Roi Initialization...')
+    logger.info(f'Roi Initialization with method {method}...')
     if method == 'greedy_roi':
         Ain, Cin, _, b_in, f_in = greedyROI(
             Y_ds, nr=K, gSig=gSig, gSiz=gSiz, nIter=nIter, kernel=kernel, nb=nb,
-            rolling_sum=rolling_sum, rolling_length=rolling_length, seed_method=seed_method)
+            rolling_sum=rolling_sum, rolling_length=rolling_length, seed_method=seed_method, nmf_overrides={'init_method': greedyroi_nmf_init_method, 'max_iter': greedyroi_nmf_max_iter})
 
         if use_hals:
             logger.info('Refining Components using HALS NMF iterations')
@@ -352,14 +365,13 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
             SC_sigma=SC_sigma, SC_use_NN=SC_use_NN, SC_nnn=SC_nnn,
             SC_normalize=SC_normalize, SC_thr=SC_thr)
 
-    elif method == 'pca_ica':
+    elif method == 'pca_ica': # This code may be untested
         Ain, Cin, _, b_in, f_in = ICA_PCA(
             Y_ds, nr=K, sigma_smooth=sigma_smooth_snmf, truncate=2, fun='logcosh', tol=1e-10,
             max_iter=max_iter_snmf, remove_baseline=True, perc_baseline=perc_baseline_snmf, nb=nb)
 
     else:
-        print(method)
-        raise Exception("Unsupported initialization method")
+        raise Exception(f"Unsupported initialization method {method}")
 
     K = np.shape(Ain)[-1]
 
@@ -431,6 +443,8 @@ def ICA_PCA(Y_ds, nr, sigma_smooth=(.5, .5, .5), truncate=2, fun='logcosh',
         nb
     """
 
+    # Does this work well enough to leave it in the codebase? Unclear if this
+    # works
     print("not a function to use in the moment ICA PCA \n")
     m = scipy.ndimage.gaussian_filter(np.transpose(
         Y_ds, [2, 0, 1]), sigma=sigma_smooth, mode='nearest', truncate=truncate)
@@ -583,30 +597,17 @@ def compressedNMF(Y_ds, nr, r_ov=10, max_iter_snmf=500,
     T, dims = m.shape[0], m.shape[1:]
     d = np.prod(dims)
     yr = np.reshape(m, [T, d], order='F')
-#    L = randomized_range_finder(yr, nr + r_ov, 3)
-#    R = randomized_range_finder(yr.T, nr + r_ov, 3)
-#    Yt = L.T.dot(yr).dot(R)
-#    c_in, a_in = compressive_nmf(Yt, L, R.T, nr)
-#    C_in = L.dot(c_in)
-#    A_in = a_in.dot(R.T)
-#    A_in = A_in.T
-#    C_in = C_in.T
     A, C, USV = nnsvd_init(yr, nr, r_ov=r_ov)
     W_r = np.random.randn(d, nr + r_ov)
     W_l = np.random.randn(T, nr + r_ov)
     US = USV[0]*USV[1]
     YYt = US.dot(USV[2].dot(USV[2].T)).dot(US.T)
-#    YYt = yr.dot(yr.T)
 
     B = YYt.dot(YYt.dot(US.dot(USV[2].dot(W_r))))
     PC, _ = np.linalg.qr(B)
 
     B = USV[2].T.dot(US.T.dot(YYt.dot(YYt.dot(W_l))))
     PA, _ = np.linalg.qr(B)
-#    mdl = NMF(n_components=nr, verbose=False, init='nndsvd', tol=1e-10,
-#              max_iter=1)
-#    C = mdl.fit_transform(yr).T
-#    A = mdl.components_.T
 
     yrPA = yr.dot(PA)
     yrPC = PC.T.dot(yr)
@@ -690,7 +691,7 @@ def graphNMF(Y_ds, nr, max_iter_snmf=500, lambda_gnmf=1,
     return A_in, C_in, center, b_in, f_in
 
 def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1,
-              rolling_sum=False, rolling_length=100, seed_method='auto'):
+              rolling_sum=False, rolling_length:int=100, seed_method:str='auto', nmf_overrides:dict = None):
     """
     Greedy initialization of spatial and temporal components using spatial Gaussian filtering
 
@@ -716,7 +717,7 @@ def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1,
         nb: int
             Number of background components
 
-        rolling_max: boolean
+        rolling_sum: boolean
             Detect new components based on a rolling sum of pixel activity (default: True)
 
         rolling_length: int
@@ -727,6 +728,17 @@ def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1,
             'semi' detects nr components automatically and allows to add more manually
             if running as notebook 'semi' and 'manual' require a backend that does not
             inline figures, e.g. %matplotlib tk
+
+        nmf_overrides: dict
+            This provides a mechanism to override arguments to sklearn.decomposition.NMF()
+            Right now, the accepted keys are:
+                'max_iter' - default number of iterations requested. Defaults to 200 to match the default value in the signature on the sklearn side.
+                'init_method' - Default NMF init method. Defaults to 'nndsvdar', the nonnegative double singular value decomposition with
+                    zeroes replaced with small random values.
+                    Some users report better results with 'random', which uses nonnegative random matrices
+                        scaled with sqrt(X.mean() / n_components)
+                    See the docs for sklearn.decomposition.NMF() for other init methods.
+            Please reach out if you want more options supported.
 
     Returns:
         A: np.array
@@ -739,6 +751,10 @@ def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1,
         center: np.array
             2d array of size nr x 2 [ or 3] with the components centroids
 
+        b_in: (UNDOCUMENTED)
+
+        f_in: (UNDOCUMENTED)
+
     Author:
         Eftychios A. Pnevmatikakis and Andrea Giovannucci based on a matlab implementation by Yuanjun Gao
             Simons Foundation, 2015
@@ -749,7 +765,7 @@ def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1,
 
     """
     logger = logging.getLogger("caiman")
-    logger.info("Greedy initialization of spatial and temporal components using spatial Gaussian filtering")
+    logger.info(f"Greedy initialization of spatial and temporal components using spatial Gaussian filtering. Params={nmf_overrides}")
     d = np.shape(Y)
     Y[np.isnan(Y)] = 0
     med = np.median(Y, axis=-1)
@@ -841,6 +857,7 @@ def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1,
             if len(center):
                 plt.scatter(*np.transpose(center)[::-1], c='b')
             plt.axis('off')
+            # TODO: Move this graphics code out of the core algorithms; figure out right way to do that
             plt.suptitle(
                 'Click to add component. Click again on it to remove it. Press any key to update figure. Add more components, or press any key again when done.')
             centers = []
@@ -926,8 +943,19 @@ def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1,
 
     res = np.reshape(Y, (np.prod(d[0:-1]), d[-1]),
                      order='F') + med.flatten(order='F')[:, None]
-#    model = NMF(n_components=nb, init='random', random_state=0)
-    model = NMF(n_components=nb, init='nndsvdar')
+
+    # Defaults
+    nmf_init_method = 'nndsvdar'
+    nmf_max_iter = 200
+    # Apply overrides
+    if nmf_overrides is not None and len(nmf_overrides) > 1:
+        if 'max_iter' in nmf_overrides:
+            nmf_max_iter = int(nmf_overrides['max_iter'])
+        if 'init_method' in nmf_overrides:
+            nmf_init_method = nmf_overrides['init_method']
+
+    model = NMF(n_components=nb, max_iter=nmf_max_iter, init=nmf_init_method)
+
     b_in = model.fit_transform(np.maximum(res, 0)).astype(np.float32)
     f_in = model.components_.astype(np.float32)
 
@@ -1333,7 +1361,6 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
         if use_NMF:
             model = NMF(n_components=nb, init='nndsvdar')
             b_in = model.fit_transform(np.maximum(B, 0))
-            # f_in = model.components_.squeeze()
             f_in = np.linalg.lstsq(b_in, B)[0]
         else:
             b_in, s_in, f_in = spr.linalg.svds(B, k=nb)
