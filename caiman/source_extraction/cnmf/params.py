@@ -885,8 +885,8 @@ class CNMFParams(object):
             'pw_rigid': False,                  # flag for performing pw-rigid motion correction
             'shifts_interpolate': False,        # interpolate shifts based on patch locations instead of resizing
             'shifts_opencv': True,              # flag for applying shifts using cubic interpolation (otherwise FFT)
-            'splits_els': 14,                   # number of splits across time for pw-rigid registration
-            'splits_rig': 14,                   # number of splits across time for rigid registration
+            'splits_els': 14,                   # number of splits across time for pw-rigid registration (usually overridden by code)
+            'splits_rig': 14,                   # number of splits across time for rigid    registration (usually overridden by code)
             'strides': (96, 96),                # how often to start a new patch in pw-rigid registration
             'upsample_factor_grid': 4,          # motion field upsampling factor during FFT shifts
             'use_cuda': False,                  # flag for using a GPU
