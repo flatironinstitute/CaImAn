@@ -165,7 +165,7 @@ def main():
     saved_p = opts.preprocess['p'] # Save the deconvolution parameter for later restoration
     opts.change_params({'preprocess': {'p': 0}, 'temporal': {'p': 0}})
     cnm = cnmf.CNMF(n_processes, params=opts, dview=dview)
-    cnm = cnm.fit(images)
+    cnm.fit(images)
 
     # ALTERNATE WAY TO RUN THE PIPELINE AT ONCE (optional)
     

@@ -64,7 +64,7 @@ def main():
 
     # Run CaImAn Batch (CNMF)
     cnm = cnmf.CNMF(n_processes, params=opts, dview=dview)
-    cnm = cnm.fit_file()
+    cnm.fit_file()
 
     # plot contour plots of components
     Cns = local_correlations_movie_offline(fnames[0],

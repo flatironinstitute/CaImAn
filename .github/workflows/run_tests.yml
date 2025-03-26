@@ -30,6 +30,8 @@ jobs:
           activate-environment: caiman
           conda-solver: libmamba
           miniforge-version: latest
+          channels: conda-forge
+          conda-remove-defaults: "true"
 
       - name: Install OS Dependencies
         shell: bash -l {0}
