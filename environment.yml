@@ -1,5 +1,6 @@
 channels:
 - conda-forge
+- pytorch 
 dependencies:
 - python <=3.12
 - av
@@ -33,6 +34,8 @@ dependencies:
 - scipy >= 1.10.1
 # - tensorflow >=2.4.0,<2.16
 - tifffile
+- torch
+- torchvision
 - tk
 - tqdm
 - yapf
