@@ -45,7 +45,8 @@ extra_dirs = ['bin', 'demos', 'docs', 'model', 'testdata']
 # standard_movies: These are needed by the demo
 standard_movies = [
     os.path.join('example_movies', 'data_endoscope.tif'),
-    os.path.join('example_movies', 'demoMovie.tif')
+    os.path.join('example_movies', 'demoMovie.tif'),
+    os.path.join('example_movies', 'avg_mask_fixed.png')
 ]
 
 ###############
