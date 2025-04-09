@@ -115,6 +115,12 @@ class OnACID(object):
         self.dview = dview
         if Ain is not None:
             self.estimates.A = Ain
+        if self.params.motion['splits_rig'] > self.params.online['init_batch']/2:
+            raise Exception("In params, online.init_batch and motion.num_frames_split have incompatible values; consider increasing online.init_batch to be a small multiple of the other")
+            # See issue #1483; it would actually be better to change initialisation so it ignores splits_rig (either using a default
+            # value or providing an alternate parameter for that), but that's a much more intrusive change and would potentially
+            # change things for code/notebooks that've worked for a long time; we should save such changes for a major rewrite
+            # (if someone takes a particular interest in that).
 
     @profile
     def _prepare_object(self, Yr, T, new_dims=None, idx_components=None):
