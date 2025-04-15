@@ -74,7 +74,7 @@ def main():
     max_deviation_rigid = 3                         # maximum deviation allowed for patch with respect to rigid shifts
     border_nan = 'copy'
 
-    params_dict = {'fnames': fnames,
+    opts_dict = {'fnames': fnames,
                    'fr': fr,
                    'pw_rigid': pw_rigid,
                    'max_shifts': max_shifts,
@@ -84,7 +84,7 @@ def main():
                    'max_deviation_rigid': max_deviation_rigid,
                    'border_nan': border_nan}
 
-    opts = volparams(params_dict=params_dict)
+    opts = volparams(params_dict=opts_dict)
 
     # play the movie (optional)
     # playing the movie using opencv. It requires loading the movie in memory.
@@ -221,7 +221,7 @@ def main():
                'weight_update': weight_update,
                'n_iter': n_iter}
 
-    opts.change_params(params_dict=params_dict);          
+    opts.change_params(params_dict=opts_dict);          
 
     # TRACE DENOISING AND SPIKE DETECTION
     vpy = VOLPY(n_processes=n_processes, dview=dview, params=opts)
