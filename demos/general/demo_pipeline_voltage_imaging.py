@@ -52,8 +52,8 @@ def main():
     # Figure out what data we're working on
     if cfg.input is None:
         # If no input is specified, use sample data, downloading if necessary
-        fnames    = [download_demo('demo_voltage_imaging.hdf5', 'volpy')] # XXX do we need to use a separate directory?
-        path_ROIs = [download_demo('demo_voltage_imaging_ROIs.hdf5', 'volpy')]
+        fnames    = [download_demo('demo_voltage_imaging.hdf5')] # XXX do we need to use a separate directory?
+        path_ROIs = [download_demo('demo_voltage_imaging_ROIs.hdf5')]
     else:
         fnames = cfg.input
         path_ROIs = cfg.pathinput
@@ -167,7 +167,7 @@ def main():
 
     elif cfg.method == 'gui_annotation':
         # run volpy_gui.py file in the caiman/source_extraction/volpy folder
-        gui_ROIs =  caiman_datadir() + '/example_movies/volpy/gui_roi.hdf5'
+        gui_ROIs =  os.path.join(caiman_datadir(), 'example_movies', 'gui_roi.hdf5')
         with h5py.File(gui_ROIs, 'r') as fl:
             ROIs = fl['mov'][()]
 
