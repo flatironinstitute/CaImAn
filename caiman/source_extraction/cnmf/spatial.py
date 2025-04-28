@@ -1063,8 +1063,15 @@ def computing_indicator(Y, A_in, b, C, f, nb, method, dims, min_size, max_size, 
                 Y) - dist_indicator_av.T.dot(b).dot(f), 0)
             A_in = scipy.sparse.coo_matrix(A_in.astype(np.float32))
             nr, _ = np.shape(C)  # number of neurons
-            ind2_ = [np.hstack((np.where(iid_)[0], nr + np.arange(f.shape[0])))
-                     if np.size(np.where(iid_)[0]) > 0 else [] for iid_ in dist_indicator]
+            ind2_ = []
+            for iid_ in dist_indicator:
+                if scipy.sparse.issparse(iid_):
+                    iid_ = iid_.toarray().squeeze()
+                comps = np.where(iid_)[0]
+                if np.size(comps) > 0:
+                    ind2_.append(np.hstack((comps, nr + np.arange(f.shape[0]))))
+                else:
+                    ind2_.append([])
 
     else:
         if C is None:
