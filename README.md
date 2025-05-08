@@ -64,8 +64,8 @@ Jupyter will open. Navigate to demos/notebooks/ and click on `demo_pipeline.ipyn
 
 # Quick Start (Route B)
 This differs from the quick start above in two ways:
-* For the first step only, go to [https://github.com/flatironinstitute/CaImAn/blob/main/docs/source/Installation.rst](this doc) and run through the parts of section 1B relevant to your operating system. After that, steps 2 and onward are the same
-* You will probably want to manually set some environment variables before any use of caiman; see [https://github.com/conda-forge/caiman-feedstock/blob/main/recipe/activate.sh](here) for a Linux/OSX example, or [https://github.com/conda-forge/caiman-feedstock/blob/main/recipe/activate.bat](here) for a Windows example. Either make a note of this or modify your dotfiles/configuration to do it for you.
+* For the first step only, go to [this doc](https://github.com/flatironinstitute/CaImAn/blob/main/docs/source/Installation.rst) and run through the parts of section 1B relevant to your operating system. After that, steps 2 and onward are the same
+* You will probably want to manually set some environment variables before any use of caiman; see [here](https://github.com/conda-forge/caiman-feedstock/blob/main/recipe/activate.sh) for a Linux/OSX example, or [here](https://github.com/conda-forge/caiman-feedstock/blob/main/recipe/activate.bat) for a Windows example. Either make a note of this or modify your dotfiles/configuration to do it for you.
 
 ## For installation help
 Caiman should install easily on Linux, Mac, and Windows. If you run into problems, we have a dedicated [installation page](./docs/source/Installation.rst). If you don't find what you need there, [create an issue](https://github.com/flatironinstitute/Caiman/issues) on GitHub.
