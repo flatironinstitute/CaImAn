@@ -16,7 +16,7 @@ There are two primary ways to install Caiman.
 The easiest route is to install the miniforge distribution of Anaconda, and use that to install the rest using prebuilt packages. Most users should take this path.
 
 ## Route B
-The alternative route is to make sure you have a working compiler, create a python virtualenv, grab the caiman sources, and use pip to populate the virtualenv and build Caiman. This route is not as tested and is not presently documented; it is a standard pip-based install.
+The alternative route is to make sure you have a working compiler, create a python virtualenv, grab the caiman sources, and use pip to populate the virtualenv and build Caiman. This route is not as tested and is not presently documented; it is a standard pip-based install (although it will invoke your C++ compiler to build some components).
 
 # Quick start (Route A)
 Follow these three steps to get started quickly, from installation to working through a demo notebook. If you do not already have conda installed, [you can find it here](https://github.com/conda-forge/miniforge). The miniforge distribution of conda is preferred; it will require fewer steps and likely encounter fewer issues. If you are using a different distro of conda, you will likely need to add `-c conda-forge` to the commands you use to make your environment.
@@ -61,6 +61,11 @@ Go into the working directory you created in Step 2, and open a Jupyter notebook
 Jupyter will open. Navigate to demos/notebooks/ and click on `demo_pipeline.ipynb` to get started with a demo.
 
 > `<your home>` in the first line is your home directory, its location depdnding on your OS/computer. On Linux/Mac it is `~` while on Windows it will be something like `C:\Users\your_user_name\` 
+
+# Quick Start (Route B)
+This differs from the quick start above in two ways:
+* For the first step only, go to [https://github.com/flatironinstitute/CaImAn/blob/main/docs/source/Installation.rst](this doc) and run through the parts of section 1B relevant to your operating system. After that, steps 2 and onward are the same
+* You will probably want to manually set some environment variables before any use of caiman; see [https://github.com/conda-forge/caiman-feedstock/blob/main/recipe/activate.sh](here) for a Linux/OSX example, or [https://github.com/conda-forge/caiman-feedstock/blob/main/recipe/activate.bat](here) for a Windows example. Either make a note of this or modify your dotfiles/configuration to do it for you.
 
 ## For installation help
 Caiman should install easily on Linux, Mac, and Windows. If you run into problems, we have a dedicated [installation page](./docs/source/Installation.rst). If you don't find what you need there, [create an issue](https://github.com/flatironinstitute/Caiman/issues) on GitHub.
