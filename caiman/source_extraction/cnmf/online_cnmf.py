@@ -115,6 +115,12 @@ class OnACID(object):
         self.dview = dview
         if Ain is not None:
             self.estimates.A = Ain
+        if self.params.motion['splits_rig'] > self.params.online['init_batch']/2:
+            raise Exception("In params, online.init_batch and motion.num_frames_split have incompatible values; consider increasing online.init_batch to be a small multiple of the other")
+            # See issue #1483; it would actually be better to change initialisation so it ignores splits_rig (either using a default
+            # value or providing an alternate parameter for that), but that's a much more intrusive change and would potentially
+            # change things for code/notebooks that've worked for a long time; we should save such changes for a major rewrite
+            # (if someone takes a particular interest in that).
 
     @profile
     def _prepare_object(self, Yr, T, new_dims=None, idx_components=None):
@@ -421,6 +427,7 @@ class OnACID(object):
             num_iters_hals: int, optional
                 maximal number of iterations for HALS (NNLS via blockCD)
         """
+        # FIXME This whole function is overly complex; should rewrite it for legibility
         logger = logging.getLogger("caiman")
         t_start = time()
 
@@ -490,7 +497,6 @@ class OnACID(object):
         t_new = time()
         num_added = 0
         if self.params.get('online', 'update_num_comps'):
-
             if self.params.get('online', 'use_corr_img'):
                 corr_img_mode = 'simple'  #'exponential'  # 'cumulative'
                 self.estimates.corr_img = caiman.summary_images.update_local_correlations(
@@ -523,6 +529,7 @@ class OnACID(object):
             else:
                 g_est = 0
             use_corr = self.params.get('online', 'use_corr_img')
+            # FIXME The next statement is really hard to read
             (self.estimates.Ab, Cf_temp, self.estimates.Yres_buf, self.estimates.rho_buf,
                 self.estimates.CC, self.estimates.CY, self.ind_A, self.estimates.sv,
                 self.estimates.groups, self.estimates.ind_new, self.ind_new_all,
@@ -2440,7 +2447,7 @@ def initialize_movie_online(Y, K, gSig, rf, stride, base_name,
                                               update_num_comps=True, rval_thr=rval_thr_online, thresh_fitness_delta=thresh_fitness_delta_online, thresh_fitness_raw=thresh_fitness_raw_online,
                                               batch_update_suff_stat=True, max_comp_update_shape=5)
 
-    cnm_init = cnm_init.fit(images)
+    cnm_init.fit(images)
     A_tot = cnm_init.A
     C_tot = cnm_init.C
     YrA_tot = cnm_init.YrA
@@ -2475,7 +2482,7 @@ def initialize_movie_online(Y, K, gSig, rf, stride, base_name,
                                                 update_num_comps=True, rval_thr=rval_thr_refine, thresh_fitness_delta=thresh_fitness_delta_refine, thresh_fitness_raw=thresh_fitness_raw_refine,
                                                 batch_update_suff_stat=True, max_comp_update_shape=5)
 
-    cnm_refine = cnm_refine.fit(images)
+    cnm_refine.fit(images)
 
     A, C, b, f, YrA = cnm_refine.A, cnm_refine.C, cnm_refine.b, cnm_refine.f, cnm_refine.YrA
 

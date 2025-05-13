@@ -172,90 +172,6 @@ class movie(caiman.base.timeseries.timeseries):
 
         return self, shifts, xcorrs, template
 
-    def motion_correct_3d(self,
-                          max_shift_z=5,
-                          max_shift_w=5,
-                          max_shift_h=5,
-                          num_frames_template=None,
-                          template=None,
-                          method='opencv',
-                          remove_blanks=False,
-                          interpolation='cubic'):
-        """
-        Extract shifts and motion corrected movie automatically,
-
-        for more control consider the functions extract_shifts and apply_shifts
-        Disclaimer, it might change the object itself.
-
-        Args:
-            max_shift,z,max_shift_w,max_shift_h: maximum pixel shifts allowed when 
-                    correcting in the axial, width, and height directions
-
-            template: if a good template for frame by frame correlation exists
-                      it can be passed. If None it is automatically computed
-
-            method: depends on what is installed 'opencv' or 'skimage'. 'skimage'
-                    is an order of magnitude slower
-
-            num_frames_template: if only a subset of the movies needs to be loaded
-                                 for efficiency/speed reasons
-
-
-        Returns:
-            self: motion corrected movie, it might change the object itself
-
-            shifts : tuple, contains x, y, and z shifts and correlation with template
-
-            xcorrs: cross correlation of the movies with the template
-
-            template: the computed template
-        """
-
-        if template is None:   # if template is not provided it is created
-            if num_frames_template is None:
-                num_frames_template = 10e7 / (self.shape[1] * self.shape[2])
-
-            frames_to_skip = int(np.maximum(1, self.shape[0] / num_frames_template))
-
-            # sometimes it is convenient to only consider a subset of the
-            # movie when computing the median
-            submov = self[::frames_to_skip, :].copy()
-            templ = submov.bin_median_3d()                                     # create template with portion of movie
-            shifts, xcorrs = submov.extract_shifts_3d(
-                max_shift_z=max_shift_z,                                       # NOTE: extract_shifts_3d has not been implemented yet - use skimage
-                max_shift_w=max_shift_w,
-                max_shift_h=max_shift_h,
-                template=templ,
-                method=method)
-            submov.apply_shifts_3d(                                            # NOTE: apply_shifts_3d has not been implemented yet
-                shifts, interpolation=interpolation, method=method)
-            template = submov.bin_median_3d()
-            del submov
-            m = self.copy()
-            shifts, xcorrs = m.extract_shifts_3d(max_shift_z=max_shift_z,
-                                                 max_shift_w=max_shift_w,
-                                                 max_shift_h=max_shift_h,
-                                                 template=template,
-                                                 method=method)
-            m = m.apply_shifts_3d(shifts, interpolation=interpolation, method=method)
-            template = (m.bin_median_3d())
-            del m
-        else:
-            template = template - np.percentile(template, 8)
-
-        # now use the good template to correct
-        shifts, xcorrs = self.extract_shifts_3d(max_shift_z=max_shift_z,
-                                                max_shift_w=max_shift_w,
-                                                max_shift_h=max_shift_h,
-                                                template=template,
-                                                method=method)
-        self = self.apply_shifts_3d(shifts, interpolation=interpolation, method=method)
-
-        if remove_blanks:
-            raise Exception("motion_correct_3d(): The remove_blanks parameter was never functional and should not be used")
-
-        return self, shifts, xcorrs, template
-
     def bin_median(self, window: int = 10) -> np.ndarray:
         """ compute median of 3D array in along axis o by binning values
 
@@ -465,7 +381,6 @@ class movie(caiman.base.timeseries.timeseries):
                                   min_, max_)
 
             elif method == 'skimage':
-
                 tform = skimage.transform.AffineTransform(translation=(-sh_y_n, -sh_x_n))
                 self[i] = skimage.transform.warp(frame, tform, preserve_range=True, order=interpolation)
 
@@ -476,54 +391,6 @@ class movie(caiman.base.timeseries.timeseries):
             raise Exception("apply_shifts(): The remove_blanks parameter was never functional and should not be used")
 
         return self
-
-    def debleach(self):
-        """ Debleach by fiting a model to the median intensity.
-        """
-        #todo: todocument
-        if not isinstance(self[0, 0, 0], np.float32):
-            warnings.warn('Casting the array to float32')
-            self = np.asanyarray(self, dtype=np.float32)
-
-        t, _, _ = self.shape
-        x = np.arange(t)
-        y = np.median(self.reshape(t, -1), axis=1)
-
-        def expf(x, a, b, c):
-            return a * np.exp(-b * x) + c
-
-        def linf(x, a, b):
-            return a * x + b
-
-        try:
-            p0:tuple = (y[0] - y[-1], 1e-6, y[-1])
-            popt, _ = scipy.optimize.curve_fit(expf, x, y, p0=p0)
-            y_fit = expf(x, *popt)
-        except:
-            p0 = (float(y[-1] - y[0]) / float(x[-1] - x[0]), y[0])
-            popt, _ = scipy.optimize.curve_fit(linf, x, y, p0=p0)
-            y_fit = linf(x, *popt)
-
-        norm = y_fit - np.median(y[:])
-        for frame in range(t):
-            self[frame, :, :] = self[frame, :, :] - norm[frame]
-
-        return self
-
-    def return_cropped(self, crop_top=0, crop_bottom=0, crop_left=0, crop_right=0, crop_begin=0, crop_end=0) -> np.ndarray:
-        """
-        Return a cropped version of the movie
-    The returned version is independent of the original, which is less memory-efficient but also less likely to be surprising.
-
-        Args:
-            crop_top/crop_bottom/crop_left,crop_right: how much to trim from each side
-
-            crop_begin/crop_end: (undocumented)
-        """
-        t, h, w = self.shape
-        ret = np.zeros(( t - crop_end - crop_begin, h - crop_bottom - crop_top, w - crop_right - crop_left))
-        ret[:,:,:] = self[crop_begin:t - crop_end, crop_top:h - crop_bottom, crop_left:w - crop_right]
-        return ret
 
     def removeBL(self, windowSize:int=100, quantilMin:int=8, in_place:bool=False, returnBL:bool=False):                   
         """
@@ -654,30 +521,6 @@ class movie(caiman.base.timeseries.timeseries):
                               start_time=self.start_time,
                               meta_data=self.meta_data,
                               file_name=self.file_name)
-
-    def NonnegativeMatrixFactorization(self,
-                                       n_components: int = 30,
-                                       init: str = 'nndsvd',
-                                       beta: int = 1,
-                                       tol=5e-7,
-                                       sparseness: str = 'components',
-                                       **kwargs) -> tuple[np.ndarray, np.ndarray]:
-        """
-        See documentation for scikit-learn NMF
-        """
-        if np.min(self) < 0:
-            raise ValueError("All values must be positive")
-
-        T, h, w = self.shape
-        Y = np.reshape(self, (T, h * w))
-        Y = Y - np.percentile(Y, 1)
-        Y = np.clip(Y, 0, np.Inf)
-        estimator = sklearn.decomposition.NMF(n_components=n_components, init=init, tol=tol, **kwargs)
-        time_components = estimator.fit_transform(Y)
-        components_ = estimator.components_
-        space_components = np.reshape(components_, (n_components, h, w))
-
-        return space_components, time_components
 
     def IPCA(self, components: int = 50, batch: int = 1000) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
         """
@@ -855,46 +698,6 @@ class movie(caiman.base.timeseries.timeseries):
 
         return Cn
 
-    def partition_FOV_KMeans(self,
-                             tradeoff_weight: float = .5,
-                             fx: float = .25,
-                             fy: float = .25,
-                             n_clusters: int = 4,
-                             max_iter: int = 500) -> tuple[np.ndarray, np.ndarray, np.ndarray]:
-        """
-        Partition the FOV in clusters that are grouping pixels close in space and in mutual correlation
-
-        Args:
-            tradeoff_weight:between 0 and 1 will weight the contributions of distance and correlation in the overall metric
-    
-            fx,fy: downsampling factor to apply to the movie
-    
-            n_clusters,max_iter: KMeans algorithm parameters
-
-        Returns:
-            fovs:array 2D encoding the partitions of the FOV
-    
-            mcoef: matrix of pairwise correlation coefficients
-    
-            distanceMatrix: matrix of picel distances
-        """
-        _, h1, w1 = self.shape
-        self.resize(fx, fy)
-        T, h, w = self.shape
-        Y = np.reshape(self, (T, h * w))
-        mcoef = np.corrcoef(Y.T)
-
-        idxA, idxB = np.meshgrid(list(range(w)), list(range(h)))
-        coordmat = np.vstack((idxA.flatten(), idxB.flatten()))
-        distanceMatrix = sklearn.metrics.pairwise.euclidean_distances(coordmat.T)
-        distanceMatrix = distanceMatrix / np.max(distanceMatrix)
-        estim = sklearn.cluster.KMeans(n_clusters=n_clusters, max_iter=max_iter)
-        kk = estim.fit(tradeoff_weight * mcoef - (1 - tradeoff_weight) * distanceMatrix)
-        labs = kk.labels_
-        fovs = np.reshape(labs, (h, w))
-        fovs = cv2.resize(np.uint8(fovs), (w1, h1), 1. / fx, 1. / fy, interpolation=cv2.INTER_NEAREST)
-        return np.uint8(fovs), mcoef, distanceMatrix
-
     def extract_traces_from_masks(self, masks: np.ndarray) -> caiman.base.traces.trace:
         """
         Args:
@@ -978,19 +781,6 @@ class movie(caiman.base.timeseries.timeseries):
 
         return self
 
-    def guided_filter_blur_2D(self, guide_filter, radius: int = 5, eps=0):
-        """
-        performs guided filtering on each frame. See opencv documentation of cv2.ximgproc.guidedFilter
-        """
-        logger = logging.getLogger("caiman")
-
-        for idx, fr in enumerate(self):
-            if idx % 1000 == 0:
-                logger.debug(f"At index: {idx}")
-            self[idx] = cv2.ximgproc.guidedFilter(guide_filter, fr, radius=radius, eps=eps)
-
-        return self
-
     def bilateral_blur_2D(self, diameter: int = 5, sigmaColor: int = 10000, sigmaSpace=0):
         """
         performs bilateral filtering on each frame. See opencv documentation of cv2.bilateralFilter
@@ -1070,33 +860,6 @@ class movie(caiman.base.timeseries.timeseries):
     def to_2D(self, order='F') -> np.ndarray:
         T = self.shape[0]
         return np.reshape(self, (T, -1), order=order)
-
-    def zproject(self, method: str = 'mean', cmap=matplotlib.cm.gray, aspect='auto', **kwargs) -> np.ndarray:
-        """
-        Compute and plot projection across time:
-
-        Args:
-            method: String
-                'mean','median','std'
-
-            **kwargs: dict
-                arguments to imagesc
-
-        Raises:
-             Exception 'Method not implemented'
-        """
-        # TODO: make the imshow optional
-        # TODO: todocument
-        if method == 'mean':
-            zp = np.mean(self, axis=0)
-        elif method == 'median':
-            zp = np.median(self, axis=0)
-        elif method == 'std':
-            zp = np.std(self, axis=0)
-        else:
-            raise Exception('Method not implemented')
-        plt.imshow(zp, cmap=cmap, aspect=aspect, **kwargs)
-        return zp
 
     def play(self,
              gain: float = 1,
@@ -2340,3 +2103,4 @@ def play_movie(movie,
 def rgb2gray(rgb):
     # Standard mathematical conversion
     return np.dot(rgb[..., :3], [0.299, 0.587, 0.114])
+

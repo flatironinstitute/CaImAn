@@ -11,6 +11,7 @@ dependencies:
 - ipywidgets
 - matplotlib
 - moviepy
+- pyside6
 - pytest
 - numpy <2.0.0,>=1.26
 - numpydoc

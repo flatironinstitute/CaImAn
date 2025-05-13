@@ -109,7 +109,7 @@ def cnmf_patches(args_in):
 
         cnm = CNMF(n_processes=1, params=opts)
 
-        cnm = cnm.fit(images)
+        cnm.fit(images)
         return [idx_, shapes, scipy.sparse.coo_matrix(cnm.estimates.A),
                 cnm.estimates.b, cnm.estimates.C, cnm.estimates.f,
                 cnm.estimates.S, cnm.estimates.bl, cnm.estimates.c1,
