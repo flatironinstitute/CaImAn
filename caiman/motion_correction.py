@@ -218,12 +218,8 @@ class MotionCorrect(object):
 
             save_movie: bool, default: False
                 flag for saving motion corrected file(s) as memory mapped file(s)
-
-        Returns:
-            self
         """
-        # TODO: Review the docs here, and also why we would ever return self
-        #       from a method that is not a constructor
+        # TODO: Review the docs here
         if self.min_mov is None:
             if self.gSig_filt is None:
                 iterator = caiman.base.movies.load_iter(self.fname[0],
@@ -255,7 +251,6 @@ class MotionCorrect(object):
             b0 = np.ceil(np.max(np.abs(self.shifts_rig)))
         self.border_to_0 = b0.astype(int)
         self.mmap_file = self.fname_tot_els if self.pw_rigid else self.fname_tot_rig
-        return self
 
     def motion_correct_rigid(self, template: Optional[np.ndarray] = None, save_movie=False) -> None:
         """
@@ -482,7 +477,8 @@ class MotionCorrect(object):
             return caiman.movie(m_reg)
 
 def apply_shift_iteration(img, shift, border_nan=False, border_type=cv2.BORDER_REFLECT):
-    # todo todocument
+    # Used by MotionCorrect.apply_shifts_movie(), tile_and_correct(), and apply_shift_online()
+    # Applies an xy shift to one iterable unit of a movie.
 
     sh_x_n, sh_y_n = shift
     w_i, h_i = img.shape
