@@ -204,6 +204,21 @@ class MotionCorrect(object):
         if self.use_cuda:
             logger.warn("cuda is no longer supported; this kwarg will be removed in a future version of caiman")
 
+    def __str__(self):
+        ret = f"Caiman MotionCorrect Object. Subfields:{list(self.__dict__.keys())}"
+        if hasattr(self, 'fname'):
+            ret += "MotionCorrect backing fname is {self.fname}"
+            if 'tmp_mov_mot_corr' in self.fname:
+                ret += "Target data was passed inline"
+        return ret
+
+    def __repr__(self):
+        return self.__str__()
+
+    def __getitem__(self, idx):
+        return getattr(self, idx)
+    # We intentionally do not provide __setitem__
+
     def motion_correct(self, template=None, save_movie=False):
         """general function for performing all types of motion correction. The
         function will perform either rigid or piecewise rigid motion correction
