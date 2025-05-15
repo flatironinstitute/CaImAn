@@ -202,7 +202,7 @@ class MotionCorrect(object):
         self.indices = indices
         self.shifts_interpolate = shifts_interpolate
         if self.use_cuda:
-            logger.warn("cuda is no longer supported; this kwarg will be removed in a future version of caiman")
+            logger.warning("cuda is no longer supported; this kwarg will be removed in a future version of caiman")
 
     def __str__(self):
         ret = f"Caiman MotionCorrect Object. Subfields:{list(self.__dict__.keys())}"

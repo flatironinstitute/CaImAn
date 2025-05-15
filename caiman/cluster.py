@@ -222,12 +222,12 @@ def setup_cluster(backend:str = 'multiprocessing',
 
     if backend == 'multiprocessing' or backend == 'local':
         if backend == 'local':
-            logger.warn('The local backend is an alias for the multiprocessing backend, and the alias may be removed in some future version of Caiman')
+            logger.warning('The local backend is an alias for the multiprocessing backend, and the alias may be removed in some future version of Caiman')
         if len(multiprocessing.active_children()) > 0:
             if ignore_preexisting:
-                logger.warn('Found an existing multiprocessing pool. '
-                            'This is often indicative of an already-running CaImAn cluster. '
-                            'You have configured the cluster setup to not raise an exception.')
+                logger.warning('Found an existing multiprocessing pool. '
+                               'This is often indicative of an already-running CaImAn cluster. '
+                               'You have configured the cluster setup to not raise an exception.')
             else:
                 raise Exception(
                     'A cluster is already running. Terminate with dview.terminate() if you want to restart.')
@@ -256,7 +256,7 @@ def setup_cluster(backend:str = 'multiprocessing',
 
     elif backend == "single" or single_thread:
         if single_thread:
-            logger.warn('The single_thread flag to setup_cluster() is deprecated and may be removed in the future')
+            logger.warning('The single_thread flag to setup_cluster() is deprecated and may be removed in the future')
         dview = None
         c = None
         n_processes = 1
