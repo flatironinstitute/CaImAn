@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
-from setuptools import setup, find_packages
 import numpy as np
 import os
+from setuptools import setup, find_packages
 import sys
 from Cython.Build import cythonize
 from setuptools.extension import Extension
@@ -29,7 +29,7 @@ with open('VERSION', 'r') as verfile:
 #
 # We can access these by using sys.prefix as the base of the directory and constructing from there.
 # Note that if python's packaging standards ever change the install base of data_files to be under the
-# package that made them, we can switch to using the pkg_resources API.
+# package that made them, we can switch to using a different API.
 
 extra_dirs = ['bin', 'demos', 'docs', 'model']
 data_files = [('share/caiman', ['LICENSE.txt', 'README.md', 'test_demos.sh', 'VERSION']),
