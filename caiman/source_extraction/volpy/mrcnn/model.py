@@ -26,8 +26,8 @@ import tensorflow.keras.models as KM
 from ..mrcnn import utils
 
 # Requires TensorFlow 2.0+
-from distutils.version import LooseVersion
-assert LooseVersion(tf.__version__) >= LooseVersion("2.0")
+from packaging.version import Version
+assert Version(tf.__version__) >= Version("2.0")
 
 tf.compat.v1.disable_eager_execution()
 
