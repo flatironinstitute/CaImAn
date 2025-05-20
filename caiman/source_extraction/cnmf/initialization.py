@@ -14,8 +14,6 @@ import matplotlib.pyplot as plt
 from multiprocessing import current_process
 import numpy as np
 import scipy
-import scipy.ndimage as nd
-from scipy.ndimage import center_of_mass, correlate
 import scipy.sparse as spr
 from skimage.morphology import disk
 from sklearn.decomposition import NMF, FastICA
@@ -409,7 +407,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
     if Ain.size > 0:
         Cin = resize(Cin, [K, T])
         center = np.asarray(
-            [center_of_mass(a.reshape(d, order='F')) for a in Ain.T])
+            [scipy.ndimage.center_of_mass(a.reshape(d, order='F')) for a in Ain.T])
     else:
         Cin = np.empty((K, T), dtype=np.float32)
         center = []
@@ -1063,10 +1061,10 @@ def imblur(Y, sig=5, siz=11, nDimBlur=None, kernel=None, opencv=True):
                 h /= np.sqrt(h.dot(h))
                 shape = [1] * len(Y.shape)
                 shape[i] = -1
-                X = correlate(X, h.reshape(shape), mode='constant')
+                X = scipy.ndimage.correlate(X, h.reshape(shape), mode='constant')
 
     else:
-        X = correlate(Y, kernel[..., np.newaxis], mode='constant')
+        X = scipy.ndimage.correlate(Y, kernel[..., np.newaxis], mode='constant')
         # for t in range(np.shape(Y)[-1]):
         #    X[:,:,t] = correlate(Y[:,:,t],kernel,mode='constant', cval=0.0)
 
@@ -1115,7 +1113,7 @@ def hals(Y, A, C, b, f, bSiz=3, maxIter=5):
     if bSiz is not None:
         if isinstance(bSiz, (int, float)):
              bSiz = [bSiz] * len(dims)
-        ind_A = nd.filters.uniform_filter(np.reshape(A,
+        ind_A = scipy.ndimage.uniform_filter(np.reshape(A,
                 dims + (K,), order='F'), size=bSiz + [0])
         ind_A = np.reshape(ind_A > 1e-10, (np.prod(dims), K), order='F')
     else:
