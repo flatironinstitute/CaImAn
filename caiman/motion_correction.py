@@ -727,7 +727,7 @@ def motion_correct_online_multifile(list_files, add_to_movie, order='C', **kwarg
     kwargs_['order'] = order
     total_frames = 0
     for file_ in list_files:
-        logger.info('Processing: {file_}')
+        logger.info(f'Processing: {file_}')
         kwargs_['template'] = template
         kwargs_['save_base_name'] = os.path.splitext(file_)[0]
         tffl = tifffile.TiffFile(file_)
