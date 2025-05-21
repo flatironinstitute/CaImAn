@@ -67,8 +67,11 @@ def compute_event_exceptionality(traces: np.ndarray,
         erfc: ndarray
             probability at each time step of observing the N consecutive actual trace values given the distribution of noise
 
-        noise_est: ndarray
-            the components ordered according to the fitness
+        std_r:
+            Standard deviation of r
+
+        mode:
+            Mode of the traces
     """
     if N == 0:
         # Without this, numpy ranged syntax does not work correctly, and also N=0 is conceptually incoherent
@@ -85,7 +88,6 @@ def compute_event_exceptionality(traces: np.ndarray,
     # only consider values under the mode to determine the noise standard deviation
     ff1 = -ff1 * (ff1 < 0)
     if robust_std:
-
         # compute 25 percentile
         ff1 = np.sort(ff1, axis=1)
         ff1[ff1 == 0] = np.nan

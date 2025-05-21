@@ -2192,7 +2192,7 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                        for ij in ijSig]), dims, order='F').ravel()
 
         cin_circ = cin.get_ordered()
-        useOASIS = False  # whether to use faster OASIS for cell detection
+        useOASIS = False  # whether to use faster OASIS for cell detection FIXME don't hardcode things internally like this
         accepted = True   # flag indicating new component has not been rejected yet
 
         if Ab_dense is None:
@@ -2248,18 +2248,32 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
             ind_new.append(ijSig)
 
             if oases is not None:
-                if not useOASIS:
+                if not useOASIS: # FIXME bad variable name, also hardcoded?
                     # lambda from Selesnick's 3*sigma*|K| rule
                     # use noise estimate from init batch or use std_rr?
                     #                    sn_ = sqrt((ain**2).dot(sn[indices]**2)) / sqrt(1 - g**2)
+                    # The one-liner below was too hard to read -- breaking it apart for legibility
+                    # (and also to make it easier to temporarily add assertions with np.isscalar and
+                    # unpack size-1 arrays that are no longer ok in newer versions of numpy/scipy)
                     sn_ = std_rr
-                    oas = OASIS(np.ravel(g)[0], 3 * sn_ /
-                                (sqrt(1 - g**2) if np.size(g) == 1 else
-                                 sqrt((1 + g[1]) * ((1 - g[1])**2 - g[0]**2) / (1 - g[1])))
-                                      if s_min == 0 else 0,
-                                      s_min, num_empty_samples=t +
-                                      1 - len(cin_res),
-                                      g2=0 if np.size(g) == 1 else g[1])
+                    if np.size(sn_) == 1:
+                        sn_ = np.ravel(std_rr)[0]
+                    else:
+                        logger.warning("std_rr has more dimensionality than expected and this may lead to problems")
+                        sn_ = std_rr
+
+                    oasis_g = np.ravel(g)[0]
+                    if s_min != 0:
+                        oasis_lambda = 0
+                    elif np.size(g) == 1:
+                        oasis_lambda = 3 * sn_ / (sqrt(1 - np.ravel(g)[0]**2))
+                    else:
+                        oasis_lambda = 3 * sn_ / sqrt((1 + np.ravel(g)[1]) * ((1 - np.ravel(g)[1])**2 - np.ravel(g)[0]**2) / (1 - np.ravel(g)[1]))
+
+                    oasis_ne = t + 1 - len(cin_res)
+                    oasis_g2 = 0 if np.size(g) == 1 else np.ravel(g)[1]
+
+                    oas = OASIS(oasis_g, oasis_lambda, s_min, num_empty_samples=oasis_ne, g2=oasis_g2)
                     for yt in cin_res:
                         oas.fit_next(yt)
 
