@@ -3,13 +3,13 @@
 import numpy.testing as npt
 import numpy as np
 import os
-from scipy.ndimage.filters import gaussian_filter
+import scipy.ndimage
 
+from caiman import save_memmap, load_memmap
+from caiman.paths import fn_relocated, generate_fname_tot
 import caiman.source_extraction.cnmf.params
 from caiman.source_extraction import cnmf as cnmf
 from caiman.utils.visualization import get_contours
-from caiman.paths import fn_relocated, generate_fname_tot
-from caiman import save_memmap, load_memmap
 
 TOYDATA_DIMS = {
     2: (20, 30),
@@ -34,8 +34,8 @@ def gen_data(D=3, noise=.5, T=300, framerate=30, firerate=2.):
         trueA[tuple(centers[i]) + (i,)] = 1.
     tmp = np.zeros(dims)
     tmp[tuple(d // 2 for d in dims)] = 1.
-    z = np.linalg.norm(gaussian_filter(tmp, sig).ravel())
-    trueA = 10 * gaussian_filter(trueA, sig + (0,)) / z
+    z = np.linalg.norm(scipy.ndimage.gaussian_filter(tmp, sig).ravel())
+    trueA = 10 * scipy.ndimage.gaussian_filter(trueA, sig + (0,)) / z
     Yr = bkgrd + noise * np.random.randn(*(np.prod(dims), T)) + \
         trueA.reshape((-1, 4), order='F').dot(trueC)
     return Yr, trueC, trueS, trueA, centers, dims
@@ -94,7 +94,6 @@ def get_params_dicts(D: int):
             'patch': {'rf': [d // 2 for d in dims], 'stride': 1, 'low_rank_background': False}
         }
     }
-
 
 def pipeline(D, params_dict, name):
     #%% GENERATE GROUND TRUTH DATA

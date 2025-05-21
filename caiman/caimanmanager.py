@@ -127,7 +127,7 @@ def do_check_install(targdir: str, inplace: bool = False) -> None:
 
 
 def do_run_pytest(targdir: str) -> None:
-    out, err, ret = runcmd(["pytest", "--verbose", "--pyargs", "caiman"])
+    out, err, ret = runcmd(["pytest", "--verbose", "-W", "ignore::sklearn.exceptions.ConvergenceWarning", "--pyargs", "caiman"])
     if ret != 0:
         print(f"pytest failed with return code {ret}")
         sys.exit(ret)

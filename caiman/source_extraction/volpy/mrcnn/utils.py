@@ -7,21 +7,21 @@ Licensed under the MIT License (see LICENSE for details)
 Written by Waleed Abdulla
 """
 
-import sys
-import os
 import logging
 import math
-import random
 import numpy as np
-import tensorflow as tf
+import os
+from packaging.version import Version
+import random
 import scipy
+import shutil
 import skimage.color
 import skimage.io
 import skimage.transform
+import sys
+import tensorflow as tf
 import urllib.request
-import shutil
 import warnings
-from distutils.version import LooseVersion
 
 # URL from which to download the latest COCO trained weights
 COCO_MODEL_URL = "https://github.com/matterport/Mask_RCNN/releases/download/v2.0/mask_rcnn_coco.h5"
@@ -893,7 +893,7 @@ def resize(image, output_shape, order=1, mode='constant', cval=0, clip=True,
     of skimage. This solves the problem by using different parameters per
     version. And it provides a central place to control resizing defaults.
     """
-    if LooseVersion(skimage.__version__) >= LooseVersion("0.14"):
+    if Version(skimage.__version__) >= Version("0.14"):
         # New in 0.14: anti_aliasing. Default it to False for backward
         # compatibility with skimage 0.13.
         return skimage.transform.resize(

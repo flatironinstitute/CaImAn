@@ -1001,8 +1001,8 @@ def estimate_time_constant(fluor, p=2, sn=None, lags=5, fudge_factor=1.):
     xc = axcov(fluor, lags)
     xc = xc[:, np.newaxis]
 
-    A = scipy.linalg.toeplitz(xc[lags + np.arange(lags)],
-                              xc[lags + np.arange(p)]) - sn**2 * np.eye(lags, p)
+    A = scipy.linalg.toeplitz(c=np.ravel(xc[lags + np.arange(lags)]),
+                              r=np.ravel(xc[lags + np.arange(p)])) - sn**2 * np.eye(lags, p)
     g = np.linalg.lstsq(A, xc[lags + 1:], rcond=None)[0]
     gr = np.roots(np.concatenate([np.array([1]), -g.flatten()]))
     gr = (gr + gr.conjugate()) / 2.

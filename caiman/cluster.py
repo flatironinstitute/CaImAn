@@ -226,8 +226,8 @@ def setup_cluster(backend:str = 'multiprocessing',
         if len(multiprocessing.active_children()) > 0:
             if ignore_preexisting:
                 logger.warning('Found an existing multiprocessing pool. '
-                            'This is often indicative of an already-running CaImAn cluster. '
-                            'You have configured the cluster setup to not raise an exception.')
+                               'This is often indicative of an already-running CaImAn cluster. '
+                               'You have configured the cluster setup to not raise an exception.')
             else:
                 raise Exception(
                     'A cluster is already running. Terminate with dview.terminate() if you want to restart.')
