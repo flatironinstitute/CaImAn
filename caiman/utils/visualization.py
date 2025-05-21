@@ -81,8 +81,7 @@ def view_patches(Yr, A, C, b, f, d1, d2, YrA=None, secs=1):
     A2.data **= 2
     nA2 = np.sqrt(np.array(A2.sum(axis=0))).squeeze()
     if YrA is None:
-        Y_r = np.array(A.T * np.matrix(Yr) - (A.T * np.matrix(b[:, np.newaxis])) * np.matrix(
-            f[np.newaxis]) - (A.T.dot(A)) * np.matrix(C) + C)
+        Y_r = np.array(A.T @ Yr - (A.T @ b[:, np.newaxis]) @ f[np.newaxis] - (A.T.dot(A)) @ C + C)
     else:
         Y_r = YrA + C
 
@@ -162,9 +161,8 @@ def nb_view_patches(Yr, A, C, b, f, d1, d2, YrA=None, image_neurons=None, thr=0.
     f = np.squeeze(f)
     if YrA is None:
         Y_r = np.array(spdiags(1 / nA2, 0, nr, nr) *
-                       (A.T * np.matrix(Yr) -
-                        (A.T * np.matrix(b[:, np.newaxis])) * np.matrix(f[np.newaxis]) -
-                        A.T.dot(A) * np.matrix(C)) + C)
+                       (A.T @ Yr -
+                        (A.T @ b[:, np.newaxis]) @ f[np.newaxis] - A.T.dot(A) @ C) + C)
     else:
         Y_r = C + YrA
 
@@ -321,9 +319,7 @@ def hv_view_patches(Yr, A, C, b, f, d1, d2, YrA=None, image_neurons=None, denois
     if YrA is None:
         Y_r = np.array(
             spdiags(1 / nA2, 0, nr, nr) *
-            (A.T * np.matrix(Yr) -
-             (A.T * np.matrix(b[:, np.newaxis])) * np.matrix(f[np.newaxis]) -
-             A.T.dot(A) * np.matrix(C)) + C)
+            (A.T @ Yr - (A.T @ b[:, np.newaxis]) @ f[np.newaxis] - A.T.dot(A) @ C) + C)
     else:
         Y_r = C + YrA
     if image_neurons is None:

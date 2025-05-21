@@ -11,7 +11,7 @@ def test_make_G_matrix():
     G = cnmf.temporal.make_G_matrix(T, g)
     G = G.todense()
     # yapf: disable
-    true_G = np.matrix(
+    true_G = np.array(
         [[1., 0., 0., 0., 0., 0.],
          [-1., 1., 0., 0., 0., 0.],
          [-2., -1., 1., 0., 0., 0.],

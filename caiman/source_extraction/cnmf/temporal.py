@@ -34,9 +34,9 @@ def make_G_matrix(T, g):
     if isinstance(g, np.ndarray):
         if len(g) == 1 and g < 0:
             g = 0
-        gs = np.matrix(np.hstack((1, -(g[:]).T)))
-        ones_ = np.matrix(np.ones((T, 1)))
-        G = spdiags((ones_ * gs).T, list(range(0, -len(g) - 1, -1)), T, T)
+        gs = np.hstack((1, -(g[:]).T))
+        ones_ = np.ones((T, 1))
+        G = spdiags((ones_ @ gs).T, list(range(0, -len(g) - 1, -1)), T, T)
 
         return G
     else:

@@ -926,9 +926,9 @@ def order_components(A, C):
     A = np.array(A.todense())
     nA2 = np.sqrt(np.sum(A**2, axis=0))
     K = len(nA2)
-    A = np.array(np.matrix(A) * spdiags(1./nA2, 0, K, K))
+    A = np.array(A @ spdiags(1./nA2, 0, K, K))
     nA4 = np.sum(A**4, axis=0)**0.25
-    C = np.array(spdiags(nA2, 0, K, K) * np.matrix(C))
+    C = np.array(spdiags(nA2, 0, K, K) @ C)
     mC = np.ndarray.max(np.array(C), axis=1)
     srt = np.argsort(nA4 * mC)[::-1]
     A_or = A[:, srt] * spdiags(nA2[srt], 0, K, K)
