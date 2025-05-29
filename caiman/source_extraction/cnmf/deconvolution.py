@@ -1048,7 +1048,7 @@ def GetSn(fluor, range_ff=[0.25, 0.5], method='logmexp'):
         return np.sqrt(np.median(Pxx_ind / 2))
     elif method == 'logmexp':
         return np.sqrt(np.exp(np.mean(np.log(Pxx_ind / 2))))
-    else
+    else:
         raise Exception('Invalid method requested for GetSn')
 
 def axcov(data, maxlag=5):
