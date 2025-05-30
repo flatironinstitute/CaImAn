@@ -1041,14 +1041,15 @@ def GetSn(fluor, range_ff=[0.25, 0.5], method='logmexp'):
     ind2 = ff < range_ff[1]
     ind = np.logical_and(ind1, ind2)
     Pxx_ind = Pxx[ind]
-    sn = {
-        'mean': lambda Pxx_ind: np.sqrt(np.mean(Pxx_ind / 2)),
-        'median': lambda Pxx_ind: np.sqrt(np.median(Pxx_ind / 2)),
-        'logmexp': lambda Pxx_ind: np.sqrt(np.exp(np.mean(np.log(Pxx_ind / 2))))
-    }[method](Pxx_ind)
 
-    return sn
-
+    if   method == 'mean':
+        return np.sqrt(np.mean(Pxx_ind / 2))
+    elif method == 'median':
+        return np.sqrt(np.median(Pxx_ind / 2))
+    elif method == 'logmexp':
+        return np.sqrt(np.exp(np.mean(np.log(Pxx_ind / 2))))
+    else:
+        raise Exception('Invalid method requested for GetSn')
 
 def axcov(data, maxlag=5):
     """
