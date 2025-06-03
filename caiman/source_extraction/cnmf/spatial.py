@@ -186,7 +186,7 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
         ind_list = np.array(ind_list, dtype=int)
         ind2_ = [ind_list[np.setdiff1d(a,ff)] if len(a) else a for a in ind2_]
 
-    nr = np.shape(C)[0]
+    nr = C.shape[0]
     if normalize_yyt_one and C is not None:
         C = np.array(C)
         d_ = scipy.sparse.lil_matrix((nr, nr))
@@ -371,7 +371,7 @@ def regression_ipyparallel(pars):
     else:
         C = C_name
 
-    _, T = np.shape(C)  # initialize values
+    _, T = C.shape  # initialize values
     As = []
     for y, px, idx_px_from_0 in zip(Y, idxs_Y, range(len(idxs_C))):
         c = C[idxs_C[idx_px_from_0], :]
@@ -491,7 +491,7 @@ def threshold_components(A, dims, medw=None, thr_method='max', maxthr=0.1, nrgth
     if ss is None:
         ss = np.ones((3,) * len(dims), dtype='uint8')
     # dims and nm of neurones
-    d, nr = np.shape(A)
+    d, nr = A.shape
     # instantiation of A thresh.
     #Ath = np.zeros((d, nr))
     pars = []
@@ -783,17 +783,15 @@ def test(Y, A_in, C, f, n_pixels_per_process, nb):
         if len(A_in.shape) == 1:
             A_in = np.atleast_2d(A_in).T
             if A_in.shape[0] == 1:
-                raise Exception(
-                    'Dimension of Matrix A must be pixels x neurons ')
+                raise Exception('Dimension of Matrix A must be pixels x neurons ')
 
-    [d, T] = np.shape(Y)
+    [d, T] = Y.shape
 
     if A_in is None:
-        A_in = np.ones((d, np.shape(C)[1]), dtype=bool)
+        A_in = np.ones((d, C.shape[1]), dtype=bool)
 
     if n_pixels_per_process > d:
-        print('The number of pixels per process (n_pixels_per_process)'
-              ' is larger than the total number of pixels!! Decreasing suitably.')
+        print(f'The number of pixels per process (n_pixels_per_process:{n_pixels_per_process}) is larger than the total number of pixels. Decreasing suitably.')
         n_pixels_per_process = d
 
     if f is not None:
@@ -850,7 +848,7 @@ def determine_search_location(A, dims, method='ellipse', min_size=3, max_size=8,
         d1, d2 = dims
     elif len(dims) == 3:
         d1, d2, d3 = dims
-    d, nr = np.shape(A)
+    d, nr = A.shape
     A = csc_matrix(A)
 #    dist_indicator = scipy.sparse.lil_matrix((d, nr),dtype= np.float32)
 #    dist_indicator = scipy.sparse.csc_matrix((d, nr), dtype=np.float32)
@@ -1062,7 +1060,7 @@ def computing_indicator(Y, A_in, b, C, f, nb, method, dims, min_size, max_size, 
             C = np.maximum(csr_matrix(dist_indicator_av.T).dot(
                 Y) - dist_indicator_av.T.dot(b).dot(f), 0)
             A_in = scipy.sparse.coo_matrix(A_in.astype(np.float32))
-            nr, _ = np.shape(C)  # number of neurons
+            nr, _ = C.shape  # number of neurons
             ind2_ = [np.hstack((np.where(iid_)[0], nr + np.arange(f.shape[0])))
                      if np.size(np.where(iid_)[0]) > 0 else [] for iid_ in dist_indicator]
 
@@ -1070,7 +1068,7 @@ def computing_indicator(Y, A_in, b, C, f, nb, method, dims, min_size, max_size, 
         if C is None:
             raise Exception('You need to provide estimate of C and f')
 
-        nr, _ = np.shape(C)  # number of neurons
+        nr, _ = C.shape  # number of neurons
 
         if b is None:
             dist_indicator = determine_search_location(

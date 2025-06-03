@@ -1002,7 +1002,7 @@ def bin_median(mat, window=10, exclude_nans=True):
             median image
     """
 
-    T, d1, d2 = np.shape(mat)
+    T, d1, d2 = mat.shape
     if T < window:
         window = T
     num_windows = int(T // window)
@@ -1031,7 +1031,7 @@ def bin_median_3d(mat, window=10, exclude_nans=True):
             median image
     """
 
-    T, d1, d2, d3 = np.shape(mat)
+    T, d1, d2, d3 = mat.shape
     if T < window:
         window = T
     num_windows = int(T // window)
@@ -1692,14 +1692,14 @@ def apply_shifts_dft(src_freq, shifts, diffphase, is_freq=True, border_nan=True)
             src_freq = np.array(src_freq, dtype=np.complex128, copy=False)
 
     if not is3D:
-        nr, nc = np.shape(src_freq)
+        nr, nc = src_freq.shape
         Nr = ifftshift(np.arange(-np.fix(nr/2.), np.ceil(nr/2.)))
         Nc = ifftshift(np.arange(-np.fix(nc/2.), np.ceil(nc/2.)))
         Nc, Nr = np.meshgrid(Nc, Nr)
         Greg = src_freq * np.exp(1j * 2 * np.pi *
                                  (-shifts[0] * Nr / nr - shifts[1] * Nc / nc))
     else:
-        nr, nc, nd = np.array(np.shape(src_freq), dtype=float)
+        nr, nc, nd = np.array(src_freq.shape, dtype=float)
         Nr = ifftshift(np.arange(-np.fix(nr / 2.), np.ceil(nr / 2.)))
         Nc = ifftshift(np.arange(-np.fix(nc / 2.), np.ceil(nc / 2.)))
         Nd = ifftshift(np.arange(-np.fix(nd / 2.), np.ceil(nd / 2.)))
@@ -2649,10 +2649,10 @@ def compute_metrics_motion_correction(fname, final_size_x, final_size_y, swap_di
     m_min = mi + (ma - mi) / 100
     m_max = mi + (ma - mi) / 4
 
-    max_shft_x = int(np.ceil((np.shape(m)[1] - final_size_x) / 2))
-    max_shft_y = int(np.ceil((np.shape(m)[2] - final_size_y) / 2))
-    max_shft_x_1 = - ((np.shape(m)[1] - max_shft_x) - (final_size_x))
-    max_shft_y_1 = - ((np.shape(m)[2] - max_shft_y) - (final_size_y))
+    max_shft_x = int(np.ceil((m.shape[1] - final_size_x) / 2))
+    max_shft_y = int(np.ceil((m.shape[2] - final_size_y) / 2))
+    max_shft_x_1 = - ((m.shape[1] - max_shft_x) - (final_size_x))
+    max_shft_y_1 = - ((m.shape[2] - max_shft_y) - (final_size_y))
     if max_shft_x_1 == 0:
         max_shft_x_1 = None
 

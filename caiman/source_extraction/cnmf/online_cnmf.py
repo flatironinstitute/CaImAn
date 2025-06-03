@@ -1781,7 +1781,7 @@ def demix_and_deconvolve(C, noisyC, AtY, AtA, OASISinstances, iters=3, n_refit=0
 def init_shapes_and_sufficient_stats(Y, A, C, b, f, W=None, b0=None, ssub_B=1, bSiz=3,
                                      downscale_matrix=None, upscale_matrix=None):
     # smooth the components
-    dims, T = np.shape(Y)[:-1], np.shape(Y)[-1]
+    dims, T = Y.shape[:-1], Y.shape[-1]
     K = A.shape[1]  # number of neurons
     if W is None:
         nb = b.shape[1]  # number of background components
@@ -2154,7 +2154,7 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
     gHalf = np.array(gSiz) // 2
 
     # number of total components (including background)
-    M = np.shape(Ab)[-1]
+    M = Ab.shape[-1]
     N = M - gnb                 # number of components (without background)
 
     if corr_img is None:
