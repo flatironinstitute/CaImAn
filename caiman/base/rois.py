@@ -123,14 +123,14 @@ def extract_binary_masks_from_structural_channel(Y,
 def mask_to_2d(mask):
     # todo todocument
     if mask.ndim > 2:
-        _, d1, d2 = np.shape(mask)
+        _, d1, d2 = mask.shape
         dims = d1, d2
         return scipy.sparse.coo_matrix(np.reshape(mask[:].transpose([1, 2, 0]), (
             np.prod(dims),
             -1,
         ), order='F'))
     else:
-        dims = np.shape(mask)
+        dims = mask.shape
         return scipy.sparse.coo_matrix(np.reshape(mask, (
             np.prod(dims),
             -1,
@@ -140,7 +140,7 @@ def mask_to_2d(mask):
 def get_distance_from_A(masks_gt, masks_comp, min_dist=10) -> list:
     # todo todocument
 
-    _, d1, d2 = np.shape(masks_gt)
+    _, d1, d2 = masks_gt.shape
     dims = d1, d2
     A_ben = scipy.sparse.csc_matrix(np.reshape(masks_gt[:].transpose([1, 2, 0]), (
         np.prod(dims),
@@ -214,7 +214,7 @@ def nf_match_neurons_in_binary_masks(masks_gt,
     """
     logger = logging.getLogger("caiman")
 
-    _, d1, d2 = np.shape(masks_gt)
+    _, d1, d2 = masks_gt.shape
     dims = d1, d2
 
     # transpose to have a sparse list of components, then reshaping it to have a 1D matrix red in the Fortran style
@@ -244,8 +244,8 @@ def nf_match_neurons_in_binary_masks(masks_gt,
 
     # compute precision and recall
     TP = np.sum(np.array(costs) < thresh_cost) * 1.
-    FN = np.shape(masks_gt)[0] - TP
-    FP = np.shape(masks_comp)[0] - TP
+    FN = masks_gt.shape[0] - TP
+    FP = masks_comp.shape[0] - TP
     TN = 0
 
     performance = dict()
@@ -259,9 +259,9 @@ def nf_match_neurons_in_binary_masks(masks_gt,
     idx_tp_ben = matches[0][idx_tp]    # ground truth
     idx_tp_cnmf = matches[1][idx_tp]   # algorithm - comp
 
-    idx_fn = np.setdiff1d(list(range(np.shape(masks_gt)[0])), matches[0][idx_tp])
+    idx_fn = np.setdiff1d(list(range(masks_gt.shape[0])), matches[0][idx_tp])
 
-    idx_fp = np.setdiff1d(list(range(np.shape(masks_comp)[0])), matches[1][idx_tp])
+    idx_fp = np.setdiff1d(list(range(masks_comp.shape[0])), matches[1][idx_tp])
 
     idx_fp_cnmf = idx_fp
 
@@ -736,8 +736,8 @@ def distance_masks(M_s:list, cm_s: list[list], max_dist: float, enclosed_thr: Op
         test_comp = test_comp.copy()[:, :]
 
         # the number of components for each
-        nb_gt = np.shape(gt_comp)[-1]
-        nb_test = np.shape(test_comp)[-1]
+        nb_gt   = gt_comp.shape[-1]
+        nb_test = test_comp.shape[-1]
         D = np.ones((nb_gt, nb_test))
 
         cmgt_comp = np.array(cmgt_comp)

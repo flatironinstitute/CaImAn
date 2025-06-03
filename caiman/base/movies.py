@@ -187,7 +187,7 @@ class movie(caiman.base.timeseries.timeseries):
                 median image
 
         """
-        T, d1, d2 = np.shape(self)
+        T, d1, d2 = self.shape
         num_windows = int(T // window)
         num_frames = num_windows * window
         return np.nanmedian(np.nanmean(np.reshape(self[:num_frames], (window, num_windows, d1, d2)), axis=0), axis=0)
@@ -207,7 +207,7 @@ class movie(caiman.base.timeseries.timeseries):
                 median image
 
         """
-        T, d1, d2, d3 = np.shape(self)
+        T, d1, d2, d3 = self.shape
         num_windows = int(T // window)
         num_frames = num_windows * window
         return np.nanmedian(np.nanmean(np.reshape(self[:num_frames], (window, num_windows, d1, d2, d3)), axis=0),
@@ -465,18 +465,18 @@ class movie(caiman.base.timeseries.timeseries):
         if np.min(self) <= 0 and method != 'only_baseline':
             raise ValueError("All pixels must be positive")
 
-        numFrames, linePerFrame, pixPerLine = np.shape(self)
+        numFrames, linePerFrame, pixPerLine = self.shape
         downsampfact = int(secsWindow * self.fr)
         logger.debug(f"Downsample factor: {downsampfact}")
         elm_missing = int(np.ceil(numFrames * 1.0 / downsampfact) * downsampfact - numFrames)
         padbefore = int(np.floor(elm_missing / 2.))
         padafter = int(np.ceil(elm_missing / 2.))
 
-        logger.debug(f'Initial Size Image: {np.shape(self)}')
+        logger.debug(f'Initial Size Image: {self.shape}')
         sys.stdout.flush()
         mov_out = movie(np.pad(self.astype(np.float32), ((padbefore, padafter), (0, 0), (0, 0)), mode='reflect'),
                         **self.__dict__)
-        numFramesNew, linePerFrame, pixPerLine = np.shape(mov_out)
+        numFramesNew, linePerFrame, pixPerLine = mov_out.shape
 
         # compute baseline quickly
         logger.debug("binning data ...")
@@ -540,7 +540,7 @@ class movie(caiman.base.timeseries.timeseries):
         """
 
         # vectorize the images
-        num_frames, h, w = np.shape(self)
+        num_frames, h, w = self.shape
         frame_size = h * w
         frame_samples = np.reshape(self, (num_frames, frame_size)).T
 
@@ -611,7 +611,7 @@ class movie(caiman.base.timeseries.timeseries):
         joint_ics = ica.fit_transform(eigenstuff)
 
         # extract the independent frames
-        _, h, w = np.shape(self)
+        _, h, w = self.shape
         frame_size = h * w
         ind_frames = joint_ics[:frame_size, :]
         ind_frames = np.reshape(ind_frames.T, (componentsICA, h, w))
@@ -623,7 +623,7 @@ class movie(caiman.base.timeseries.timeseries):
         Create a denoised version of the movie using only the first 'components' components
         """
         _, _, clean_vectors = self.IPCA(components, batch)
-        self = self.__class__(np.reshape(np.float32(clean_vectors.T), np.shape(self)), **self.__dict__)
+        self = self.__class__(np.reshape(np.float32(clean_vectors.T), self.shape), **self.__dict__)
         return self
 
     def local_correlations(self,
@@ -1214,7 +1214,7 @@ def load(file_name: Union[str, list[str]],
 
             if input_arr.ndim == 2:
                 if shape is not None:
-                    _, T = np.shape(input_arr)
+                    _, T = input_arr.shape
                     d1, d2 = shape
                     input_arr = np.transpose(np.reshape(input_arr, (d1, d2, T), order='F'), (2, 0, 1))
                 else:
@@ -1361,13 +1361,13 @@ def load_movie_chain(file_list: list[str],
             if m.ndim == 2:
                 m = m[np.newaxis, :, :]
 
-            _, h, w = np.shape(m)
+            _, h, w = m.shape
             m = m[:, top:h - bottom, left:w - right]
         else:
             if m.ndim == 3:
                 m = m[np.newaxis, :, :, :]
 
-            _, h, w, d = np.shape(m)
+            _, h, w, d = m.shape
             m = m[:, top:h - bottom, left:w - right, z_top:d - z_bottom]
 
         mov.append(m)

@@ -577,7 +577,7 @@ def parallel_dot_product(A: np.ndarray, b, block_size: int = 5000, dview=None, t
     logger = logging.getLogger("caiman")
 
     pars = []
-    d1, d2 = np.shape(A)
+    d1, d2 = A.shape
     b = pickle.dumps(b)
     logger.debug(f'parallel dot product block size: {block_size}')
 
@@ -598,9 +598,9 @@ def parallel_dot_product(A: np.ndarray, b, block_size: int = 5000, dview=None, t
     b = pickle.loads(b)
 
     if transpose:
-        output = np.zeros((d2, np.shape(b)[-1]), dtype=np.float32)
+        output = np.zeros((d2, b.shape[-1]), dtype=np.float32)
     else:
-        output = np.zeros((d1, np.shape(b)[-1]), dtype=np.float32)
+        output = np.zeros((d1, b.shape[-1]), dtype=np.float32)
 
     if dview is None:
         if transpose:

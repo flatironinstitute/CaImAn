@@ -147,7 +147,7 @@ def create():
     m_orig = cm.load(fname)
     min_mov = m_orig[:400].min()
     comp = comparison.Comparison()
-    comp.dims = np.shape(m_orig)[1:]
+    comp.dims = m_orig.shape[1:]
 
     ################ RIG CORRECTION #################
     t1 = time.time()
