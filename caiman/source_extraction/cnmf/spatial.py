@@ -36,8 +36,8 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
                               min_size=3, max_size=8, dist=3,
                               normalize_yyt_one=True, method_exp='dilate',
                               expandCore=None, dview=None, n_pixels_per_process=128,
-                              medw=(3, 3), thr_method='max', maxthr=0.1,
-                              nrgthr=0.9999, extract_cc=True, b_in=None,
+                              medw=(3, 3), thr_method='max', maxthr=0.1, nrgthr=0.9999, extract_cc=True,
+                              b_in=None,
                               se=np.ones((3, 3), dtype=int),
                               ss=np.ones((3, 3), dtype=int), nb=1,
                               method_ls='lasso_lars', update_background_components=True,
@@ -66,40 +66,35 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
             spatial profile of background activity. If A_in is boolean then it defines the spatial support of A.
             Otherwise it is used to determine it through determine_search_location
 
-        b_in: np.ndarray
-            you can pass background as input, especially in the case of one background per patch, since it will update using hals
+        sn: [optional] float
+            noise associated with each pixel if known
 
         dims: [optional] tuple
             x, y[, z] movie dimensions
 
-        min_size: [optional] int
+        min_size, max_size, dist: [optional] int
+            Parameters for computing_indicator()
 
-        max_size: [optional] int
+        normalize_yyt_one: bool
+            whether to normalize the C and A matrices so that diag(C*C.T) are ones
 
-        dist: [optional] int
-
-        sn: [optional] float
-            noise associated with each pixel if known
-
-        backend [optional] str
-            'ipyparallel', 'single_thread'
-            single_thread:no parallelization. It can be used with small datasets.
-            ipyparallel: uses ipython clusters and then send jobs to each of them
-
-        n_pixels_per_process: [optional] int
-            number of pixels to be processed by each thread
-
-        method: [optional] string
+        method_exp: [optional] string
             method used to expand the search for pixels 'ellipse' or 'dilate'
 
         expandCore: [optional]  scipy.ndimage.morphology
             if method is dilate this represents the kernel used for expansion
 
         dview: view on ipyparallel client
-                you need to create an ipyparallel client and pass a view on the processors (client = Client(), dview=client[:])
+            you need to create an ipyparallel client and pass a view on the processors (client = Client(), dview=client[:])
+
+        n_pixels_per_process: [optional] int
+            number of pixels to be processed by each thread
 
         medw, thr_method, maxthr, nrgthr, extract_cc, se, ss: [optional]
             Parameters for components post-processing. Refer to spatial.threshold_components for more details
+
+        b_in: np.ndarray
+            you can pass background as input, especially in the case of one background per patch, since it will update using hals
 
         nb: [optional] int
             Number of background components
@@ -109,9 +104,6 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
                  'nnls_L0'. Nonnegative least square with L0 penalty
                  'lasso_lars' lasso lars function from scikit learn
 
-            normalize_yyt_one: bool
-                whether to normalize the C and A matrices so that diag(C*C.T) are ones
-
         update_background_components:bool
             whether to update the background components in the spatial phase
 
@@ -119,6 +111,8 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
             whether to update the using a low rank approximation. In the False case all the nonzero elements of the background components are updated using hals
             (to be used with one background per patch)
 
+        num_blocks_per_run_spat:int
+            (Undocumented)
 
     Returns:
         A: np.ndarray
@@ -133,24 +127,6 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
         f: np.ndarray
             same as f_in except if empty component deleted.
 
-    Raises:
-        Exception 'You need to define the input dimensions'
-
-        Exception 'Dimension of Matrix Y must be pixels x time'
-
-        Exception 'Dimension of Matrix C must be neurons x time'
-
-        Exception 'Dimension of Matrix f must be background comps x time '
-
-        Exception 'Either A or C need to be determined'
-
-        Exception 'Dimension of Matrix A must be pixels x neurons'
-
-        Exception 'You need to provide estimate of C and f'
-
-        Exception 'Not implemented consistently'
-
-        Exception "Failed to delete: " + folder
     """
     logger = logging.getLogger("caiman")
     # TODO fix documentation on backend
@@ -180,7 +156,7 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
         A_in = caiman.utils.stats.csc_column_remove(A_in, list(ff))
         C = np.delete(C, list(ff), 0)
         # update indices
-        ind_list = list(range(nr-np.size(ff)))
+        ind_list = list(range(nr - np.size(ff)))
         for i in ff:
             ind_list.insert(i, 0)
         ind_list = np.array(ind_list, dtype=int)
@@ -271,7 +247,6 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
 
         if b_in is None:
             # update baseline based on residual
-            #b = np.fmax(Y_resf.dot(np.linalg.inv(f.dot(f.T))), 0)
             b = np.fmax(np.linalg.solve(f.dot(f.T), Y_resf.T), 0).T
         else:
             ind_b = [np.where(_b)[0] for _b in b_in.T]
@@ -281,11 +256,7 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
         if b_in is None:
             raise Exception(
                 'If you set the update_background_components to True you have to pass them as input to update_spatial')
-        # try:
-        #    b = np.delete(b_in, background_ff, 0)
-        # except NameError:
         b = b_in
-    # print(("--- %s seconds ---" % (time.time() - start_time)))
     logger.info('Updating done in ' + 
                  '{0}s'.format(str(time.time() - start_time).split(".")[0]))
     try:  # clean up
@@ -968,9 +939,9 @@ def construct_dilate_parallel(pars):
     return dist_indicator_i
 
 def computing_indicator(Y, A_in, b, C, f, nb, method, dims, min_size, max_size, dist, expandCore, dview):
-    """compute the indices of the distance from the cm to search for the spatial component (calling determine_search_location)
+    """Compute the indices of the distance from the cm to search for the spatial component (calling determine_search_location)
 
-    does this by following an ellipse from the cm or doing a step by step dilatation around the cm
+    Uses strategy of following an ellipse from the cm or doing a step by step dilatation around the cm
     if it doesn't follow the rules it will throw an exception that is not supposed to be caught by spatial.
 
 
@@ -978,57 +949,49 @@ def computing_indicator(Y, A_in, b, C, f, nb, method, dims, min_size, max_size, 
         Y: np.ndarray (2D or 3D)
                movie, raw data in 2D or 3D (pixels x time).
 
-        C: np.ndarray
-               calcium activity of each neuron.
-
-        f: np.ndarray
-               temporal profile  of background activity.
-
         A_in: np.ndarray
                spatial profile of background activity. If A_in is boolean then it defines the spatial support of A.
                Otherwise it is used to determine it through determine_search_location
 
-        n_pixels_per_process: [optional] int
-               number of pixels to be processed by each thread
+        C: np.ndarray
+               calcium activity of each neuron.
 
-        min_size: [optional] int
+        f: np.ndarray
+               temporal profile of background activity.
 
-        max_size: [optional] int
+        nb: int
+            Number of background components
 
-        dist: [optional] int
+        method: string
+                method used to expand the search for pixels 'ellipse' or 'dilate'
 
         dims: [optional] tuple
                 x, y[, z] movie dimensions
 
-        method: [optional] string
-                method used to expand the search for pixels 'ellipse' or 'dilate'
+        min_size: int
 
-        expandCore: [optional]  scipy.ndimage.morphology
-                if method is dilate this represents the kernel used for expansion
+        max_size: int
 
+        dist: int
+
+        expandCore: scipy.ndimage.morphology (or None)
+            A numerical kernel used for expansion, only used if method is dilate
+
+        dview (parallelism handler object)
 
     Returns:
-        same:
-            but reshaped and tested
+        _ind2: Indices (not documented)
 
-    Raises:
-        Exception 'You need to define the input dimensions'
-
-        Exception 'Dimension of Matrix Y must be pixels x time'
-
-        Exception 'Dimension of Matrix C must be neurons x time'
-
-        Exception 'Dimension of Matrix f must be background comps x time'
-
-        Exception 'Either A or C need to be determined'
-
-        Exception 'Dimension of Matrix A must be pixels x neurons'
-
-        Exception 'You need to provide estimate of C and f'
-
-        Exception 'Not implemented consistently'
-
-        Exception 'Failed to delete: " + folder'
+        nr: int
+            Count of neurons
+        C
+            Reshaped/tested version of C (calcium activity of each neuron)
+        f
+            Reshaped/tested version of f (temporal profile of background)
+        b
+            Either a reshaped/tested version of b, a freshly computed one if C is None, or in some cases None
+        A_in
+            Reshaped/tested version of A_in (spatial profile of background activity)
            """
 
     if A_in.dtype == bool:
@@ -1041,7 +1004,7 @@ def computing_indicator(Y, A_in, b, C, f, nb, method, dims, min_size, max_size, 
             px = (np.sum(dist_indicator, axis=1) > 0)
             not_px = ~px
 
-            if nb>1:
+            if nb > 1:
                     f = NMF(nb, init='nndsvda').fit(np.maximum(Y[not_px, :], 0)).components_
             else:
                 if Y.shape[-1] < 30000:
@@ -1068,7 +1031,7 @@ def computing_indicator(Y, A_in, b, C, f, nb, method, dims, min_size, max_size, 
         if C is None:
             raise Exception('You need to provide estimate of C and f')
 
-        nr, _ = C.shape  # number of neurons
+        nr = C.shape[0]  # number of neurons
 
         if b is None:
             dist_indicator = determine_search_location(
