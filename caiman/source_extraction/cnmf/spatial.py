@@ -222,8 +222,11 @@ def update_spatial_components(Y, C=None, f=None, A_in=None, sn=None, dims=None,
         if any(ff < nr):
             A_ = caiman.utils.stats.csc_column_remove(A_, list(ff[ff < nr]))
             C = np.delete(C, list(ff[ff < nr]), 0)
-            ff -= nr
+
+            nr_ = nr
             nr = nr - len(ff[ff < nr])
+            ff -= nr_  # previous nr seem to be updated incorrectly
+            
         else:
             ff -= nr
         if update_background_components:
