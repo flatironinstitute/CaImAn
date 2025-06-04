@@ -67,14 +67,17 @@ def compute_event_exceptionality(traces: np.ndarray,
         erfc: ndarray
             probability at each time step of observing the N consecutive actual trace values given the distribution of noise
 
-        noise_est: ndarray
-            the components ordered according to the fitness
+        std_r:
+            Standard deviation of r
+
+        mode:
+            Mode of the traces
     """
     if N == 0:
         # Without this, numpy ranged syntax does not work correctly, and also N=0 is conceptually incoherent
         raise Exception("FATAL: N=0 is not a valid value for compute_event_exceptionality()")
 
-    T = np.shape(traces)[-1]
+    T = traces.shape[-1]
     if use_mode_fast:
         md = caiman.utils.stats.mode_robust_fast(traces, axis=1)
     else:
@@ -85,7 +88,6 @@ def compute_event_exceptionality(traces: np.ndarray,
     # only consider values under the mode to determine the noise standard deviation
     ff1 = -ff1 * (ff1 < 0)
     if robust_std:
-
         # compute 25 percentile
         ff1 = np.sort(ff1, axis=1)
         ff1[ff1 == 0] = np.nan
@@ -138,7 +140,7 @@ def find_activity_intervals(C, Npeaks: int = 5, tB=-3, tA=10, thres: float = 0.3
     # todo todocument
     logger = logging.getLogger("caiman")
 
-    K, T = np.shape(C)
+    K, T = C.shape
     L:list = []
     for i in range(K):
         if np.sum(np.abs(np.diff(C[i, :]))) == 0:
@@ -208,7 +210,7 @@ def classify_components_ep(Y, A, C, b, f, Athresh=0.1, Npeaks=5, tB=-3, tA=10, t
     """
     logger = logging.getLogger("caiman")
 
-    K, _ = np.shape(C)
+    K, _ = C.shape
     A = csc_matrix(A)
     AA = (A.T * A).toarray()
     nA = np.sqrt(np.array(A.power(2).sum(0)))
@@ -415,7 +417,7 @@ def evaluate_components(Y: np.ndarray,
     tB = np.minimum(-2, np.floor(-5. / 30 * final_frate))
     tA = np.maximum(5, np.ceil(25. / 30 * final_frate))
     logger.info(f'{tB=},{tA=}')
-    dims, T = np.shape(Y)[:-1], np.shape(Y)[-1]
+    dims, T = Y.shape[:-1], Y.shape[-1]
 
     Yr = np.reshape(Y, (np.prod(dims), T), order='F')
 
@@ -427,7 +429,7 @@ def evaluate_components(Y: np.ndarray,
 
     logger.debug('Removing Baseline')
     if remove_baseline:
-        num_samps_bl = np.minimum(np.shape(traces)[-1]// 5, 800)
+        num_samps_bl = np.minimum(traces.shape[-1]// 5, 800)
         slow_baseline = False
         if slow_baseline:
 
@@ -441,7 +443,7 @@ def evaluate_components(Y: np.ndarray,
             padbefore = int(np.floor(elm_missing / 2.))
             padafter = int(np.ceil(elm_missing / 2.))
             tr_tmp = np.pad(traces.T, ((padbefore, padafter), (0, 0)), mode='reflect')
-            numFramesNew, num_traces = np.shape(tr_tmp)
+            numFramesNew, num_traces = tr_tmp.shape
                                                                                              # compute baseline quickly
             logger.debug("binning data ...")
             tr_BL = np.reshape(tr_tmp, (downsampfact, numFramesNew // downsampfact, num_traces), order='F')

@@ -1,10 +1,10 @@
 #!/usr/bin/env python
 
+import importlib.metadata
 import json
 import logging
 import numpy as np
 import os
-import pkg_resources
 from pprint import pformat
 import scipy
 from scipy.ndimage import generate_binary_structure, iterate_structure
@@ -214,6 +214,14 @@ class CNMFParams(object):
 
             gSiz: [int, int], default: [int(round((x * 2) + 1)) for x in gSig],
                 half-size of bounding box for each neuron
+
+            greedyroi_nmf_init_method: str
+                When greedyROI is used, this is provided to sklearn's NMF() as the init method. Usually nndsvdar (the default)
+                is fine, but in some cases random or some other init is preferable; see the sklearn docs for your choices
+
+            greedyroi_nmf_max_iter: int
+                When greedyROI is used, this is provided to sklearn's NMF() as the max number of iterations; the ideal value
+                of this partly depends on the init method. See the sklearn docs for guidance.
 
             init_iter: int, default: 2
                 number of iterations during corr_pnr (1p) initialization
@@ -664,7 +672,7 @@ class CNMFParams(object):
             'decay_time': decay_time,
             'dxy': dxy,
             'var_name_hdf5': var_name_hdf5,
-            'caiman_version': pkg_resources.get_distribution('caiman').version,
+            'caiman_version': importlib.metadata.version('caiman'),
             'last_commit': None
         }
 
@@ -716,6 +724,8 @@ class CNMFParams(object):
             'gSig': gSig,
             # size of bounding box
             'gSiz': gSiz,
+            'greedyroi_nmf_init_method': 'nndsvdar', # init method used in calls to NMF if geedy_roi method for component initialisation is used (offline or online)
+            'greedyroi_nmf_max_iter': 200,           # max_iter used in calls to NMF if greedy_roi method for component initialisation is used (online or offline)
             'init_iter': init_iter,
             'kernel': None,           # user specified template for greedyROI
             'lambda_gnmf': 1,         # regularization weight for graph NMF
@@ -875,8 +885,8 @@ class CNMFParams(object):
             'pw_rigid': False,                  # flag for performing pw-rigid motion correction
             'shifts_interpolate': False,        # interpolate shifts based on patch locations instead of resizing
             'shifts_opencv': True,              # flag for applying shifts using cubic interpolation (otherwise FFT)
-            'splits_els': 14,                   # number of splits across time for pw-rigid registration
-            'splits_rig': 14,                   # number of splits across time for rigid registration
+            'splits_els': 14,                   # number of splits across time for pw-rigid registration (usually overridden by code)
+            'splits_rig': 14,                   # number of splits across time for rigid    registration (usually overridden by code)
             'strides': (96, 96),                # how often to start a new patch in pw-rigid registration
             'upsample_factor_grid': 4,          # motion field upsampling factor during FFT shifts
             'use_cuda': False,                  # flag for using a GPU

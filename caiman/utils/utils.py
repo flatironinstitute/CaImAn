@@ -682,7 +682,7 @@ def get_caiman_version() -> tuple[str, str]:
 class caitimer(contextlib.ContextDecorator):
     """ This is a simple context manager that you can use like this to get timing information on functions you call:
         with caiman.utils.utils.caitimer("CNMF fit"):
-            cnm = cnm.fit(images)
+            cnm.fit(images)
 
         When the context exits it will say how long it was open. Useful for easy function benchmarking """
 

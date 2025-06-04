@@ -572,7 +572,7 @@ def fast_prct_filt(input_data, level=8, frames_window=1000):
     """
 
     data = np.atleast_2d(input_data).copy()
-    T = np.shape(data)[-1]
+    T = data.shape[-1]
     downsampfact = frames_window
 
     elm_missing = int(np.ceil(T * 1.0 / downsampfact)
@@ -580,7 +580,7 @@ def fast_prct_filt(input_data, level=8, frames_window=1000):
     padbefore = int(np.floor(elm_missing / 2.))
     padafter = int(np.ceil(elm_missing / 2.))
     tr_tmp = np.pad(data.T, ((padbefore, padafter), (0, 0)), mode='reflect')
-    numFramesNew, num_traces = np.shape(tr_tmp)
+    numFramesNew, num_traces = tr_tmp.shape
     # compute baseline quickly
 
     tr_BL = np.reshape(tr_tmp, (downsampfact, int(numFramesNew / downsampfact),
@@ -743,8 +743,8 @@ def manually_refine_components(Y, xxx_todo_changeme, A, C, Cn, thr=0.9, display_
     else:
         A = np.array(A)
 
-    d1, d2 = np.shape(Cn)
-    d, nr = np.shape(A)
+    d1, d2 = Cn.shape
+    d, nr  = A.shape
     if max_number is None:
         max_number = nr
 
@@ -760,9 +760,9 @@ def manually_refine_components(Y, xxx_todo_changeme, A, C, Cn, thr=0.9, display_
         cumEn /= cumEn[-1]
         Bvec = np.zeros(d)
         Bvec[indx] = cumEn
-        Bmat[i] = np.reshape(Bvec, np.shape(Cn), order='F')
+        Bmat[i] = np.reshape(Bvec, Cn.shape, order='F')
 
-    T = np.shape(Y)[-1]
+    T = Y.shape[-1]
 
     plt.close()
     fig = plt.figure()
@@ -792,7 +792,7 @@ def manually_refine_components(Y, xxx_todo_changeme, A, C, Cn, thr=0.9, display_
             y3_tiny = Y[coords_y[0]:coords_y[-1] +
                         1, coords_x[0]:coords_x[-1] + 1, :]
 
-            dy_sz, dx_sz = np.shape(a3_tiny)[:-1]
+            dy_sz, dx_sz = a3_tiny.shape[:-1]
             y2_tiny = np.reshape(y3_tiny, (dx_sz * dy_sz, T), order='F')
             a2_tiny = np.reshape(a3_tiny, (dx_sz * dy_sz, nr), order='F')
             y2_res = y2_tiny - a2_tiny.dot(C)
@@ -812,7 +812,7 @@ def manually_refine_components(Y, xxx_todo_changeme, A, C, Cn, thr=0.9, display_
             cumEn /= cumEn[-1]
             Bvec = np.zeros(d)
             Bvec[indx] = cumEn
-            bmat = np.reshape(Bvec, np.shape(Cn), order='F')
+            bmat = np.reshape(Bvec, Cn.shape, order='F')
             plt.contour(y, x, bmat, [thr])
             plt.pause(.01)
 
@@ -869,7 +869,7 @@ def update_order(A, new_a=None, prev_list=None, method='greedy'):
 
     Written by Eftychios A. Pnevmatikakis, Simons Foundation, 2015
     '''
-    K = np.shape(A)[-1]
+    K = A.shape[-1]
     if new_a is None and prev_list is None:
 
         if method == 'greedy':
@@ -926,9 +926,9 @@ def order_components(A, C):
     A = np.array(A.todense())
     nA2 = np.sqrt(np.sum(A**2, axis=0))
     K = len(nA2)
-    A = np.array(np.matrix(A) * spdiags(1./nA2, 0, K, K))
+    A = np.array(A @ spdiags(1./nA2, 0, K, K))
     nA4 = np.sum(A**4, axis=0)**0.25
-    C = np.array(spdiags(nA2, 0, K, K) * np.matrix(C))
+    C = np.array(spdiags(nA2, 0, K, K) @ C)
     mC = np.ndarray.max(np.array(C), axis=1)
     srt = np.argsort(nA4 * mC)[::-1]
     A_or = A[:, srt] * spdiags(nA2[srt], 0, K, K)
@@ -941,7 +941,7 @@ def update_order_random(A, flag_AA=True):
     randomized partitions of non-overlapping components
     """
 
-    K = np.shape(A)[-1]
+    K = A.shape[-1]
     if flag_AA:
         AA = A.copy()
     else:
@@ -992,7 +992,7 @@ def update_order_greedy(A, flag_AA=True):
     Author:
         Eftychios A. Pnevmatikakis, Simons Foundation, 2017
     """
-    K = np.shape(A)[-1]
+    K = A.shape[-1]
     parllcomp:list = []
     for i in range(K):
         new_list = True

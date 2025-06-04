@@ -369,7 +369,7 @@ for params_movie in np.array(params_movies)[ID]:
         t1 = time.time()
         print('Starting CNMF')
         cnm = cnmf.CNMF(n_processes, params=opts, dview=dview)
-        cnm = cnm.fit(images)
+        cnm.fit(images)
         t_patch = time.time() - t1
         # %%
         try:

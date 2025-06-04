@@ -150,7 +150,7 @@ def test_general():
     m_orig = cm.load(fname)
     min_mov = m_orig[:400].min()
     comp = comparison.Comparison()
-    comp.dims = np.shape(m_orig)[1:]
+    comp.dims = m_orig.shape[1:]
 
     ################ RIG CORRECTION #################
     t1 = time.time()
@@ -242,7 +242,7 @@ def test_general():
                     method_deconvolution='oasis')
     comp.cnmpatch = copy.copy(cnm)
     comp.cnmpatch.estimates = None
-    cnm = cnm.fit(images)
+    cnm.fit(images)
     A_tot = cnm.estimates.A
     C_tot = cnm.estimates.C
     YrA_tot = cnm.estimates.YrA
@@ -289,7 +289,7 @@ def test_general():
                     rf=None,
                     stride=None,
                     method_deconvolution='oasis')
-    cnm = cnm.fit(images)
+    cnm.fit(images)
     # DISCARDING
     A, C, b, f, YrA, sn = cnm.estimates.A, cnm.estimates.C, cnm.estimates.b, cnm.estimates.f, cnm.estimates.YrA, cnm.estimates.sn
     final_frate = params_movie['final_frate']
