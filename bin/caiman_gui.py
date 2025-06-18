@@ -16,6 +16,23 @@ import caiman
 from caiman.source_extraction.cnmf.cnmf import load_CNMF
 from caiman.source_extraction.cnmf.params import CNMFParams
 
+##############################
+# This is a tool that can help you visualise dumps of the CNMF object,
+# generated as demonstrated in demo_pipeline.
+#
+# If you're already using it, that's fine, but there are better tools
+# out there (such as the Mesmerize-vis package). To use, point it at the
+# hdf5 file that CLI demo or jupyter notebook made, or have your own code
+# call the save method on the CNMF object, and then feed that (and then the
+# mmap file) into this script when it asks, and you'll see your ROIs and
+# be able to experiment with thresholding (and re-save with those different
+# thresholds).
+#
+# mesmerize-vis offers a better approach to these things, and is much more
+# recent and better maintained.
+
+
+
 # Always start by initializing Qt (only once per application)
 app = QtWidgets.QApplication([])
 
