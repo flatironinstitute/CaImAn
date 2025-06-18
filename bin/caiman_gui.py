@@ -66,7 +66,7 @@ else:
     M = FileDialog()
     d, f = os.path.split(cnm_obj.mmap_file)
     cnm_obj.mmap_file = M.getOpenFileName(caption='Load memory mapped file',
-                                          directory=d, filter=f + ';;*.mmap')[0]
+                                          filter=f + ';;*.mmap')[0]
 
 if fpath[-3:] == 'nwb':
     mov = caiman.load(cnm_obj.mmap_file,
