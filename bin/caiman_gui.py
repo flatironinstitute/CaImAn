@@ -422,15 +422,15 @@ p1.mouseMoveEvent = move
 
 
 ## PARAMS
-params = [{'name': 'min_cnn_thr', 'type': 'float', 'value': 0.99, 'limits': (0, 1),'step':0.01},
-            {'name': 'cnn_lowest', 'type': 'float', 'value': 0.1, 'limits': (0, 1),'step':0.01},
-            {'name': 'rval_thr', 'type': 'float', 'value': 0.85, 'limits': (-1, 1),'step':0.01},
-            {'name': 'rval_lowest', 'type': 'float', 'value': -1, 'limits': (-1, 1),'step':0.01},
-            {'name': 'min_SNR', 'type': 'float', 'value': 2, 'limits': (0, 20),'step':0.1},
-            {'name': 'SNR_lowest', 'type': 'float', 'value': 0, 'limits': (0, 20),'step':0.1},
-            {'name': 'RESET', 'type': 'action'},
+params = [{'name': 'min_cnn_thr',       'type': 'float', 'value': 0.99, 'limits': (0, 1),  'step':0.01},
+            {'name': 'cnn_lowest',      'type': 'float', 'value': 0.1,  'limits': (0, 1),  'step':0.01},
+            {'name': 'rval_thr',        'type': 'float', 'value': 0.85, 'limits': (-1, 1), 'step':0.01},
+            {'name': 'rval_lowest',     'type': 'float', 'value': -1,   'limits': (-1, 1), 'step':0.01},
+            {'name': 'min_SNR',         'type': 'float', 'value': 2,    'limits': (0, 20), 'step':0.1},
+            {'name': 'SNR_lowest',      'type': 'float', 'value': 0,    'limits': (0, 20), 'step':0.1},
+            {'name': 'RESET',           'type': 'action'},
             {'name': 'SHOW BACKGROUND', 'type': 'action'},
-            {'name': 'SHOW NEURONS', 'type': 'action'}
+            {'name': 'SHOW NEURONS',    'type': 'action'}
             ]
     
 ## Create tree of Parameter objects
@@ -438,7 +438,7 @@ pars = Parameter.create(name='params', type='group', children=params)
 
 
 params_action = [{'name': 'Filter components', 'type': 'bool', 'value': True, 'tip': "Filter components"},          
-                 {'name': 'View components', 'type': 'list', 'values': ['All','Accepted',
+                 {'name': 'View components',   'type': 'list', 'limits': ['All','Accepted',
                                                        'Rejected', 'Unassigned'], 'value': 'All'},
                  {'name': 'ADD GROUP', 'type': 'action'},
                  {'name': 'REMOVE GROUP', 'type': 'action'},
