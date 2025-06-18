@@ -168,7 +168,6 @@ Special thanks to the following people for letting us use their datasets in demo
 
 Also a special thanks to:
 * Eric Thompson, for various strong contributions to code and demos, both before and during his employment at the Flatiron Institute.
-* Cai Changjia, for Volpy
 * Ethan Blackwood, for several contributions in various areas
 
 # License
