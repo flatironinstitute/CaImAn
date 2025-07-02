@@ -453,7 +453,7 @@ class CNMFParams(object):
                 If set to False, a list of submatrices is saved (typically faster).
             
             init_batch: int, default: 200,
-                length of mini batch used for initialization
+                length of mini batch used for initialization (must not exceed frame count on first file)
 
             init_method: 'bare'|'cnmf'|'seeded', default: 'bare',
                 initialization method
