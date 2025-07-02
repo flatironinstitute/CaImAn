@@ -121,8 +121,7 @@ def main():
         moviehandle.play(fr=40, q_max=99.5, magnification=4)  # press q to exit
 
     # MEMORY MAPPING
-    do_memory_mapping = True
-    if do_memory_mapping:
+    if not cfg.no_memmap:
         border_to_0 = 0 if mc.border_nan == 'copy' else mc.border_to_0
         # you can include the boundaries of the FOV if you used the 'copy' option
         # during motion correction, although be careful about the components near
@@ -268,6 +267,7 @@ def main():
 
 def handle_args():
     parser = argparse.ArgumentParser(description="Demonstrate voltage imaging pipeline")
+    parser.add_argument("--no_memmap",  action="store_true", help="Avoid memory mapping")
     parser.add_argument("--keep_logs",  action="store_true", help="Keep temporary logfiles")
     parser.add_argument("--no_play",    action="store_true", help="Do not display results")
     parser.add_argument("--cluster_backend", default="multiprocessing", help="Specify multiprocessing, ipyparallel, or single to pick an engine")
