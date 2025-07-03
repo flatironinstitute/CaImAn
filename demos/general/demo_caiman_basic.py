@@ -132,4 +132,5 @@ def handle_args():
     return parser.parse_args()
 
 ########
-main()
+if __name__ == "__main__":
+    main()
