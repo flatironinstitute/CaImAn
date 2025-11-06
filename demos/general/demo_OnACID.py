@@ -19,7 +19,7 @@ try:
 except:
     pass
 
-import caiman as cm
+import caiman
 from caiman.source_extraction import cnmf as cnmf
 from caiman.paths import caiman_datadir
 
@@ -58,7 +58,7 @@ def main():
 
     # plot contours
     logger.info(f"Number of components: {cnm.estimates.A.shape[-1]}")
-    Cn = cm.load(fnames[0], subindices=slice(0,500)).local_correlations(swap_dim=False)
+    Cn = caiman.load(fnames[0], subindices=slice(0,500)).local_correlations(swap_dim=False)
     cnm.estimates.plot_contours(img=Cn)
 
     # pass through the CNN classifier with a low threshold (keeps clearer neuron shapes and excludes processes)
@@ -73,6 +73,8 @@ def main():
     cnm.estimates.view_components(img=Cn, idx=cnm.estimates.idx_components)
     if not cfg.no_play:
         matplotlib.pyplot.show(block=True)
+
+    cnm.save('demo_onacid.hdf5')
 
 def handle_args():
     parser = argparse.ArgumentParser(description="Demonstrate basic Caiman Online functionality with CNMF initialization")

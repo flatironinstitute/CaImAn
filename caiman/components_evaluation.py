@@ -6,17 +6,17 @@ import logging
 import numpy as np
 import os
 import peakutils
-import tensorflow as tf
 import scipy
 from scipy.sparse import csc_matrix
 from scipy.stats import norm
-from typing import Any, Union
+import torch
+from typing import Any, Optional, Union
 import warnings
 
 import caiman
 from caiman.paths import caiman_datadir
+from caiman.pytorch_model_arch import PyTorchCNN
 import caiman.utils.stats
-import caiman.utils.utils
 
 try:
     cv2.setNumThreads(0)
@@ -67,14 +67,17 @@ def compute_event_exceptionality(traces: np.ndarray,
         erfc: ndarray
             probability at each time step of observing the N consecutive actual trace values given the distribution of noise
 
-        noise_est: ndarray
-            the components ordered according to the fitness
+        std_r:
+            Standard deviation of r
+
+        mode:
+            Mode of the traces
     """
     if N == 0:
         # Without this, numpy ranged syntax does not work correctly, and also N=0 is conceptually incoherent
         raise Exception("FATAL: N=0 is not a valid value for compute_event_exceptionality()")
 
-    T = np.shape(traces)[-1]
+    T = traces.shape[-1]
     if use_mode_fast:
         md = caiman.utils.stats.mode_robust_fast(traces, axis=1)
     else:
@@ -85,7 +88,6 @@ def compute_event_exceptionality(traces: np.ndarray,
     # only consider values under the mode to determine the noise standard deviation
     ff1 = -ff1 * (ff1 < 0)
     if robust_std:
-
         # compute 25 percentile
         ff1 = np.sort(ff1, axis=1)
         ff1[ff1 == 0] = np.nan
@@ -138,7 +140,7 @@ def find_activity_intervals(C, Npeaks: int = 5, tB=-3, tA=10, thres: float = 0.3
     # todo todocument
     logger = logging.getLogger("caiman")
 
-    K, T = np.shape(C)
+    K, T = C.shape
     L:list = []
     for i in range(K):
         if np.sum(np.abs(np.diff(C[i, :]))) == 0:
@@ -208,7 +210,7 @@ def classify_components_ep(Y, A, C, b, f, Athresh=0.1, Npeaks=5, tB=-3, tA=10, t
     """
     logger = logging.getLogger("caiman")
 
-    K, _ = np.shape(C)
+    K, _ = C.shape
     A = csc_matrix(A)
     AA = (A.T * A).toarray()
     nA = np.sqrt(np.array(A.power(2).sum(0)))
@@ -258,7 +260,7 @@ def classify_components_ep(Y, A, C, b, f, Athresh=0.1, Npeaks=5, tB=-3, tA=10, t
 def evaluate_components_CNN(A,
                             dims,
                             gSig,
-                            model_name: str = os.path.join(caiman_datadir(), 'model', 'cnn_model'),
+                            model_name: Optional[str] = None,
                             patch_size: int = 50,
                             loaded_model=None,
                             isGPU: bool = False) -> tuple[Any, np.array]:
@@ -268,45 +270,25 @@ def evaluate_components_CNN(A,
         then this code will try not to use a GPU. Otherwise it will use one if it finds it.
     """
     logger = logging.getLogger("caiman")
-
-    # TODO: Find a less ugly way to do this
     if not isGPU and 'CAIMAN_ALLOW_GPU' not in os.environ:
-        print("GPU run not requested, disabling use of GPUs")
+        logger.info("GPU run not requested, disabling use of GPUs")
         os.environ['CUDA_VISIBLE_DEVICES'] = '-1'
-    try:
-        os.environ["KERAS_BACKEND"] = "tensorflow"
-        from tensorflow.keras.models import model_from_json
-        use_keras = True
-        logger.info('Using Keras')
-    except (ModuleNotFoundError):
-        use_keras = False
-        logger.info('Using Tensorflow')
+
+    if model_name is None:
+        model_name = os.path.join(caiman_datadir(), 'model', 'cnn_model')
+
+    logger.info('Using Torch')
 
     if loaded_model is None:
-        if use_keras:
-            if os.path.isfile(os.path.join(caiman_datadir(), model_name + ".json")):
-                model_file = os.path.join(caiman_datadir(), model_name + ".json")
-                model_weights = os.path.join(caiman_datadir(), model_name + ".h5")
-            elif os.path.isfile(model_name + ".json"):
-                model_file = model_name + ".json"
-                model_weights = model_name + ".h5"
-            else:
-                raise FileNotFoundError(f"File for requested model {model_name} not found")
-            with open(model_file, 'r') as json_file:
-                print(f"USING MODEL (keras API): {model_file}")
-                loaded_model_json = json_file.read()
-
-            loaded_model = model_from_json(loaded_model_json)
-            loaded_model.load_weights(model_name + '.h5')
+        if os.path.isfile(os.path.join(caiman_datadir(), 'model', 'pytorch-models', model_name + ".pt")):
+            model_file = os.path.join(caiman_datadir(), 'model', 'pytorch-models', model_name + ".pt")
+        elif os.path.isfile(model_name + ".pt"):
+            model_file = model_name + ".pt"
         else:
-            if os.path.isfile(os.path.join(caiman_datadir(), model_name + ".h5.pb")):
-                model_file = os.path.join(caiman_datadir(), model_name + ".h5.pb")
-            elif os.path.isfile(model_name + ".h5.pb"):
-                model_file = model_name + ".h5.pb"
-            else:
-                raise FileNotFoundError(f"File for requested model {model_name} not found")
-            print(f"USING MODEL (tensorflow API): {model_file}")
-            loaded_model = caiman.utils.utils.load_graph(model_file)
+            raise FileNotFoundError(f"File for requested model {model_name} not found")
+        logger.info(f"Using model: {model_file}")
+        loaded_model = PyTorchCNN()
+        loaded_model.load_state_dict(torch.load(model_file))
 
         logger.debug("Loaded model from disk")
 
@@ -320,16 +302,16 @@ def evaluate_components_CNN(A,
                                               half_crop[1]:com[1] + half_crop[1]] for mm, com in zip(A.tocsc().T, coms)
     ]
     final_crops = np.array([cv2.resize(im / np.linalg.norm(im), (patch_size, patch_size)) for im in crop_imgs])
-    if use_keras:
-        predictions = loaded_model.predict(final_crops[:, :, :, np.newaxis], batch_size=32, verbose=1)
-    else:
-        tf_in = loaded_model.get_tensor_by_name('prefix/conv2d_20_input:0')
-        tf_out = loaded_model.get_tensor_by_name('prefix/output_node0:0')
-        with tf.Session(graph=loaded_model) as sess:
-            predictions = sess.run(tf_out, feed_dict={tf_in: final_crops[:, :, :, np.newaxis]})
-            sess.close()
+    
+    # Numpy to PyTorch and add a channel dimension using unsqueeze
+    final_crops = torch.tensor(final_crops, dtype=torch.float32).unsqueeze(1)
 
-    return predictions, final_crops
+    # Pass the preprocessed image crops through the model to get predictions
+    with torch.no_grad():
+        predictions = loaded_model(final_crops)
+
+    predictions_numpy = predictions.cpu().numpy()
+    return predictions_numpy, final_crops
 
 def evaluate_components(Y: np.ndarray,
                         traces: np.ndarray,
@@ -415,7 +397,7 @@ def evaluate_components(Y: np.ndarray,
     tB = np.minimum(-2, np.floor(-5. / 30 * final_frate))
     tA = np.maximum(5, np.ceil(25. / 30 * final_frate))
     logger.info(f'{tB=},{tA=}')
-    dims, T = np.shape(Y)[:-1], np.shape(Y)[-1]
+    dims, T = Y.shape[:-1], Y.shape[-1]
 
     Yr = np.reshape(Y, (np.prod(dims), T), order='F')
 
@@ -427,7 +409,7 @@ def evaluate_components(Y: np.ndarray,
 
     logger.debug('Removing Baseline')
     if remove_baseline:
-        num_samps_bl = np.minimum(np.shape(traces)[-1]// 5, 800)
+        num_samps_bl = np.minimum(traces.shape[-1]// 5, 800)
         slow_baseline = False
         if slow_baseline:
 
@@ -441,12 +423,12 @@ def evaluate_components(Y: np.ndarray,
             padbefore = int(np.floor(elm_missing / 2.))
             padafter = int(np.ceil(elm_missing / 2.))
             tr_tmp = np.pad(traces.T, ((padbefore, padafter), (0, 0)), mode='reflect')
-            numFramesNew, num_traces = np.shape(tr_tmp)
+            numFramesNew, num_traces = tr_tmp.shape
                                                                                              # compute baseline quickly
-            logger.debug("binning data ...")
+            logger.debug("Binning data ...")
             tr_BL = np.reshape(tr_tmp, (downsampfact, numFramesNew // downsampfact, num_traces), order='F')
             tr_BL = np.percentile(tr_BL, 8, axis=0)
-            logger.debug("interpolating data ...")
+            logger.debug("Interpolating data ...")
             logger.debug(tr_BL.shape)
             tr_BL = scipy.ndimage.zoom(np.array(tr_BL, dtype=np.float32), [downsampfact, 1],
                                        order=3,
@@ -482,11 +464,15 @@ def evaluate_components(Y: np.ndarray,
 
 def grouper(n: int, iterable, fillvalue: bool = None):
     "grouper(3, 'ABCDEFG', 'x') --> ABC DEF Gxx"
+    # Given an iterable, generate sufficient tuples of length n to hold them, using fillvalue
+    # as a packing substitute if things don't divide cleanly
+    # You may need to play around with this to fully understand what it's doing.
     args = [iter(iterable)] * n
     return itertools.zip_longest(*args, fillvalue=fillvalue)
 
 
 def evaluate_components_placeholder(params):
+    # This marshalls arguments/handles calls to evalute_components() for use with map_async()
     fname, traces, A, C, b, f, final_frate, remove_baseline, N, robust_std, Athresh, Npeaks, thresh_C = params
     Yr, dims, T = caiman.load_memmap(fname)
     Y = np.reshape(Yr, dims + (T,), order='F')
@@ -822,3 +808,4 @@ def estimate_components_quality(traces,
         return idx_components, idx_components_bad, np.array(fitness_raw), np.array(fitness_delta), np.array(r_values)
     else:
         return idx_components, idx_components_bad
+

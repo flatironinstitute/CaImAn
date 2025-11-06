@@ -20,7 +20,7 @@ import time
 from typing import Any, Optional
 import zipfile
 
-from caiman.motion_correction import tile_and_correct
+from caiman.motion_correction import tile_and_correct, get_patch_centers, interpolate_shifts
 
 try:
     cv2.setNumThreads(0)
@@ -123,14 +123,14 @@ def extract_binary_masks_from_structural_channel(Y,
 def mask_to_2d(mask):
     # todo todocument
     if mask.ndim > 2:
-        _, d1, d2 = np.shape(mask)
+        _, d1, d2 = mask.shape
         dims = d1, d2
         return scipy.sparse.coo_matrix(np.reshape(mask[:].transpose([1, 2, 0]), (
             np.prod(dims),
             -1,
         ), order='F'))
     else:
-        dims = np.shape(mask)
+        dims = mask.shape
         return scipy.sparse.coo_matrix(np.reshape(mask, (
             np.prod(dims),
             -1,
@@ -140,7 +140,7 @@ def mask_to_2d(mask):
 def get_distance_from_A(masks_gt, masks_comp, min_dist=10) -> list:
     # todo todocument
 
-    _, d1, d2 = np.shape(masks_gt)
+    _, d1, d2 = masks_gt.shape
     dims = d1, d2
     A_ben = scipy.sparse.csc_matrix(np.reshape(masks_gt[:].transpose([1, 2, 0]), (
         np.prod(dims),
@@ -214,7 +214,7 @@ def nf_match_neurons_in_binary_masks(masks_gt,
     """
     logger = logging.getLogger("caiman")
 
-    _, d1, d2 = np.shape(masks_gt)
+    _, d1, d2 = masks_gt.shape
     dims = d1, d2
 
     # transpose to have a sparse list of components, then reshaping it to have a 1D matrix red in the Fortran style
@@ -244,8 +244,8 @@ def nf_match_neurons_in_binary_masks(masks_gt,
 
     # compute precision and recall
     TP = np.sum(np.array(costs) < thresh_cost) * 1.
-    FN = np.shape(masks_gt)[0] - TP
-    FP = np.shape(masks_comp)[0] - TP
+    FN = masks_gt.shape[0] - TP
+    FP = masks_comp.shape[0] - TP
     TN = 0
 
     performance = dict()
@@ -259,9 +259,9 @@ def nf_match_neurons_in_binary_masks(masks_gt,
     idx_tp_ben = matches[0][idx_tp]    # ground truth
     idx_tp_cnmf = matches[1][idx_tp]   # algorithm - comp
 
-    idx_fn = np.setdiff1d(list(range(np.shape(masks_gt)[0])), matches[0][idx_tp])
+    idx_fn = np.setdiff1d(list(range(masks_gt.shape[0])), matches[0][idx_tp])
 
-    idx_fp = np.setdiff1d(list(range(np.shape(masks_comp)[0])), matches[1][idx_tp])
+    idx_fp = np.setdiff1d(list(range(masks_comp.shape[0])), matches[1][idx_tp])
 
     idx_fp_cnmf = idx_fp
 
@@ -318,7 +318,8 @@ def register_ROIs(A1,
                   print_assignment=False,
                   plot_results=False,
                   Cn=None,
-                  cmap='viridis'):
+                  cmap='viridis',
+                  align_options: Optional[dict] = None):
     """
     Register ROIs across different sessions using an intersection over union 
     metric and the Hungarian algorithm for optimal matching
@@ -372,6 +373,9 @@ def register_ROIs(A1,
 
         cmap: string
             colormap for background image
+        
+        align_options: Optional[dict]
+            mcorr options to override defaults when align_flag is True and use_opt_flow is False
 
     Returns:
         matched_ROIs1: list
@@ -414,25 +418,50 @@ def register_ROIs(A1,
         if use_opt_flow:
             template1_norm = np.uint8(template1 * (template1 > 0) * 255)
             template2_norm = np.uint8(template2 * (template2 > 0) * 255)
-            flow = cv2.calcOpticalFlowFarneback(np.uint8(template1_norm * 255), np.uint8(template2_norm * 255), None,
+            flow = cv2.calcOpticalFlowFarneback(template1_norm, template2_norm, None,
                                                 0.5, 3, 128, 3, 7, 1.5, 0)
             x_remap = (flow[:, :, 0] + x_grid).astype(np.float32)
             y_remap = (flow[:, :, 1] + y_grid).astype(np.float32)
 
         else:
-            template2, shifts, _, xy_grid = tile_and_correct(template2,
-                                                             template1 - template1.min(),
-                                                             [int(dims[0] / 4), int(dims[1] / 4)], [16, 16], [10, 10],
-                                                             add_to_movie=template2.min(),
-                                                             shifts_opencv=True)
+            align_defaults = {
+                "strides": (int(dims[0] / 4), int(dims[1] / 4)),
+                "overlaps": (16, 16),
+                "max_shifts": (10, 10),
+                "shifts_opencv": True,
+                "upsample_factor_grid": 4,
+                "shifts_interpolate": True,
+                "max_deviation_rigid": 2
+                # any other argument to tile_and_correct can also be used in align_options
+            }
 
-            dims_grid = tuple(np.max(np.stack(xy_grid, axis=0), axis=0) - np.min(np.stack(xy_grid, axis=0), axis=0) + 1)
-            _sh_ = np.stack(shifts, axis=0)
-            shifts_x = np.reshape(_sh_[:, 1], dims_grid, order='C').astype(np.float32)
-            shifts_y = np.reshape(_sh_[:, 0], dims_grid, order='C').astype(np.float32)
+            if align_options:
+                # override defaults with input options
+                align_defaults.update(align_options)
+            align_options = align_defaults
 
-            x_remap = (-np.resize(shifts_x, dims) + x_grid).astype(np.float32)
-            y_remap = (-np.resize(shifts_y, dims) + y_grid).astype(np.float32)
+            template2, shifts, _, _ = tile_and_correct(template2, template1 - template1.min(),
+                                                       add_to_movie=template2.min(), **align_options)
+
+            if align_options["max_deviation_rigid"] == 0:
+                # repeat rigid shifts to size of the image
+                shifts_x_full = np.full(dims, -shifts[1])
+                shifts_y_full = np.full(dims, -shifts[0])
+            else:
+                # piecewise - interpolate from patches to get shifts per pixel
+                patch_centers = get_patch_centers(dims, overlaps=align_options["overlaps"], strides=align_options["strides"],
+                                                  shifts_opencv=align_options["shifts_opencv"],
+                                                  upsample_factor_grid=align_options["upsample_factor_grid"])
+                patch_grid = tuple(len(centers) for centers in patch_centers)
+                _sh_ = np.stack(shifts, axis=0)
+                shifts_x = np.reshape(_sh_[:, 1], patch_grid, order='C').astype(np.float32)
+                shifts_y = np.reshape(_sh_[:, 0], patch_grid, order='C').astype(np.float32)
+
+                shifts_x_full = interpolate_shifts(-shifts_x, patch_centers, tuple(range(d) for d in dims))
+                shifts_y_full = interpolate_shifts(-shifts_y, patch_centers, tuple(range(d) for d in dims))
+
+            x_remap = (shifts_x_full + x_grid).astype(np.float32)
+            y_remap = (shifts_y_full + y_grid).astype(np.float32)
 
         A_2t = np.reshape(A2, dims + (-1,), order='F').transpose(2, 0, 1)
         A2 = np.stack([cv2.remap(img.astype(np.float32), x_remap, y_remap, cv2.INTER_NEAREST) for img in A_2t], axis=0)
@@ -707,8 +736,8 @@ def distance_masks(M_s:list, cm_s: list[list], max_dist: float, enclosed_thr: Op
         test_comp = test_comp.copy()[:, :]
 
         # the number of components for each
-        nb_gt = np.shape(gt_comp)[-1]
-        nb_test = np.shape(test_comp)[-1]
+        nb_gt   = gt_comp.shape[-1]
+        nb_test = test_comp.shape[-1]
         D = np.ones((nb_gt, nb_test))
 
         cmgt_comp = np.array(cmgt_comp)

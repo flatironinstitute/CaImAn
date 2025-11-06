@@ -34,7 +34,7 @@ def demo(parallel=False):
                     method_deconvolution='oasis')
     # FIT
     images = np.reshape(Yr.T, [T] + list(dims), order='F')
-    cnm = cnm.fit(images)
+    cnm.fit(images)
     if parallel:
         caiman.cluster.stop_server(dview=dview)
 

@@ -27,7 +27,7 @@ pipeline {
             sh 'mamba env create -q -f environment.yml -p $CONDA_ENV'
             sh '''#!/bin/bash -ex
               source activate $CONDA_ENV
-              export KERAS_BACKEND=tensorflow
+              export KERAS_BACKEND=torch
               pip install .
               TEMPDIR=$(mktemp -d)
               export CAIMAN_DATA=$TEMPDIR/caiman_data
@@ -78,7 +78,7 @@ pipeline {
             bat '%ANACONDA3%\\scripts\\mamba env create -q --force -f environment.yml -p %CONDA_ENV%'
             bat 'if exist "%CONDA_ENV%\\etc\\conda\\activate.d\\vs*_compiler_vars.bat" del "%CONDA_ENV%\\etc\\conda\\activate.d\\vs*_compiler_vars.bat"'
             bat '%ANACONDA3%\\scripts\\activate %CONDA_ENV% && %ANACONDA3%\\scripts\\conda list'
-            bat '%ANACONDA3%\\scripts\\activate %CONDA_ENV% && set KERAS_BACKEND=tensorflow && pip install . && copy caimanmanager.py %TEMP% && cd %TEMP% && set "CAIMAN_DATA=%TEMP%\\caiman_data" && (if exist caiman_data (rmdir caiman_data /s /q && echo "Removed old caiman_data" ) else (echo "Host is fresh")) && python caimanmanager.py install --force && python caimanmanager.py test'
+            bat '%ANACONDA3%\\scripts\\activate %CONDA_ENV% && set KERAS_BACKEND=torch && pip install . && copy caimanmanager.py %TEMP% && cd %TEMP% && set "CAIMAN_DATA=%TEMP%\\caiman_data" && (if exist caiman_data (rmdir caiman_data /s /q && echo "Removed old caiman_data" ) else (echo "Host is fresh")) && python caimanmanager.py install --force && python caimanmanager.py test'
           }
         }
       }

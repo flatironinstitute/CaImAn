@@ -14,20 +14,20 @@ import certifi
 import contextlib
 import cv2
 import h5py
-import multiprocessing
 import inspect
 import logging
 import matplotlib.pyplot as plt
+import multiprocessing
 import numpy as np
 import os
 import pickle
 import scipy
+from scipy.ndimage import gaussian_filter
 import ssl
 import subprocess
-import tensorflow as tf
-import time
-from scipy.ndimage import gaussian_filter
 from tifffile import TiffFile
+import time
+import torch
 from typing import Any, Union, Iterable
 from urllib.request import urlopen
 
@@ -83,6 +83,7 @@ def download_demo(name:str='Sue_2x_3000_40_-46.tif', save_folder:str='') -> str:
                 'gmc_960_30mw_00001_green.tif': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/gmc_960_30mw_00001_green.tif',
                 'k53.tif': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/k53.tif',
                 'k53_ROIs.hdf5': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/k53_ROIs.hdf5',
+                'mrcnn_epoch_100.pt': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/model/mrcnn_epoch_100.pt',
                 'msCam13.avi': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/msCam13.avi',
                 'online_vs_offline.npz': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/online_vs_offline.npz',
 		}
@@ -119,9 +120,8 @@ def download_demo(name:str='Sue_2x_3000_40_-46.tif', save_folder:str='') -> str:
 
 
 def download_model(name:str='mask_rcnn', save_folder:str='') -> str:
-    """download a NN model from the file list with the url of its location
-
-
+    """
+    Download a NN model from the file list with the url of its location.
     using urllib, you can add you own name and location in this global parameter
 
         Args:
@@ -137,28 +137,29 @@ def download_model(name:str='mask_rcnn', save_folder:str='') -> str:
     """
     logger = logging.getLogger("caiman")
 
-    file_dict = {'mask_rcnn': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/model/mask_rcnn_neurons_0040.h5'}
+    file_dict = {'mask_rcnn': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/model/mrcnn_epoch_100.pt'}
     base_folder = os.path.join(caiman_datadir(), 'model')
     if os.path.exists(base_folder):
         if not os.path.isdir(os.path.join(base_folder, save_folder)):
-            os.makedirs(os.path.join(base_folder, save_folder))
+            os.makedirs(os.path.join(base_folder, save_folder)) 
         path_movie = os.path.join(base_folder, save_folder, name)
+
         if not os.path.exists(path_movie):
             url = file_dict[name]
             logger.info(f"downloading {name} with urllib")
             logger.info(f"GET {url} HTTP/1.1")
+            # Set SSL context for cross-platform compatibility
             if os.name == 'nt':
-                urllib_context = ssl.create_default_context(cafile = certifi.where() ) # On windows we need to avoid the limited default cert store
+                urllib_context = ssl.create_default_context(cafile=certifi.where()) # On Windows, specify the certificate bundle
             else:
-                urllib_context = None # Defaults are fine for Linux and OSX
+                urllib_context = None  # Defaults are sufficient for Linux and macOS
             try:
                 f = urlopen(url, context=urllib_context)
-            except:
+            except Exception:
                 logger.info(f"Trying to set user agent to download demo")
                 from urllib.request import Request
                 req = Request(url, headers={'User-Agent': 'Mozilla/5.0'})
                 f = urlopen(req, context=urllib_context)
-
             data = f.read()
             with open(path_movie, "wb") as code:
                 code.write(data)
@@ -236,7 +237,6 @@ def get_image_description_SI(fname:str) -> list:
         image_descriptions.append(si_parse(field))
 
     return image_descriptions
-
 
 # Generate data
 def gen_data(dims:tuple[int,int]=(48, 48), N:int=10, sig:tuple[int,int]=(3, 3), tau:float=1., noise:float=.3, T:int=2000,
@@ -474,6 +474,11 @@ def recursively_save_dict_contents_to_group(h5file:h5py.File, path:str, dic:dict
     # save items to the hdf5 file
     for key, item in dic.items():
         key = str(key)
+        #Fix: Add a check to skip non-serializable PyTorch bojects
+        if isinstance(item, torch.device) or isinstance(item, torch.nn.Module):
+            logger.info(f"Skipping key '{key}' or non-serializabel type {type(item)}")
+            continue
+        
         if key == 'g':
             if item is None:
                 item = 0
@@ -485,8 +490,7 @@ def recursively_save_dict_contents_to_group(h5file:h5py.File, path:str, dic:dict
         if key == 'g_tot':
             item = np.asarray(item, dtype=float)
         if key in ['groups', 'idx_tot', 'ind_A', 'Ab_epoch', 'coordinates',
-                   'loaded_model', 'optional_outputs', 'merged_ROIs', 'tf_in',
-                   'tf_out', 'empty_merged']:
+                   'loaded_model', 'optional_outputs', 'merged_ROIs', 'empty_merged']:
             logger.info(f'Key {key} is not saved')
             continue
 
@@ -615,26 +619,6 @@ def parmap(f, X, nprocs=multiprocessing.cpu_count()):
 
     return [x for i, x in sorted(res)]
 
-def load_graph(frozen_graph_filename):
-    """ Load a tensorflow .pb model and use it for inference"""
-    # We load the protobuf file from the disk and parse it to retrieve the
-    # unserialized graph_def
-    with tf.gfile.GFile(frozen_graph_filename, "rb") as f:
-        graph_def = tf.GraphDef()
-        graph_def.ParseFromString(f.read())
-
-    # Then, we can use again a convenient built-in function to import a
-    # graph_def into the current default Graph
-    with tf.Graph().as_default() as graph:
-        tf.import_graph_def(
-            graph_def,
-            input_map=None,
-            return_elements=None,
-            name="prefix",
-            producer_op_list=None
-        )
-    return graph
-
 def get_caiman_version() -> tuple[str, str]:
     """ Get the version of CaImAn, as best we can determine"""
     # This does its best to determine the version of CaImAn. This uses the first successful
@@ -682,7 +666,7 @@ def get_caiman_version() -> tuple[str, str]:
 class caitimer(contextlib.ContextDecorator):
     """ This is a simple context manager that you can use like this to get timing information on functions you call:
         with caiman.utils.utils.caitimer("CNMF fit"):
-            cnm = cnm.fit(images)
+            cnm.fit(images)
 
         When the context exits it will say how long it was open. Useful for easy function benchmarking """
 
@@ -693,4 +677,3 @@ class caitimer(contextlib.ContextDecorator):
         return self
     def __exit__(self, type, value, traceback):
         print(f"{self.message}: {time.time() - self.start}")
-

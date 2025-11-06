@@ -81,8 +81,7 @@ def view_patches(Yr, A, C, b, f, d1, d2, YrA=None, secs=1):
     A2.data **= 2
     nA2 = np.sqrt(np.array(A2.sum(axis=0))).squeeze()
     if YrA is None:
-        Y_r = np.array(A.T * np.matrix(Yr) - (A.T * np.matrix(b[:, np.newaxis])) * np.matrix(
-            f[np.newaxis]) - (A.T.dot(A)) * np.matrix(C) + C)
+        Y_r = np.array(A.T @ Yr - (A.T @ b[:, np.newaxis]) @ f[np.newaxis] - (A.T.dot(A)) @ C + C)
     else:
         Y_r = YrA + C
 
@@ -162,9 +161,8 @@ def nb_view_patches(Yr, A, C, b, f, d1, d2, YrA=None, image_neurons=None, thr=0.
     f = np.squeeze(f)
     if YrA is None:
         Y_r = np.array(spdiags(1 / nA2, 0, nr, nr) *
-                       (A.T * np.matrix(Yr) -
-                        (A.T * np.matrix(b[:, np.newaxis])) * np.matrix(f[np.newaxis]) -
-                        A.T.dot(A) * np.matrix(C)) + C)
+                       (A.T @ Yr -
+                        (A.T @ b[:, np.newaxis]) @ f[np.newaxis] - A.T.dot(A) @ C) + C)
     else:
         Y_r = C + YrA
 
@@ -321,9 +319,7 @@ def hv_view_patches(Yr, A, C, b, f, d1, d2, YrA=None, image_neurons=None, denois
     if YrA is None:
         Y_r = np.array(
             spdiags(1 / nA2, 0, nr, nr) *
-            (A.T * np.matrix(Yr) -
-             (A.T * np.matrix(b[:, np.newaxis])) * np.matrix(f[np.newaxis]) -
-             A.T.dot(A) * np.matrix(C)) + C)
+            (A.T @ Yr - (A.T @ b[:, np.newaxis]) @ f[np.newaxis] - A.T.dot(A) @ C) + C)
     else:
         Y_r = C + YrA
     if image_neurons is None:
@@ -400,7 +396,7 @@ def get_contours(A, dims, thr=0.9, thr_method='nrg', swap_dim=False, slice_dim: 
 
     if 'csc_matrix' not in str(type(A)):
         A = csc_matrix(A)
-    d, nr = np.shape(A)
+    d, nr = A.shape
 
     coordinates = []
 
@@ -574,8 +570,8 @@ def nb_view_patches3d(Y_r, A, C, dims, image_type='mean', Yr=None,
 
         plt.close()
         K = np.max([[len(cor['coordinates']) for cor in cc] for cc in coors])
-        cc1 = np.nan * np.zeros(np.shape(coors) + (K,))
-        cc2 = np.nan * np.zeros(np.shape(coors) + (K,))
+        cc1 = np.nan * np.zeros(coors.shape + (K,))
+        cc2 = np.nan * np.zeros(coors.shape + (K,))
         for i, cor in enumerate(coors[0]):
             cc1[0, i, :len(cor['coordinates'])
                 ] = cor['coordinates'][:, 0] + offset1
@@ -852,7 +848,7 @@ def nb_plot_contour(image, A, d1, d2, thr=None, thr_method='max', maxthr=0.2, nr
     p.circle(center[:, 1], center[:, 0], size=10, color="black",
              fill_color=None, line_width=2, alpha=1)
     if coordinates is None:
-        coors = get_contours(A, np.shape(image), thr, thr_method)
+        coors = get_contours(A, image.shape, thr, thr_method)
     else:
         coors = coordinates
     cc1 = [np.clip(cor['coordinates'][1:-1, 0], 0, d2) for cor in coors]
@@ -1103,7 +1099,7 @@ def plot_contours(A, Cn, thr=None, thr_method='max', maxthr=0.2, nrgthr=0.9, dis
         plt.imshow(Cn, interpolation=None, cmap=cmap, vmin=vmin, vmax=vmax)
 
     if coordinates is None:
-        coordinates = get_contours(A, np.shape(Cn), thr, thr_method, swap_dim)
+        coordinates = get_contours(A, Cn.shape, thr, thr_method, swap_dim)
     for c in coordinates:
         v = c['coordinates']
         c['bbox'] = [np.floor(np.nanmin(v[:, 1])), np.ceil(np.nanmax(v[:, 1])),

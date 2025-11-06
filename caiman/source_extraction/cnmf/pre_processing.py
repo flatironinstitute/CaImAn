@@ -114,7 +114,7 @@ def get_noise_welch(Y, noise_range=[0.25, 0.5], noise_method='logmexp',
                             Y[..., int(T // 2 - max_num_samples_fft / 3 / 2):
                             int(T // 2 + max_num_samples_fft / 3 / 2)],
                             Y[..., -max_num_samples_fft // 3:]), axis=-1)
-        T = np.shape(Y)[-1]
+        T = Y.shape[-1]
     ff, Pxx = scipy.signal.welch(Y)
     Pxx = Pxx[..., (ff >= noise_range[0]) & (ff <= noise_range[1])]
     sn = {
@@ -156,7 +156,7 @@ def get_noise_fft(Y, noise_range=[0.25, 0.5], noise_method='logmexp', max_num_sa
                             Y[..., int(T // 2 - max_num_samples_fft / 3 / 2)
                                           :int(T // 2 + max_num_samples_fft / 3 / 2)],
                             Y[..., -max_num_samples_fft // 3:]), axis=-1)
-        T = np.shape(Y)[-1]
+        T = Y.shape[-1]
 
     # we create a map of what is the noise on the FFT space
     ff = np.arange(0, 0.5 + 1. / T, 1. / T)
@@ -396,7 +396,7 @@ def estimate_time_constant(Y, sn, p=None, lags=5, include_noise=False, pixels=No
     if p is None:
         raise Exception("You need to define p")
     if pixels is None:
-        pixels = np.arange(np.size(Y) // np.shape(Y)[-1])
+        pixels = np.arange(np.size(Y) // Y.shape[-1])
 
     npx = len(pixels)
     lags += p

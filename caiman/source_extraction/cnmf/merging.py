@@ -139,7 +139,7 @@ def merge_components(Y, A, b, C, R, f, S, sn_pix, temporal_params,
     if R is None:
         R = np.zeros_like(C)
 
-    [d, t] = np.shape(Y)
+    d, t = Y.shape
 
     # find graph of overlapping spatial components
     A_corr = scipy.sparse.triu(A.T * A)
@@ -169,7 +169,7 @@ def merge_components(Y, A, b, C, R, f, S, sn_pix, temporal_params,
     list_conxcomp = np.asarray(list_conxcomp_initial).T
 
     if list_conxcomp.ndim > 1:
-        cor = np.zeros((np.shape(list_conxcomp)[1], 1))
+        cor = np.zeros((list_conxcomp.shape[1], 1))
         for i in range(np.size(cor)):
             fm = np.where(list_conxcomp[:, i])[0]
             for j1 in range(np.size(fm)):

@@ -206,7 +206,7 @@ def local_correlations(Y, eight_neighbours: bool = True, swap_dim: bool = True, 
     if swap_dim:
         Y = np.transpose(Y, tuple(np.hstack((Y.ndim - 1, list(range(Y.ndim))[:-1]))))
 
-    rho = np.zeros(np.shape(Y)[1:])
+    rho = np.zeros(Y.shape[1:])
     w_mov = (Y - np.mean(Y, axis=0)) / np.std(Y, axis=0)
 
     rho_h = np.mean(np.multiply(w_mov[:, :-1, :], w_mov[:, 1:, :]), axis=0)
@@ -214,7 +214,7 @@ def local_correlations(Y, eight_neighbours: bool = True, swap_dim: bool = True, 
 
     # yapf: disable
     if order_mean == 0:
-        rho = np.ones(np.shape(Y)[1:])
+        rho = np.ones(Y.shape[1:])
         rho_h = rho_h
         rho_w = rho_w
         rho[:-1, :] = rho[:-1, :] * rho_h
@@ -232,7 +232,7 @@ def local_correlations(Y, eight_neighbours: bool = True, swap_dim: bool = True, 
         rho[:, :, :-1] = rho[:, :, :-1] + rho_d
         rho[:, :, 1:] = rho[:, :, 1:] + rho_d
 
-        neighbors = 6 * np.ones(np.shape(Y)[1:])
+        neighbors = 6 * np.ones(Y.shape[1:])
         neighbors[0]        = neighbors[0]        - 1
         neighbors[-1]       = neighbors[-1]       - 1
         neighbors[:,     0] = neighbors[:,     0] - 1
@@ -258,7 +258,7 @@ def local_correlations(Y, eight_neighbours: bool = True, swap_dim: bool = True, 
                 rho[1:,  :-1] = rho[1:,  :-1] + rho_d1**(order_mean)
                 rho[:-1,  1:] = rho[:-1,  1:] + rho_d2**(order_mean)
 
-            neighbors = 8 * np.ones(np.shape(Y)[1:3])
+            neighbors = 8 * np.ones(Y.shape[1:3])
             neighbors[0,   :] = neighbors[0,   :] - 3
             neighbors[-1,  :] = neighbors[-1,  :] - 3
             neighbors[:,   0] = neighbors[:,   0] - 3
@@ -268,7 +268,7 @@ def local_correlations(Y, eight_neighbours: bool = True, swap_dim: bool = True, 
             neighbors[-1,  0] = neighbors[-1,  0] + 1
             neighbors[0,  -1] = neighbors[0,  -1] + 1
         else:
-            neighbors = 4 * np.ones(np.shape(Y)[1:3])
+            neighbors = 4 * np.ones(Y.shape[1:3])
             neighbors[0,  :]  = neighbors[0,  :] - 1
             neighbors[-1, :]  = neighbors[-1, :] - 1
             neighbors[:,  0]  = neighbors[:,  0] - 1

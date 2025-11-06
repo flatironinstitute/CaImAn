@@ -1,5 +1,9 @@
 Please check this file after new releases; it will cover (only) major changes or changes that will impact how CaImAn runs, and will not generally cover new features or minor changes (see the version history on Github for that). Most recent changes are at the top.
 
+1.12.3
+------
+Tensorflow is removed, pytorch is added
+
 1.9.10
 ------
 Python 3.8-3.10 are supported versions of Caiman. 3.7 is no longer supported.

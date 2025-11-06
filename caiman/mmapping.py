@@ -46,9 +46,12 @@ def load_memmap(filename: str, mode: str = 'r') -> tuple[Any, tuple, int]:
 
     """
     logger = logging.getLogger("caiman")
-    if pathlib.Path(filename).suffix != '.mmap':
+    allowed_extensions = {'.mmap', '.npy'}
+    
+    extension = pathlib.Path(filename).suffix
+    if extension not in allowed_extensions:
         logger.error(f"Unknown extension for file {filename}")
-        raise ValueError(f'Unknown file extension for file {filename} (should be .mmap)')
+        raise ValueError(f'Unknown file extension for file {filename} (should be .mmap or .npy)')
     # Strip path components and use CAIMAN_DATA/example_movies
     # TODO: Eventually get the code to save these in a different dir
     #fn_without_path = os.path.split(filename)[-1]
@@ -63,7 +66,22 @@ def load_memmap(filename: str, mode: str = 'r') -> tuple[Any, tuple, int]:
     #d1, d2, d3, T, order = int(fpart[-9]), int(fpart[-7]), int(fpart[-5]), int(fpart[-1]), fpart[-3]
 
     filename = caiman.paths.fn_relocated(filename)
-    Yr = np.memmap(filename, mode=mode, shape=prepare_shape((d1 * d2 * d3, T)), dtype=np.float32, order=order)
+    shape = prepare_shape((d1 * d2 * d3, T))
+    if extension == '.mmap':
+        Yr = np.memmap(filename, mode=mode, shape=shape, dtype=np.float32, order=order)
+    elif extension == '.npy':
+        Yr = np.load(filename, mmap_mode=mode)
+        if Yr.shape != shape:
+            raise ValueError(f"Data in npy file was an unexpected shape: {Yr.shape}, expected: {shape}")
+        if Yr.dtype != np.float32:
+            raise ValueError(f"Data in npy file was an unexpected dtype: {Yr.dtype}, expected: np.float32")
+        if order == 'C' and not Yr.flags['C_CONTIGUOUS']:
+            raise ValueError("Data in npy file is not in C-contiguous order as expected.")
+        elif order == 'F' and not Yr.flags['F_CONTIGUOUS']:
+            raise ValueError("Data in npy file is not in Fortran-contiguous order as expected.")
+    
+    
+
     if d3 == 1:
         return (Yr, (d1, d2), T)
     else:
@@ -159,7 +177,7 @@ def save_memmap_each(fnames: list[str],
     return fnames_new
 
 def save_memmap_join(mmap_fnames:list[str], base_name: str = None, n_chunks: int = 20, dview=None,
-                     add_to_mov=0) -> str:
+                     add_to_mov: float = 0.0) -> str:
     """
     Makes a large file memmap from a number of smaller files
 
@@ -172,7 +190,7 @@ def save_memmap_join(mmap_fnames:list[str], base_name: str = None, n_chunks: int
 
         dview: cluster handle
 
-        add_to_mov: (undocumented)
+        add_to_mov: constant to add to the entire movie
 
     """
     logger = logging.getLogger("caiman")
@@ -345,7 +363,7 @@ def save_memmap(filenames:list[str],
                 var_name_hdf5: str = 'mov',
                 xy_shifts: Optional[list] = None,
                 is_3D: bool = False,
-                add_to_movie: float = 0,
+                add_to_movie: float = 0.0001,
                 border_to_0=0,
                 dview=None,
                 n_chunks: int = 100,
@@ -431,7 +449,7 @@ def save_memmap(filenames:list[str],
                                               xy_shifts=xy_shifts,
                                               is_3D=is_3D,
                                               slices=slices,
-                                              add_to_movie=add_to_movie)
+                                              add_to_movie=0.0)  # applied below in save_memmap_join
         else:
             fname_parts = filenames
 
@@ -440,7 +458,7 @@ def save_memmap(filenames:list[str],
             raise Exception('You cannot merge files in F order, they must be in C order')
 
         fname_new = caiman.save_memmap_join(fname_parts, base_name=base_name,
-                                        dview=dview, n_chunks=n_chunks)
+                                        dview=dview, n_chunks=n_chunks, add_to_mov=add_to_movie)
 
     else:
         # TODO: can be done online
@@ -487,7 +505,7 @@ def save_memmap(filenames:list[str],
                 if slices is not None:
                     if isinstance(slices, list):
                         raise Exception(
-                            'You cannot slice in x and y and then use add_to_movie: if you only want to slice in time do not pass in a list but just a slice object'
+                            'You cannot slice in x and y and then use border_to_0: if you only want to slice in time do not pass in a list but just a slice object'
                         )
 
                 min_mov = Yr.calc_min()
@@ -505,7 +523,7 @@ def save_memmap(filenames:list[str],
             T, dims = Yr.shape[0], Yr.shape[1:]
             Yr = np.transpose(Yr, list(range(1, len(dims) + 1)) + [0])
             Yr = np.reshape(Yr, (np.prod(dims), T), order='F')
-            Yr = np.ascontiguousarray(Yr, dtype=np.float32) + np.float32(0.0001) + np.float32(add_to_movie)
+            Yr = np.ascontiguousarray(Yr, dtype=np.float32) + np.float32(add_to_movie)
 
             if idx == 0:
                 fname_tot = caiman.paths.generate_fname_tot(base_name, dims, order)
@@ -559,7 +577,7 @@ def parallel_dot_product(A: np.ndarray, b, block_size: int = 5000, dview=None, t
     logger = logging.getLogger("caiman")
 
     pars = []
-    d1, d2 = np.shape(A)
+    d1, d2 = A.shape
     b = pickle.dumps(b)
     logger.debug(f'parallel dot product block size: {block_size}')
 
@@ -580,9 +598,9 @@ def parallel_dot_product(A: np.ndarray, b, block_size: int = 5000, dview=None, t
     b = pickle.loads(b)
 
     if transpose:
-        output = np.zeros((d2, np.shape(b)[-1]), dtype=np.float32)
+        output = np.zeros((d2, b.shape[-1]), dtype=np.float32)
     else:
-        output = np.zeros((d1, np.shape(b)[-1]), dtype=np.float32)
+        output = np.zeros((d1, b.shape[-1]), dtype=np.float32)
 
     if dview is None:
         if transpose:

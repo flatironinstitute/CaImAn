@@ -121,8 +121,6 @@ CNMF
 .. automethod:: CNMF.update_temporal
 .. automethod:: CNMF.compute_residuals
 .. automethod:: CNMF.remove_components
-.. automethod:: CNMF.HALS4traces
-.. automethod:: CNMF.HALS4footprints
 .. automethod:: CNMF.merge_comps
 .. automethod:: CNMF.initialize
 .. automethod:: CNMF.preprocess

@@ -34,9 +34,9 @@ def make_G_matrix(T, g):
     if isinstance(g, np.ndarray):
         if len(g) == 1 and g < 0:
             g = 0
-        gs = np.matrix(np.hstack((1, -(g[:]).T)))
-        ones_ = np.matrix(np.ones((T, 1)))
-        G = spdiags((ones_ * gs).T, list(range(0, -len(g) - 1, -1)), T, T)
+        gs = np.array([np.hstack((1, -(g[:]).T))])
+        ones_ = np.ones((T, 1))
+        G = spdiags((ones_ @ gs).T, list(range(0, -len(g) - 1, -1)), T, T)
 
         return G
     else:
@@ -49,7 +49,7 @@ def constrained_foopsi_parallel(arg_in):
     """
 
     Ytemp, nT, jj_, bl, c1, g, sn, argss = arg_in
-    T = np.shape(Ytemp)[0]
+    T = Ytemp.shape[0]
     cc_, cb_, c1_, gn_, sn_, sp_, lam_ = caiman.source_extraction.cnmf.deconvolution.constrained_foopsi(
         Ytemp, bl=bl, c1=c1, g=g, sn=sn, **argss)
     gd_ = np.max(np.real(np.roots(np.hstack((1, -gn_.T)))))
@@ -174,8 +174,8 @@ def update_temporal_components(Y, A, b, Cin, fin, bl=None, c1=None, g=None, sn=N
         raise Exception("You have to provide a value for p")
 
     # INITIALIZATION OF VARS
-    d, T = np.shape(Y)
-    nr = np.shape(A)[-1]
+    d, T = Y.shape
+    nr = A.shape[-1]
     if b is not None:
         # if b.shape[0] < b.shape[1]:
         #     b = b.T
@@ -193,7 +193,7 @@ def update_temporal_components(Y, A, b, Cin, fin, bl=None, c1=None, g=None, sn=N
         sn = np.repeat(None, nr)
 
     A = scipy.sparse.hstack((A, b)).tocsc()
-    S = np.zeros(np.shape(Cin))
+    S = np.zeros(Cin.shape)
     Cin = np.vstack((Cin, fin))
     C = Cin.copy()
     nA = np.ravel(A.power(2).sum(axis=0)) + np.finfo(np.float32).eps
@@ -212,13 +212,14 @@ def update_temporal_components(Y, A, b, Cin, fin, bl=None, c1=None, g=None, sn=N
     YrA = YA - AA.T.dot(Cin).T
     # creating the patch of components to be computed in parallel
     parrllcomp, len_parrllcomp = caiman.source_extraction.cnmf.utilities.update_order_greedy(AA[:nr, :][:, :nr])
-    logger.info("entering the deconvolution ")
+    logger.info(f"Entering Deconvolution, {C.shape=} {S.shape=}")
     C, S, bl, YrA, c1, sn, g, lam = update_iteration(parrllcomp, len_parrllcomp, nb, C, S, bl, nr,
                                                      ITER, YrA, c1, sn, g, Cin, T, nA, dview, debug, AA, kwargs)
     ff = np.where(np.sum(C, axis=1) == 0)  # remove empty components
     if np.size(ff) > 0:  # Eliminating empty temporal components
         ff = ff[0]
-        logger.info(f'removing {len(ff)} empty spatial component(s)')
+        logger.info(f'removing {len(ff)} empty temporal component(s)')
+
         keep = list(range(A.shape[1]))
         for i in ff:
             keep.remove(i)
@@ -257,9 +258,6 @@ def update_iteration(parrllcomp, len_parrllcomp, nb, C, S, bl, nr,
 
         Cin: np.ndarray
             current estimate of temporal components (K x T)
-
-        g:  np.ndarray
-            Global time constant (not used)
 
         bl: np.ndarray
            baseline for fluorescence trace for each column in A
@@ -314,18 +312,21 @@ def update_iteration(parrllcomp, len_parrllcomp, nb, C, S, bl, nr,
         bl:  float
             same as input
 
-        c1:  float
-            same as input
+        YrA: np.ndarray
+            matrix of spatial component filtered raw data, after all contributions have been removed.
+            YrA corresponds to the residual trace for each component and is used for faster plotting (K x T)
 
-        g:   float
+        c1:  float
             same as input
 
         sn:  float
             same as input
 
-        YrA: np.ndarray
-            matrix of spatial component filtered raw data, after all contributions have been removed.
-            YrA corresponds to the residual trace for each component and is used for faster plotting (K x T)
+        g:   float
+            same as input
+
+        lam: (undocumented)
+
 """
 
     logger = logging.getLogger("caiman")
@@ -381,7 +382,7 @@ def update_iteration(parrllcomp, len_parrllcomp, nb, C, S, bl, nr,
                          f" out of total {nr} temporal components updated")
 
         for ii in np.arange(nr, nr + nb):
-            cc = np.maximum(YrA[:, ii] + Cin[ii], -np.Inf)
+            cc = np.maximum(YrA[:, ii] + Cin[ii], -np.inf)
             YrA -= AA[ii, :].T.dot((cc - Cin[ii])[None, :]).T
             C[ii, :] = cc
 

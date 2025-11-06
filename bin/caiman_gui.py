@@ -16,6 +16,23 @@ import caiman
 from caiman.source_extraction.cnmf.cnmf import load_CNMF
 from caiman.source_extraction.cnmf.params import CNMFParams
 
+##############################
+# This is a tool that can help you visualise dumps of the CNMF object,
+# generated as demonstrated in demo_pipeline.
+#
+# If you're already using it, that's fine, but there are better tools
+# out there (such as the Mesmerize-vis package). To use, point it at the
+# hdf5 file that CLI demo or jupyter notebook made, or have your own code
+# call the save method on the CNMF object, and then feed that (and then the
+# mmap file) into this script when it asks, and you'll see your ROIs and
+# be able to experiment with thresholding (and re-save with those different
+# thresholds).
+#
+# mesmerize-vis offers a better approach to these things, and is much more
+# recent and better maintained.
+
+
+
 # Always start by initializing Qt (only once per application)
 app = QtWidgets.QApplication([])
 
@@ -23,17 +40,6 @@ try:
     cv2.setNumThreads(1)
 except:
     print('OpenCV is naturally single threaded')
-
-try:
-    if __IPYTHON__:
-        print(1)
-        # this is used for debugging purposes only. allows to reload classes
-        # when changed
-        get_ipython().magic('load_ext autoreload')
-        get_ipython().magic('autoreload 2')
-except NameError:
-    print('Not launched under iPython')
-
 
 def make_color_img(img, gain=255, min_max=None, out_type=np.uint8):
     if min_max is None:
@@ -66,7 +72,7 @@ else:
     M = FileDialog()
     d, f = os.path.split(cnm_obj.mmap_file)
     cnm_obj.mmap_file = M.getOpenFileName(caption='Load memory mapped file',
-                                          directory=d, filter=f + ';;*.mmap')[0]
+                                          filter=f + ';;*.mmap')[0]
 
 if fpath[-3:] == 'nwb':
     mov = caiman.load(cnm_obj.mmap_file,
@@ -405,15 +411,15 @@ p1.mouseMoveEvent = move
 
 
 ## PARAMS
-params = [{'name': 'min_cnn_thr', 'type': 'float', 'value': 0.99, 'limits': (0, 1),'step':0.01},
-            {'name': 'cnn_lowest', 'type': 'float', 'value': 0.1, 'limits': (0, 1),'step':0.01},
-            {'name': 'rval_thr', 'type': 'float', 'value': 0.85, 'limits': (-1, 1),'step':0.01},
-            {'name': 'rval_lowest', 'type': 'float', 'value': -1, 'limits': (-1, 1),'step':0.01},
-            {'name': 'min_SNR', 'type': 'float', 'value': 2, 'limits': (0, 20),'step':0.1},
-            {'name': 'SNR_lowest', 'type': 'float', 'value': 0, 'limits': (0, 20),'step':0.1},
-            {'name': 'RESET', 'type': 'action'},
+params = [{'name': 'min_cnn_thr',       'type': 'float', 'value': 0.99, 'limits': (0, 1),  'step':0.01},
+            {'name': 'cnn_lowest',      'type': 'float', 'value': 0.1,  'limits': (0, 1),  'step':0.01},
+            {'name': 'rval_thr',        'type': 'float', 'value': 0.85, 'limits': (-1, 1), 'step':0.01},
+            {'name': 'rval_lowest',     'type': 'float', 'value': -1,   'limits': (-1, 1), 'step':0.01},
+            {'name': 'min_SNR',         'type': 'float', 'value': 2,    'limits': (0, 20), 'step':0.1},
+            {'name': 'SNR_lowest',      'type': 'float', 'value': 0,    'limits': (0, 20), 'step':0.1},
+            {'name': 'RESET',           'type': 'action'},
             {'name': 'SHOW BACKGROUND', 'type': 'action'},
-            {'name': 'SHOW NEURONS', 'type': 'action'}
+            {'name': 'SHOW NEURONS',    'type': 'action'}
             ]
     
 ## Create tree of Parameter objects
@@ -421,7 +427,7 @@ pars = Parameter.create(name='params', type='group', children=params)
 
 
 params_action = [{'name': 'Filter components', 'type': 'bool', 'value': True, 'tip': "Filter components"},          
-                 {'name': 'View components', 'type': 'list', 'values': ['All','Accepted',
+                 {'name': 'View components',   'type': 'list', 'limits': ['All','Accepted',
                                                        'Rejected', 'Unassigned'], 'value': 'All'},
                  {'name': 'ADD GROUP', 'type': 'action'},
                  {'name': 'REMOVE GROUP', 'type': 'action'},

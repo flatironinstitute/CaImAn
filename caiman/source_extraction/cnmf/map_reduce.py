@@ -109,7 +109,7 @@ def cnmf_patches(args_in):
 
         cnm = CNMF(n_processes=1, params=opts)
 
-        cnm = cnm.fit(images)
+        cnm.fit(images)
         return [idx_, shapes, scipy.sparse.coo_matrix(cnm.estimates.A),
                 cnm.estimates.b, cnm.estimates.C, cnm.estimates.f,
                 cnm.estimates.S, cnm.estimates.bl, cnm.estimates.c1,
@@ -252,13 +252,13 @@ def run_CNMF_patches(file_name, shape, params, gnb=1, dview=None,
     for jj, fff in enumerate(file_res):
         if fff is not None:
             idx_, shapes, A, b, C, f, S, bl, c1, neurons_sn, g, sn, _, YrA = fff
-            for _ in range(np.shape(b)[-1]):
+            for _ in range(b.shape[-1]):
                 count_bgr += 1
 
             A = A.tocsc()
             if del_duplicates:
                 keep = []
-                for ii in range(np.shape(A)[-1]):
+                for ii in range(A.shape[-1]):
                     neuron_center = (np.array(scipy.ndimage.center_of_mass(
                         A[:, ii].toarray().reshape(shapes, order='F'))) -
                         np.array(shapes) / 2. + np.array(patch_centers[jj]))
@@ -276,7 +276,7 @@ def run_CNMF_patches(file_name, shape, params, gnb=1, dview=None,
                     file_res[jj][10] = g[keep]
                 file_res[jj][-1] = YrA[keep]
 
-            # for ii in range(np.shape(A)[-1]):
+            # for ii in range(A.shape[-1]):
             #     new_comp = A[:, ii] / np.sqrt(A[:, ii].power(2).sum())
             #     if new_comp.sum() > 0:
             #         count += 1
@@ -332,7 +332,7 @@ def run_CNMF_patches(file_name, shape, params, gnb=1, dview=None,
                 idx_ptr_B += list(b.indptr[1:] - b.indptr[:-1])
                 idx_tot_B.append(idx_[b.indices])
             else:
-                for ii in range(np.shape(b)[-1]):
+                for ii in range(b.shape[-1]):
                     b_tot.append(b[:, ii])
                     idx_tot_B.append(idx_)
                     idx_ptr_B.append(len(idx_))
@@ -343,7 +343,7 @@ def run_CNMF_patches(file_name, shape, params, gnb=1, dview=None,
             else:  # full background per patch
                 F_tot = np.concatenate([F_tot, f])
 
-            for ii in range(np.shape(A)[-1]):
+            for ii in range(A.shape[-1]):
                 new_comp = A[:, ii]  # / np.sqrt(A[:, ii].power(2).sum())
                 if new_comp.sum() > 0:
                     a_tot.append(new_comp.toarray().flatten())

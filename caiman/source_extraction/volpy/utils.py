@@ -10,10 +10,16 @@ import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider
 import numpy as np
 import os
-import tensorflow as tf
+import torch
+import torchvision
 import caiman as cm
 from caiman.external.cell_magic_wand import cell_magic_wand_single_point
 from caiman.paths import caiman_datadir
+
+from caiman.source_extraction.volpy.mrcnn import utils
+from caiman.source_extraction.volpy.mrcnn.config import Config
+from caiman.source_extraction.volpy.mrcnn.model import get_model_instance_segmentation, mrcnn_inference
+from caiman.source_extraction.volpy.mrcnn.utils import ScaleImage, data_transform 
 
 def quick_annotation(img, min_radius, max_radius, roughness=2):
     """ Quick annotation method in VolPy using cell magic wand plugin
@@ -89,61 +95,84 @@ def quick_annotation(img, min_radius, max_radius, roughness=2):
 
     return ROIs
 
-def mrcnn_inference(img, size_range, weights_path, display_result=True):
-    """ Mask R-CNN inference in VolPy
-    Args: 
-        img: 2-D array
-            summary images for detection
+def mrcnn_inference_pytorch(img, size_range, weights_path, display_result=True):
+    """ 
+    Mask R-CNN inference in VolPy using PyTorch.
+    Args:
+        img (np.ndarray):
+            2-D or 3-D summary image for detection. If 2D, it's converted to 3-channel.
+
+        size_range (list):
+            Range of neuron size [min, max] for selection.
+
+        weights_path (str):
+            Path for the PyTorch Mask R-CNN weights file (.pt).
+
+        display_result (bool):
+            If True, the function will plot the result of the inference.
             
-        size_range: list
-            range of neuron size for selection
-            
-        weights_path: str
-            path for Mask R-CNN weight
-            
-        display_result: boolean
-            if True, the function will plot the result of inference
-        
-    Return:
-        ROIs: 3-D array
-            region of interests 
-            (# of components * # of pixels in x dim * # of pixels in y dim)
+        confidence_threshold (float):
+            The confidence threshold for accepting detected instances.
+
+    Returns:
+        ROIs: 3-D np.ndarray:
+            A 3-D array of ROIs (# of components, height, width).
     """
-    from caiman.source_extraction.volpy.mrcnn import visualize, neurons
-    import caiman.source_extraction.volpy.mrcnn.model as modellib
-    config = neurons.NeuronsConfig()
-    class InferenceConfig(config.__class__):
-        # Run detection on one img at a time
+    # Setup Configuration and Device
+    class InferenceConfig(Config):
         GPU_COUNT = 1
         IMAGES_PER_GPU = 1
-        DETECTION_MIN_CONFIDENCE = 0.7
-        IMAGE_RESIZE_MODE = "pad64"
-        IMAGE_MAX_DIM = 512
-        RPN_NMS_THRESHOLD = 0.7
-        POST_NMS_ROIS_INFERENCE = 1000
+        NUM_CLASSES = 1 + 1  # background + neuron
+        DETECTION_MIN_CONFIDENCE = 0.7 #
     config = InferenceConfig()
-    config.display()
-    model_dir = os.path.join(caiman_datadir(), 'model')
-    DEVICE = "/cpu:0"  # /cpu:0 or /gpu:0
-    with tf.device(DEVICE):
-        model = modellib.MaskRCNN(mode="inference", model_dir=model_dir,
-                                  config=config)
-    tf.keras.Model.load_weights(model.keras_model, weights_path, by_name=True)
-    results = model.detect([img], verbose=1)
-    r = results[0]
-    selection = np.logical_and(r['masks'].sum(axis=(0,1)) > size_range[0] ** 2, 
-                               r['masks'].sum(axis=(0,1)) < size_range[1] ** 2)
-    r['rois'] = r['rois'][selection]
-    r['masks'] = r['masks'][:, :, selection]
-    r['class_ids'] = r['class_ids'][selection]
-    r['scores'] = r['scores'][selection]
-    ROIs = r['masks'].transpose([2, 0, 1])
+
+    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
+    print(f"Using device: {device}")
+
+    #Load Model and weights
+    model = get_model_instance_segmentation(num_classes=config.NUM_CLASSES) 
+    model.load_state_dict(torch.load(weights_path, map_location=device))
+    model.to(device)
+    model.eval() #Set to evaluation mode 
+
+    # Pre-process Image
+    img_tensor = torch.from_numpy(img.copy().astype(np.float32)).permute(2, 0, 1) #
+    img_tensor = img_tensor / 255.0  # Normalize to 0-1 range
+    img_tv_tensor = torchvision.tv_tensors.Image(img_tensor)
+
+    # Perform Inference
+    _, _, binarized_masks = mrcnn_inference(
+        model=model,
+        img=img_tv_tensor, 
+        thresh=config.DETECTION_MIN_CONFIDENCE,
+        eval_transform=data_transform(train=False),
+        device=device
+    )
+
+    # Post-process and Filter by Size
+    if binarized_masks.size == 0:
+        ROIs = np.empty((0, *img.shape[:2]), dtype=bool) #
+    else:
+        mask_areas = binarized_masks.sum(axis=(1, 2)) #
+        selection = np.logical_and(mask_areas > size_range[0] ** 2,
+                                   mask_areas < size_range[1] ** 2) #
+        ROIs = binarized_masks[selection].astype(bool) 
+
+    print(f"Inference complete. Found {ROIs.shape[0]} neurons.") #
 
     if display_result:
-        _, ax = plt.subplots(1,1, figsize=(16,16))
-        visualize.display_instances(img, r['rois'], r['masks'], r['class_ids'], 
-                                ['BG', 'neurons'], r['scores'], ax=ax,
-                                title="Predictions")        
+        plt.figure(figsize=(12, 12))
+        plt.imshow(img)
+        # Overlay each ROI with a distinct color
+        if ROIs.any():
+            composite_mask = np.zeros_like(ROIs[0], dtype=float)
+            for i, roi in enumerate(ROIs):
+                composite_mask += roi * (i + 1)
+            plt.imshow(np.ma.masked_where(composite_mask == 0, composite_mask), cmap='nipy_spectral', alpha=0.6)
+        plt.title(f"PyTorch Predictions ({len(ROIs)} ROIs found)")
+        plt.axis('off')
+        plt.show()
+
     return ROIs
 
 def reconstructed_movie(estimates, fnames, idx, scope, flip_signal):

@@ -1,6 +1,5 @@
 channels:
 - conda-forge
-- defaults
 dependencies:
 - python <=3.12
 - av
@@ -12,13 +11,13 @@ dependencies:
 - ipykernel
 - ipython
 - ipyparallel
+- ipywidgets
 - jupyter
 - jupyter_bokeh
+- keras
 - matplotlib
 - moviepy
 - mypy
-- pytest
-- pytest-cov
 - numpy <2.0.0,>=1.26
 - numpydoc
 - opencv
@@ -28,12 +27,17 @@ dependencies:
 - psutil
 - pynwb
 - pyqtgraph
+- pyside6
+- pytest
+- pytest-cov
+- pytorch
 - scikit-image >=0.19.0
 - scikit-learn >=1.2
 - scipy >= 1.10.1
-- tensorflow >=2.4.0,<2.16
 - tifffile
 - tk
+- torchinfo 
+- torchvision
 - tqdm
 - yapf
 - zarr

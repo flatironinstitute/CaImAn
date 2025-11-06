@@ -1,8 +1,8 @@
 #!/usr/bin/env python
 
-from setuptools import setup, find_packages
 import numpy as np
 import os
+from setuptools import setup, find_packages
 import sys
 from Cython.Build import cythonize
 from setuptools.extension import Extension
@@ -29,12 +29,12 @@ with open('VERSION', 'r') as verfile:
 #
 # We can access these by using sys.prefix as the base of the directory and constructing from there.
 # Note that if python's packaging standards ever change the install base of data_files to be under the
-# package that made them, we can switch to using the pkg_resources API.
+# package that made them, we can switch to using a different API.
 
 extra_dirs = ['bin', 'demos', 'docs', 'model']
 data_files = [('share/caiman', ['LICENSE.txt', 'README.md', 'test_demos.sh', 'VERSION']),
-              ('share/caiman/example_movies', ['example_movies/data_endoscope.tif', 'example_movies/demoMovie.tif']),
-              ('share/caiman/testdata', ['testdata/groundtruth.npz', 'testdata/example.npz', 'testdata/2d_sbx.mat', 'testdata/2d_sbx.sbx', 'testdata/3d_sbx_1.mat', 'testdata/3d_sbx_1.sbx', 'testdata/3d_sbx_2.mat', 'testdata/3d_sbx_2.sbx']),
+              ('share/caiman/example_movies', ['example_movies/data_endoscope.tif', 'example_movies/demoMovie.tif', 'example_movies/avg_mask_fixed.png']),
+              ('share/caiman/testdata', ['testdata/groundtruth.npz', 'testdata/example.npz', 'testdata/2d_sbx.mat', 'testdata/2d_sbx.sbx', 'testdata/2d_sbx_bidi.mat', 'testdata/2d_sbx_bidi.sbx', 'testdata/3d_sbx_1.mat', 'testdata/3d_sbx_1.sbx', 'testdata/3d_sbx_2.mat', 'testdata/3d_sbx_2.sbx']),
              ]
 for part in extra_dirs:
 	newpart = [("share/caiman/" + d, [os.path.join(d,f) for f in files]) for d, folders, files in os.walk(part)]

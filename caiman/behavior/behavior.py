@@ -46,7 +46,7 @@ def select_roi(img: np.ndarray, n_rois: int = 1) -> list:
         fig = plt.figure()
         plt.imshow(img, cmap=matplotlib.cm.gray)
         pts = fig.ginput(0, timeout=0)
-        mask = np.zeros(np.shape(img), dtype=np.int32)
+        mask = np.zeros(img.shape, dtype=np.int32)
         pts = np.asarray(pts, dtype=np.int32)
         cv2.fillConvexPoly(mask, pts, (1, 1, 1), lineType=cv2.LINE_AA)
         masks.append(mask)
@@ -317,11 +317,11 @@ def extract_components(mov_tot,
             mov_tot = mov_tot / norm_fact[:, np.newaxis, np.newaxis, np.newaxis]
         else:
             norm_fact = np.array([1., 1.])
-        c, T, d1, d2 = np.shape(mov_tot)
+        c, T, d1, d2 = mov_tot.shape
 
     else:
         norm_fact = 1
-        T, d1, d2 = np.shape(mov_tot)
+        T, d1, d2 = mov_tot.shape
         c = 1
 
     tt = time.time()

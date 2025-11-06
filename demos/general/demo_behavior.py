@@ -90,7 +90,7 @@ def main():
         spfl = spatial_filter
         spfl = cm.movie(spfl[None, :, :]).resize(
             1 / resize_fact, 1 / resize_fact, 1).squeeze()
-        max_x, max_y = np.add((min_x, min_y), np.shape(spfl))
+        max_x, max_y = np.add((min_x, min_y), spfl.shape)
 
         mask[min_x:max_x, min_y:max_y] = spfl
         mask[mask < np.nanpercentile(spfl, 70)] = np.nan
