@@ -470,7 +470,7 @@ class MotionCorrect(object):
 
             # force shifts_interpolate if there was any cropping - easier than making a special-case path that
             # resizes the shifts and extrapolates to the border but doesn't fully take patch centers into account
-            shifts_interpolate = True if any(dim_inds != slice(None) for dim_inds in self.indices) else self.shifts_interpolate
+            shifts_interpolate = self.shifts_interpolate or any(dim_inds != slice(None) for dim_inds in self.indices)
 
             if self.is3D:
                 # x_shifts_els and y_shifts_els are switched intentionally
