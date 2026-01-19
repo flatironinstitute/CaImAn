@@ -12,6 +12,7 @@ dependencies:
 - keras
 - matplotlib
 - moviepy
+- msgspec
 - numpy >=2.0.0
 - numpydoc
 - opencv
