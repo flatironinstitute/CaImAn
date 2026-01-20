@@ -1106,8 +1106,9 @@ class OnACID(object):
                 # tile_and_correct[_3d] and motion_correct_iteration[_fast] return the shifts needed to apply to get the corrected frame
                 shift = tuple(-np.array(shift))
             else:
+                max_shift_ds = int(self.params.online.max_shifts_online / self.params.online.ds_factor)
                 frame_cor, shift = motion_correct_iteration_fast(
-                        frame, templ, *(self.params.get('online', 'max_shifts_online'),)*2)
+                        frame, templ, max_shift_ds, max_shift_ds)
             if self.is1p:
                 M = np.float32([[1, 0, shift[1]], [0, 1, shift[0]]])
                 frame_cor = cv2.warpAffine(frame_orig, M, frame.shape[::-1],

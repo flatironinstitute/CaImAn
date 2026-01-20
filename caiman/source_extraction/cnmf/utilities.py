@@ -11,6 +11,7 @@ description of the array's dtype.
 import cv2
 import logging
 import numpy as np
+import numpy.testing as npt
 import os
 import pathlib
 import matplotlib.pyplot as plt
@@ -355,14 +356,31 @@ def peak_local_max(image, min_distance=1, threshold_abs=None,
         return out
 
 
+def all_same(obj1, obj2) -> bool:
+    """
+    An equals method that removes the weirdness around ndarrays and nans
+        (i.e., checks for equality of shape and all values for arrays, and
+        considers nans equal).
+    This is what np.array_equal(equal_nan=True) should do, but it raises an error for
+        non-numeric types; numpy seems to be stuck considering whether the isnan
+        function should be changed before taking action (https://github.com/numpy/numpy/issues/16377)
+    Meanwhile npt.assert_array_equal just does the right thing.
+    """
+    try:
+        npt.assert_array_equal(obj1, obj2, strict=True)
+        return True
+    except AssertionError:
+        return False
+
+
 def dict_compare(d1, d2):
     d1_keys = set(d1.keys())
     d2_keys = set(d2.keys())
     intersect_keys = d1_keys.intersection(d2_keys)
     added = d1_keys - d2_keys
     removed = d2_keys - d1_keys
-    modified = {o : (d1[o], d2[o]) for o in intersect_keys if np.any(d1[o] != d2[o])}
-    same = set(o for o in intersect_keys if np.all(d1[o] == d2[o]))
+    same = set(o for o in intersect_keys if all_same(d1[o], d2[o]))
+    modified = {o : (d1[o], d2[o]) for o in intersect_keys - same}
     return added, removed, modified, same
 
 

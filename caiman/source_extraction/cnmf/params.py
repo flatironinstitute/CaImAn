@@ -1,11 +1,11 @@
 #!/usr/bin/env python
 
-#from collections.abc import Mapping
 import copy
 from functools import cache
 import importlib.metadata
 import json
 import logging
+import math
 import msgspec
 from msgspec import Struct, StructMeta, field
 import numpy as np
@@ -13,13 +13,15 @@ import os
 from pprint import pformat
 import scipy
 from scipy.ndimage import generate_binary_structure, iterate_structure
+from tabulate import tabulate
 from types import MappingProxyType
-from typing import Optional, Any, Type, Union, Literal, TypedDict, Mapping
+from typing import (Optional, Any, Type, Union, Literal,
+                    Mapping, Iterable, TypeVar, overload, cast)
 
 import caiman.base.movies
 import caiman.utils.utils
 from caiman.paths import caiman_datadir
-from caiman.source_extraction.cnmf.utilities import dict_compare
+from caiman.source_extraction.cnmf.utilities import all_same
 
 
 # Definition of JSON serialization scheme, with known types (for msgspec)
@@ -67,6 +69,8 @@ class GroupParams(Struct, metaclass=GroupParamsMeta):
     which have historically been dicts.
     (fields can be gotten and set using [] syntax, but not deleted.)
     """
+    Self = TypeVar('Self', bound='GroupParams')
+
     def __setitem__(self, key: str, item):
         setattr(self, key, item)
     
@@ -104,18 +108,29 @@ class GroupParams(Struct, metaclass=GroupParamsMeta):
     
     def reversed(self):
         return reversed(self.__struct_fields__)
+    
+    def get_differing_params(self: Self, other: Self) -> Iterable[tuple[str, Any, Any]]:
+        """
+        Returns an iterable of params that are not considered equal
+        Each return value is a tuple: (name, this_value, other_value)
+        """
+        for field in self.__struct_fields__:
+            self_val = getattr(self, field)
+            other_val = getattr(other, field)
+            if not all_same(self_val, other_val):
+                yield field, self_val, other_val
 
     def __eq__(self, other) -> bool:
         if isinstance(other, type(self)):
-            for field in self.__struct_fields__:
-                if np.any(getattr(self, field) != getattr(other, field)):
-                    return False
-            return True
+            return not any(self.get_differing_params(other))
         else:
             return NotImplemented
     
     def __ne__(self, other) -> bool:
-        return not (self.__eq__(other))
+        if isinstance(other, type(self)):
+            return any(self.get_differing_params(other))
+        else:
+            return NotImplemented
 
     @classmethod
     @cache
@@ -127,12 +142,12 @@ class GroupParams(Struct, metaclass=GroupParamsMeta):
         for key, val in changes.items():
             setattr(self, key, val)
     
-    def update_checked(self, changes: dict[str, Any], strict=False):
+    def update_checked(self, changes: dict[str, Any], verbose=True):
         """
         Apply each update to fields in changes, attempting to use msgspec.convert
         to convert to the correct types first. Extra keys that do not correspond
-        to fields always cause an error. If strict is true, also error if conversion
-        fails; otherwise print a warning but keep the passed-in value.
+        to fields cause an error. If verbose is true, log a warning if conversion
+        fails, meaning that the value might not match the expected type.
         """
         logger = logging.getLogger('caiman')
 
@@ -143,21 +158,25 @@ class GroupParams(Struct, metaclass=GroupParamsMeta):
             if key not in self.__struct_fields__:
                 raise KeyError(f"Cannot set unknown key '{key}' on {self.__class__.__name__}")
 
-            # try converting to type
             ftype = self.typemap()[key]
+
+            # try converting to type
             try:
-                converted_changes[key] = msgspec.convert(val, type=ftype, dec_hook=dec_hook)
-            except msgspec.ValidationError as e:
-                if strict:
-                    e.add_note(f'Updating {self.__class__.__name__} failed; use strict=False to override')
-                    raise e
-                else:
+                # have to convert to builtin first in case it is already something that
+                # isn't considered a builtin by msgspec, like slice
+                val_base = msgspec.to_builtins(val, enc_hook=enc_hook)
+                val = msgspec.convert(val_base, type=ftype, dec_hook=dec_hook)
+            except msgspec.ValidationError:
+                if verbose:
                     logger.warning(
                         f'Field {key} of {self.__class__.__name__} could not be converted to expected type {ftype.__name__}. '
-                        'The field is set anyway since strict=False, but the value will not survive a JSON round-trip.')
-                    converted_changes[key] = val
-        
+                        'The field is set anyway since strict=False, but the value may not survive a JSON round-trip.')
+            converted_changes[key] = val
         self.update(converted_changes)
+    
+    def normalize_to_schema(self, verbose=True):
+        """Try to convert all current values to the specified types"""
+        self.update_checked(msgspec.structs.asdict(self), verbose=verbose)
 
 
 # register as a mapping type
@@ -187,7 +206,7 @@ class PatchParams(GroupParams):
     border_pix: int = 0
     del_duplicates: bool = False
     in_memory: bool = True
-    low_rank_background: bool = True
+    low_rank_background: Optional[bool] = True
     memory_fact: float = 1.
     n_processes: int = 1
     nb_patch: int = 1
@@ -408,7 +427,7 @@ class MotionParams(GroupParams):
     min_mov: Optional[float] = None     # minimum value of movie
     niter_rig: int = 1                  # number of iterations rigid motion correction
     nonneg_movie: bool = True           # flag for producing a non-negative movie
-    num_frames_split: int = 80          # split across time every x frames
+    num_frames_split: int = 80          # split across time every x frames (approximately)
     num_splits_to_process_els: None = None  # Unused, will be removed in a future version of Caiman
     num_splits_to_process_rig: None = None  # DO NOT MODIFY
     overlaps: tuple[int, ...] = (32,32) # overlap between patches in pw-rigid motion correction
@@ -1164,68 +1183,72 @@ class CNMFParams:
     @property
     def groups(self) -> tuple[str, ...]:
         return self._params.__struct_fields__
-
-    def __getattr__(self, name: str) -> GroupParams:
-        """Get group params object from inner params structure"""
-        if name in self.groups:
-            return getattr(self._params, name)
-        raise AttributeError(f'{self.__class__.__name__} object has no attribute {name}',
-                             obj=self, name=name)
-
+        
 
     def check_consistency(self):
         """ Populates the params object with some dataset dependent values
         and ensures that certain constraints are satisfied.
         """
         logger = logging.getLogger("caiman")
-        self.data['last_commit'] = '-'.join(caiman.utils.utils.get_caiman_version())
-        if self.data['dims'] is None and self.data['fnames'] is not None:
-            self.data['dims'] = caiman.base.movies.get_file_size(self.data['fnames'], var_name_hdf5=self.data['var_name_hdf5'])[0]
-        if self.data['fnames'] is not None:
-            # if fname was stored as string instead of list
-            if isinstance(self.data['fnames'], str):
-                self.data['fnames'] = [self.data['fnames']]
-            # convert reloaded data fnames from byte-encoded to string
-            if isinstance(self.data['fnames'][0], np.bytes_):
-                self.data['fnames'] = [fname.decode('utf-8') for fname in self.data['fnames']]
-            T = caiman.base.movies.get_file_size(self.data['fnames'], var_name_hdf5=self.data['var_name_hdf5'])[1]
-            if len(self.data['fnames']) > 1:
-                T = T[0]  # type: ignore
-            num_splits = max(T//max(self.motion['num_frames_split'], 10), 1)
-            self.motion['splits_els'] = num_splits
-            self.motion['splits_rig'] = num_splits
-            if isinstance(self.data['fnames'][0],tuple):
-                self.online['movie_name_online'] = os.path.join(os.path.dirname(self.data['fnames'][0][0]), self.online['movie_name_online'])
+        self.data.last_commit = '-'.join(caiman.utils.utils.get_caiman_version())
+
+        if self.data.fnames is not None:
+            if self.data.dims is None:
+                self.data.dims = caiman.base.movies.get_file_size(self.data.fnames, var_name_hdf5=self.data.var_name_hdf5)[0]
+
+            # fix type of fnames to list[str]
+            if isinstance(self.data.fnames, str):
+                # pack single fname in a list
+                self.data.fnames = [self.data.fnames]
+            elif isinstance(self.data.fnames, bytes):  # also includes np.bytes_ as a subclass
+                # convert reloaded data fnames from byte-encoded to string
+                self.data.fnames = [self.data.fnames.decode('utf-8')]
             else:
-                self.online['movie_name_online'] = os.path.join(os.path.dirname(self.data['fnames'][0]), self.online['movie_name_online'])
-        if self.online['N_samples_exceptionality'] is None:
-            self.online['N_samples_exceptionality'] = np.ceil(self.data['fr'] * self.data['decay_time']).astype('int')
-        if self.online['thresh_fitness_raw'] is None:
-            self.online['thresh_fitness_raw'] = scipy.special.log_ndtr(
-                -self.online['min_SNR']) * self.online['N_samples_exceptionality']
-        self.online['max_shifts_online'] = (np.array(self.online['max_shifts_online']) / self.online['ds_factor']).astype(int)
-        if self.init['gSig'] is None:
-            self.init['gSig'] = [-1, -1]
-        if self.init['gSiz'] is None:
-            self.init['gSiz'] = [2*gs + 1 for gs in self.init['gSig']]
-        self.init['gSiz'] = [gs + 1 if gs % 2 == 0 else gs for gs in self.init['gSiz']]
-        if self.patch['rf'] is not None:
-            if np.any(np.array(self.patch['rf']) <= self.init['gSiz'][0]):
-                logger.warning(f"Changing rf from {self.patch['rf']} to {2 * self.init['gSiz'][0]} because the constraint rf > gSiz was not satisfied.")
-        if self.init['nb'] <= 0 and (self.patch['nb_patch'] != self.init['nb'] or
-                                     self.patch['low_rank_background'] is not None):
-            logger.warning(f"gnb={self.init['nb']}, hence setting keys nb_patch and low_rank_background in group patch automatically.")
+                for i, fname in enumerate(self.data.fnames):
+                    if isinstance(fname, bytes):
+                        self.data.fnames[i] = fname.decode('utf-8')
+
+            # infer number of mcorr splits from frames and num_frames_split
+            T = caiman.base.movies.get_file_size(self.data.fnames, var_name_hdf5=self.data.var_name_hdf5)[1]
+            if not isinstance(T, int):  # tuple returned if there are multiple files
+                T = cast(int, T[0])  # TODO maybe allow different num_splits per file, or use max?
+
+            num_splits = max(T//max(self.motion.num_frames_split, 10), 1)
+            self.motion.splits_els = num_splits
+            self.motion.splits_rig = num_splits
+
+            # if movie_name_online is a relative path, resolve relative to input data directory
+            self.online.movie_name_online = os.path.join(os.path.dirname(self.data.fnames[0]), self.online.movie_name_online)
+
+        # set defaults that depend on other parameters
+        if self.online.N_samples_exceptionality is None:
+            self.online.N_samples_exceptionality = math.ceil(self.data.fr * self.data.decay_time)
+
+        if self.online.thresh_fitness_raw is None:
+            self.online.thresh_fitness_raw = scipy.special.log_ndtr(-self.online.min_SNR) * self.online.N_samples_exceptionality
+
+        if self.init.gSig is None:
+            self.init.gSig = [-1, -1]
+        if self.init.gSiz is None:
+            self.init.gSiz = [2*gs + 1 for gs in self.init.gSig]
+        self.init.gSiz = [gs + 1 if gs % 2 == 0 else gs for gs in self.init.gSiz]  # ensure each entry is odd
+
+        if self.init.nb <= 0 and (self.patch.nb_patch != self.init.nb or self.patch.low_rank_background is not None):
+            logger.warning(f"nb={self.init.nb}, hence setting keys nb_patch and low_rank_background in group patch automatically.")
             self.set('patch', {'nb_patch': self.init['nb'], 'low_rank_background': None})
-        if self.init['nb'] == -1 and self.spatial['update_background_components']:
-            logger.warning("gnb=-1, hence setting key update_background_components " +
-                            "in group spatial automatically to False.")
+
+        if self.init.nb == -1 and self.spatial.update_background_components:
+            logger.warning("nb=-1, hence setting key update_background_components " +
+                           "in group spatial automatically to False.")
             self.set('spatial', {'update_background_components': False})
-        if self.init['method_init'] == 'corr_pnr' and self.init['ring_size_factor'] is not None \
-            and self.init['normalize_init']:
+
+        if self.init.method_init == 'corr_pnr' and self.init.ring_size_factor is not None \
+            and self.init.normalize_init:
             logger.warning("using CNMF-E's ringmodel for background hence setting key " +
-                            "normalize_init in group init automatically to False.")
+                           "normalize_init in group init automatically to False.")
             self.set('init', {'normalize_init': False})
-        if self.motion['is3D']:
+
+        if self.motion.is3D:
             for a in ('indices', 'max_shifts', 'strides', 'overlaps'):
                 if len(self.motion[a]) != 3:
                     if self.motion[a][0] == self.motion[a][1]:
@@ -1233,15 +1256,17 @@ class CNMFParams:
                         logger.warning(f"is3D=True, hence setting key {a} to {self.motion[a]}")
                     else:
                         raise ValueError(f'{a} must be a tuple of length 3 for volumetric 3D data')
+
         for key in ('max_num_added', 'min_num_trial'):
-            if (self.online[key] == 0 and self.online['update_num_comps']):
+            if (self.online[key] == 0 and self.online.update_num_comps):
                 self.set('online', {'update_num_comps': False})
                 logger.warning(f"{key}=0, hence setting key online.update_num_comps to False.")
+
         # FIXME The authoritative value is stored in the init field. This should later be refactored out
         #     into a general section, once we're passing around the CNMFParams object rather than splatting it out
         #     from **get_group
-        self.spatial['nb']  = self.init['nb']
-        self.temporal['nb'] = self.init['nb']
+        self.spatial.nb  = self.init.nb
+        self.temporal.nb = self.init.nb
 
     def set(self, group:str, val_dict:dict, set_if_not_exists:bool=False, verbose=False) -> None:
         """ Add key-value pairs to a group. Existing key-value pairs will be overwritten
@@ -1275,10 +1300,7 @@ class CNMFParams:
                     logger.warning(
                         f"{group}/{k} not set: invalid target in CNMFParams object")
             else:
-                try:
-                    if np.any(d[k] != v):
-                        logger.info(f"Changing key {k} in group {group} from {d[k]} to {v}")
-                except ValueError: # d[k] and v also differ if above comparison fails, e.g. lists of different length
+                if not all_same(d[k], v):
                     logger.info(f"Changing key {k} in group {group} from {d[k]} to {v}")
                 d[k] = v
 
@@ -1300,17 +1322,57 @@ class CNMFParams:
 
         return d[key]
 
+
+    # read access to each group - define overloads to pass through specific type information
+    @overload
+    def get_group(self, group: Literal['data']) -> DataParams:
+        ...
+    @overload
+    def get_group(self, group: Literal['patch']) -> PatchParams:
+        ...
+    @overload
+    def get_group(self, group: Literal['preprocess']) -> PreprocessParams:
+        ...
+    @overload
+    def get_group(self, group: Literal['init']) -> InitParams:
+        ...
+    @overload
+    def get_group(self, group: Literal['spatial']) -> SpatialParams:
+        ...
+    @overload
+    def get_group(self, group: Literal['temporal']) -> TemporalParams:
+        ...
+    @overload
+    def get_group(self, group: Literal['merging']) -> MergingParams:
+        ...
+    @overload
+    def get_group(self, group: Literal['quality']) -> QualityParams:
+        ...
+    @overload
+    def get_group(self, group: Literal['online']) -> OnlineParams:
+        ...
+    @overload
+    def get_group(self, group: Literal['motion']) -> MotionParams:
+        ...
+    @overload
+    def get_group(self, group: Literal['ring_CNN']) -> RingCNNParams:
+        ...
+    @overload
     def get_group(self, group: str) -> GroupParams:
+        ...
+
+    def get_group(self, group: str):
         """ Get the dictionary of key-value pairs for a group.
 
         Args:
             group: The name of the group.
         """
-        try:
+        if group in self.groups:
             return getattr(self._params, group)
-        except AttributeError:
-            raise KeyError(f'No group in CNMFParams named {group}')
-
+        raise KeyError(f'No group in CNMFParams named {group}')
+    
+    # allow direct field access to group params (getattr fallback) with same overload typing as get_group
+    __getattr__ = get_group
 
     def __eq__(self, other):
         if not isinstance(other, CNMFParams):
@@ -1319,24 +1381,73 @@ class CNMFParams:
         parent_dict1 = self.to_dict()
         parent_dict2 = other.to_dict()
         return parent_dict1 == parent_dict2  # uses __eq__ method defined on Subparams
+    
+    def get_differing_params(self, other: 'CNMFParams') -> Iterable[tuple[str, Any, Any]]:
+        for groupname in self.groups:
+            this_group = self.get_group(groupname)
+            other_group = other.get_group(groupname)
+            for (name, self_val, other_val) in this_group.get_differing_params(other_group):
+                yield groupname + '.' + name, self_val, other_val
 
 
     def to_dict(self) -> dict[str, GroupParams]:
         """Returns the params class as a dictionary with subdictionaries for each
         category."""
         return msgspec.structs.asdict(self._params)
+    
+
+    def normalize_all_to_schema(self, verbose=True):
+        """Try to convert each field of each group to the expected type"""
+        for group in self.groups:
+            self.get_group(group).normalize_to_schema(verbose=verbose)
 
 
-    def to_json(self) -> str:
-        """ Reversibly serialise CNMFParams to json """
+    def to_json(self, verify=True) -> str:
+        """ 
+        Reversibly serialise CNMFParams to json. If verify is true, test that it can be
+        deserialized correctly (meaning that all values match the original; it is
+        possible that this happens even if they don't all match the schema).
+        """
+        logger = logging.getLogger('caiman')
+
+        # normalize first to get the best chance of reconstruction
+        self.normalize_all_to_schema(verbose=False)
         encoded = msgspec.to_builtins(self._params, enc_hook=enc_hook)
-        return json.dumps(encoded)  # use json library for dumping b/c it allows nans and infs
+        jsonstring = json.dumps(encoded)  # use json library for dumping b/c it allows nans and infs
+
+        if verify:
+            logger.debug('Testing reconstruction from JSON')
+            recon_obj = CNMFParams.from_json(jsonstring)
+
+            mismatched = list(self.get_differing_params(recon_obj))
+            if len(mismatched) > 0:
+                # format a table of mismatched parameters
+                headers = ('Param name', 'Current value', 'Reconstructed value', 'Expected type')
+                table_rows = []
+                for mismatch in mismatched:
+                    group, param = mismatch[0].split('.')
+                    param_type = self.get_group(group).typemap()[param]
+                    if isinstance(param_type, type):
+                        typename = param_type.__name__
+                    else:
+                        typename = str(param_type)
+                    table_rows.append(mismatch + (typename,))
+                
+                mismatch_table = tabulate(table_rows, headers=headers)
+                logger.warning(
+                    'The following parameter(s) were not reconstructed correctly from JSON. '
+                    'If this is an issue, please set each parameter to a value of the correct type.\n\n'
+                     + mismatch_table + '\n')
+            else:
+                logger.debug('Reconstruction was successful.')
+
+        return jsonstring
 
 
-    def to_jsonfile(self, targfn: str) -> None:
+    def to_jsonfile(self, targfn: str, verify=True) -> None:
         """ Reversibly serialise CNMFParams to a json file """
         with open(targfn, 'w') as targfh:
-            targfh.write(self.to_json())
+            targfh.write(self.to_json(verify=verify))
 
     def __repr__(self) -> str:
         formatted_outputs = [
@@ -1345,12 +1456,12 @@ class CNMFParams:
 
         return 'CNMFParams:\n\n' + '\n\n'.join(formatted_outputs)
 
-    def change_params(self, params_dict, allow_legacy:bool=True, warn_unused:bool=True, verbose:bool=False) -> None:
+    def change_params(self, params_dict, allow_legacy:bool=True, warn_unused:bool=True, verbose=True) -> None:
         """ Method for updating the params object by providing a dictionary.
 
         Args:
             params_dict: dictionary with parameters to be changed
-            verbose: If true, will complain if the params dictionary is not complete
+            verbose: If true, will complain about types that don't match the schema.
             allow_legacy: If True, throw a deprecation warning and then attempt to
                           handle unconsumed keys using the older copy-it-everywhere logic.
                           We will eventually remove this option and the corresponding code.
@@ -1368,18 +1479,20 @@ class CNMFParams:
         legacy_used = False # So we don't nag people multiple times in the same call
         for paramkey in params_dict:
             if paramkey in self.groups and isinstance(params_dict[paramkey], dict): # Handle proper pathed part. Latter half of the conditional is because of scoped keys with the same name as categories, because we apparently have those. ring_CNN is an example.
-                cat_handle = nested_updates[paramkey]
+                curr_group = self.get_group(paramkey)
                 for k, v in params_dict[paramkey].items():
                     if k == 'nb' and paramkey != 'init':
                         # Special casing to handle a misdesign in CNMFParams where some keys must have the same value in different
                         # sections.
-                        logger.warning("The 'nb' parameter can only be set in the init part of CNMFParams. Attempts to set it elsewhere are ignored")
+                        if verbose:
+                            logger.warning("The 'nb' parameter can only be set in the init part of CNMFParams. Attempts to set it elsewhere are ignored")
                         continue
-                    if k not in cat_handle and warn_unused:
+
+                    if k not in curr_group and warn_unused:
                         # For regular/pathed API, we can notice right away if the user gave us something that won't update the object
                         logger.warning(f"In setting CNMFParams, provided key {paramkey}/{k} was not consumed. This is a bug!")
                     else:
-                        cat_handle[k] = v 
+                        nested_updates[paramkey][k] = v 
             # BEGIN code that we will remove in some future version of caiman
             elif allow_legacy:
                 if paramkey in self._groups_for_flat_param:  # Known which group(s) to update
@@ -1409,14 +1522,14 @@ class CNMFParams:
         # END
         if warn_unused:
             for toplevel_k in params_dict:
-                if toplevel_k not in consumed and toplevel_k not in list(self.__dict__.keys()): # When we remove legacy behaviour, this logic will simplify and fold into above
+                if toplevel_k not in consumed and toplevel_k not in self.groups: # When we remove legacy behaviour, this logic will simplify and fold into above
                     logger.warning(f"In setting CNMFParams, provided toplevel key {toplevel_k} was unused. This is a bug!")
 
         # now update each group, attempting to convert each value
         for group in self.groups:
             if nested_updates[group]:
                 group_params: GroupParams = getattr(self._params, group)
-                group_params.update_checked(nested_updates[group], strict=False)
+                group_params.update_checked(nested_updates[group], verbose=verbose)
 
         self.check_consistency()
 
@@ -1444,11 +1557,13 @@ class CNMFParams:
         don't have to worry about keeping old values (instead of defaults) for params that
         are missing from the JSON.
         """
+        logger = logging.getLogger('caiman')
         raw_dict = json.loads(jsonstring)
         try:
             params_struct = msgspec.convert(raw_dict, type=cls.AllParamsStruct, dec_hook=dec_hook)
             return cls(_params_struct=params_struct)
         except msgspec.ValidationError:
+            logger.info('Could not load full params structure directly; falling back to updating each individually')
             new_obj = cls()
             new_obj.change_params_from_json(jsonstring)
             return new_obj
