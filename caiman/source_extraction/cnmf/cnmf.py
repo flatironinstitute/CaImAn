@@ -768,9 +768,7 @@ def load_CNMF(filename:str, n_processes=1, dview=None):
 
         for key, val in load_dict_from_hdf5(filename).items():
             if key == 'params':
-                prms = CNMFParams()
-                for subdict in val.keys():
-                    prms.set(subdict, val[subdict])
+                prms = CNMFParams(**val)
                 setattr(new_obj, key, prms)
             elif key == 'dview':
                 setattr(new_obj, key, dview)

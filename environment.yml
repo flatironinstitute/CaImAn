@@ -17,7 +17,6 @@ dependencies:
 - keras
 - matplotlib
 - moviepy
-- msgspec
 - mypy
 - numpy >=2.0.0
 - numpydoc
@@ -26,6 +25,7 @@ dependencies:
 - peakutils >=1.3.5
 - pims
 - psutil
+- pydantic
 - pynwb
 - pyqtgraph
 - pyside6
