@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 
 from copy import copy
-from dataclasses import fields, InitVar
+from dataclasses import fields, replace, InitVar
 from functools import cache, cached_property
 import importlib.metadata
 import json
@@ -11,12 +11,12 @@ import numpy as np
 import os
 from pprint import pformat
 from pydantic import (
-    ConfigDict, TypeAdapter, PlainValidator, BeforeValidator, AfterValidator, WrapValidator,
+    ConfigDict, TypeAdapter, PlainValidator, BeforeValidator, AfterValidator,
     PlainSerializer, ValidationError, ValidatorFunctionWrapHandler, ValidationInfo,
     Field, model_validator, field_validator)
 from pydantic.dataclasses import dataclass
-from pydantic_core import SchemaValidator, core_schema, CoreSchema
-import scipy
+from pydantic_core import SchemaValidator, core_schema
+import scipy.special
 from scipy.ndimage import generate_binary_structure, iterate_structure
 from tabulate import tabulate
 from types import MappingProxyType
@@ -53,18 +53,8 @@ def warn_shared_param(obj: Any, info: ValidationInfo) -> Any:
     """
     logger = logging.getLogger('caiman')
     name = info.field_name
-    if isinstance(info.context, dict):
-        verbose = info.context.get('verbose', True)
-        changed = info.context.get('changed', None)
-    else:
-        verbose = True
-        changed = None
-
-    if verbose and (changed is None or name in changed):
-        logger.warning(
-            f"The '{name}' parameter should only be set in the init part of CNMFParams. "
-            "Attempts to set it elsewhere using change_params are ignored, "
-            "otherwise please change it back or call check_consistency().")
+    logger.warning(f"The '{name}' parameter can only be set in the init part of CNMFParams. "
+                    "Attempts to set it elsewhere are ignored.")
     return obj
 
 WarnShared = AfterValidator(warn_shared_param)
@@ -90,31 +80,20 @@ AutoList = Annotated[list[ItemType], BeforeValidator(wrap_in_list)]
 
 GPSelf = TypeVar('GPSelf', bound='GroupParams')
 
-@dataclass(kw_only=True, eq=False)
+@dataclass(kw_only=True, eq=False, frozen=True)
 class GroupParams(Mapping):
     """
-    Struct that can also be used as a mapping, to be used for subfields of CNMFParams,
-    which have historically been dicts.
-    (fields can be gotten and set using [] syntax, but not deleted.)
+    Struct that can also be used as a non-mutable mapping, to be used
+    for subfields of CNMFParams, which have historically been dicts.
     """
-    __pydantic_config__ = ConfigDict(
-        revalidate_instances='always',
-        extra='forbid',
-        validate_assignment=True
-        )
-    group_name: ClassVar[str]
+    __pydantic_config__ = ConfigDict(extra='forbid')
+    group_name: ClassVar[str]  # name of the attribute on CNMFParams
 
     def __contains__(self, key: str) -> bool:
         for field in fields(self):
             if field.name == key:
                 return True
         return False
-
-    def __setitem__(self, key: str, item):
-        if key in self:
-            setattr(self, key, item)
-        else:
-            raise KeyError(key)
 
     def __getitem__(self, key: str) -> Any:
         if key in self:
@@ -161,11 +140,6 @@ class GroupParams(Mapping):
         """Just a mapping from field names to types"""
         return {finfo.name: finfo.type for finfo in fields(cls)}
 
-    def update(self, changes: dict[str, Any]):
-        for key, val in changes.items():
-            setattr(self, key, val)
-    
-
     @field_validator('*', mode='wrap')
     @classmethod
     def validation_wrapper(cls, value: Any, handler: ValidatorFunctionWrapHandler, info: ValidationInfo) -> Any:
@@ -173,47 +147,26 @@ class GroupParams(Mapping):
         Function that wraps validation on every field.
         This avoids raising a validation error when fields can't be converted, instead logging a warning.
         """
-        if isinstance(info.context, dict):
-            verbose = info.context.get('verbose', True)
-            changed = info.context.get('changed', None)
-        else:
-            verbose = True
-            changed = None
-
         try:
             return handler(value)
         except ValidationError:
-            if verbose and (changed is None or info.field_name in changed):
-                logger = logging.getLogger('caiman')
-                if info.field_name is not None:
-                    expected_type = cls.typemap()[info.field_name]
-                else:
-                    expected_type = None
+            logger = logging.getLogger('caiman')
+            if info.field_name is not None:
+                expected_type = cls.typemap()[info.field_name]
+            else:
+                expected_type = None
 
-                logger.warning(
-                    f'The value {repr(value)} provided for {cls.group_name}.{info.field_name} could not be converted '
-                    f'to the expected type {expected_type} and may not be valid. ')
+            logger.warning(
+                f'The value {repr(value)} provided for {cls.group_name}.{info.field_name} could not be converted '
+                f'to the expected type {expected_type} and may not be valid. ')
             
             return value
 
 
-    def validated(self: GPSelf, verbose=True) -> GPSelf:
-        """Return copy with all current values coerced to the specified types"""
-        return self.updated_and_validated({}, verbose=verbose)
-    
-    def updated_and_validated(self: GPSelf, changes: dict[str, Any], verbose=True) -> GPSelf:
-        """Return copy that is updated and then validated"""
-        ta = TypeAdapter(type(self))
-        dict_repr = ta.dump_python(self, warnings='none')
-        dict_repr.update(changes)
-        # pass on changed fields so we know if we need to warn about things
-        context = {'verbose': verbose, 'changed': changes.keys()}
-        return ta.validate_python(dict_repr, context=context)
-
 
 # Parameter group definitions (see docstring of CNMFParams for full documentation)
 
-@dataclass(kw_only=True, eq=False)
+@dataclass(kw_only=True, eq=False, frozen=True)
 class DataParams(GroupParams):
     """Parameters for features of the data and other misc settings"""
     group_name = 'data'
@@ -228,7 +181,7 @@ class DataParams(GroupParams):
     last_commit: str = '-'.join(caiman.utils.utils.get_caiman_version())
 
 
-@dataclass(kw_only=True, eq=False)
+@dataclass(kw_only=True, eq=False, frozen=True)
 class PatchParams(GroupParams):
     """Parameters for how the data is divided into patches"""
     group_name = 'patch'
@@ -250,7 +203,7 @@ class PatchParams(GroupParams):
     p_tsub: float = 2.                      # temporal downsampling factor
 
 
-@dataclass(kw_only=True, eq=False)
+@dataclass(kw_only=True, eq=False, frozen=True)
 class PreprocessParams(GroupParams):
     """Parameters for data preprocessing steps"""
     group_name = 'preprocess'
@@ -270,7 +223,7 @@ class PreprocessParams(GroupParams):
     sn: Optional[NDArray] = None            # noise level for each pixel
 
 
-@dataclass(kw_only=True, eq=False)
+@dataclass(kw_only=True, eq=False, frozen=True)
 class InitParams(GroupParams):
     """Parameters that control how CNMF should be initialized"""
     group_name = 'init'
@@ -314,21 +267,21 @@ class InitParams(GroupParams):
     tsub: float = 2.                        # temporal downsampling factor
 
 
-def default_expandcore() -> np.ndarray:
-    """
-    Generates the default morphological element used for footprint expansion
-    with the dilate method, which is a 5x5 matrix that is true where taxicab
-    distance from the center is <= 2 and false elsewhere.
-    """
-    s1 = generate_binary_structure(2, 1)
-    s2 = iterate_structure(s1, 2)
-    return s2.astype(int)  # type: ignore
-
-
-@dataclass(kw_only=True, eq=False)
+@dataclass(kw_only=True, eq=False, frozen=True)
 class SpatialParams(GroupParams):
     """Params that control how the algorithms handle spatial components"""
     group_name = 'spatial'
+
+    @staticmethod
+    def default_expandcore() -> np.ndarray:
+        """
+        Generates the default morphological element used for footprint expansion
+        with the dilate method, which is a 5x5 matrix that is true where taxicab
+        distance from the center is <= 2 and false elsewhere.
+        """
+        s1 = generate_binary_structure(2, 1)
+        s2 = iterate_structure(s1, 2)
+        return s2.astype(int)  # type: ignore
 
     dist: float = 3.                        # expansion factor of ellipse
     expandCore: NDArray = Field(default_factory=default_expandcore)
@@ -356,7 +309,7 @@ class SpatialParams(GroupParams):
     update_background_components: bool = True
 
 
-@dataclass(kw_only=True, eq=False)
+@dataclass(kw_only=True, eq=False, frozen=True)
 class TemporalParams(GroupParams):
     """Params that control how the algorithms handle temporal components"""
     group_name = 'temporal'
@@ -388,7 +341,7 @@ class TemporalParams(GroupParams):
     verbosity: bool = False
 
 
-@dataclass(kw_only=True, eq=False)
+@dataclass(kw_only=True, eq=False, frozen=True)
 class MergingParams(GroupParams):
     """Params that control how components are merged"""
     group_name = 'merging'
@@ -398,7 +351,7 @@ class MergingParams(GroupParams):
     merge_parallel: bool = False
 
 
-@dataclass(kw_only=True, eq=False)
+@dataclass(kw_only=True, eq=False, frozen=True)
 class QualityParams(GroupParams):
     """Params that control how the quality of traces is evaluated"""
     group_name = 'quality'
@@ -415,7 +368,7 @@ class QualityParams(GroupParams):
     max_ecc: float = 3.
 
 
-@dataclass(kw_only=True, eq=False)
+@dataclass(kw_only=True, eq=False, frozen=True)
 class OnlineParams(GroupParams):
     """Params that control the online/OnACID mode"""
     group_name = 'online'
@@ -465,7 +418,7 @@ class OnlineParams(GroupParams):
     W_update_factor: int = 1             # update W less often than shapes by a given factor 
 
 
-@dataclass(kw_only=True, eq=False)
+@dataclass(kw_only=True, eq=False, frozen=True)
 class MotionParams(GroupParams):
     """Params that control motion correction"""
     group_name = 'motion'
@@ -498,7 +451,7 @@ class MotionParams(GroupParams):
     indices: tuple[Slice, ...] = (slice(None), slice(None))  # part of FOV to be corrected
 
 
-@dataclass(kw_only=True, eq=False)
+@dataclass(kw_only=True, eq=False, frozen=True)
 class RingCNNParams(GroupParams):
     """Params that control the ring neural networks used for 1P background estimation"""
     group_name = 'ring_CNN'
@@ -518,17 +471,17 @@ class RingCNNParams(GroupParams):
     reuse_model: bool = False           # reuse an already trained model
 
 
-@dataclass(kw_only=True)
+@dataclass(kw_only=True, frozen=True)
 class CNMFParams:
     """Class for setting and changing the various parameters."""
     # here we allow extra arguments to the constructor, for flat params (deprecated)
-    __pydantic_config__ = ConfigDict(revalidate_instances='always', extra='allow')
+    __pydantic_config__ = ConfigDict(extra='allow')
 
     # init-only params - these are the normal arguments to the constructor
     params_from_file: InitVar[Optional[str]] = None
     params_dict: InitVar[Optional[dict[str, Any]]] = None
 
-    # group fields - these are not normally passed in
+    # group fields
     data: DataParams = Field(default_factory=DataParams)
     patch: PatchParams = Field(default_factory=PatchParams)
     preprocess: PreprocessParams = Field(default_factory=PreprocessParams)
@@ -571,35 +524,28 @@ class CNMFParams:
         
         if params:
             self.change_params(params, allow_unsupported_flat_params=False)
+    
 
-
-    @model_validator(mode='after')  #  automatically runs after model_post_init and any other model validation
-    def validation_check(self):
-        self._check_consistency_no_subvalidation()
+    @model_validator(mode='after')
+    def validation_after(self):
+        """Automatically run check_consistency after initialization"""
+        self.check_consistency()
         return self # expected for model validator function
 
 
     def check_consistency(self):
-        """
-        Populates the params object with some dataset dependent values
-        and ensures that certain constraints are satisfied.
-        """
-        self.normalize_all_to_schema()
-        self._check_consistency_no_subvalidation()
-        
-
-    def _check_consistency_no_subvalidation(self):
-        """
-        Run check_consistency without validating sub-models first
-        All sub-model validation should be run here, so 
-        """
         logger = logging.getLogger("caiman")
 
-        self.data.last_commit = '-'.join(caiman.utils.utils.get_caiman_version())
+        data_updates = {}
+        online_updates = {}
+
+        data_updates['last_commit'] = '-'.join(caiman.utils.utils.get_caiman_version())
 
         if isinstance(self.data.fnames, list) and len(self.data.fnames) > 0:
             # if movie_name_online is a relative path, resolve relative to input data directory
-            self.online.movie_name_online = os.path.join(os.path.dirname(self.data.fnames[0]), self.online.movie_name_online)
+            if not os.path.isabs(self.online.movie_name_online):
+                movie_name_abs = os.path.join(os.path.dirname(self.data.fnames[0]), self.online.movie_name_online)
+            self.set('online', {'movie_name_online': movie_name_abs}, warn=False)
 
             try:
                 dims, T = caiman.base.movies.get_file_size(self.data.fnames, var_name_hdf5=self.data.var_name_hdf5)
@@ -607,68 +553,96 @@ class CNMFParams:
                 logger.warning('At least one movie path in fnames is not found; not setting dims')
             else:
                 if self.data.dims is None:
-                    self.data.dims = dims
+                    data_updates['dims'] = dims
 
                 if not isinstance(T, int):  # tuple returned if there are multiple files
                     T = cast(int, T[0])  # TODO maybe allow different num_splits per file, or use max?
 
                 # infer number of mcorr splits from frames and num_frames_split
                 num_splits = max(T//max(self.motion.num_frames_split, 10), 1)
-                self.motion.splits_els = num_splits
-                self.motion.splits_rig = num_splits
+                self.set('motion', {'splits_els': num_splits, 'splits_rig': num_splits}, warn=False)
 
-        # set defaults that depend on other parameters
-        if self.online.N_samples_exceptionality is None:
-            self.online.N_samples_exceptionality = math.ceil(self.data.fr * self.data.decay_time)
+        self.set('data', data_updates, warn=False)
 
-        if self.online.thresh_fitness_raw is None:
-            self.online.thresh_fitness_raw = scipy.special.log_ndtr(-self.online.min_SNR) * self.online.N_samples_exceptionality
+        # -- update init params together --
+        init_updates = {}
 
-        if self.init.gSig is None:
-            self.init.gSig = [-1, -1]
-        if self.init.gSiz is None:
-            self.init.gSiz = [2*gs + 1 for gs in self.init.gSig]
-        self.init.gSiz = [gs + 1 if gs % 2 == 0 else gs for gs in self.init.gSiz]  # ensure each entry is odd
+        if (gSig := self.init.gSig) is None:
+            init_updates['gSig'] = gSig = [-1, -1]
+        if (gSiz := self.init.gSiz) is None:
+            init_updates['gSiz'] = gSiz = [2*gs + 1 for gs in gSig]
+
+        # ensure each entry of gSiz is odd
+        gSiz_arr = np.array(gSiz)
+        gSiz_is_even = gSiz_arr % 2 == 0
+        if any(gSiz_is_even):
+            gSiz_arr[gSiz_is_even] += 1
+            init_updates['gSiz'] = gSiz = gSiz_arr.tolist()
+
+        if init_updates:
+            self.set('init', init_updates, warn=False) 
+
+        # do separately due to different warning message
+        if (self.init.method_init == 'corr_pnr' and self.init.ring_size_factor is not None
+            and self.init.normalize_init):
+            logger.warning("using CNMF-E's ringmodel for background hence setting key " +
+                           "normalize_init in group init automatically to False.")
+            self.set('init', {'normalize_init': False}, warn=False, verbose=False)
+       
+        # -- end init params --
 
         if self.init.nb <= 0 and (self.patch.nb_patch != self.init.nb or self.patch.low_rank_background is not None):
             logger.warning(f"nb={self.init.nb}, hence setting keys nb_patch and low_rank_background in group patch automatically.")
-            self.set('patch', {'nb_patch': self.init['nb'], 'low_rank_background': None})
+            self.set('patch', {'nb_patch': self.init.nb, 'low_rank_background': None}, warn=False, verbose=False)
 
         if self.init.nb == -1 and self.spatial.update_background_components:
             logger.warning("nb=-1, hence setting key update_background_components " +
                            "in group spatial automatically to False.")
-            self.set('spatial', {'update_background_components': False})
-
-        if self.init.method_init == 'corr_pnr' and self.init.ring_size_factor is not None \
-            and self.init.normalize_init:
-            logger.warning("using CNMF-E's ringmodel for background hence setting key " +
-                           "normalize_init in group init automatically to False.")
-            self.set('init', {'normalize_init': False})
+            self.set('spatial', {'update_background_components': False}, warn=False, verbose=False)
 
         if self.motion.is3D:
+            motion_updates = {}
             for a in ('indices', 'max_shifts', 'strides', 'overlaps'):
                 if len(self.motion[a]) != 3:
                     if self.motion[a][0] == self.motion[a][1]:
-                        self.motion[a] = (self.motion[a][0],) * 3
+                        motion_updates[a] = (self.motion[a][0],) * 3
                         logger.warning(f"is3D=True, hence setting key {a} to {self.motion[a]}")
                     else:
                         raise ValueError(f'{a} must be a tuple of length 3 for volumetric 3D data')
+            if motion_updates:
+                self.set('motion', motion_updates, warn=False, verbose=False)
 
+        # -- update online params together --
+        online_updates = {}            
+
+        if (nsamp_exc := self.online.N_samples_exceptionality) is None:
+            online_updates['N_samples_exceptionality'] = nsamp_exc = math.ceil(self.data.fr * self.data.decay_time)
+
+        if self.online.thresh_fitness_raw is None:
+            online_updates['thresh_fitness_raw'] = scipy.special.log_ndtr(-self.online.min_SNR) * nsamp_exc
+        
+        if online_updates:
+            self.set('online', online_updates, warn=False)
+
+        # do separately b/c of different warning message
         for key in ('max_num_added', 'min_num_trial'):
             if (self.online[key] == 0 and self.online.update_num_comps):
-                self.set('online', {'update_num_comps': False})
                 logger.warning(f"{key}=0, hence setting key online.update_num_comps to False.")
+                self.set('online', {'update_num_comps': False}, warn=False, verbose=False)
+                break
+
+        # -- end online params --
 
         # FIXME The authoritative value is stored in the init field. This should later be refactored out
         #     into a general section, once we're passing around the CNMFParams object rather than splatting it out
         #     from **get_group
         
-        # bypass assignment validation to avoid warning
-        self.spatial.__dict__['nb']  = self.init.nb
-        self.temporal.__dict__['nb'] = self.init.nb
+        # bypass frozen & don't warn that the change is ineffectual
+        object.__setattr__(self.spatial, 'nb', self.init.nb)
+        object.__setattr__(self.temporal, 'nb', self.init.nb)
     
 
-    def set(self, group:str, val_dict:dict, set_if_not_exists:bool=False, verbose=False) -> None:
+    def set(self, group: str, val_dict: dict, set_if_not_exists=False, verbose=True, warn=True) -> None:
         """ Add key-value pairs to a group. Existing key-value pairs will be overwritten
             if specified in val_dict, but not deleted.
 
@@ -682,8 +656,11 @@ class CNMFParams:
         (or do any triggered actions on certain values being set like filenames). Usually the change_params() method is more appropriate.
         A future version of caiman may make this method private.
         """
-
         logger = logging.getLogger("caiman")
+        if warn:
+            # this is the only way to change a param without running consistency checks...
+            logger.warning("CNMFParams.set() is dangerous! Use CNMFParams.change_params() instead.")
+
         if set_if_not_exists:
             logger.warning("The set_if_not_exists flag for CNMFParams.set() is deprecated and will be removed in a future version of Caiman")
             # can't easily catch if it's passed but set to False, but that wouldn't do anything because of the default,
@@ -691,15 +668,22 @@ class CNMFParams:
             # we don't want to support this because it makes the structure of the object unpredictable except at runtime
 
         d = self.get_group(group)
+        updates = {}
+
         for k, v in val_dict.items():
             if k not in d and not set_if_not_exists:
                 if verbose:
                     logger.warning(
                         f"{group}/{k} not set: invalid target in CNMFParams object")
             else:
-                if not all_same(d[k], v):
+                if verbose and not all_same(d[k], v):
                     logger.info(f"Changing key {k} in group {group} from {d[k]} to {v}")
-                d[k] = v
+                updates[k] = v
+        
+        # apply changes, bypassing frozen
+        if updates:
+            object.__setattr__(self, group, replace(d, **updates))
+
 
     def get(self, group, key):
         """ Get a value for a given group and key. Raises an exception if no such group/key combination exists.
@@ -742,12 +726,6 @@ class CNMFParams:
         return {group: self.get_group(group) for group in self.groups}
     
 
-    def normalize_all_to_schema(self, verbose=True):
-        """Try to convert each field of each group to the expected type (note this makes a copy of each sub-object)"""
-        for group in self.groups:
-            setattr(self, group, self.get_group(group).validated(verbose=verbose))
-
-
     def to_json(self, verify=True) -> str:
         """ 
         Reversibly serialise CNMFParams to json. If verify is true, test that it can be
@@ -756,10 +734,8 @@ class CNMFParams:
         """
         logger = logging.getLogger('caiman')
 
-        # normalize first to get the best chance of reconstruction
-        self.normalize_all_to_schema(verbose=False)
         ta = TypeAdapter(type(self))
-        encoded = ta.dump_python(self, mode='json')
+        encoded = ta.dump_python(self, mode='json', round_trip=True)
         jsonstring = json.dumps(encoded)  # use json library for dumping b/c it allows nans and infs
 
         if verify:
@@ -826,18 +802,18 @@ class CNMFParams:
         # When we're ready to remove allow_legacy, this code will get a lot simpler
 
         # First collect updates in the nested format (and remove those that don't match any real param)
-        nested_updates = {key: {} for key in self.groups}
+        updates = {group: {} for group in self.groups}
 
         legacy_used = False # So we don't nag people multiple times in the same call
-        for paramkey in params_dict:
-            if paramkey in self.groups and isinstance(params_dict[paramkey], dict): # Handle proper pathed part. Latter half of the conditional is because of scoped keys with the same name as categories, because we apparently have those. ring_CNN is an example.
+        for paramkey, paramval in params_dict.items():
+            if paramkey in self.groups and isinstance(paramval, dict): # Handle proper pathed part. Latter half of the conditional is because of scoped keys with the same name as categories, because we apparently have those. ring_CNN is an example.
                 curr_group = self.get_group(paramkey)
-                for k, v in params_dict[paramkey].items():
-                    if k not in curr_group and warn_unused:
+                for subkey, subval in paramval.items():
+                    if subkey not in curr_group and warn_unused:  # note this includes params excluded from serialization by design
                         # For regular/pathed API, we can notice right away if the user gave us something that won't update the object
-                        logger.warning(f"In setting CNMFParams, provided key {paramkey}/{k} was not consumed. This is a bug!")
+                        logger.warning(f"In setting CNMFParams, provided key {paramkey}/{subkey} was not consumed. This is a bug!")
                     else:
-                        nested_updates[paramkey][k] = v
+                        updates[paramkey][subkey] = subval
 
             # BEGIN code that we will remove in some future version of caiman
             elif allow_legacy:
@@ -847,11 +823,11 @@ class CNMFParams:
                     for group in groups if isinstance(groups, list) else (groups,):
                         if isinstance(group, tuple):
                             # rename key for this group
-                            this_key = group[1]
+                            subkey = group[1]
                             group = group[0]
                         else:
-                            this_key = paramkey
-                        nested_updates[group][this_key] = params_dict[paramkey]
+                            subkey = paramkey
+                        updates[group][subkey] = paramval
                 elif not allow_unsupported_flat_params:
                     raise TypeError(
                         f"Parameter {paramkey} is not supported at the top level of params_dict or as a keyword "
@@ -860,10 +836,9 @@ class CNMFParams:
                 else:
                     groups = []
                     for group in self.groups:
-                        cat_handle = nested_updates[group] # Thankfully a read-write handle
-                        if paramkey in cat_handle: # Is it known?
+                        if paramkey in self.get_group(group): # Is it known?
                             groups.append(paramkey)
-                            cat_handle[paramkey] = params_dict[paramkey] # Do the update
+                            updates[group][paramkey] = paramval
                     
                     if len(groups) > 0:
                         legacy_used = True
@@ -880,10 +855,11 @@ class CNMFParams:
         # END
 
         # now update each group, attempting to convert each value
-        for group in self.groups:
-            if nested_updates[group]:
+        for group, group_updates in updates.items():
+            if group_updates:
+                # update group, bypassing frozen
                 group_params = self.get_group(group)
-                setattr(self, group, group_params.updated_and_validated(nested_updates[group], verbose=verbose))
+                object.__setattr__(self, group, replace(group_params, **group_updates))
 
         self.check_consistency()
 
@@ -902,8 +878,7 @@ class CNMFParams:
     @classmethod
     def from_json(cls, jsonstring: str):
         """Directly deserialize a new CNMFParams object from json"""
-        ta = TypeAdapter(cls)
-        return ta.validate_json(jsonstring, context={'changed': []})
+        return TypeAdapter(cls).validate_json(jsonstring)
 
     @classmethod
     def from_jsonfile(cls, json_fn: str):
@@ -932,7 +907,7 @@ class CNMFParams:
         K='init', k=('init', 'K'), alpha_snmf='init', center_psf='init', gSig='init', gSiz='init',
         init_iter='init', method_init='init', min_corr='init', min_pnr='init', normalize_init='init',
         options_local_NMF='init', ring_size_factor='init', rolling_length='init', rolling_sum='init',
-        ssub='init', ssub_B='init', tsub='init',
+        ssub='init', ssub_B='init', tsub='init', gnb=('init', 'nb'),  # updated in other groups in check_consistency
         num_blocks_per_run_spat='spatial', update_background_components='spatial',
         block_size_temp='temporal', method_deconvolution='temporal', num_blocks_per_run_temp='temporal',
         s_min='temporal',
@@ -948,8 +923,6 @@ class CNMFParams:
         # parameters shared between multiple subgroups
         n_pixels_per_process=['preprocess', 'spatial'],
         p=['preprocess', 'temporal'],
-        nb=['init', 'spatial', 'temporal'],
-        gnb=[('init', 'nb'), ('spatial', 'nb'), ('temporal', 'nb')],
         min_SNR=['quality', 'online'],
         rval_thr=['quality', 'online'],
         max_merge_area=[]  # keep for backwards compat. I guess
@@ -960,23 +933,29 @@ CNMFParams.__init__.__doc__ = """
 Class for setting the processing parameters. All parameters for CNMF, online-CNMF, quality testing,
 and motion correction can be set here and then used in the various processing pipeline steps.
 
-Params have default values; users can override the defaults in two intended ways:
-    A) During initialisation of the object, people can pass a nested dictionary through the
+Params have default values; users can override the defaults in three intended ways:
+    A) The object can be constructed with overrides for each group provided within the corresponding
+        GroupParams subclass objects, as in:
+        CNMFParams(data=DataParams(fnames=['example.tif']), motion=MotionParams(max_shifts=10))
+        This method allows for static type checking of each parameter value.
+    B) The object can alternatively be constructed from a nested dictionary through the
         params_dict parameter, or the name of a jsonfile containing the same nested dictionary
-        through the params_from_file parameter
-    B) If the CNMFParams object already exists, they can call its change_params() method to pass in
+        through the params_from_file parameter.
+    C) If the CNMFParams object already exists, the change_params() method can be used to pass in
         a dict or change_params_from_jsonfile() to pass in a filename
-With both of these, people only need to name and override values they wish to change; all others keep
-their defaults.
+
+With each method, any parameters not explicitly set will keep their defaults (or previous values if
+changing params of an existing object).
 
 All other means of changing parameters are deprecated (including other constructor arguments)
 and will be removed in some future version of Caiman (whether they give a deprecation warning or not). 
 
-Args:
+Args (keyword only):
     params_from_file
         name of a json file used to initialise the object
     params_dict
         a dictionary used to initialise the object
+    
 
     Any parameter that is not set uses a default value
     All other arguments are deprecated and should not be used.
