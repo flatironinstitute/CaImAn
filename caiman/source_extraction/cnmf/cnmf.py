@@ -27,6 +27,7 @@ import pynwb
 import scipy
 import sys
 import time
+from typing import Optional
 
 import caiman
 from caiman.components_evaluation import estimate_components_quality
@@ -61,28 +62,9 @@ class CNMF(object):
     See Also:
     @url http://www.cell.com/neuron/fulltext/S0896-6273(15)01084-3
     .. image:: docs/img/quickintro.png
-    """
-    def __init__(self, n_processes, k=5, gSig=[4, 4], gSiz=None, merge_thresh=0.8, p=2, dview=None,
-                 Ain=None, Cin=None, b_in=None, f_in=None, do_merge=True,
-                 ssub=2, tsub=2, p_ssub=1, p_tsub=1, method_init='greedy_roi', alpha_snmf=0.5,
-                 rf=None, stride=None, memory_fact=1, gnb=1, nb_patch=1, only_init_patch=False,
-                 method_deconvolution='oasis', n_pixels_per_process=4000, block_size_temp=5000, num_blocks_per_run_temp=20,
-                 num_blocks_per_run_spat=20,
-                 check_nan=True, skip_refinement=False, normalize_init=True, options_local_NMF=None,
-                 minibatch_shape=100, minibatch_suff_stat=3,
-                 update_num_comps=True, rval_thr=0.9, thresh_fitness_delta=-20,
-                 thresh_fitness_raw=None, thresh_overlap=.5,
-                 max_comp_update_shape=np.inf, num_times_comp_updated=np.inf,
-                 batch_update_suff_stat=False, s_min=None,
-                 remove_very_bad_comps=False, border_pix=0, low_rank_background=True,
-                 update_background_components=True, rolling_sum=True, rolling_length=100,
-                 min_corr=.85, min_pnr=20, ring_size_factor=1.5,
-                 center_psf=False, use_dense=True, deconv_flag=True,
-                 simultaneously=False, n_refit=0, del_duplicates=False, N_samples_exceptionality=None,
-                 max_num_added=3, min_num_trial=2, thresh_CNN_noisy=0.5,
-                 fr=30, decay_time=0.4, min_SNR=2.5, ssub_B=2, init_iter=2,
-                 sniper_mode=False, use_peak_max=False, test_both=False,
-                 expected_comps=500, params=None):
+    """ 
+    def __init__(self, n_processes, dview=None, Ain=None, Cin=None, b_in=None, f_in=None,
+                 params: Optional[CNMFParams] = None, **param_kwargs):
         """
         Constructor of CNMF objects
 
@@ -107,14 +89,10 @@ class CNMF(object):
 
             f_in - Used to build estimates
 
-            skip_refinement: boolean
-                If true it only performs one iteration of update spatial update temporal instead of two
-
-            remove_very_bad_comps: boolean
-                Whether to remove components with very low values of component quality directly on the patch.
-                This might create some minor imprecisions, but can be important for performance because of bottlenecks
-                caused by handling many components (we have seen over 2000) that will need to be processed.
+            params: CNMFParams
+                Existing parameters to use (otherwise, they can be set afterwards with cnmf.params.change_params(...))
         """
+        logger = logging.getLogger('caiman')
 
         self.runmode = "CNMF" # Single field to query to determine where an hdf5 file comes from
         self.dview = dview # longer-term this should be removed from the CNMF object and moved to a RunContext
@@ -122,10 +100,6 @@ class CNMF(object):
         # these are movie properties that will be refactored into the Movie object
         self.dims = None
         self.empty_merged = None
-
-        # these are member variables related to the CNMF workflow
-        self.skip_refinement = skip_refinement
-        self.remove_very_bad_comps = remove_very_bad_comps
 
         self.provenance = [] # This will provide a rough record of the history of the object, largely with the intent of it
                              # being useful in the serialized file form. The formatting for this will be a list of dicts,
@@ -135,35 +109,25 @@ class CNMF(object):
         self.provenance.append({'event': 'create', 'time': int(time.time()), 'description': 'CNMF Object created'})
 
         if params is None:
-            self.params = CNMFParams(
-                border_pix=border_pix, del_duplicates=del_duplicates, low_rank_background=low_rank_background,
-                memory_fact=memory_fact, n_processes=n_processes, nb_patch=nb_patch, only_init_patch=only_init_patch,
-                p_ssub=p_ssub, p_tsub=p_tsub, remove_very_bad_comps=remove_very_bad_comps, rf=rf, stride=stride,
-                check_nan=check_nan, n_pixels_per_process=n_pixels_per_process,
-                k=k, center_psf=center_psf, gSig=gSig, gSiz=gSiz,
-                init_iter=init_iter, method_init=method_init, min_corr=min_corr,  min_pnr=min_pnr,
-                gnb=gnb, normalize_init=normalize_init, options_local_NMF=options_local_NMF,
-                ring_size_factor=ring_size_factor, rolling_length=rolling_length, rolling_sum=rolling_sum,
-                ssub=ssub, ssub_B=ssub_B, tsub=tsub,
-                num_blocks_per_run_spat=num_blocks_per_run_spat,
-                block_size_temp=block_size_temp, num_blocks_per_run_temp=num_blocks_per_run_temp,
-                update_background_components=update_background_components,
-                method_deconvolution=method_deconvolution, p=p, s_min=s_min,
-                do_merge=do_merge, merge_thresh=merge_thresh,
-                decay_time=decay_time, fr=fr, min_SNR=min_SNR, rval_thr=rval_thr,
-                N_samples_exceptionality=N_samples_exceptionality, batch_update_suff_stat=batch_update_suff_stat,
-                expected_comps=expected_comps, max_comp_update_shape=max_comp_update_shape, max_num_added=max_num_added,
-                min_num_trial=min_num_trial, minibatch_shape=minibatch_shape, minibatch_suff_stat=minibatch_suff_stat,
-                n_refit=n_refit, num_times_comp_updated=num_times_comp_updated, simultaneously=simultaneously,
-                sniper_mode=sniper_mode, test_both=test_both, thresh_CNN_noisy=thresh_CNN_noisy,
-                thresh_fitness_delta=thresh_fitness_delta, thresh_fitness_raw=thresh_fitness_raw, thresh_overlap=thresh_overlap,
-                update_num_comps=update_num_comps, use_dense=use_dense, use_peak_max=use_peak_max, alpha_snmf=alpha_snmf)
+            self.params = CNMFParams(params_dict=param_kwargs)
         else:
             self.params = params
             params.set('patch', {'n_processes': n_processes}, warn=False)
+            if param_kwargs:
+                logger.warning(
+                    'Ignoring extra parameters passed to CNMF constructor because a params object was passed. '
+                    'If you want to update the params object, use params.change_params first.')
 
         self.estimates = Estimates(A=Ain, C=Cin, b=b_in, f=f_in,
                                    dims=self.params.data['dims'])
+
+    @property
+    def skip_refinement(self) -> bool:
+        return self.params.patch.skip_refinement        
+
+    @property
+    def remove_very_bad_comps(self) -> bool:
+        return self.params.patch.remove_very_bad_comps
 
     def __str__(self):
         ret = f"Caiman CNMF Object. subfields:{list(self.__dict__.keys()) }"
