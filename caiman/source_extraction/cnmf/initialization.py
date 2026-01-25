@@ -30,6 +30,7 @@ from caiman.source_extraction.cnmf.spatial import circular_constraint, connectiv
 from caiman.source_extraction.cnmf.temporal import update_temporal_components
 from caiman.source_extraction.cnmf.merging import merge_components
 from caiman.source_extraction.cnmf.utilities import decimation_matrix, fast_graph_Laplacian_patches
+from caiman.source_extraction.cnmf.params import CNMFParams
 from caiman.summary_images import local_correlations_fft
 from caiman.utils.stats import pd_solve, compressive_nmf
 from caiman.utils.utils import parmap
@@ -257,8 +258,8 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
         sn: ndarray
             per pixel noise
 
-        options_total: dict
-            the option dictionary
+        options_total: CNMFParams
+            full options object
 
         ssub_B: int, optional
             downsampling factor for 1-photon imaging background computation
@@ -1158,9 +1159,9 @@ def hals(Y, A, C, b, f, bSiz=3, maxIter=5):
 
 
 @profile
-def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=True,
+def greedyROI_corr(Y, Y_ds, options: CNMFParams, max_number=None, gSiz=None, gSig=None, center_psf=True,
                    min_corr=None, min_pnr=None, seed_method='auto',
-                   min_pixel=3, bd=0, thresh_init=2, ring_size_factor=None, nb=1, options=None,
+                   min_pixel=3, bd=0, thresh_init=2, ring_size_factor=None, nb=1,
                    sn=None, save_video=False, video_name='initialization.mp4', ssub=1,
                    ssub_B=2, init_iter=2):
     """
@@ -1205,7 +1206,7 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
             'Either min_corr or min_pnr are None. Both of them must be real numbers.')
 
     logger.info('One photon initialization (GreedyCorr)')
-    o = options['temporal'].copy()
+    o = options.temporal.copy()
     o['s_min'] = None
     if o['p'] > 1:
         o['p'] = 1
@@ -1251,7 +1252,7 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
             sn=np.sqrt(downscale((sn**2).reshape(dims, order='F'),
                                  tuple([ssub] * len(dims))).ravel() / tsub) / ssub,
             b_in=np.zeros((d1 * d2, 0), np.float32),
-            dview=None, dims=(d1, d2), **options['spatial'])
+            dview=None, dims=(d1, d2), **options.spatial)
         logger.info('Updating temporal components')
         C, A = update_temporal_components(
             B, spr.csc_matrix(A, dtype=np.float32),
@@ -1281,8 +1282,8 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
         # 1st iteration on decimated data
         logger.info('Merging components')
         A, C = merge_components(
-            B, A, [], C, None, [], C, [], o, options['spatial'],
-            dview=None, thr=options['merging']['merge_thr'], mx=np.inf, fast_merge=True)[:2]
+            B, A, [], C, None, [], C, [], o, options.spatial,
+            dview=None, thr=options.merging.merge_thr, mx=np.inf, fast_merge=True)[:2]
         A = A.astype(np.float32)
         C = C.astype(np.float32)
         logger.info('Updating spatial components')
@@ -1291,7 +1292,7 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
             sn=np.sqrt(downscale((sn**2).reshape(dims, order='F'),
                                  tuple([ssub] * len(dims))).ravel() / tsub) / ssub,
             b_in=np.zeros((d1 * d2, 0), np.float32),
-            dview=None, dims=(d1, d2), **options['spatial'])
+            dview=None, dims=(d1, d2), **options.spatial)
         A = A.astype(np.float32)
         logger.info('Updating temporal components')
         C, A = update_temporal_components(
@@ -1330,8 +1331,8 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
 
         logger.info('Merging components')
         A, C = merge_components(
-            B, A, [], C, None, [], C, [], o, options['spatial'],
-            dview=None, thr=options['merging']['merge_thr'], mx=np.inf, fast_merge=True)[:2]
+            B, A, [], C, None, [], C, [], o, options.spatial,
+            dview=None, thr=options.merging.merge_thr, mx=np.inf, fast_merge=True)[:2]
         A = A.astype(np.float32)
         C = C.astype(np.float32)
         
@@ -1339,14 +1340,14 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
         A, _, C, _ = update_spatial_components(
             B, C=C, f=np.zeros((0, T), np.float32), A_in=A, sn=sn,
             b_in=np.zeros((np.prod(dims), 0), np.float32),
-            dview=None, dims=dims, **options['spatial'])
+            dview=None, dims=dims, **options.spatial)
 
         logger.info('Updating temporal components')
         C, A, b__, f__, S, bl, c1, neurons_sn, g1, YrA, lam__ = \
             update_temporal_components(
                 B, spr.csc_matrix(A, dtype=np.float32),
                 np.zeros((np.prod(dims), 0), np.float32), C, np.zeros((0, T), np.float32),
-                dview=None, bl=None, c1=None, sn=None, g=None, **options['temporal'])
+                dview=None, bl=None, c1=None, sn=None, g=None, **options.temporal)
 
         A = A.toarray()
         if nb > 0 or nb == -1:

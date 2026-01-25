@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-from copy import copy
 from dataclasses import fields, replace, InitVar
 from functools import cache, cached_property
 import importlib.metadata
@@ -108,8 +107,9 @@ class GroupParams(Mapping):
     def __len__(self) -> int:
         return len(fields(self))
     
-    def copy(self: GPSelf) -> GPSelf:
-        return copy(self)
+    def copy(self) -> dict[str, Any]:
+        # It's safe to assign to a copy, so just make it a (shallow-copied) dict
+        return {**self}
     
     def get_differing_params(self: GPSelf, other: GPSelf) -> Iterable[tuple[str, Any, Any]]:
         """

@@ -675,7 +675,7 @@ class CNMF(object):
                 self.params.get('init', 'ring_size_factor') is not None):
             estim.A, estim.C, estim.b, estim.f, estim.center, \
                 extra_1p = initialize_components(
-                    Y, sn=estim.sn, options_total=self.params.to_dict(),
+                    Y, sn=estim.sn, options_total=self.params,
                     **self.params.get_group('init'))
             try:
                 estim.S, estim.bl, estim.c1, estim.neurons_sn, \
@@ -685,7 +685,7 @@ class CNMF(object):
                     estim.g, estim.YrA, estim.lam, estim.W, estim.b0 = extra_1p
         else:
             estim.A, estim.C, estim.b, estim.f, estim.center =\
-                initialize_components(Y, sn=estim.sn, options_total=self.params.to_dict(),
+                initialize_components(Y, sn=estim.sn, options_total=self.params,
                                       **self.params.get_group('init'))
 
         self.estimates = estim

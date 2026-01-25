@@ -968,7 +968,7 @@ class OnACID(object):
                 k=self.params.get('init', 'K'), gnb=self.params.get('init', 'nb'),
                 method_init=self.params.get('init', 'method_init'), sn=self.estimates.sn,
                 gSig=self.params.get('init', 'gSig'), return_object=False,
-                options_total=self.params.to_dict(), **init)
+                options_total=self.params, **init)
             if is1p:
                 (self.estimates.A, self.estimates.b, self.estimates.C, self.estimates.f,
                  self.estimates.YrA, self.estimates.W, self.estimates.b0) = tmp
