@@ -14,8 +14,9 @@ import time
 
 from caiman.cluster import extract_patch_coordinates
 from caiman.mmapping import load_memmap
+from caiman.source_extraction.cnmf.params import CNMFParams
 
-def cnmf_patches(args_in):
+def cnmf_patches(args_in: tuple[str, np.ndarray, tuple[int, ...], CNMFParams]):
     """Function that is run for each patches
 
          Will be called
@@ -91,21 +92,23 @@ def cnmf_patches(args_in):
     slices.insert(0, slice(timesteps))
 
     images = np.reshape(Yr.T, [timesteps] + list(dims), order='F')
-    if params.get('patch', 'in_memory'):
+    if params.patch.in_memory:
         images = np.array(images[tuple(slices)], dtype=np.float32)
     else:
-        images = images[slices]
+        images = images[tuple(slices)]
 
     logger.debug(name_log+'file loaded')
 
     if (np.sum(np.abs(np.diff(images.reshape(timesteps, -1).T)))) > 0.1:
 
         opts = copy(params)
-        opts.set('patch', {'n_processes': 1, 'rf': None, 'stride': None})
-        for group in ('init', 'temporal', 'spatial'):
-            opts.set(group, {'nb': params.get('patch', 'nb_patch')})
-        for group in ('preprocess', 'temporal'):
-            opts.set(group, {'p': params.get('patch', 'p_patch')})
+        opts.change_params({
+            'patch': {'n_processes': 1, 'rf': None, 'stride': None},
+            'init': {'nb': opts.patch.nb_patch},
+            'spatial': {'nb': opts.patch.nb_patch},
+            'temporal': {'nb': opts.patch.nb_patch, 'p': opts.patch.p_patch}
+            'preprocess': {'p': opts.patch.p_patch},
+        })
 
         cnm = CNMF(n_processes=1, params=opts)
 
@@ -208,9 +211,10 @@ def run_CNMF_patches(file_name, shape, params, gnb=1, dview=None,
 
     params_copy = deepcopy(params)
     npx_per_proc = np.prod(rfs) // memory_fact
-    params_copy.set('preprocess', {'n_pixels_per_process': npx_per_proc})
-    params_copy.set('spatial', {'n_pixels_per_process': npx_per_proc})
-    params_copy.set('temporal', {'n_pixels_per_process': npx_per_proc})
+    params_copy.change_params({
+        'preprocess': {'n_pixels_per_process': npx_per_proc},
+        'spatial': {'n_pixels_per_process': npx_per_proc}
+    })
 
     idx_flat, idx_2d = extract_patch_coordinates(
         dims, rfs, strides, border_pix=border_pix, indices=indices[1:])

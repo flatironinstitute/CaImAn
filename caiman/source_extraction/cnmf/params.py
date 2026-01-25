@@ -1222,11 +1222,19 @@ class CNMFParams:
             self.set('init', init_updates, warn=False) 
 
         # do separately due to different warning message
-        if (self.init.method_init == 'corr_pnr' and self.init.ring_size_factor is not None
-            and self.init.normalize_init):
-            logger.warning("using CNMF-E's ringmodel for background hence setting key " +
-                           "normalize_init in group init automatically to False.")
-            self.set('init', {'normalize_init': False}, warn=False, verbose=False)
+        if self.init.method_init == 'corr_pnr' and self.init.ring_size_factor is not None:
+            if self.init.normalize_init:
+                logger.warning("using CNMF-E's ringmodel for background hence setting key " +
+                               "normalize_init in group init automatically to False.")
+                self.set('init', {'normalize_init': False}, warn=False, verbose=False)
+            
+            # Set structuring element to the no-op value (previously done in initialization.greedyROI_corr)
+            ndim = len(self.data.dims) if self.data.dims is not None else 2
+            null_se = np.ones((1,) * ndim, dtype=np.uint8)
+            if not all_same(self.spatial.se, null_se):
+                logger.warning("using CNMF-E's ringmodel for background hence setting key "
+                               "se in group spatial automatically to null element.")
+                self.set('spatial', {'se': null_se}, warn=False, verbose=False)
        
         # -- end init params --
 

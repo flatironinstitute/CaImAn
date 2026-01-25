@@ -185,7 +185,8 @@ def test_check_consistency(caplog):
         },
         'spatial': {
             'update_background_components': (False, 'Should be set to False when nb == -1'),
-            'nb': (-1, 'Should be set based on init.nb')
+            'nb': (-1, 'Should be set based on init.nb'),
+            'se': (np.ones((1,) * len(dims), dtype=np.uint8), 'Should be set due to corr_pnr method')
         },
         'temporal': {
             'nb': (-1, 'Should be set based on init.nb')
