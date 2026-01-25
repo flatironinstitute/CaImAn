@@ -242,8 +242,7 @@ class CNMF(object):
         # We add the "history imported" note because the datestamp from the init of the new CNMF will be later than imported history (meaning right now)
         # so if you parse in list order you'll see a time-oddity here
         
-        cnm.params.patch['rf'] = None
-        cnm.params.patch['only_init'] = False
+        cnm.params.set('patch', {'rf': None, 'only_init': False}, warn=False)
         estimates = deepcopy(self.estimates)
         estimates.select_components(use_object=True)
         estimates.coordinates = None
