@@ -534,6 +534,14 @@ class CNMFParams:
 
 
     def check_consistency(self):
+        """ Populates the params object with some dataset dependent values
+        and ensures that certain constraints are satisfied.
+
+        TODO - should some of these be changed to special case behavior within the corresponding module
+        code rather than changing the actual parameters? This would help avoid situations where a
+        parameter may be changed and then changed back, but other changes triggered by the first change
+        don't get undone (unless the user pays attention to the warnings and changes it back themselves.)
+        """
         logger = logging.getLogger("caiman")
 
         data_updates = {}
@@ -545,7 +553,7 @@ class CNMFParams:
             # if movie_name_online is a relative path, resolve relative to input data directory
             if not os.path.isabs(self.online.movie_name_online):
                 movie_name_abs = os.path.join(os.path.dirname(self.data.fnames[0]), self.online.movie_name_online)
-            self.set('online', {'movie_name_online': movie_name_abs}, warn=False)
+                self.set('online', {'movie_name_online': movie_name_abs}, warn=False)
 
             try:
                 dims, T = caiman.base.movies.get_file_size(self.data.fnames, var_name_hdf5=self.data.var_name_hdf5)
