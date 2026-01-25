@@ -241,7 +241,7 @@ for ind_dataset in ID:
     # %% filter results by using the batch CNN
     use_cnn = False
     if use_cnn:
-        cnm.params.set('quality', {'min_cnn_thr': 0.1})
+        cnm.params.change_params({'quality': {'min_cnn_thr': 0.1}})
         cnm.estimates.evaluate_components_CNN(cnm.params)
         cnm.estimates.select_components(use_object=True)
 

@@ -160,7 +160,7 @@ class CNMF(object):
                 update_num_comps=update_num_comps, use_dense=use_dense, use_peak_max=use_peak_max, alpha_snmf=alpha_snmf)
         else:
             self.params = params
-            params.set('patch', {'n_processes': n_processes})
+            params.set('patch', {'n_processes': n_processes}, warn=False)
 
         self.estimates = Estimates(A=Ain, C=Cin, b=b_in, f=f_in,
                                    dims=self.params.data['dims'])
@@ -322,7 +322,7 @@ class CNMF(object):
             logger.info("Parallel processing in a single patch is not available for data that is in memory or sliced")
 
         T = images.shape[0]
-        self.params.set('online', {'init_batch': T})
+        self.params.set('online', {'init_batch': T}, warn=False)
         self.dims = images.shape[1:]
         Y = np.transpose(images, list(range(1, len(self.dims) + 1)) + [0])
         Yr = np.transpose(np.reshape(images, (T, -1), order='F'))
@@ -348,9 +348,9 @@ class CNMF(object):
             mem_per_pix = 3.6977678498329843e-09
             npx_per_proc = int(avail_memory_per_process / 8. / mem_per_pix / T)
             npx_per_proc = int(np.minimum(npx_per_proc, np.prod(self.dims) // self.params.get('patch', 'n_processes')))
-            self.params.set('preprocess', {'n_pixels_per_process': npx_per_proc})
+            self.params.set('preprocess', {'n_pixels_per_process': npx_per_proc}, warn=False)
 
-        self.params.set('spatial', {'n_pixels_per_process': self.params.get('preprocess', 'n_pixels_per_process')})
+        self.params.set('spatial', {'n_pixels_per_process': self.params.get('preprocess', 'n_pixels_per_process')}, warn=False)
 
         logger.info('using ' + str(self.params.get('preprocess', 'n_pixels_per_process')) + ' pixels per process')
         logger.info('using ' + str(self.params.get('temporal', 'block_size_temp')) + ' block_size_temp')
@@ -400,9 +400,9 @@ class CNMF(object):
             logger.info('update temporal ...')
             if not self.skip_refinement:
                 # set this to zero for fast updating without deconvolution
-                self.params.set('temporal', {'p': 0})
+                self.params.set('temporal', {'p': 0}, warn=False)
             else:
-                self.params.set('temporal', {'p': self.params.get('preprocess', 'p')})
+                self.params.set('temporal', {'p': self.params.get('preprocess', 'p')}, warn=False)
                 logger.info('deconvolution ...')
 
             self.update_temporal(Yr)
@@ -417,7 +417,7 @@ class CNMF(object):
 
                 self.update_spatial(Yr, use_init=False)
                 # set it back to original value to perform full deconvolution
-                self.params.set('temporal', {'p': self.params.get('preprocess', 'p')})
+                self.params.set('temporal', {'p': self.params.get('preprocess', 'p')}, warn=False)
                 logger.info('update temporal ...')
                 self.update_temporal(Yr, use_init=False)
 
@@ -440,7 +440,7 @@ class CNMF(object):
 
         else:  # use patches
             if self.params.get('patch', 'stride') is None:
-                self.params.set('patch', {'stride': int(self.params.get('patch', 'rf') * 2 * .1)})
+                self.params.set('patch', {'stride': int(self.params.get('patch', 'rf') * 2 * .1)}, warn=False)
                 logger.info(
                     ('Setting the stride to 10% of 2*rf automatically:' + str(self.params.get('patch', 'stride'))))
 
@@ -483,7 +483,7 @@ class CNMF(object):
                     logger.info("update temporal")
                     self.update_temporal(Yr, use_init=False)
 
-                    self.params.set('spatial', {'se': np.ones((1,) * len(self.dims), dtype=np.uint8)})
+                    self.params.set('spatial', {'se': np.ones((1,) * len(self.dims), dtype=np.uint8)}, warn=False)
                     logger.info('update spatial ...')
                     self.update_spatial(Yr, use_init=False)
 
@@ -547,7 +547,7 @@ class CNMF(object):
                 self.estimates.AtA, self.estimates.CY, self.estimates.CC, self.M, self.N,
                 self.estimates.noisyC, self.estimates.OASISinstances, self.estimates.C_on,
                 self.params.get('online', 'expected_comps'))
-        self.params.set('online', {'expected_comps': expected_comps})
+        self.params.set('online', {'expected_comps': expected_comps}, warn=False)
 
     def compute_residuals(self, Yr) -> None:
         """
@@ -650,7 +650,7 @@ class CNMF(object):
         params = [k for k, v in pr.parameters.items() if '=' in str(v)]
         kw2 = {k: lc[k] for k in params}
         kwargs_new = {**kw2, **kwargs}
-        self.params.set('temporal', kwargs_new)
+        self.params.set('temporal', kwargs_new, warn=False)
         self.provenance.append({'event': 'update_temporal', 'time': int(time.time()), 'description': f'Updated temporal components based on provided Y'})
 
         self.estimates.C, self.estimates.A, self.estimates.b, self.estimates.f, self.estimates.S, \
@@ -676,7 +676,7 @@ class CNMF(object):
         params = [k for k, v in pr.parameters.items() if '=' in str(v)]
         kw2 = {k: lc[k] for k in params}
         kwargs_new = {**kw2, **kwargs}
-        self.params.set('spatial', kwargs_new)
+        self.params.set('spatial', kwargs_new, warn=False)
         for key in kwargs_new:
             if hasattr(self, key):
                 setattr(self, key, kwargs_new[key])
@@ -706,7 +706,7 @@ class CNMF(object):
     def initialize(self, Y, **kwargs) -> None:
         """Component initialization
         """
-        self.params.set('init', kwargs)
+        self.params.set('init', kwargs, warn=False)
         estim = self.estimates
         if (self.params.get('init', 'method_init') == 'corr_pnr' and
                 self.params.get('init', 'ring_size_factor') is not None):

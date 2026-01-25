@@ -389,18 +389,23 @@ for params_movie in np.array(params_movies)[ID]:
     if plot_on:
         cnm2.estimates.plot_contours(img=Cn)
     # %% check quality of components and eliminate low quality
-    cnm2.params.set('quality', {'SNR_lowest': global_params['SNR_lowest'],
-                                'min_SNR': global_params['min_SNR'],
-                                'rval_thr': global_params['rval_thr'],
-                                'rval_lowest': global_params['min_rval_thr_rejected'],
-                                #'Npeaks': global_params['Npeaks'],
-                                'use_cnn': True,
-                                'min_cnn_thr': global_params['min_cnn_thresh'],
-                                'cnn_lowest': global_params['max_classifier_probability_rejected'],
-                                #'thresh_fitness_delta': global_params['max_fitness_delta_accepted'],
-                                'gSig_range': None})
-
-    cnm2.params.set('data',{'decay_time':params_movie['decay_time']})
+    cnm2.params.change_params({
+        'quality': {
+            'SNR_lowest': global_params['SNR_lowest'],
+            'min_SNR': global_params['min_SNR'],
+            'rval_thr': global_params['rval_thr'],
+            'rval_lowest': global_params['min_rval_thr_rejected'],
+            #'Npeaks': global_params['Npeaks'],
+            'use_cnn': True,
+            'min_cnn_thr': global_params['min_cnn_thresh'],
+            'cnn_lowest': global_params['max_classifier_probability_rejected'],
+            #'thresh_fitness_delta': global_params['max_fitness_delta_accepted'],
+            'gSig_range': None
+        },
+        'data': {
+            'decay_time': params_movie['decay_time']
+        }
+    })
 
     t1 = time.time()
     cnm2.estimates.evaluate_components(images, cnm2.params, dview=dview)
