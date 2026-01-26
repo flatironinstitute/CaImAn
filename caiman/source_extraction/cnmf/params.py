@@ -115,7 +115,7 @@ class GroupParams(Mapping):
         # It's safe to assign to a copy, so just make it a (shallow-copied) dict
         return {**self}
 
-    def replace(self: GPSelf, **changes) -> GPSelf:
+    def replace(self: GPSelf, /, **changes) -> GPSelf:
         """Create a GroupParams object with the given fields replaced"""
         # add context to prevent complaining when WarnShared types are set,
         # we do still want to copy them though because otherwise we would lose
@@ -496,21 +496,23 @@ class CNMFParams:
     Class for setting the processing parameters. All parameters for CNMF, online-CNMF, quality testing,
     and motion correction can be set here and then used in the various processing pipeline steps.
 
-    Params have default values; users can override the defaults in three intended ways:
-        A) The object can be constructed with overrides for each group provided within the corresponding
-            GroupParams subclass objects, as in:
+    The constructor supports setting params through 3 methods, in order of precedence (e.g., params
+    set through method A override those set through method B). Note that attempting to override a
+    group's parameters with an existing GroupParams object raises an error (a dict can be used instead).
+
+        A) From individual group parameter objects passed to arguments matching the name of the group, as in:
             CNMFParams(data=DataParams(fnames=['example.tif']), motion=MotionParams(max_shifts=10))
             This method allows for static type checking of each parameter value.
-            If preferred, raw dictionaries can also be passed instead of GroupParams objects.
-        B) The object can alternatively be constructed from a nested dictionary through the
-            params_dict parameter, or the name of a jsonfile containing the same nested dictionary
-            through the params_from_file parameter.
-        C) If the CNMFParams object already exists, the change_params() method can be used to pass in
-            a dict or change_params_from_jsonfile() to pass in a filename
+           If preferred, raw dictionaries can also be passed instead of GroupParams objects,
+            as in: CNMFParams(data={'fnames': ['example.tif']}, motion={'max_shifts': 10})
+        B) From a nested dictionary through the params_dict parameter, as in:
+            CNMFParams(params_dict={'data': {'fnames': ['example.tif']}, 'motion': {'max_shifts': 10}})
+        C) From a JSON file through the params_from_file parameter.
 
-    With each method, any parameters not explicitly set will keep their defaults (or previous values if
-    changing params of an existing object).
-
+    After construction, parameters can be changed from a nested dict using change_params() or from a
+    JSON file using change_params_from_jsonfile(). These are the preferred methods for updating params
+    because they automatically call check_consistency() to enforce consistency between different params.
+    
     All other means of changing parameters are deprecated (including other constructor arguments)
     and will be removed in some future version of Caiman (whether they give a deprecation warning or not). 
 
@@ -519,8 +521,9 @@ class CNMFParams:
             name of a json file used to initialise the object
         params_dict
             a dictionary used to initialise the object
+        <groupname> (e.g., data, init, preprocess...)
+            a dictionary or object used to override parameters for just this group
         
-
         Any parameter that is not set uses a default value
         All other arguments are deprecated and should not be used.
 
@@ -1175,6 +1178,38 @@ class CNMFParams:
         # (will work for params_dict if the top-level keys don't overlap)
         kwargs = data.kwargs.copy()
         new_kwargs: dict[str, Any] = {}
+        groups = {f.name: f.type for f in fields(cls)}
+
+        def update_new_kwargs(params_dict: dict[str, Any]):
+            """
+            Add or apply updates from a higher-precedent initialization method
+            but disallow updating from a GroupParams object because because we have
+            no way of knowing which params were user-specified (or even if we
+            did it would be mysterious behavior)
+            """
+            for key, val in params_dict.items():
+                if key not in groups or key not in new_kwargs:
+                    # just overwrite
+                    new_kwargs[key] = val
+                else:
+                    if isinstance(val, GroupParams):
+                        raise ValueError(
+                            'Parameter objects cannot be combined with other parameters '
+                            f'passed for the same group ({key}). Please use only one '
+                            'initialization method, or supply overrides as dicts.')
+                    
+                    if not isinstance(val, Mapping):
+                        raise ValueError(f'Parameters for group {key} must be supplied as a dict or {groups[key]} object')
+                    
+                    # actually do the update
+                    curr_val = new_kwargs[key]
+                    if isinstance(curr_val, GroupParams):
+                        new_kwargs[key] = curr_val.replace(**val)
+                    elif isinstance(curr_val, dict):
+                        new_kwargs[key].update(val)
+                    else:
+                        raise ValueError(f'Parameters for group {key} must be supplied as a dict or {groups[key]} object')
+
 
         if (params_from_file := kwargs.pop('params_from_file', None)) is not None:
             with open(params_from_file, 'r') as fh:
@@ -1183,34 +1218,18 @@ class CNMFParams:
             if not isinstance(loaded_data, dict):
                 raise ValueError('Params loaded from JSON must be a dict')
             
-            new_kwargs.update(loaded_data)
+            update_new_kwargs(loaded_data)
         
         if (params_dict := kwargs.pop('params_dict', None)) is not None:
             # each entry of params_dict can just be accepted as a keyword argument
             if not isinstance(params_dict, dict):
                 raise ValueError('params_dict must be a dict')
 
-            new_kwargs.update(params_dict)
+            update_new_kwargs(params_dict)
         
-        # process group params passed as keyword arguments
-        for field_data in fields(cls):
-            if field_data.name in kwargs:
-                val = kwargs.pop(field_data.name)
-                if field_data.name in new_kwargs:  # already have params from this group from JSON or dict
-                    if isinstance(val, GroupParams):
-                        # this has to be an error because we have no way of knowing which params were user-specified
-                        raise ValueError(
-                            'GroupParams inputs cannot be combined with JSON or params_dict inputs with '
-                            'top-level groups in common')
-                    elif isinstance(val, dict):
-                        new_kwargs[field_data.name].update(val)
-                    else:
-                        raise ValueError(f'{field_data.name} input must be a dict or {field_data.type} object')
-                else:  # don't already have params from this group
-                    new_kwargs[field_data.name] = val
-
-        # the rest we deal with in the post-init
-        new_kwargs.update(kwargs)
+        # add group params and flat params passed as keyword arguments
+        update_new_kwargs(kwargs)
+    
         return ArgsKwargs(args=(), kwargs=new_kwargs)
 
     
@@ -1221,7 +1240,7 @@ class CNMFParams:
         params = {key: self.__dict__.pop(key) for key in extra_args}
         
         if params:
-            self.change_params(params, allow_unsupported_flat_params=False)
+            self.change_params(params)
         else:
             # avoid one extra consistency check by putting it here
             self.check_consistency()
@@ -1484,8 +1503,7 @@ class CNMFParams:
 
         return 'CNMFParams:\n\n' + '\n\n'.join(formatted_outputs)
 
-    def change_params(self, params_dict, allow_legacy=True, warn_unused=True, verbose=True,
-                      allow_unsupported_flat_params=True) -> None:
+    def change_params(self, params_dict, allow_legacy=True, warn_unused=True, verbose=True) -> None:
         """ Method for updating the params object by providing a dictionary.
 
         Args:
@@ -1498,10 +1516,6 @@ class CNMFParams:
             warn_unused: If True, emit warnings when the params dict has fields in it that
                          were never used in populating the Params object. You really should not
                          set this to False. Fix your code.
-            allow_unsupported_flat_params: 
-                If True, (and allow_legacy is true), allow any parameter name at the top level,
-                but warn if it is not one of the ones accepted by the constructor. If False,
-                raise an error for params not accepted by the constructor.
         """
         logger = logging.getLogger("caiman")
         # When we're ready to remove allow_legacy, this code will get a lot simpler
@@ -1533,11 +1547,6 @@ class CNMFParams:
                         else:
                             subkey = paramkey
                         updates[group][subkey] = paramval
-                elif not allow_unsupported_flat_params:
-                    raise TypeError(
-                        f"Parameter {paramkey} is not supported at the top level of params_dict or as a keyword "
-                        "argument to the CNMFParams constructor. If this is not a typo, "
-                        "please specify the group(s) directly using params_dict={group: {param: value}} syntax.")
                 else:
                     groups = []
                     for group in self.groups:

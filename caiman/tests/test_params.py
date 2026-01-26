@@ -8,6 +8,7 @@ import math
 import numpy as np
 import numpy.testing as npt
 import os
+from pydantic import ValidationError
 import pytest
 import scipy.special
 from tabulate import tabulate
@@ -19,9 +20,53 @@ from caiman.paths import caiman_datadir
 from caiman.source_extraction.cnmf import params
 
 
+# ---- UTILITIES ----- #
+
 def tabulate_differing_params(expected: params.CNMFParams, actual: params.CNMFParams) -> str:
     return '\n\n' + tabulate(expected.get_differing_params(actual), headers=['Name', 'Expected', 'Actual']) + '\n\n'
 
+
+def check_params_equal_expected(params_obj: params.CNMFParams, expected_params: dict[str, dict[str, Any]],
+                                cause='was not correct.'):
+    """Validate the given CNMFParams object against a nested params dict"""
+    for groupname, gt_group in expected_params.items():
+        group = params_obj.get_group(groupname)
+        for field, gt_val in gt_group.items():
+            info = [cause]
+            if isinstance(gt_val, dict) and 'value' in gt_val:
+                if 'msg' in gt_val:
+                    info.append(gt_val['msg'])
+                gt_val = gt_val['value']
+            npt.assert_array_equal(group[field], gt_val, f'Field {groupname}.{field} ' + ' '.join(info))
+
+
+# example nested dict with some various parameters to test constructors with
+params_dict = {
+    'data': {
+        'var_name_hdf5': 'movie',
+    },
+    'init': {
+        'K': 20,
+        'nb': 2  # automatically updates spatial.nb and temporal.nb
+    },
+    'preprocess': {
+        'p': 3
+    },
+    'temporal': {
+        'p': 3
+    }
+}
+
+# flat params version of the same parameters
+params_dict_flat = {
+    'var_name_hdf5': params_dict['data']['var_name_hdf5'],
+    'k': params_dict['init']['K'],
+    'gnb': params_dict['init']['nb'],
+    'p': params_dict['preprocess']['p']
+}
+
+
+# ---- TESTS ---- #
 
 def test_validation(caplog):
     """Test GroupParams type validators"""
@@ -71,32 +116,6 @@ def test_params_serialization_eq(caplog):
         tabulate_differing_params(params_orig, params_recon)
 
     assert len(caplog.records) == 0, 'Converting to and from JSON should not cause a warning'
-
-
-# example nested dict with some various parameters to test constructors with
-params_dict = {
-    'data': {
-        'var_name_hdf5': 'movie',
-    },
-    'init': {
-        'K': 20,
-        'nb': 2  # automatically updates spatial.nb and temporal.nb
-    },
-    'preprocess': {
-        'p': 3
-    },
-    'temporal': {
-        'p': 3
-    }
-}
-
-# flat params version of the same parameters
-params_dict_flat = {
-    'var_name_hdf5': params_dict['data']['var_name_hdf5'],
-    'k': params_dict['init']['K'],
-    'gnb': params_dict['init']['nb'],
-    'p': params_dict['preprocess']['p']
-}
 
 
 def test_change_params_flat():
@@ -198,6 +217,41 @@ def test_multi_dict_constructor():
     assert params_changed == params_from_dicts, \
         'Constructing from dicts for each group should work the same as change_params. Differences: ' + \
         tabulate_differing_params(params_changed, params_from_dicts)
+    
+
+def test_mixed_constructor(tmp_path):
+    """Test valid and invalid combinations of constructor syntaxes"""
+    json_params = {'data': {'var_name_hdf5': 'movie'}, 'patch': {'border_pix': 5}}
+    dict_params = {'preprocess': {'check_nan': False}, 'init': {'K': 40}}
+    indiv_params = {'init': {'K': 45, 'center_psf': True}, 'spatial': {'dist': 4.}}
+    init_combined = {**dict_params['init'], **indiv_params['init']}
+    dict_plus_indiv_params = {
+        **dict_params, **indiv_params,
+        'init': {k: {'value': v, 'msg': 'Common group should be overridden by group keyword arg'}
+                 for k, v in init_combined.items()}
+    }
+
+    # JSON plus dict, non-overlapping groups
+    json_path = tmp_path / 'partial_params.json'
+    with open(json_path, 'w') as fh:
+        json.dump(json_params, fh)
+    
+    json_plus_dict = params.CNMFParams(params_from_file=json_path, params_dict=dict_params)
+    check_params_equal_expected(json_plus_dict, {**json_params, **dict_params}, 
+                                ' not set correctly in JSON + dict constructor')
+    
+    dict_plus_indiv = params.CNMFParams(params_dict=dict_params, **indiv_params)
+    check_params_equal_expected(dict_plus_indiv, dict_plus_indiv_params, 
+                                ' not set correctly in dict + group keyword constructor')
+
+    # try something that should raise an error
+    with pytest.raises(ValidationError) as ve:
+        params.CNMFParams(
+            params_dict=dict_params, init=params.InitParams(K=45, center_psf=True))
+    
+    errs = ve.value.errors()
+    assert len(errs) == 1 and 'cannot be combined' in errs[0]['msg'], \
+        'Trying to override param group with an object should raise an error'
 
 
 def test_json_roundtrip(tmp_path):
@@ -209,15 +263,6 @@ def test_json_roundtrip(tmp_path):
     assert params_orig == params_recon, \
         'Full object should be equal after saving and restoring from JSON. Differences: ' + \
         tabulate_differing_params(params_orig, params_recon)
-
-
-def check_params_equal_expected(params_obj: params.CNMFParams, expected_params: dict[str, dict[str, tuple[Any, str]]],
-                                cause='was not correct.'):
-    """Validate the given CNMFParams object against a nested params dict (not a test)"""
-    for groupname, gt_group in expected_params.items():
-        group = params_obj.get_group(groupname)
-        for field, (gt_val, elaboration) in gt_group.items():
-            npt.assert_array_equal(group[field], gt_val, f'Field {groupname}.{field} ' + cause + ' ' + elaboration)
 
 
 def test_check_consistency():
@@ -269,41 +314,41 @@ def test_check_consistency():
     # corrected version of above
     expected_params = {
         'data': {
-            'last_commit': ('-'.join(caiman.utils.utils.get_caiman_version()),
-                            'Should be set to current CaImAn version.'),
-            'dims': (dims, 'Should be set to dimensions of given movie')
+            'last_commit': {'value': '-'.join(caiman.utils.utils.get_caiman_version()),
+                            'msg': 'Should be set to current CaImAn version.'},
+            'dims': {'value': dims, 'msg': 'Should be set to dimensions of given movie'}
         },
         'init': {
-            'gSig': ([-1, -1], 'Should be set to [-1, -1] by default'),
-            'gSiz': ([-1, -1], 'Should equal 2*gSig+1 by default'),
-            'normalize_init': (False, 'Should turn off normalize_init with corr_pnr method')
+            'gSig': {'value': [-1, -1], 'msg': 'Should be set to [-1, -1] by default'},
+            'gSiz': {'value': [-1, -1], 'msg': 'Should equal 2*gSig+1 by default'},
+            'normalize_init': {'value': False, 'msg': 'Should turn off normalize_init with corr_pnr method'}
         },
         'patch': {
-            'nb_patch': (-1, 'Should be set to nb when nb < 0'),
+            'nb_patch': {'value': -1, 'msg': 'Should be set to nb when nb < 0'},
         },
         'spatial': {
-            'update_background_components': (False, 'Should be set to False when nb == -1'),
-            'nb': (-1, 'Should be set based on init.nb'),
-            'se': (np.ones((1,) * len(dims), dtype=np.uint8), 'Should be set due to corr_pnr method')
+            'update_background_components': {'value': False, 'msg': 'Should be set to False when nb == -1'},
+            'nb': {'value': -1, 'msg': 'Should be set based on init.nb'},
+            'se': {'value': np.ones((1,) * len(dims), dtype=np.uint8), 'msg': 'Should be set due to corr_pnr method'}
         },
         'temporal': {
-            'nb': (-1, 'Should be set based on init.nb')
+            'nb': {'value': -1, 'msg': 'Should be set based on init.nb'}
         },
         'online': {
-            'movie_name_online': (os.path.join(os.path.dirname(demo_movie_path), input_params['online']['movie_name_online']),
-                                  'Relative path should be resolved from the directory of fnames[0].'),
-            'N_samples_exceptionality': (nsamp_exc, 'Should be set based on fr and decay_time'),
-            'thresh_fitness_raw': (scipy.special.log_ndtr(-input_params['online']['min_SNR']) * nsamp_exc,
-                                   'Should be set based on SNR threshold and N_samples_exceptionality'),
-            'update_num_comps': (False, 'Should be set to False when online.max_num_added == 0')
+            'movie_name_online': {'value': os.path.join(os.path.dirname(demo_movie_path), input_params['online']['movie_name_online']),
+                                  'msg': 'Relative path should be resolved from the directory of fnames[0].'},
+            'N_samples_exceptionality': {'value': nsamp_exc, 'msg': 'Should be set based on fr and decay_time'},
+            'thresh_fitness_raw': {'value': scipy.special.log_ndtr(-input_params['online']['min_SNR']) * nsamp_exc,
+                                   'msg': 'Should be set based on SNR threshold and N_samples_exceptionality'},
+            'update_num_comps': {'value': False, 'msg': 'Should be set to False when online.max_num_added == 0'}
         },
         'motion': {
-            'splits_els': (num_splits, 'Should be set based on number of frames and num_frames_split'),
-            'splits_rig': (num_splits, 'Should be set based on number of frames and num_frames_split'),
-            'indices': ((slice(None), slice(None), slice(None)), 'Should be expanded to 3D'),
-            'max_shifts': (input_params['motion']['max_shifts'], 'Should be left alone when already 3D'),
-            'strides': ((96, 96, 96), 'Should be expanded to 3D'),
-            'overlaps': ((32, 32, 32), 'Should be expanded to 3D')
+            'splits_els': {'value': num_splits, 'msg': 'Should be set based on number of frames and num_frames_split'},
+            'splits_rig': {'value': num_splits, 'msg': 'Should be set based on number of frames and num_frames_split'},
+            'indices': {'value': (slice(None), slice(None), slice(None)), 'msg': 'Should be expanded to 3D'},
+            'max_shifts': {'value': input_params['motion']['max_shifts'], 'msg': 'Should be left alone when already 3D'},
+            'strides': {'value': (96, 96, 96), 'msg': 'Should be expanded to 3D'},
+            'overlaps': {'value': (32, 32, 32), 'msg': 'Should be expanded to 3D'}
         }
     }
 
@@ -312,7 +357,7 @@ def test_check_consistency():
     
     # another gSig/gSiz case
     params_obj.change_params({'init': {'gSiz': [6, 5]}})
-    check_params_equal_expected(params_obj, {'init': {'gSiz': ([7, 5], 'Should be changed so each entry is odd')}})
+    check_params_equal_expected(params_obj, {'init': {'gSiz': {'value': [7, 5], 'msg': 'Should be changed so each entry is odd'}}})
 
     # another combination for patch
     params_obj.change_params({
@@ -322,8 +367,8 @@ def test_check_consistency():
     })
 
     check_params_equal_expected(params_obj, {
-        'patch': {'low_rank_background': (None, 'Should be set to None when nb < 0')},
-        'spatial': {'update_background_components': (True, 'Should not be changed unless nb == -1')}
+        'patch': {'low_rank_background': {'value': None, 'msg': 'Should be set to None when nb < 0'}},
+        'spatial': {'update_background_components': {'value': True, 'msg': 'Should not be changed unless nb == -1'}}
     })
 
     params_obj.change_params({
@@ -331,7 +376,7 @@ def test_check_consistency():
     })
     
     check_params_equal_expected(params_obj, {
-        'online': {'update_num_comps': (False, 'Should be set to False when online.min_num_trial == 0')}
+        'online': {'update_num_comps': {'value': False, 'msg': 'Should be set to False when online.min_num_trial == 0'}}
     })
 
 
