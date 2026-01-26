@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 
-from dataclasses import fields, replace, InitVar
+from dataclasses import fields, InitVar
 from functools import cache, cached_property
 import importlib.metadata
 import json
@@ -8,13 +8,14 @@ import logging
 import math
 import numpy as np
 import os
+from pathlib import Path
 from pprint import pformat
 from pydantic import (
     ConfigDict, TypeAdapter, PlainValidator, BeforeValidator, AfterValidator,
     PlainSerializer, ValidationError, ValidatorFunctionWrapHandler, ValidationInfo,
-    Field, model_validator, field_validator)
-from pydantic.dataclasses import dataclass
-from pydantic_core import SchemaValidator, core_schema
+    Field, field_validator, model_validator)
+from pydantic.dataclasses import dataclass 
+from pydantic_core import SchemaValidator, core_schema, ArgsKwargs
 import scipy.special
 from scipy.ndimage import generate_binary_structure, iterate_structure
 from tabulate import tabulate
@@ -52,8 +53,10 @@ def warn_shared_param(obj: Any, info: ValidationInfo) -> Any:
     """
     logger = logging.getLogger('caiman')
     name = info.field_name
-    logger.warning(f"The '{name}' parameter can only be set in the init part of CNMFParams. "
-                    "Attempts to set it elsewhere are ignored.")
+    # skip if the parameter was not actually changed
+    if info.context is None or 'changed_params' not in info.context or name in info.context['changed_params']:
+        logger.warning(f"The '{name}' parameter can only be set in the init part of CNMFParams. "
+                        "Attempts to set it elsewhere are ignored.")
     return obj
 
 WarnShared = AfterValidator(warn_shared_param)
@@ -108,8 +111,22 @@ class GroupParams(Mapping):
         return len(fields(self))
     
     def copy(self) -> dict[str, Any]:
+        """Make a copy of the data as a (mutable) dict"""
         # It's safe to assign to a copy, so just make it a (shallow-copied) dict
         return {**self}
+
+    def replace(self: GPSelf, **changes) -> GPSelf:
+        """Create a GroupParams object with the given fields replaced"""
+        # add context to prevent complaining when WarnShared types are set,
+        # we do still want to copy them though because otherwise we would lose
+        # that existing information for no reason
+        updated_dict = {**self, **changes}
+        ta = TypeAdapter(type(self))
+        return ta.validate_python(updated_dict, context={'changed_params': changes.keys()})
+
+    # support copy.replace (for 3.13 and above)
+    __replace__ = replace
+
     
     def get_differing_params(self: GPSelf, other: GPSelf) -> Iterable[tuple[str, Any, Any]]:
         """
@@ -237,7 +254,9 @@ class InitParams(GroupParams):
     SC_nnn: int = 20                        # number of nearest neighbors to use
     alpha_snmf: float = 0.5
     center_psf: bool = False
-    gSig: list[int] = Field(default_factory=lambda: [5, 5])
+    # this sets the default to [5, 5], but automatically converts None to [-1, -1]
+    gSig: Annotated[list[int], BeforeValidator(lambda val: [-1, -1] if val is None else val)] \
+          = Field(default_factory=lambda: [5, 5])
     gSiz: Optional[list[int]] = None
     # init method used in calls to NMF if geedy_roi method for component initialisation is used (offline or online)
     greedyroi_nmf_init_method: str = 'nndsvdar'
@@ -482,6 +501,7 @@ class CNMFParams:
             GroupParams subclass objects, as in:
             CNMFParams(data=DataParams(fnames=['example.tif']), motion=MotionParams(max_shifts=10))
             This method allows for static type checking of each parameter value.
+            If preferred, raw dictionaries can also be passed instead of GroupParams objects.
         B) The object can alternatively be constructed from a nested dictionary through the
             params_dict parameter, or the name of a jsonfile containing the same nested dictionary
             through the params_from_file parameter.
@@ -1108,8 +1128,8 @@ class CNMFParams:
     # here we allow extra arguments to the constructor, for flat params (deprecated)
     __pydantic_config__ = ConfigDict(extra='allow')
 
-    # init-only params - these are the normal arguments to the constructor
-    params_from_file: InitVar[Optional[str]] = None
+    # # init-only params - these are the normal arguments to the constructor
+    params_from_file: InitVar[Union[str, Path, None]] = None
     params_dict: InitVar[Optional[dict[str, Any]]] = None
 
     # group fields
@@ -1129,40 +1149,83 @@ class CNMFParams:
     @cached_property
     def groups(self) -> list[str]:
         return [f.name for f in fields(self)]
+    
 
+    @model_validator(mode='before')
+    @classmethod
+    def _constructor_arg_parser(cls, data: Any) -> Any:
+        """
+        When creating from constructor, if params_dict or params_from_file is passed,
+        directly load parameters and change data passed on to validators.
+        This allows bypassing change_params when just loading from a dict or JSON file,
+        and we can detect if the user tries to give combinations of arguments that don't make sense.
+        """
+        if not isinstance(data, ArgsKwargs):  # type used for constructor
+            return data
+        
+        if len(data.args) > 0:
+            # Shouldn't happen, but I think kw_only may be buggy
+            raise TypeError('CNMFParams() does not take positional arguments.')
+            
+        if data.kwargs is None:
+            return data
 
-    def __new__(cls, *, params_from_file: Optional[str] = None, **_):
-        """If params_from_file is passed, construct directly from JSON using factory"""
-        if params_from_file is not None:
-            return cls.from_jsonfile(params_from_file)
-        return super().__new__(cls)
+        # Order: First JSON, then params_dict, finally individual dicts
+        # No support for combining full GroupParams objects with JSON or params_dict
+        # (will work for params_dict if the top-level keys don't overlap)
+        kwargs = data.kwargs.copy()
+        new_kwargs: dict[str, Any] = {}
+
+        if (params_from_file := kwargs.pop('params_from_file', None)) is not None:
+            with open(params_from_file, 'r') as fh:
+                loaded_data = json.load(fh)
+            
+            if not isinstance(loaded_data, dict):
+                raise ValueError('Params loaded from JSON must be a dict')
+            
+            new_kwargs.update(loaded_data)
+        
+        if (params_dict := kwargs.pop('params_dict', None)) is not None:
+            # each entry of params_dict can just be accepted as a keyword argument
+            if not isinstance(params_dict, dict):
+                raise ValueError('params_dict must be a dict')
+
+            new_kwargs.update(params_dict)
+        
+        # process group params passed as keyword arguments
+        for field_data in fields(cls):
+            if field_data.name in kwargs:
+                val = kwargs.pop(field_data.name)
+                if field_data.name in new_kwargs:  # already have params from this group from JSON or dict
+                    if isinstance(val, GroupParams):
+                        # this has to be an error because we have no way of knowing which params were user-specified
+                        raise ValueError(
+                            'GroupParams inputs cannot be combined with JSON or params_dict inputs with '
+                            'top-level groups in common')
+                    elif isinstance(val, dict):
+                        new_kwargs[field_data.name].update(val)
+                    else:
+                        raise ValueError(f'{field_data.name} input must be a dict or {field_data.type} object')
+                else:  # don't already have params from this group
+                    new_kwargs[field_data.name] = val
+
+        # the rest we deal with in the post-init
+        new_kwargs.update(kwargs)
+        return ArgsKwargs(args=(), kwargs=new_kwargs)
 
     
-    def __post_init__(self, params_from_file, params_dict: Optional[dict[str, Any]]):
-        """
-        Parse constructor arguments (other than group params objects):
-            - params_dict (dict): Dict of parameters to update with
-            - Any of the keys in _groups_for_flat_params
-        """        
-        # update with individual passed-in params (deprecated)
+    def __post_init__(self, params_from_file, params_dict):
+        """Update the object with any (deprecated) flat parameters that were passed in"""
         # hack to exclude dataclass fields and properties
         extra_args = set(self.__dict__) - set(type(self).__dict__)
         params = {key: self.__dict__.pop(key) for key in extra_args}
         
-        # add params_dict params
-        if params_dict is not None:
-            params.update(params_dict)
-        
         if params:
             self.change_params(params, allow_unsupported_flat_params=False)
+        else:
+            # avoid one extra consistency check by putting it here
+            self.check_consistency()
     
-
-    @model_validator(mode='after')
-    def validation_after(self):
-        """Automatically run check_consistency after initialization"""
-        self.check_consistency()
-        return self # expected for model validator function
-
 
     def check_consistency(self):
         """ Populates the params object with some dataset dependent values
@@ -1203,25 +1266,20 @@ class CNMFParams:
 
         self.set('data', data_updates, warn=False)
 
-        # -- update init params together --
-        init_updates = {}
-
-        if (gSig := self.init.gSig) is None:
-            init_updates['gSig'] = gSig = [-1, -1]
-        if (gSiz := self.init.gSiz) is None:
-            init_updates['gSiz'] = gSiz = [2*gs + 1 for gs in gSig]
+        gSiz = self.init.gSiz
+        if self.init.gSiz is None:
+            gSiz = [2*gs + 1 for gs in self.init.gSig]
 
         # ensure each entry of gSiz is odd
         gSiz_arr = np.array(gSiz)
         gSiz_is_even = gSiz_arr % 2 == 0
         if any(gSiz_is_even):
             gSiz_arr[gSiz_is_even] += 1
-            init_updates['gSiz'] = gSiz = gSiz_arr.tolist()
+            gSiz = gSiz_arr.tolist()
 
-        if init_updates:
-            self.set('init', init_updates, warn=False) 
+        if gSiz != self.init.gSiz:
+            self.set('init', {'gSiz': gSiz}, warn=False) 
 
-        # do separately due to different warning message
         if self.init.method_init == 'corr_pnr' and self.init.ring_size_factor is not None:
             if self.init.normalize_init:
                 logger.warning("using CNMF-E's ringmodel for background hence setting key " +
@@ -1329,7 +1387,7 @@ class CNMFParams:
         
         # apply changes, bypassing frozen
         if updates:
-            object.__setattr__(self, group, replace(d, **updates))
+            object.__setattr__(self, group, d.replace(**updates))
 
 
     def get(self, group, key):
@@ -1414,7 +1472,7 @@ class CNMFParams:
         return jsonstring
 
 
-    def to_jsonfile(self, targfn: str, verify=True) -> None:
+    def to_jsonfile(self, targfn: Union[str, Path], verify=True) -> None:
         """ Reversibly serialise CNMFParams to a json file """
         with open(targfn, 'w') as targfh:
             targfh.write(self.to_json(verify=verify))
@@ -1506,7 +1564,7 @@ class CNMFParams:
             if group_updates:
                 # update group, bypassing frozen
                 group_params = self.get_group(group)
-                object.__setattr__(self, group, replace(group_params, **group_updates))
+                object.__setattr__(self, group, group_params.replace(**group_updates))
 
         self.check_consistency()
 
@@ -1528,7 +1586,7 @@ class CNMFParams:
         return TypeAdapter(cls).validate_json(jsonstring)
 
     @classmethod
-    def from_jsonfile(cls, json_fn: str):
+    def from_jsonfile(cls, json_fn: Union[str, Path]):
         with open(json_fn, 'r') as json_fh:
             jsonstring = json_fh.read()
         return cls.from_json(jsonstring)
