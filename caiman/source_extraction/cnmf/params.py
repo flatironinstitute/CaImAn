@@ -25,7 +25,7 @@ from typing import (Optional, Any, Union, Literal, Annotated, Sequence,
 import caiman.base.movies
 import caiman.utils.utils
 from caiman.paths import caiman_datadir
-from caiman.source_extraction.cnmf.utilities import all_same
+from caiman.source_extraction.cnmf import utilities
 
 
 # validation/serialization of types not supported by pydantic out of the box
@@ -119,7 +119,7 @@ class GroupParams(Mapping):
         for field in self.keys():
             self_val = getattr(self, field)
             other_val = getattr(other, field)
-            if not all_same(self_val, other_val):
+            if not utilities.all_same(self_val, other_val):
                 yield field, self_val, other_val
 
     def __eq__(self, other) -> bool:
@@ -158,7 +158,7 @@ class GroupParams(Mapping):
 
             logger.warning(
                 f'The value {repr(value)} provided for {cls.group_name}.{info.field_name} could not be converted '
-                f'to the expected type {expected_type} and may not be valid. ')
+                f'to the expected type {expected_type} and may not be valid.')
             
             return value
 
@@ -1231,7 +1231,7 @@ class CNMFParams:
             # Set structuring element to the no-op value (previously done in initialization.greedyROI_corr)
             ndim = len(self.data.dims) if self.data.dims is not None else 2
             null_se = np.ones((1,) * ndim, dtype=np.uint8)
-            if not all_same(self.spatial.se, null_se):
+            if not utilities.all_same(self.spatial.se, null_se):
                 logger.warning("using CNMF-E's ringmodel for background hence setting key "
                                "se in group spatial automatically to null element.")
                 self.set('spatial', {'se': null_se}, warn=False, verbose=False)
@@ -1323,7 +1323,7 @@ class CNMFParams:
                     logger.warning(
                         f"{group}/{k} not set: invalid target in CNMFParams object")
             else:
-                if verbose and not all_same(d[k], v):
+                if verbose and not utilities.all_same(d[k], v):
                     logger.info(f"Changing key {k} in group {group} from {d[k]} to {v}")
                 updates[k] = v
         
