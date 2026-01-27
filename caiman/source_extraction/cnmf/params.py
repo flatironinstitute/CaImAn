@@ -11,7 +11,7 @@ import os
 from pathlib import Path
 from pprint import pformat
 from pydantic import (
-    ConfigDict, TypeAdapter, PlainValidator, BeforeValidator, AfterValidator,
+    ConfigDict, TypeAdapter, BeforeValidator, AfterValidator, InstanceOf, ValidateAs,
     PlainSerializer, ValidationError, ValidatorFunctionWrapHandler, ValidationInfo,
     Field, field_validator, model_validator)
 from pydantic.dataclasses import dataclass 
@@ -20,7 +20,7 @@ import scipy.special
 from scipy.ndimage import generate_binary_structure, iterate_structure
 from tabulate import tabulate
 from types import MappingProxyType
-from typing import (Optional, Any, Union, Literal, Annotated, Sequence,
+from typing import (Optional, Any, Union, Literal, Annotated,
                     Mapping, Iterable, TypeVar, ClassVar, cast)
 
 import caiman.base.movies
@@ -29,21 +29,33 @@ from caiman.paths import caiman_datadir
 from caiman.source_extraction.cnmf import utilities
 
 
+# deal with 'NoneType', b'NoneType' strings
+def interpret_string_none(obj: Any) -> Any:
+    if (isinstance(obj, str) and obj in ['None', 'NoneType']
+        or isinstance(obj, bytes) and obj in [b'None', b'NoneType']):
+        return None
+    return obj
+
+SafeNone = Annotated[None, BeforeValidator(interpret_string_none)]
+SafeAny = Annotated[Any, BeforeValidator(interpret_string_none)]
+
+T = TypeVar('T')
+SafeOptional = Union[SafeNone, T]
+
+
 # validation/serialization of types not supported by pydantic out of the box
-NDArray = Annotated[np.ndarray, PlainValidator(np.asarray), PlainSerializer(lambda x: x.tolist())]
+NDArray = Annotated[InstanceOf[np.ndarray],  # after applying np.asarray, just check that it is the right type
+                    BeforeValidator(np.asarray),
+                    PlainSerializer(lambda x: x.tolist())]
 
-def read_slice(obj: Any) -> slice:
-    if isinstance(obj, slice):
-        return obj
-    elif isinstance(obj, Sequence) and len(obj) == 3:
-        return slice(*obj)
-    else:
-        raise ValueError('Input cannot be deserialized to a slice')
+Slice = Annotated[
+    Union[
+        InstanceOf[slice],  # accept existing slices as is
+        # anything convertible to a len-3 tuple, with 'NoneType' conversion, can be a slice
+        Annotated[slice, ValidateAs(tuple[SafeAny, SafeAny, SafeAny], lambda tup: slice(*tup))]],
+    PlainSerializer(lambda sl: [sl.start, sl.stop, sl.step])
+]
 
-def write_slice(s: slice) -> list:
-    return [s.start, s.stop, s.step]
-
-Slice = Annotated[slice, PlainValidator(read_slice), PlainSerializer(write_slice)]
 
 def warn_shared_param(obj: Any, info: ValidationInfo) -> Any:
     """
@@ -65,19 +77,12 @@ WarnShared = AfterValidator(warn_shared_param)
 LiteralType = TypeVar('LiteralType', bound=str)
 LitStr = Annotated[LiteralType, BeforeValidator(SchemaValidator(core_schema.str_schema()).validate_python)]
 
-# auto-wrapping lists (to allow singletons, for fnames)
-def wrap_in_list(obj: Any) -> list:
-    """Try wrapping in a list if validation as a list[Any] fails"""
-    # try validating as generic list and wrap in list if that fails
-    list_validator = SchemaValidator(core_schema.list_schema())
-    try:
-        return list_validator.validate_python(obj)
-    except ValidationError:
-        obj = [obj]
-        return list_validator.validate_python(obj)
 
+# automatically package string in list, for fnames
 ItemType = TypeVar('ItemType')
-AutoList = Annotated[list[ItemType], BeforeValidator(wrap_in_list)]
+AutoListStr = Union[list[str],  # first try parsing as the list of the desired type
+                    Annotated[list[str], ValidateAs(str, lambda x: [x])]  # otherwise pack in list
+]
 
 
 GPSelf = TypeVar('GPSelf', bound='GroupParams')
@@ -188,8 +193,8 @@ class DataParams(GroupParams):
     """Parameters for features of the data and other misc settings"""
     group_name = 'data'
 
-    fnames: Optional[AutoList[str]] = None
-    dims: Optional[tuple[int, ...]] = None  # None = read from fnames
+    fnames: SafeOptional[AutoListStr] = None
+    dims: SafeOptional[tuple[int, ...]] = None  # None = read from fnames
     fr: float = Field(default=30., gt=0)
     decay_time: float = Field(default=0.4, gt=0)
     dxy: tuple[float, float] = (1., 1.)     # resolution, unit: pixels/um
@@ -206,17 +211,17 @@ class PatchParams(GroupParams):
     border_pix: int = 0
     del_duplicates: bool = False
     in_memory: bool = True
-    low_rank_background: Optional[bool] = True
+    low_rank_background: SafeOptional[bool] = True
     memory_fact: float = 1.
     n_processes: int = 1
     nb_patch: int = 1
     only_init: bool = True
     p_patch: int = 0                        # AR order within patch
     remove_very_bad_comps: bool = False
-    rf: Union[int, list[int], None] = None
+    rf: Union[int, list[int], SafeNone] = None
     skip_refinement: bool = False
     p_ssub: float = 2.                      # spatial downsampling factor
-    stride: Optional[int] = None
+    stride: SafeOptional[int] = None
     p_tsub: float = 2.                      # temporal downsampling factor
 
 
@@ -231,13 +236,13 @@ class PreprocessParams(GroupParams):
     # number of autocovariance lags to be considered for time constant estimation
     lags: int = 5
     max_num_samples_fft: int = 3 * 1024
-    n_pixels_per_process: Optional[int] = None
+    n_pixels_per_process: SafeOptional[int] = None
     noise_method: LitStr[Literal['mean', 'median', 'logmexp']] = 'mean'  # averaging method
     # range of normalized frequencies over which to average
     noise_range: list[float] = Field(default_factory=lambda: [0.25, 0.5])
     p: int = 2                              # order of AR indicator dynamics
-    pixels: Optional[list[int]] = None      # pixels to be excluded due to saturation
-    sn: Optional[NDArray] = None            # noise level for each pixel
+    pixels: SafeOptional[list[int]] = None  # pixels to be excluded due to saturation
+    sn: SafeOptional[NDArray] = None        # noise level for each pixel
 
 
 @dataclass(kw_only=True, eq=False, frozen=True)
@@ -255,15 +260,17 @@ class InitParams(GroupParams):
     alpha_snmf: float = 0.5
     center_psf: bool = False
     # this sets the default to [5, 5], but automatically converts None to [-1, -1]
-    gSig: Annotated[list[int], BeforeValidator(lambda val: [-1, -1] if val is None else val)] \
-          = Field(default_factory=lambda: [5, 5])
-    gSiz: Optional[list[int]] = None
+    gSig: Annotated[list[int], 
+                    BeforeValidator(interpret_string_none),
+                    BeforeValidator(lambda val: [-1, -1] if val is None else val)
+                    ] = Field(default_factory=lambda: [5, 5])
+    gSiz: SafeOptional[list[int]] = None
     # init method used in calls to NMF if geedy_roi method for component initialisation is used (offline or online)
     greedyroi_nmf_init_method: str = 'nndsvdar'
     # max_iter used in calls to NMF if greedy_roi method for component initialisation is used (online or offline)
     greedyroi_nmf_max_iter: int = 200
     init_iter: int = 2
-    kernel: Optional[NDArray] = None        # user specified template for greedyROI
+    kernel: SafeOptional[NDArray] = None    # user specified template for greedyROI
     lambda_gnmf: float = 1.                 # regularization weight for graph NMF
     snmf_l1_ratio: float = 0.               # L1 ratio, used by sparse nmf mode only
     maxIter: int = 5                        # number of HALS iterations
@@ -274,7 +281,7 @@ class InitParams(GroupParams):
     nIter: int = 5                          # number of refinement iterations
     nb: int = 1                             # number of global background components
     normalize_init: bool = True             # whether to pixelwise equalize the movies during initialization
-    options_local_NMF: Optional[dict] = None  # unused - local_NMF is removed
+    options_local_NMF: SafeOptional[dict] = None  # unused - local_NMF is removed
     perc_baseline_snmf: float = 20.
     ring_size_factor: float = 1.5
     rolling_length: int = 100
@@ -307,22 +314,22 @@ class SpatialParams(GroupParams):
     # Flag to extract connected components (might want to turn to False for dendritic imaging)
     extract_cc: bool = True
     maxthr: float = 0.1                     # Max threshold
-    medw: Optional[tuple[int, ...]] = None  # window of median filter
+    medw: SafeOptional[tuple[int, ...]] = None  # window of median filter
     # method for determining footprint of spatial components
     method_exp: LitStr[Literal['ellipse', 'dilate']] = 'dilate'
     # 'nnls_L0'. Nonnegative least square with L0 penalty
     # 'lasso_lars' lasso lars function from scikit learn
     method_ls: LitStr[Literal['nnls_L0', 'lasso_lars']] = 'lasso_lars'
     # number of pixels to be processed by each worker
-    n_pixels_per_process: Optional[int] = None
+    n_pixels_per_process: SafeOptional[int] = None
     # the WarnShared and exclude=True are because this is just copied from the init group
     nb: Annotated[int, WarnShared] = Field(default=1, exclude=True)  # number of background components
     normalize_yyt_one: bool = True
     nrgthr: float = 0.9999                  # Energy threshold
     # number of process to parallelize residual computation ** DECREASE IF MEMORY ISSUES
     num_blocks_per_run_spat: int = 20
-    se: Optional[NDArray] = None         # Morphological closing structuring element
-    ss: Optional[NDArray] = None         # Binary element for determining connectivity
+    se: SafeOptional[NDArray] = None        # Morphological closing structuring element
+    ss: SafeOptional[NDArray] = None        # Binary element for determining connectivity
     thr_method: LitStr[Literal['max', 'nrg']] = 'nrg'  # Method of thresholding ('max' or 'nrg')
     # whether to update the background components in the spatial phase
     update_background_components: bool = True
@@ -355,7 +362,7 @@ class TemporalParams(GroupParams):
     # number of process to parallelize residual computation ** DECREASE IF MEMORY ISSUES
     num_blocks_per_run_temp: int = 20
     p: int = 2                              # order of AR indicator dynamics
-    s_min: Optional[float] = None           # minimum spike threshold
+    s_min: SafeOptional[float] = None       # minimum spike threshold
     solvers: list[LitStr[Literal['ECOS', 'SCS', 'CVXOPT']]] = Field(default_factory=lambda: ['ECOS', 'SCS'])
     verbosity: bool = False
 
@@ -377,7 +384,7 @@ class QualityParams(GroupParams):
 
     SNR_lowest: float = 0.5         # minimum accepted SNR value
     cnn_lowest: float = 0.1         # minimum accepted value for CNN classifier
-    gSig_range: Optional[list[int]] = None  # range for gSig scale for CNN classifier
+    gSig_range: SafeOptional[list[int]] = None  # range for gSig scale for CNN classifier
     min_SNR: float = 2.5            # transient SNR threshold
     min_cnn_thr: float = 0.9        # threshold for CNN classifier
     rval_lowest: float = -1.        # minimum accepted space correlation
@@ -392,7 +399,7 @@ class OnlineParams(GroupParams):
     """Params that control the online/OnACID mode"""
     group_name = 'online'
 
-    N_samples_exceptionality: Optional[int] = None  # timesteps to compute SNR
+    N_samples_exceptionality: SafeOptional[int] = None  # timesteps to compute SNR
     batch_update_suff_stat: bool = False
     dist_shape_update: bool = False       # update shapes in a distributed way
     ds_factor: int = 1                    # spatial downsampling for faster processing
@@ -427,7 +434,7 @@ class OnlineParams(GroupParams):
     test_both: bool = False              # flag for using both CNN and space correlation
     thresh_CNN_noisy: float = 0.5        # threshold for online CNN classifier
     thresh_fitness_delta: float = -50.
-    thresh_fitness_raw: Optional[float] = None  # threshold for trace SNR (computed below)
+    thresh_fitness_raw: SafeOptional[float] = None  # threshold for trace SNR (computed below)
     thresh_overlap: float = 0.5
     update_freq: int = 200               # update every shape at least once every update_freq steps
     update_num_comps: bool = True        # flag for searching for new components
@@ -448,16 +455,16 @@ class MotionParams(GroupParams):
     #  - 'min': replace with minimum value in the frame
     #  - 'copy': copy edge values
     border_nan: Union[bool, LitStr[Literal['min', 'copy']]] = 'copy'
-    gSig_filt: Optional[int] = None     # size of kernel for high pass spatial filtering in 1p data
+    gSig_filt: SafeOptional[int] = None # size of kernel for high pass spatial filtering in 1p data
     is3D: bool = False                  # flag for 3D recordings for motion correction
     max_deviation_rigid: int = 3        # maximum deviation between rigid and non-rigid
     max_shifts: tuple[int, ...] = (6,6) # maximum shifts per dimension (in pixels)
-    min_mov: Optional[float] = None     # minimum value of movie
+    min_mov: SafeOptional[float] = None # minimum value of movie
     niter_rig: int = 1                  # number of iterations rigid motion correction
     nonneg_movie: bool = True           # flag for producing a non-negative movie
     num_frames_split: int = 80          # split across time every x frames (approximately)
-    num_splits_to_process_els: None = None  # Unused, will be removed in a future version of Caiman
-    num_splits_to_process_rig: None = None  # DO NOT MODIFY
+    num_splits_to_process_els: SafeNone = None  # Unused, will be removed in a future version of Caiman
+    num_splits_to_process_rig: SafeNone = None  # DO NOT MODIFY
     overlaps: tuple[int, ...] = (32,32) # overlap between patches in pw-rigid motion correction
     pw_rigid: bool = False              # flag for performing pw-rigid motion correction
     shifts_interpolate: bool = False    # interpolate shifts based on patch locations instead of resizing
@@ -484,8 +491,8 @@ class RingCNNParams(GroupParams):
     width: int = 5                      # width of "ring" kernel
     loss_fn: str = 'pct'                # loss function
     lr: float = 1e-3                    # (initial) learning rate
-    lr_scheduler: Optional[tuple[float, ...]] = None  # learning rate scheduler function arguments
-    path_to_model: Optional[str] = None # path to saved weights
+    lr_scheduler: SafeOptional[tuple[float, ...]] = None  # learning rate scheduler function arguments
+    path_to_model: SafeOptional[str] = None # path to saved weights
     remove_activity: bool = False       # remove activity of last frame prior to background extraction
     reuse_model: bool = False           # reuse an already trained model
 

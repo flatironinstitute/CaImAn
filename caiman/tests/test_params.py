@@ -17,7 +17,7 @@ from typing import Any, cast
 from caiman.base import movies
 import caiman.utils.utils
 from caiman.paths import caiman_datadir
-from caiman.source_extraction.cnmf import params
+from caiman.source_extraction.cnmf import params, cnmf
 
 
 # ---- UTILITIES ----- #
@@ -263,6 +263,22 @@ def test_json_roundtrip(tmp_path):
     assert params_orig == params_recon, \
         'Full object should be equal after saving and restoring from JSON. Differences: ' + \
         tabulate_differing_params(params_orig, params_recon)
+
+
+def test_hdf5_roundtrip(tmp_path):
+    """Test that saving and restoring to/from HDF5 (as part of CNMF object) is successful"""
+    params_in = params.CNMFParams(data=params.DataParams(var_name_hdf5='movie2'))
+    n_processes = 4
+    cnmf_obj = cnmf.CNMF(n_processes, params=params_in)
+
+    # save and re-load
+    hdf5_path = tmp_path / 'test_cnmf.hdf5'
+    cnmf_obj.save(str(hdf5_path))
+    cnmf_obj_reconstr = cnmf.load_CNMF(str(hdf5_path), n_processes=n_processes)
+
+    assert cnmf_obj.params == cnmf_obj_reconstr.params, \
+        'Params should be the same after saving and re-loading from HDF5. Differences: ' + \
+        tabulate_differing_params(cnmf_obj.params, cnmf_obj_reconstr.params)
 
 
 def test_check_consistency():

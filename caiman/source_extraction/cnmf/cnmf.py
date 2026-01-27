@@ -109,7 +109,7 @@ class CNMF(object):
         self.provenance.append({'event': 'create', 'time': int(time.time()), 'description': 'CNMF Object created'})
 
         if params is None:
-            self.params = CNMFParams(params_dict=param_kwargs)
+            self.params = CNMFParams(**param_kwargs)
         else:
             self.params = params
             params.set('patch', {'n_processes': n_processes}, warn=False)
