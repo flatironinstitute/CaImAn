@@ -720,7 +720,7 @@ class movie(caiman.base.timeseries.timeseries):
         traces = caiman.base.traces.trace(np.dot(A, np.transpose(Y)).T, **self.__dict__)
         return traces
 
-    def resize(self, fx=1, fy=1, fz=1, interpolation=cv2.INTER_AREA):
+    def resize(self, fx=1., fy=1., fz=1., interpolation=cv2.INTER_AREA):
         """
         Resizing caiman movie into a new one. Note that the temporal
         dimension is controlled by fz and fx, fy, fz correspond to

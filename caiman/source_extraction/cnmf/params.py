@@ -16,11 +16,10 @@ from pydantic import (
     Field, field_validator, model_validator)
 from pydantic.dataclasses import dataclass 
 from pydantic.fields import FieldInfo
-from pydantic_core import SchemaValidator, core_schema, ArgsKwargs
+from pydantic_core import ArgsKwargs
 import scipy.special
 from scipy.ndimage import generate_binary_structure, iterate_structure
 from tabulate import tabulate
-from types import MappingProxyType
 from typing import (Optional, Any, Union, Literal, Annotated,
                     Mapping, Iterator, TypeVar, ClassVar, cast, Type)
 
@@ -80,7 +79,7 @@ def OnlySetFrom(group: str) -> AfterValidator:
 
 # string pre-processing to use for string literals
 LiteralType = TypeVar('LiteralType', bound=str)
-LitStr = Annotated[LiteralType, BeforeValidator(SchemaValidator(core_schema.str_schema()).validate_python)]
+LitStr = Annotated[LiteralType, BeforeValidator(TypeAdapter(str).validate_python)]
 
 
 # automatically package string in list, for fnames
@@ -90,6 +89,7 @@ AutoListStr = Union[list[str],  # first try parsing as the list of the desired t
 ]
 
 
+# ("Self" type for python < 3.11)
 GPSelf = TypeVar('GPSelf', bound='GroupParams')
 
 @dataclass(kw_only=True, eq=False, frozen=True)
@@ -323,9 +323,9 @@ class InitParams(GroupParams):
     rolling_sum: bool = True
     seed_method: LitStr[Literal['auto', 'manual', 'semi']] = 'auto'
     sigma_smooth_snmf: tuple[float, float, float] = (0.5, 0.5, 0.5)
-    ssub: float = 2.                        # spatial downsampling factor
-    ssub_B: float = 2.
-    tsub: float = 2.                        # temporal downsampling factor
+    ssub: int = 2                        # spatial downsampling factor
+    ssub_B: int = 2
+    tsub: int = 2                        # temporal downsampling factor
 
 
 @dataclass(kw_only=True, eq=False, frozen=True)
@@ -783,13 +783,13 @@ class CNMFParams:
             sigma_smooth_snmf : (float, float, float), default: (.5,.5,.5)
                 std of Gaussian kernel for smoothing data in sparse_NMF
 
-            ssub: float, default: 2
+            ssub: int, default: 2
                 spatial downsampling factor
 
-            ssub_B: float, default: 2
+            ssub_B: int, default: 2
                 downsampling factor for background during corr_pnr
 
-            tsub: float, default: 2
+            tsub: int, default: 2
                 temporal downsampling factor
 
         CNMFParams.spatial (these control how the algorithms handle spatial components):

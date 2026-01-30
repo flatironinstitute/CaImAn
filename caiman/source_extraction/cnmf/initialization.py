@@ -20,6 +20,7 @@ from sklearn.decomposition import NMF, FastICA
 from sklearn.exceptions import ConvergenceWarning
 from sklearn.utils.extmath import randomized_svd, squared_norm, randomized_range_finder
 import sys
+from typing import Sequence
 import warnings
 
 import caiman
@@ -71,7 +72,7 @@ def decimate_last_axis(y, sub):
     return Y_ds
 
 
-def downscale(Y, ds, opencv=False):
+def downscale(Y, ds: Sequence[int], opencv=False):
     """downscaling without zero padding
     faster version of skimage.transform._warps.block_reduce(Y, ds, np.nanmean, np.nan)"""
     logger = logging.getLogger("caiman")
