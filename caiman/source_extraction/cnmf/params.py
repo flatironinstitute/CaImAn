@@ -15,13 +15,14 @@ from pydantic import (
     PlainSerializer, ValidationError, ValidatorFunctionWrapHandler, ValidationInfo,
     Field, field_validator, model_validator)
 from pydantic.dataclasses import dataclass 
+from pydantic.fields import FieldInfo
 from pydantic_core import SchemaValidator, core_schema, ArgsKwargs
 import scipy.special
 from scipy.ndimage import generate_binary_structure, iterate_structure
 from tabulate import tabulate
 from types import MappingProxyType
 from typing import (Optional, Any, Union, Literal, Annotated,
-                    Mapping, Iterable, TypeVar, ClassVar, cast)
+                    Mapping, Iterator, TypeVar, ClassVar, cast, Type)
 
 import caiman.base.movies
 import caiman.utils.utils
@@ -49,7 +50,7 @@ NDArray = Annotated[InstanceOf[np.ndarray],  # after applying np.asarray, just c
                     PlainSerializer(lambda x: x.tolist())]
 
 Slice = Annotated[
-    Union[
+    Union[  # these are the same base types (slice) but with different validators
         InstanceOf[slice],  # accept existing slices as is
         # anything convertible to a len-3 tuple, with 'NoneType' conversion, can be a slice
         Annotated[slice, ValidateAs(tuple[SafeAny, SafeAny, SafeAny], lambda tup: slice(*tup))]],
@@ -57,21 +58,25 @@ Slice = Annotated[
 ]
 
 
-def warn_shared_param(obj: Any, info: ValidationInfo) -> Any:
+def OnlySetFrom(group: str) -> AfterValidator:
     """
     Warn that a parameter shouldn't be set here.
-    We just warn here (or in change_params), and then change it back to match
-    what is in the init group in check_consistency.
+    We just warn here and then change it back to match
+    what is in the given group in check_consistency.
     """
-    logger = logging.getLogger('caiman')
-    name = info.field_name
-    # skip if the parameter was not actually changed
-    if info.context is None or 'changed_params' not in info.context or name in info.context['changed_params']:
-        logger.warning(f"The '{name}' parameter can only be set in the init part of CNMFParams. "
-                        "Attempts to set it elsewhere are ignored.")
-    return obj
 
-WarnShared = AfterValidator(warn_shared_param)
+    def warn_shared_param(obj: Any, info: ValidationInfo) -> Any:
+
+        logger = logging.getLogger('caiman')
+        name = info.field_name
+        # skip if the parameter was not actually changed
+        if info.context is None or 'changed_params' not in info.context or name in info.context['changed_params']:
+            logger.warning(f"The '{name}' parameter can only be set in the {group} part of CNMFParams. "
+                            "Attempts to set it elsewhere are ignored.")
+        return obj
+    
+    return AfterValidator(warn_shared_param)
+
 
 # string pre-processing to use for string literals
 LiteralType = TypeVar('LiteralType', bound=str)
@@ -94,46 +99,47 @@ class GroupParams(Mapping):
     for subfields of CNMFParams, which have historically been dicts.
     """
     __pydantic_config__ = ConfigDict(extra='forbid')
+    __pydantic_fields__: ClassVar[Mapping[str, FieldInfo]]  # automatic, just declaring for typing purposes
+
     group_name: ClassVar[str]  # name of the attribute on CNMFParams
 
-    def __contains__(self, key: str) -> bool:
-        for field in fields(self):
-            if field.name == key:
-                return True
-        return False
+    @classmethod
+    @cache
+    def fields(cls) -> dict[str, FieldInfo]:
+        return {fname: info for fname, info in cls.__pydantic_fields__.items() if not info.init_var}
+        
 
     def __getitem__(self, key: str) -> Any:
-        if key in self:
+        if key in self.fields():
             return getattr(self, key)
-        else:
-            raise KeyError(key)
+        raise KeyError(key)
     
-    def __iter__(self) -> Iterable[str]:
-        for field in fields(self):
-            yield field.name
+    def __iter__(self) -> Iterator[str]:
+        return iter(self.fields())
     
     def __len__(self) -> int:
-        return len(fields(self))
+        return len(self.fields())
     
     def copy(self) -> dict[str, Any]:
         """Make a copy of the data as a (mutable) dict"""
         # It's safe to assign to a copy, so just make it a (shallow-copied) dict
         return {**self}
 
-    def replace(self: GPSelf, /, **changes) -> GPSelf:
+    def replace(self: GPSelf, warn_unused=True, **changes) -> GPSelf:
         """Create a GroupParams object with the given fields replaced"""
         # add context to prevent complaining when WarnShared types are set,
         # we do still want to copy them though because otherwise we would lose
         # that existing information for no reason
         updated_dict = {**self, **changes}
+        context = {'changed_params': changes.keys(), 'warn_unused': warn_unused}
         ta = TypeAdapter(type(self))
-        return ta.validate_python(updated_dict, context={'changed_params': changes.keys()})
+        return ta.validate_python(updated_dict, context=context)
 
     # support copy.replace (for 3.13 and above)
     __replace__ = replace
 
     
-    def get_differing_params(self: GPSelf, other: GPSelf) -> Iterable[tuple[str, Any, Any]]:
+    def get_differing_params(self: GPSelf, other: GPSelf) -> Iterator[tuple[str, Any, Any]]:
         """
         Returns an iterable of params that are not considered equal
         Each return value is a tuple: (name, this_value, other_value)
@@ -156,11 +162,41 @@ class GroupParams(Mapping):
         else:
             return NotImplemented
 
+
+    @model_validator(mode='before')
     @classmethod
-    @cache
-    def typemap(cls) -> dict[str, Any]:
-        """Just a mapping from field names to types"""
-        return {finfo.name: finfo.type for finfo in fields(cls)}
+    def check_for_extra_fields(cls, data: Any, info: ValidationInfo) -> Any:
+        logger = logging.getLogger('caiman')
+
+        warn_unused = True
+        if info.context is not None and 'warn_unused' in info.context:
+            warn_unused = info.context['warn_unused']
+
+        if isinstance(data, ArgsKwargs):  # from constructor
+            if len(data.args) > 0:
+                # Shouldn't happen, but I think kw_only may be buggy
+                raise TypeError(f'{cls.__name__} does not take positional arguments.')
+            
+            if data.kwargs is None:
+                return data
+            
+            input_dict = data.kwargs
+        elif isinstance(data, dict):  # from validate_* methods
+            input_dict = data
+        else:
+            return data
+        
+        # check for and remove extra fields
+        argnames = tuple(input_dict)
+        for argname in argnames:
+            if argname not in cls.__pydantic_fields__:
+                del input_dict[argname]
+                if warn_unused:
+                    logger.warning(
+                        f'When creating {cls.group_name} params, provided key {argname} was not consumed. '
+                        'This is a bug!')
+        return data
+
 
     @field_validator('*', mode='wrap')
     @classmethod
@@ -174,7 +210,7 @@ class GroupParams(Mapping):
         except ValidationError:
             logger = logging.getLogger('caiman')
             if info.field_name is not None:
-                expected_type = cls.typemap()[info.field_name]
+                expected_type = cls.__pydantic_fields__[info.field_name].annotation
             else:
                 expected_type = None
 
@@ -183,7 +219,6 @@ class GroupParams(Mapping):
                 f'to the expected type {expected_type} and may not be valid.')
             
             return value
-
 
 
 # Parameter group definitions (see docstring of CNMFParams for full documentation)
@@ -322,8 +357,7 @@ class SpatialParams(GroupParams):
     method_ls: LitStr[Literal['nnls_L0', 'lasso_lars']] = 'lasso_lars'
     # number of pixels to be processed by each worker
     n_pixels_per_process: SafeOptional[int] = None
-    # the WarnShared and exclude=True are because this is just copied from the init group
-    nb: Annotated[int, WarnShared] = Field(default=1, exclude=True)  # number of background components
+    nb: Annotated[int, OnlySetFrom('init')] = Field(default=1, exclude=True)  # number of background components
     normalize_yyt_one: bool = True
     nrgthr: float = 0.9999                  # Energy threshold
     # number of process to parallelize residual computation ** DECREASE IF MEMORY ISSUES
@@ -354,8 +388,7 @@ class TemporalParams(GroupParams):
     # if method cvxpy, primary and secondary (if problem unfeasible for approx
     # solution) solvers to be used with cvxpy, can be 'ECOS','SCS' or 'CVXOPT'
     method_deconvolution: LitStr[Literal['cvx', 'cvxpy', 'oasis']] = 'oasis'
-    # the WarnShared and exclude=True are because this is just copied from the init group
-    nb: Annotated[int, WarnShared] = Field(default=1, exclude=True)  # number of background components
+    nb: Annotated[int, OnlySetFrom('init')] = Field(default=1, exclude=True)  # number of background components
     noise_method: LitStr[Literal['mean', 'median', 'logmexp']] = 'mean'  # averaging method
     # range of normalized frequencies over which to average
     noise_range: list[float] = Field(default_factory=lambda: [.25, .5])
@@ -1134,11 +1167,17 @@ class CNMFParams:
             reuse_model: bool, default: False
                 Flag for reusing an already trained model (saved in path to model)
     """
+    __pydantic_config__ = ConfigDict(extra='forbid')
+    __pydantic_fields__: ClassVar[Mapping[str, FieldInfo]]  # automatic, just declaring for typing purposes
 
-    # here we allow extra arguments to the constructor, for flat params (deprecated)
-    __pydantic_config__ = ConfigDict(extra='allow')
+    # mapping of alternate names of flat params (previously used in constructor) to their canonical names
+    flat_param_renames: ClassVar[dict[str, str]] = {
+        'only_init_patch': 'only_init',
+        'k': 'K',
+        'gnb': 'nb',
+    }
 
-    # # init-only params - these are the normal arguments to the constructor
+    # init-only params - these are the normal arguments to the constructor
     params_from_file: InitVar[Union[str, Path, None]] = None
     params_dict: InitVar[Optional[dict[str, Any]]] = None
 
@@ -1159,64 +1198,47 @@ class CNMFParams:
     @cached_property
     def groups(self) -> list[str]:
         return [f.name for f in fields(self)]
+
+    
+    @classmethod
+    @cache
+    def get_group_types(cls) -> dict[str, Type[GroupParams]]:
+        """Get name and type of each group params object. Depends on these being the only fields."""
+        groups: dict[str, Type[GroupParams]] = {}
+        for info in fields(cls):
+            assert isinstance(info.type, type) and issubclass(info.type, GroupParams), \
+                'Each field should be a GroupParams subclass'
+            groups[info.name] = info.type
+        return groups
     
 
     @model_validator(mode='before')
     @classmethod
-    def _constructor_arg_parser(cls, data: Any) -> Any:
+    def _combine_parameters(cls, data: Any) -> Any:
         """
-        When creating from constructor, if params_dict or params_from_file is passed,
-        directly load parameters and change data passed on to validators.
-        This allows bypassing change_params when just loading from a dict or JSON file,
-        and we can detect if the user tries to give combinations of arguments that don't make sense.
+        Combine nested and/or flat parameters from JSON, params_dict, and/or direct arguments
+        to a single neseted dict and pass this on to the dataclass constructor.
+        This avoids multiple rounds of validation and check_consistency.
         """
-        if not isinstance(data, ArgsKwargs):  # type used for constructor
+        if isinstance(data, ArgsKwargs):  # from constructor  
+            if len(data.args) > 0:
+                # Shouldn't happen, but I think kw_only may be buggy
+                raise TypeError('CNMFParams() does not take positional arguments.')
+            
+            if data.kwargs is None:
+                return data
+            
+            input_dict = data.kwargs
+        elif isinstance(data, dict):  # from validate_* method of TypeAdapter
+            input_dict = data
+        else:
             return data
         
-        if len(data.args) > 0:
-            # Shouldn't happen, but I think kw_only may be buggy
-            raise TypeError('CNMFParams() does not take positional arguments.')
-            
-        if data.kwargs is None:
-            return data
-
-        # Order: First JSON, then params_dict, finally individual dicts
+        # Order: First JSON, then params_dict, finally individual arguments
         # No support for combining full GroupParams objects with JSON or params_dict
         # (will work for params_dict if the top-level keys don't overlap)
-        kwargs = data.kwargs.copy()
+        kwargs = input_dict.copy()
         new_kwargs: dict[str, Any] = {}
-        groups = {f.name: f.type for f in fields(cls)}
-
-        def update_new_kwargs(params_dict: dict[str, Any]):
-            """
-            Add or apply updates from a higher-precedent initialization method
-            but disallow updating from a GroupParams object because because we have
-            no way of knowing which params were user-specified (or even if we
-            did it would be mysterious behavior)
-            """
-            for key, val in params_dict.items():
-                if key not in groups or key not in new_kwargs:
-                    # just overwrite
-                    new_kwargs[key] = val
-                else:
-                    if isinstance(val, GroupParams):
-                        raise ValueError(
-                            'Parameter objects cannot be combined with other parameters '
-                            f'passed for the same group ({key}). Please use only one '
-                            'initialization method, or supply overrides as dicts.')
-                    
-                    if not isinstance(val, Mapping):
-                        raise ValueError(f'Parameters for group {key} must be supplied as a dict or {groups[key]} object')
-                    
-                    # actually do the update
-                    curr_val = new_kwargs[key]
-                    if isinstance(curr_val, GroupParams):
-                        new_kwargs[key] = curr_val.replace(**val)
-                    elif isinstance(curr_val, dict):
-                        new_kwargs[key].update(val)
-                    else:
-                        raise ValueError(f'Parameters for group {key} must be supplied as a dict or {groups[key]} object')
-
 
         if (params_from_file := kwargs.pop('params_from_file', None)) is not None:
             with open(params_from_file, 'r') as fh:
@@ -1225,33 +1247,24 @@ class CNMFParams:
             if not isinstance(loaded_data, dict):
                 raise ValueError('Params loaded from JSON must be a dict')
             
-            update_new_kwargs(loaded_data)
+            cls.update_nested_params(nested_params=new_kwargs, new_params=loaded_data)
         
         if (params_dict := kwargs.pop('params_dict', None)) is not None:
-            # each entry of params_dict can just be accepted as a keyword argument
             if not isinstance(params_dict, dict):
                 raise ValueError('params_dict must be a dict')
 
-            update_new_kwargs(params_dict)
+            cls.update_nested_params(nested_params=new_kwargs, new_params=params_dict)
         
         # add group params and flat params passed as keyword arguments
-        update_new_kwargs(kwargs)
+        cls.update_nested_params(nested_params=new_kwargs, new_params=kwargs)
     
-        return ArgsKwargs(args=(), kwargs=new_kwargs)
+        return new_kwargs
 
     
-    def __post_init__(self, params_from_file, params_dict):
-        """Update the object with any (deprecated) flat parameters that were passed in"""
-        # hack to exclude dataclass fields and properties
-        extra_args = set(self.__dict__) - set(type(self).__dict__)
-        params = {key: self.__dict__.pop(key) for key in extra_args}
-        
-        if params:
-            self.change_params(params)
-        else:
-            # avoid one extra consistency check by putting it here
-            self.check_consistency()
-    
+    @model_validator(mode='after')
+    def _check_post_validation(self):
+        self.check_consistency()
+        return self
 
     def check_consistency(self):
         """ Populates the params object with some dataset dependent values
@@ -1441,9 +1454,9 @@ class CNMFParams:
         if group in self.groups:
             return getattr(self, group)
         raise KeyError(f'No group in CNMFParams named {group}')
-
     
-    def get_differing_params(self, other: 'CNMFParams') -> Iterable[tuple[str, Any, Any]]:
+    
+    def get_differing_params(self, other: 'CNMFParams') -> Iterator[tuple[str, Any, Any]]:
         for groupname in self.groups:
             this_group = self.get_group(groupname)
             other_group = other.get_group(groupname)
@@ -1480,7 +1493,7 @@ class CNMFParams:
                 table_rows = []
                 for mismatch in mismatched:
                     group, param = mismatch[0].split('.')
-                    param_type = self.get_group(group).typemap()[param]
+                    param_type = self.get_group(group).__pydantic_fields__[param].annotation
                     if isinstance(param_type, type):
                         typename = param_type.__name__
                     else:
@@ -1510,13 +1523,77 @@ class CNMFParams:
 
         return 'CNMFParams:\n\n' + '\n\n'.join(formatted_outputs)
 
-    def change_params(self, params_dict, allow_legacy=True, warn_unused=True, verbose=True) -> None:
+
+    @classmethod
+    def update_nested_params(cls, nested_params: dict[str, dict], new_params: Mapping[str, Any],
+                             allow_legacy=True, warn_unused=True) -> dict[str, dict]:
+        """
+        Update a nested params dict with a dict potentially containing both flat and nested params.
+        Keys are processed in order, later ones overriding earlier ones,
+        but a warning is logged for each override. Does not check nested keys for validity.
+
+
+        Pre-constructed objects of GroupParams subtypes are accepted under the group top-level keys,
+        but only if no params have previously been processed from that group (including existing keys in
+        nested_dict_in) because we don't know which params are user-specified vs. defaults.
+        """
+        logger = logging.getLogger('caiman')
+        groups = cls.get_group_types()
+
+        legacy_used = False
+        for paramkey, paramval in new_params.items():
+             # Handle proper pathed part. Latter half of the conditional is because of scoped keys with the same name as categories, because we apparently have those. ring_CNN is an example.
+            if paramkey in groups and isinstance(paramval, (dict, GroupParams)):
+                if paramkey not in nested_params:
+                    if len(paramval) > 0:
+                        nested_params[paramkey] = paramval.copy()
+                elif isinstance(paramval, GroupParams):
+                    raise ValueError(f'Cannot override other params for the {paramkey} group with a {type(paramval).__name__} object')
+                else: # updating existing dict with a dict
+                    overridden_keys = nested_params[paramkey].keys() & paramval.keys()
+                    for subkey in overridden_keys:
+                        logger.warning(f'Top-level parameter {subkey} was overridden by nested parameter {paramkey}/{subkey} - was this intended?') 
+                    nested_params[paramkey].update(paramval)  # don't check every subkey here, they will be checked in GroupParams validator
+            
+            # BEGIN code that we will remove in some future version of caiman
+            elif allow_legacy:
+                paramkey_orig = paramkey
+                if paramkey in cls.flat_param_renames:
+                    # search for the renamed name (luckily there are not any that use different names for different groups)
+                    paramkey = cls.flat_param_renames[paramkey]
+
+                found = False
+                for group, group_class in groups.items():
+                    if paramkey in group_class.fields(): # Is it known?
+                        found = True
+                        if group not in nested_params:
+                            nested_params[group] = {paramkey: paramval}
+                        else:
+                            if paramkey in nested_params[group]:  # works for dicts or GroupParams
+                                logger.warning(f'Parameter {group}/{paramkey} was overridden by top-level parameter {paramkey_orig} - was this intended?')
+
+                            nested_params[group][paramkey] = paramval                
+                if found:
+                    legacy_used = True
+                elif warn_unused:
+                    logger.warning(f"In setting CNMFParams, provided toplevel key {paramkey_orig} was not consumed. This is a bug!")
+            # END
+            else:
+                raise ValueError(f'Key {paramkey} does not match a parameter group, or the value is not a dictionary.')
+        
+        if legacy_used:
+            logger.warning("In setting CNMFParams, non-pathed parameters were used; this is deprecated. "
+                           "In some future version of Caiman, allow_legacy will default to False (and eventually will be removed).")
+
+        return nested_params
+
+
+    def change_params(self, params_dict: dict[str, Any], allow_legacy=True, warn_unused=True, verbose=False) -> None:
         """ Method for updating the params object by providing a dictionary.
 
         Args:
             params_dict: dictionary with parameters to be changed. Values may be in raw format
-                         read directly from JSON; they will be converted using pydantic.
-            verbose: If true, will complain about types that don't match the schema.
+                         read directly from JSON; they will be converted based on each field's declared type.
             allow_legacy: If True, throw a deprecation warning and then attempt to
                           handle unconsumed keys using the older copy-it-everywhere logic.
                           We will eventually remove this option and the corresponding code.
@@ -1524,63 +1601,19 @@ class CNMFParams:
                          were never used in populating the Params object. You really should not
                          set this to False. Fix your code.
         """
-        logger = logging.getLogger("caiman")
-        # When we're ready to remove allow_legacy, this code will get a lot simpler
-
         # First collect updates in the nested format (and remove those that don't match any real param)
-        updates = {group: {} for group in self.groups}
-
-        legacy_used = False # So we don't nag people multiple times in the same call
-        for paramkey, paramval in params_dict.items():
-            if paramkey in self.groups and isinstance(paramval, dict): # Handle proper pathed part. Latter half of the conditional is because of scoped keys with the same name as categories, because we apparently have those. ring_CNN is an example.
-                curr_group = self.get_group(paramkey)
-                for subkey, subval in paramval.items():
-                    if subkey not in curr_group and warn_unused:  # note this includes params excluded from serialization by design
-                        # For regular/pathed API, we can notice right away if the user gave us something that won't update the object
-                        logger.warning(f"In setting CNMFParams, provided key {paramkey}/{subkey} was not consumed. This is a bug!")
-                    else:
-                        updates[paramkey][subkey] = subval
-
-            # BEGIN code that we will remove in some future version of caiman
-            elif allow_legacy:
-                if paramkey in self._groups_for_flat_param:  # Known which group(s) to update
-                    legacy_used = True
-                    groups = self._groups_for_flat_param[paramkey]
-                    for group in groups if isinstance(groups, list) else (groups,):
-                        if isinstance(group, tuple):
-                            # rename key for this group
-                            subkey = group[1]
-                            group = group[0]
-                        else:
-                            subkey = paramkey
-                        updates[group][subkey] = paramval
-                else:
-                    groups = []
-                    for group in self.groups:
-                        if paramkey in self.get_group(group): # Is it known?
-                            groups.append(paramkey)
-                            updates[group][paramkey] = paramval
-                    
-                    if len(groups) > 0:
-                        legacy_used = True
-                        logger.warning(
-                            f"Parameter {paramkey} is not recommended/tested at the top level of params_dict. This parameter "
-                            f"was found and changed in the following group(s): {','.join(groups)}. "
-                             "If this is incorrect, specify the groups directly using {group: {param: value}} syntax.")
-                    elif warn_unused:
-                        logger.warning(f"In setting CNMFParams, provided key {paramkey} was unused. This is a bug!")
-
-        if legacy_used:
-            logger.warning(f"In setting CNMFParams, non-pathed parameters were used; this is deprecated. In some future version of Caiman, allow_legacy will default to False (and eventually will be removed)")
-
-        # END
+        # Start with an empty dict for each group, to prevent passing GroupParams objects (since that would
+        # confusingly override all params for that group)
+        nested_params = {group: {} for group in self.groups}
+        self.update_nested_params(
+            nested_params=nested_params, new_params=params_dict, allow_legacy=allow_legacy, warn_unused=warn_unused)
 
         # now update each group, attempting to convert each value
-        for group, group_updates in updates.items():
+        for group, group_updates in nested_params.items():
             if group_updates:
                 # update group, bypassing frozen
                 group_params = self.get_group(group)
-                object.__setattr__(self, group, group_params.replace(**group_updates))
+                object.__setattr__(self, group, group_params.replace(warn_unused=warn_unused, **group_updates))
 
         self.check_consistency()
 
@@ -1606,46 +1639,3 @@ class CNMFParams:
         with open(json_fn, 'r') as json_fh:
             jsonstring = json_fh.read()
         return cls.from_json(jsonstring)
-
-
-    # Mapping from valid keyword arguments of init to the names of the parameter group(s)
-    # that should accept it, or tuples (group, name_for_group) if the parameter
-    # needs to be renamed when passing it to the group. This is a way of still
-    # allowing the same keyword arguments without duplicating the default values
-    # within the parameter list of __init__. We don't allow all sub-parameter names
-    # because this is a deprecated interface and it should be possible to make new 
-    # sub-parameters with conflicting names that are only compatible with the 
-    # new nested parameter syntax.
-    # It's important that the dict() syntax is used with the kwarg names as the 
-    # kwargs so that any accidental duplicate names are caught as a syntax error.
-    _groups_for_flat_param: ClassVar = MappingProxyType(dict(  # MappingProxyType makes it immutable
-        fnames='data', dims='data', fr='data', decay_time='data', dxy='data',
-        var_name_hdf5='data',
-        border_pix='patch', del_duplicates='patch', low_rank_background='patch', memory_fact='patch',
-        n_processes='patch', nb_patch='patch', only_init='patch', only_init_patch=('patch', 'only_init'),
-        remove_very_bad_comps='patch', rf='patch', skip_refinement='patch', p_ssub='patch',
-        stride='patch', p_tsub='patch',
-        check_nan='preprocess',
-        K='init', k=('init', 'K'), alpha_snmf='init', center_psf='init', gSig='init', gSiz='init',
-        init_iter='init', method_init='init', min_corr='init', min_pnr='init', normalize_init='init',
-        options_local_NMF='init', ring_size_factor='init', rolling_length='init', rolling_sum='init',
-        ssub='init', ssub_B='init', tsub='init', gnb=('init', 'nb'),  # updated in other groups in check_consistency
-        num_blocks_per_run_spat='spatial', update_background_components='spatial',
-        block_size_temp='temporal', method_deconvolution='temporal', num_blocks_per_run_temp='temporal',
-        s_min='temporal',
-        do_merge='merging', merge_thresh='merging',
-        N_samples_exceptionality='online', batch_update_suff_stat='online', expected_comps='online',
-        iters_shape='online', max_comp_updated_shape='online', max_num_added='online', min_num_trial='online',
-        minibatch_shape='online', minibatch_suff_stat='online', n_refit='online',
-        num_times_comp_updated='online', simultaneously='online', sniper_mode='online', test_both='online',
-        thresh_CNN_noisy='online', thresh_fitness_delta='online', thresh_fitness_raw='online',
-        thresh_overlap='online', update_freq='online', update_num_comps='online', use_corr_img='online',
-        use_dense='online', use_peak_max='online',
-
-        # parameters shared between multiple subgroups
-        n_pixels_per_process=['preprocess', 'spatial'],
-        p=['preprocess', 'temporal'],
-        min_SNR=['quality', 'online'],
-        rval_thr=['quality', 'online'],
-        max_merge_area=[]  # keep for backwards compat. I guess
-    ))    

@@ -158,6 +158,10 @@ def test_change_params_nested():
     assert params_changed_flat == params_changed_nested, \
         'Equivalent flat and nested params changes should result in equal CNMFParams objects. Differences: ' + \
         tabulate_differing_params(params_changed_flat, params_changed_nested)
+    
+    # should not allow changing with a GroupParams object
+    with pytest.raises(ValueError):
+        params_changed_nested.change_params({'init': params.InitParams()})
 
 
 def test_flat_constructor():
@@ -250,7 +254,7 @@ def test_mixed_constructor(tmp_path):
             params_dict=dict_params, init=params.InitParams(K=45, center_psf=True))
     
     errs = ve.value.errors()
-    assert len(errs) == 1 and 'cannot be combined' in errs[0]['msg'], \
+    assert len(errs) == 1 and 'Cannot override other params' in errs[0]['msg'], \
         'Trying to override param group with an object should raise an error'
 
 
