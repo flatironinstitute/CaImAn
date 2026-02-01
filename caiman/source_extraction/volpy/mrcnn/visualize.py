@@ -9,6 +9,7 @@ Written by Waleed Abdulla
 Revised by Eric Thompson, Changjia Cai, and Manuel Paez 
 """
 
+import colorsys
 import numpy as np
 import matplotlib
 import matplotlib.pyplot as plt
@@ -45,7 +46,7 @@ def apply_mask(image: np.ndarray, mask: np.ndarray,
                                   image[:, :, c])
     return image
 
-def apply_masks(image: np.ndarray, mask: np.ndarray, 
+def apply_masks(image: np.ndarray, data_masks: np.ndarray, 
             color: tuple[float, float, float], alpha: float = 0.5) -> np.ndarray:
     """
     Applies a single mask to an image.
@@ -176,7 +177,7 @@ def draw_box(box: np.ndarray, color: str = 'white', ax: plt.Axes = None,
         - rect (patches.Rectangle): The created matplotlib Rectangle object.
     """
     if ax is None:
-        ax = pl.gca()
+        ax = plt.gca()
         
     box_origin = (box[0], box[1])
     box_height = box[3] - box[1] 
@@ -193,7 +194,7 @@ def draw_box(box: np.ndarray, color: str = 'white', ax: plt.Axes = None,
 
     return ax, rect
 
-def draw_boxes(box: np.ndarray, color: str = 'white', ax=None, 
+def draw_boxes(boxes: np.ndarray, color: str = 'white', ax=None, 
             line_width: float = 0.5) -> tuple[plt.Axes, patches.Rectangle]:
     """
     Draws a single bounding box on a given axes object.
@@ -209,7 +210,7 @@ def draw_boxes(box: np.ndarray, color: str = 'white', ax=None,
         A tuple containing the axes object and the created Rectangle patch.
     """
     if ax is None:
-        ax = pl.gca()
+        ax = plt.gca()
 
     num_boxes = len(boxes)
     all_rects = []
@@ -253,35 +254,35 @@ def plot_volpy_segs(image: np.ndarray,
     # Mean
     ax1.imshow(image[:,:,1], cmap='gray', 
                vmin=np.percentile(image[:,:,1], min_v), 
-               vmax=np.percentile(image[:,:,1], max_v));
+               vmax=np.percentile(image[:,:,1], max_v))
     ax1.set_title('Mean Image')
     ax2.imshow(image[:,:,1], cmap='gray', 
                vmin=np.percentile(image[:,:,1], min_v), 
-               vmax=np.percentile(image[:,:,1], max_v));
+               vmax=np.percentile(image[:,:,1], max_v))
     for mask in masks:
         ax2.plot(mask['all_points_x'], 
                  mask['all_points_y'], 
                  color=outline_color, 
-                 linewidth=outline_width);
+                 linewidth=outline_width)
     ax2.set_title('Mean Image Seg')
     
     # Corr
     ax3.imshow(image[:,:,2], cmap='gray', 
                vmin=np.percentile(image[:,:,2], min_v), 
-               vmax=np.percentile(image[:,:,2], max_v));
+               vmax=np.percentile(image[:,:,2], max_v))
     ax3.set_title('Corr Image')
     ax4.imshow(image[:,:,2], cmap='gray', 
                vmin=np.percentile(image[:,:,2], min_v), 
-               vmax=np.percentile(image[:,:,2], max_v));
+               vmax=np.percentile(image[:,:,2], max_v))
     for mask in masks:
         ax4.plot(mask['all_points_x'], 
                  mask['all_points_y'], 
                  color=outline_color, 
-                 linewidth=outline_width);
+                 linewidth=outline_width)
     ax4.set_title('Corr Image Seg')
 
     if title is not None:
-        plt.suptitle(title, y=0.99, fontsize=16);
+        plt.suptitle(title, y=0.99, fontsize=16)
         
     plt.tight_layout()
 
