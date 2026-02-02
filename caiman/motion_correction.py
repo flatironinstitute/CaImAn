@@ -466,10 +466,12 @@ class MotionCorrect(object):
                 shifts_opencv=self.shifts_opencv, upsample_factor_grid=self.upsample_factor_grid)
 
             # if only a portion of the original image was used, offset/multiply patch centers to now apply to the whole movie
-            patch_centers = tuple([
-                list(dim_inds.start + dim_inds.step * np.array(dim_centers_orig))
-                for dim_inds, dim_centers_orig in zip(self.indices, patch_centers_orig)
-            ])
+            # compute one dimension at a time.
+            patch_centers = tuple([] for _ in patch_centers_orig)
+            for dim_inds, dim_centers_orig, dim_centers in zip(self.indices, patch_centers_orig, patch_centers):
+                start = dim_inds.start if dim_inds.start is not None else 0
+                step = dim_inds.step if dim_inds.step is not None else 1
+                dim_centers.extend([start + step * center for center in dim_centers_orig])
 
             # force shifts_interpolate if there was any cropping - easier than making a special-case path that
             # resizes the shifts and extrapolates to the border but doesn't fully take patch centers into account
