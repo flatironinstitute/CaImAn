@@ -126,6 +126,7 @@ class timeseries(np.ndarray):
              compress=0,
              q_max=99.75,
              q_min=1,
+             is_color = True,
              var_name_hdf5='mov',
              sess_desc='some_description',
              identifier='some identifier',
@@ -247,7 +248,7 @@ class timeseries(np.ndarray):
                 data = data.astype(np.uint8)
                 
             y, x = data[0].shape
-            vw = cv2.VideoWriter(file_name, codec, self.fr, (x, y), isColor=True)
+            vw = cv2.VideoWriter(file_name, codec, self.fr, (x, y), isColor=is_color)
             for d in data:
                 vw.write(cv2.cvtColor(d, cv2.COLOR_GRAY2BGR))
             vw.release()
