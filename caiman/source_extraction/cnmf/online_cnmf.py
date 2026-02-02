@@ -363,7 +363,7 @@ class OnACID(object):
             self.params.set('online', {'sniper_mode': False}, warn=False)
         else:
             logger.info('Using Keras with PyTorch backend')
-            model_name = self.params.get('online', 'path_to_model').split(".")[0]  # Remove extension
+            model_name = os.path.splitext(self.params.get('online', 'path_to_model'))[0]  # Remove extension
 
             if os.path.isfile(os.path.join(caiman_datadir(), model_name + ".pkl")):
                 with open(os.path.join(caiman_datadir(), model_name + ".pkl"), 'rb') as f:

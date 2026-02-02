@@ -42,7 +42,7 @@ from caiman.source_extraction.cnmf.params import CNMFParams
 from caiman.source_extraction.cnmf.pre_processing import preprocess_data
 from caiman.source_extraction.cnmf.spatial import update_spatial_components
 from caiman.source_extraction.cnmf.temporal import update_temporal_components, constrained_foopsi_parallel
-from caiman.source_extraction.cnmf.utilities import update_order
+from caiman.source_extraction.cnmf.utilities import update_order, all_same
 from caiman.utils.utils import save_dict_to_hdf5, load_dict_from_hdf5, hdf5_runmode
 
 
@@ -740,7 +740,7 @@ def load_CNMF(filename:str, n_processes=1, dview=None):
                 estims = Estimates()
                 for kk, vv in val.items():
                     if kk == 'discarded_components':
-                        if vv is not None and vv != b'NoneType':
+                        if vv is not None and not all_same(vv, b'NoneType'):
                             discarded_components = Estimates()
                             for kk__, vv__ in vv.items():
                                 setattr(discarded_components, kk__, vv__)
@@ -751,7 +751,7 @@ def load_CNMF(filename:str, n_processes=1, dview=None):
                 setattr(new_obj, key, estims)
             else:
                 setattr(new_obj, key, val)
-        if new_obj.estimates.dims is None or new_obj.estimates.dims == b'NoneType':
+        if new_obj.estimates.dims is None or all_same(new_obj.estimates.dims, b'NoneType'):
             new_obj.estimates.dims = new_obj.dims
     elif file_extension == '.nwb':
         with pynwb.NWBHDF5IO(filename, 'r') as io:
