@@ -1,0 +1,20 @@
+The provenance system is designed to make it possible, given an hdf5 file (and possibly other serialisations) that
+came from Caiman, to tell roughly how it came about. It may be impossible (or overly burdensome) to provide enough
+information to reliably entirely reproduce the file, but we can at least make a good-shot effort that will
+disambiguate common cases.
+
+The design is as follows:
+In the cnmf object there is a toplevel list of provenance entries representing the linear history of the object, covering
+processing steps, timestamps, and perhaps a limited representation of parameters for the processing steps. Each list entry
+will have (at least) the following elements, stored as a small dictionary:
+	event       (str) - A stable, small-string representation for the event
+	time        (int) - An epochtime representation for the event
+	description (str) - A plain-text description of the event. We will not encode parameters into this in any way, but we may
+		reword it as the software goes on; it is not necessarily stable and is not good for software parsing the
+		provenance to look at. If we ever add an i8n/localisation system to Caiman, these strings will be localised
+
+This lands in the hdf5 file as a single json-encoded string, saved as an attribute called 'provenance'.
+
+Some events will have additional fields to partly-or-wholly represent parameters to the code generating the event. These fields
+may have any datatype, provided they can be serialised/deserialised cleanly into json(no handles to live code objects).
+

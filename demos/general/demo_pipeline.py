@@ -178,7 +178,8 @@ def main():
 
     # Stop the cluster and clean up log files
     caiman.stop_server(dview=dview)
-    matplotlib.pyplot.show(block=True)
+    if not cfg.no_play:
+        matplotlib.pyplot.show(block=True)
 
     if not cfg.keep_logs:
         log_files = glob.glob('*_LOG_*')

@@ -363,5 +363,4 @@ Section 4C: Other topics
 See also:
 
 * :doc:`Our clustering doc <cluster>`
-* :doc:`Caiman and GPUs <readme-gpu>`
 

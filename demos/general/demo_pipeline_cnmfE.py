@@ -69,8 +69,10 @@ def main():
                                          np.max(np.abs(mc.y_shifts_els)))).astype(int)
         else:
             bord_px = np.ceil(np.max(np.abs(mc.shifts_rig))).astype(int)
-            plt.subplot(1, 2, 1); plt.imshow(mc.total_template_rig)  # plot template
-            plt.subplot(1, 2, 2); plt.plot(mc.shifts_rig)  # plot rigid shifts
+            plt.subplot(1, 2, 1)
+            plt.imshow(mc.total_template_rig)  # plot template
+            plt.subplot(1, 2, 2)
+            plt.plot(mc.shifts_rig)  # plot rigid shifts
             plt.legend(['x shifts', 'y shifts'])
             plt.xlabel('frames')
             plt.ylabel('pixels')

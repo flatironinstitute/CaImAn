@@ -15,6 +15,7 @@ import contextlib
 import cv2
 import h5py
 import inspect
+import json
 import logging
 import matplotlib.pyplot as plt
 import multiprocessing
@@ -343,73 +344,6 @@ def load_object(filename:str) -> Any:
         obj = pickle.load(input_obj)
     return obj
 
-def apply_magic_wand(A, gSig, dims, A_thr=None, coms=None, dview=None,
-                     min_frac=0.7, max_frac=1.0, roughness=2, zoom_factor=1,
-                     center_range=2) -> np.ndarray:
-    """ Apply cell magic Wand to results of CNMF to ease matching with labels
-
-    Args:
-        A:
-            output of CNMF
-    
-        gSig: tuple
-            input of CNMF (half neuron size)
-    
-        A_thr:
-            thresholded version of A
-    
-        coms:
-            centers of the magic wand
-    
-        dview:
-            for parallelization
-    
-        min_frac:
-            fraction of minimum of gSig to take as minimum size
-    
-        max_frac:
-            multiplier of maximum of gSig to take as maximum size
-
-    Returns:
-        masks: ndarray
-            binary masks
-    """
-    logger = logging.getLogger("caiman")
-
-    if (A_thr is None) and (coms is None):
-        import pdb
-        pdb.set_trace()
-        A_thr = caiman.source_extraction.cnmf.spatial.threshold_components(
-                        A.tocsc()[:], dims, medw=None, thr_method='max',
-                        maxthr=0.2, nrgthr=0.99, extract_cc=True,se=None,
-                        ss=None, dview=dview) > 0
-
-        coms = [scipy.ndimage.center_of_mass(mm.reshape(dims, order='F')) for
-                mm in A_thr.T]
-
-    if coms is None:
-        coms = [scipy.ndimage.center_of_mass(mm.reshape(dims, order='F')) for
-                mm in A_thr.T]
-
-    min_radius = np.round(np.min(gSig)*min_frac).astype(int)
-    max_radius = np.round(max_frac*np.max(gSig)).astype(int)
-
-
-    params = []
-    for idx in range(A.shape[-1]):
-        params.append([A.tocsc()[:,idx].toarray().reshape(dims, order='F'),
-            coms[idx], min_radius, max_radius, roughness, zoom_factor, center_range])
-
-    logger.debug(len(params))
-
-    if dview is not None:
-        masks = np.array(list(dview.map(cell_magic_wand_wrapper, params)))
-    else:
-        masks = np.array(list(map(cell_magic_wand_wrapper, params)))
-
-    return masks
-
-
 def cell_magic_wand_wrapper(params):
     a, com, min_radius, max_radius, roughness, zoom_factor, center_range = params
     msk = caiman.external.cell_magic_wand.cell_magic_wand(
@@ -435,6 +369,9 @@ def save_dict_to_hdf5(dic:dict, filename:str, subdir:str='/') -> None:
 
     with h5py.File(filename, 'w') as h5file:
         recursively_save_dict_contents_to_group(h5file, subdir, dic)
+        if 'provenance' in dic:
+            prov_json = json.dumps(dic['provenance'])
+            h5file.attrs.create('provenance', dtype=h5py.string_dtype(length=None), data=prov_json)
 
 def load_dict_from_hdf5(filename:str) -> dict:
     ''' Load dictionary from hdf5 file
@@ -447,8 +384,20 @@ def load_dict_from_hdf5(filename:str) -> dict:
     '''
 
     with h5py.File(filename, 'r') as h5file:
-        return recursively_load_dict_contents_from_group(h5file, '/')
+        ret = recursively_load_dict_contents_from_group(h5file, '/')
+        if 'provenance' in h5file.attrs:
+            prov = json.loads(h5file.attrs['provenance'])
+            ret['provenance'] = prov
+        # TODO: Add code to look for and load provenance entries, json-decoding them
+        return ret
 
+def hdf5_runmode(filename:str) -> str:
+    ''' Load and return the runmode used to generate the hdf5 file, useful to make sure you're loading the type you think you are '''
+    with h5py.File(filename, 'r') as h5file:
+        if 'runmode' in h5file.attrs:
+            return h5file.attrs['runmode'] # Key is set in constructors of OnAcid and CNMF classes and carried forward thr serialisation
+        else:
+            return 'UNKNOWN' # For older files, or people opening the wrong file
 
 def recursively_save_dict_contents_to_group(h5file:h5py.File, path:str, dic:dict) -> None:
     '''
@@ -476,9 +425,10 @@ def recursively_save_dict_contents_to_group(h5file:h5py.File, path:str, dic:dict
         key = str(key)
         #Fix: Add a check to skip non-serializable PyTorch bojects
         if isinstance(item, torch.device) or isinstance(item, torch.nn.Module):
-            logger.info(f"Skipping key '{key}' or non-serializabel type {type(item)}")
+            logger.info(f"Skipping key '{key}' or non-serializable type {type(item)}")
             continue
-        
+        if key == 'provenance':
+            continue # Handle this elsewhere
         if key == 'g':
             if item is None:
                 item = 0
@@ -496,7 +446,7 @@ def recursively_save_dict_contents_to_group(h5file:h5py.File, path:str, dic:dict
 
         if isinstance(item, (list, tuple)):
             if len(item) > 0 and all(isinstance(elem, str) for elem in item):
-                item = np.string_(item)
+                item = np.bytes_(item)
             else:
                 item = np.array(item)
         if not isinstance(key, str):
@@ -566,6 +516,8 @@ def recursively_load_dict_contents_from_group(h5file:h5py.File, path:str) -> dic
         ans[akey] = aitem
 
     for key, item in h5file[path].items():
+        if key == 'provenance':
+            continue # Handle this elsewhere
         if isinstance(item, h5py._hl.dataset.Dataset):
             val = item[()]
             if isinstance(val, str) and val == 'NoneType' or isinstance(val, bytes) and val == b'NoneType':

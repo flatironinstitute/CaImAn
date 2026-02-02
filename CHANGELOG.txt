@@ -1,6 +1,6 @@
 Please check this file after new releases; it will cover (only) major changes or changes that will impact how CaImAn runs, and will not generally cover new features or minor changes (see the version history on Github for that). Most recent changes are at the top.
 
-1.12.3
+1.13.0
 ------
 Tensorflow is removed, pytorch is added
 

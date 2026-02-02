@@ -8,13 +8,22 @@ one photon data using a "ring-CNN" background model.
 import os
 os.environ["KERAS_BACKEND"] = "torch"
 
-import keras 
-from keras.callbacks import ModelCheckpoint, EarlyStopping, LearningRateScheduler
-from keras.initializers import Constant, RandomUniform
-from keras.layers import Input, Dense, Reshape, Layer, Activation
-from keras.models import Model
-import keras.ops as ops  
-from keras.optimizers import Adam
+try:
+    import keras_core as keras
+    from keras_core.callbacks import ModelCheckpoint, EarlyStopping, LearningRateScheduler
+    from keras_core.initializers import Constant, RandomUniform
+    from keras_core.layers import Input, Dense, Reshape, Layer, Activation
+    from keras_core.models import Model
+    import keras_core.ops as ops
+    from keras_core.optimizers import Adam
+except ImportError:
+    import keras
+    from keras.callbacks import ModelCheckpoint, EarlyStopping, LearningRateScheduler
+    from keras.initializers import Constant, RandomUniform
+    from keras.layers import Input, Dense, Reshape, Layer, Activation
+    from keras.models import Model
+    import keras.ops as ops
+    from keras.optimizers import Adam
 import numpy as np
 import time
 import torch 
@@ -243,7 +252,7 @@ def rate_scheduler(factor=0.5, epoch_length=200, samples_length=1e4):
         return rate
     return my_scheduler
 
-def total_variation(image):
+def total_variation(images):
     """
     Implements PyTorch version of the the anisotropic 2-D version of the formula described here:
     https://en.wikipedia.org/wiki/Total_variation_denoising
@@ -259,7 +268,7 @@ def total_variation(image):
     Returns:
         The total variation of `images`.
     """
-    ndim = image.ndim
+    ndim = images.ndim
     if ndim == 3: 
         # The input is a single image with shape [height, width, channels].
 
@@ -268,7 +277,7 @@ def total_variation(image):
         pixel_dif1 = images[1:, :, :] - images[:-1, :, :]
         pixel_dif2 = images[:, 1:, :] - images[:, :-1, :]
         sum_axis = None
-    elif ndims == 4:
+    elif ndim == 4:
         # The input is a batch of images with shape:
         # [batch, height, width, channels].
 
@@ -535,3 +544,4 @@ def get_MCNN_model(Y, gSig=5, n_channels=8, lr=1e-4, pct=10, r_factor=1.5,
     model_NL = fit_NL_model(model_NL, Y, patience=patience, val_split=val_split,
                             batch_size=batch_size, epochs=epochs)
     return model_NL
+

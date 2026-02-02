@@ -38,6 +38,7 @@ export MPLCONFIG=ps
 cd `dirname ${BASH_SOURCE[0]}`
 
 for demo in demos/general/*.py; do
+        extra_args=""
 	if [ $demo == "demos/general/demo_behavior.py" ]; then
 		echo "	Skipping tests on $demo: This is interactive"
 	elif [ $demo == "demos/general/demo_pipeline_voltage_imaging.py" ]; then
@@ -46,15 +47,22 @@ for demo in demos/general/*.py; do
 		echo "	Skipping tests on $demo: Skip for interactivity"
 	elif [ $demo == "demos/general/demo_OnACID.py" ]; then
 		echo "	Skipping tests on $demo: Skip for interactivity"
+	elif [ $demo == "demos/general/demo_OnACID_mesoscope.py" ]; then
+                # This demo normally likes to show its results to the user and wait for them
+                # to close those results before it exits; this supresses that behaviour
+                extra_args="--no_play"
+	elif [ $demo == "demos/general/demo_pipeline.py" ]; then
+                # ditto
+                extra_args="--no_play"
 	elif [ -d $demo ]; then
 		true
 	else
 		echo Testing demo [$demo]
 		echo Timestamp is $(date +%s)
 		if [ $OS == "Linux" ]; then
-			xvfb-run --server-args='-screen 0 1024x768x24' -a python $demo
+			xvfb-run --server-args='-screen 0 1024x768x24' -a python $demo $extra_args
 		else
-			python $demo
+			python $demo $extra_args
 		fi
 		err=$?
 		if [ $err != 0 ]; then

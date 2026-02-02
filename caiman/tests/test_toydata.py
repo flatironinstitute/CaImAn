@@ -96,7 +96,7 @@ def get_params_dicts(D: int):
     }
 
 def pipeline(D, params_dict, name):
-    #%% GENERATE GROUND TRUTH DATA
+    # Generate ground-truth data
     Yr, trueC, trueS, trueA, centers, dims = gen_data(D)
     N, T = trueC.shape
 

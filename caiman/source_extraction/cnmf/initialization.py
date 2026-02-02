@@ -363,7 +363,8 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
             SC_sigma=SC_sigma, SC_use_NN=SC_use_NN, SC_nnn=SC_nnn,
             SC_normalize=SC_normalize, SC_thr=SC_thr)
 
-    elif method == 'pca_ica': # This code may be untested
+    elif method == 'pca_ica': # This code is undertested and may not work
+        logger.warning("The pca_ica initialization method is undertested and may not work. Caveat emptor.")
         Ain, Cin, _, b_in, f_in = ICA_PCA(
             Y_ds, nr=K, sigma_smooth=sigma_smooth_snmf, truncate=2, fun='logcosh', tol=1e-10,
             max_iter=max_iter_snmf, remove_baseline=True, perc_baseline=perc_baseline_snmf, nb=nb)

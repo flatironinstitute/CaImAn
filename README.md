@@ -69,6 +69,13 @@ After this, assuming you succeed, leave the source directory. Later steps will n
 ## For installation help
 Caiman should install easily on Linux, Mac, and Windows. If you run into problems, we have a dedicated [installation page](./docs/source/Installation.rst). If you don't find what you need there, [create an issue](https://github.com/flatironinstitute/Caiman/issues) on GitHub.
 
+# Upgrading
+If you upgrade caiman, you should not generally need to clear out and recreate your caiman\_data directory between minor releases (e.g. 1.2.3 to 1.2.4); we try to avoid API changes that might break demos between those releases, although you will miss out on any improvements to notebooks (it is normal for people to change notebooks on their own without renaming them).
+
+If you want to get the latest changes, either remove or rename your caiman\_data directory and create a new one with `caimanmanager install` as above. Afterwards you can move data and/or modified notebooks back in (still possibly losing improvements we've made to notebooks along the way).
+
+If you upgrade caiman between major versions (e.g. 1.0.15 to 1.1.0), APIs are more likely to have changed and you may need to make more substantial changes to integrate your changes into the new versions. The process is the same.
+
 # Demo notebooks
 Caiman provides demo notebooks to showcase each of our main features, from motion correction to online CNMF. We recommend starting with the CNMF notebook (`demo_pipeline.ipynb`), which contains more explanation and details than the other notebooks: it covers many concepts that will be used without explanation in the other notebooks. The CNMFE notebook (`demo_pipeline_cnmfE.ipynb`), is also more detailed. Once you've gotten things set up and worked through those "anchor" notebooks, the best way to get started is to work through the demo notebook that most closely matches your use case; you should be able to adapt it for your particular needs.
 
@@ -96,12 +103,10 @@ Caiman also provides commandline demos, similar to the notebooks, demonstrating 
 # How to get help
 - [Online documentation](https://caiman.readthedocs.io/en/latest/) contains a lot of general information about Caiman, the parameters, how to interpret its outputs, and more.
 - [GitHub Discussions](https://github.com/flatironinstitute/Caiman/discussions) is our preferred venue for users to ask for help.
-- The [Gitter forum](https://app.gitter.im/#/room/#agiovann_Constrained_NMF:gitter.im) is our old forum: we sometimes will ask people to join us there when something can best be solved in real time (e.g., installation problems).
-- If you have found a bug, we recommend searching the [issues at github](https://github.com/flatironinstitute/Caiman/issues) and opening a new issue if you can't find the solution there. 
-- If there is a feature you would like to see implemented, feel free to come chat at the above forums or open an issue at Github.
+- If you have found a bug or have a feature request, search the [issues at github](https://github.com/flatironinstitute/Caiman/issues) and open a new issue if you can't find a solution there. 
 
 # How to contribute
- Caiman is an open-source project and improves because of contributions from users all over the world. If there is something about Caiman that you would like to work on, then please reach out. We are always looking for more contributors, so please come read the [contributors page](./CONTRIBUTING.md) for more details about how. 
+ Caiman is an open-source project and improves because of contributions from users all over the world. If there is something about Caiman that you would like to work on, reach out. The [contributors page](./CONTRIBUTING.md) has details on how contribution works.
 
 # Videos 
 There are multiple online videos by Andrea Giovannucci from past Caiman workshops/events that are an excellent start for newcomers.
@@ -124,7 +129,8 @@ There are many repositories that use Caiman, or help make using Caiman easier.
 * [jnormcorre](https://github.com/apasarkar/jnormcorre): [JAX](https://github.com/google/jax) implementation of NoRMCorre for motion correction using JAX acceleration
 * [funimag](https://github.com/paninski-lab/funimag): matrix decomposition for denoising and compression
 * [mesmerize-core](https://github.com/nel-lab/mesmerize-core): parameter optimization, data organization and visualizations with Caiman
-* [improv](https://github.com/project-improv/improv):  a platform for creating online analysis workflows that lets you use Caiman in real time (e.g., for all-optical experiments)
+* [improv](https://github.com/project-improv/improv):  A platform for creating online analysis workflows that lets you use Caiman in real time (e.g., for all-optical experiments)
+* [pluvianus](https://github.com/katonage/pluvianus): A PyQT-based result browser for Caiman
 
 If you have questions about these related packages please reach out to their maintainers directly. If you would like your software to be in this list, please contact one of the developers or open an issue.
 
@@ -146,10 +152,10 @@ If possible, we'd also ask that you cite the papers where the original algorithm
 
 # Main developers
 * (emeritus) Eftychios A. Pnevmatikakis, **Flatiron Institute, Simons Foundation** 
-* (emeritus) Andrea Giovannucci, **University of North Carolina, Chapel Hill**
-* (emeritus) Johannes Friedrich, **Allen Institute, Seattle Washington**
+* (emeritus) Andrea Giovannucci, **University of North Carolina, Chapel Hill** (and earlier at the Flatiron Institute)
+* (emeritus) Johannes Friedrich, **Allen Institute, Seattle Washington** (and earlier at the Flatiron Institute)
 * (emeritus) Changjia Cai, **University of North Carolina, Chapel Hill**
-* Kushal Kolar, **Flatiron Institute, Simons Foundation**
+* Kushal Kolar, **Flatiron Institute, Simons Foundation** (and earlier at UNC Chapel Hill)
 * Pat Gunn, **Flatiron Institute, Simons Foundation**
 
 A complete list of contributors can be found [here](https://github.com/flatironinstitute/Caiman/graphs/contributors).
@@ -168,6 +174,7 @@ Special thanks to the following people for letting us use their datasets in demo
 Also a special thanks to:
 * Eric Thompson, for various strong contributions to code and demos, both before and during his employment at the Flatiron Institute.
 * Ethan Blackwood, for several contributions in various areas
+* Manuel Paez, for substantial work on porting machine learning models into Keras/Pytorch that were originally written in Tensorflow
 
 # License
 This program is free software; you can redistribute it and/or

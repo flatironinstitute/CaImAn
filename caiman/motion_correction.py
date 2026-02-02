@@ -426,8 +426,11 @@ class MotionCorrect(object):
                 If minimum value is negative, subtract it from the data
 
         Returns:
-            m_reg: caiman movie object
-                caiman movie object with applied shifts (not memory mapped)
+            if save_memmap is not true:
+                A caiman movie object
+                    caiman movie object with applied shifts (not memory mapped)
+            if save_memmap is true:
+                A string containing the filename for the memory-mapped movie
         """
         logger = logging.getLogger("caiman")
 
@@ -494,6 +497,7 @@ class MotionCorrect(object):
         if save_memmap:
             dims = m_reg.shape
             fname_tot = caiman.paths.memmap_frames_filename(save_base_name, dims[1:], dims[0], order)
+            fname_tot = caiman.paths.fn_relocated(fname_tot)
             big_mov = np.memmap(fname_tot, mode='w+', dtype=np.float32,
                         shape=caiman.mmapping.prepare_shape((np.prod(dims[1:]), dims[0])), order=order)
             big_mov[:] = np.reshape(m_reg.transpose(1, 2, 0), (np.prod(dims[1:]), dims[0]), order='F')
@@ -1368,9 +1372,9 @@ def register_translation_3d(src_image, target_image, upsample_factor = 1,
     # real data needs to be fft'd.
     elif space.lower() == 'real':
         src_image_cpx = np.array(
-            src_image, dtype=np.complex64, copy=False)
+            src_image, dtype=np.complex64, copy=None)
         target_image_cpx = np.array(
-            target_image, dtype=np.complex64, copy=False)
+            target_image, dtype=np.complex64, copy=None)
         src_freq = np.fft.fftn(src_image_cpx)
         target_freq = np.fft.fftn(target_image_cpx)
     else:
@@ -1561,12 +1565,12 @@ def register_translation(src_image, target_image, upsample_factor=1,
         src_freq_1 = cv2.dft(
             src_image, flags=cv2.DFT_COMPLEX_OUTPUT + cv2.DFT_SCALE)
         src_freq = src_freq_1[:, :, 0] + 1j * src_freq_1[:, :, 1]
-        src_freq = np.array(src_freq, dtype=np.complex128, copy=False)
+        src_freq = np.array(src_freq, dtype=np.complex128, copy=None)
         target_freq_1 = cv2.dft(
             target_image, flags=cv2.DFT_COMPLEX_OUTPUT + cv2.DFT_SCALE)
         target_freq = target_freq_1[:, :, 0] + 1j * target_freq_1[:, :, 1]
         target_freq = np.array(
-            target_freq, dtype=np.complex128, copy=False)
+            target_freq, dtype=np.complex128, copy=None)
     else:
         raise ValueError('Error: register_translation only knows the "real" and "fourier" values for the ``space`` argument.')
 
@@ -1701,7 +1705,7 @@ def apply_shifts_dft(src_freq, shifts, diffphase, is_freq=True, border_nan=True)
             src_freq = np.dstack([np.real(src_freq), np.imag(src_freq)])
             src_freq = cv2.dft(src_freq, flags=cv2.DFT_COMPLEX_OUTPUT + cv2.DFT_SCALE)
             src_freq = src_freq[:, :, 0] + 1j * src_freq[:, :, 1]
-            src_freq = np.array(src_freq, dtype=np.complex128, copy=False)
+            src_freq = np.array(src_freq, dtype=np.complex128, copy=None)
 
     if not is3D:
         nr, nc = src_freq.shape

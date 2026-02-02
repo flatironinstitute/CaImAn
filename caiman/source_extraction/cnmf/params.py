@@ -500,7 +500,7 @@ class CNMFParams(object):
             opencv_codec: str, default: 'H264'
                 FourCC video codec for saving movie. Check http://www.fourcc.org/codecs.php
 
-            path_to_model: str, default: os.path.join(caiman_datadir(), 'model', 'cnn_model_online.h5')
+            path_to_model: str, default: os.path.join(caiman_datadir(), 'model', 'cnn_model_online.pkl')
                 Path to online CNN classifier
 
             ring_CNN:
@@ -848,7 +848,7 @@ class CNMFParams(object):
             'num_times_comp_updated': num_times_comp_updated,
             'opencv_codec': 'H264',            # FourCC video codec for saving movie. Check http://www.fourcc.org/codecs.php
             'path_to_model': os.path.join(caiman_datadir(), 'model',
-                                          'cnn_model_online.h5'),
+                                          'cnn_model_online.pkl'),
             'ring_CNN': False,                 # flag for using a ring CNN background model 
             'rval_thr': rval_thr,              # space correlation threshold
             'save_online_movie': False,        # flag for saving online movie

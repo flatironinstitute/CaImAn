@@ -6,6 +6,7 @@ import logging
 import numpy as np
 import os
 import peakutils
+import pickle
 import scipy
 from scipy.sparse import csc_matrix
 from scipy.stats import norm
@@ -14,8 +15,8 @@ from typing import Any, Optional, Union
 import warnings
 
 import caiman
+from caiman.keras_model_arch import keras_cnn_model_from_pickle
 from caiman.paths import caiman_datadir
-from caiman.pytorch_model_arch import PyTorchCNN
 import caiman.utils.stats
 
 try:
@@ -28,6 +29,12 @@ try:
 except:
     def profile(a):
         return a
+
+os.environ["KERAS_BACKEND"] = "torch"
+try:
+    import keras_core as keras
+except ImportError:
+    import keras
 
 @profile
 def compute_event_exceptionality(traces: np.ndarray,
@@ -279,16 +286,20 @@ def evaluate_components_CNN(A,
 
     logger.info('Using Torch')
 
+    logger.info('Using Keras 3.0 with PyTorch backend')
+    
     if loaded_model is None:
-        if os.path.isfile(os.path.join(caiman_datadir(), 'model', 'pytorch-models', model_name + ".pt")):
-            model_file = os.path.join(caiman_datadir(), 'model', 'pytorch-models', model_name + ".pt")
-        elif os.path.isfile(model_name + ".pt"):
-            model_file = model_name + ".pt"
+        if os.path.isfile(os.path.join(caiman_datadir(), model_name + ".pkl")):
+            with open(os.path.join(caiman_datadir(), model_name + ".pkl"), 'rb') as f:
+                    pickle_data = pickle.load(f)
+        elif os.path.isfile(model_name + ".pkl"):
+            with open(model_name + ".pkl", 'rb') as f:
+                    pickle_data = pickle.load(f)
         else:
             raise FileNotFoundError(f"File for requested model {model_name} not found")
-        logger.info(f"Using model: {model_file}")
-        loaded_model = PyTorchCNN()
-        loaded_model.load_state_dict(torch.load(model_file))
+
+        logger.info(f"USING MODEL (Keras 3.0 API from Pickle)")
+        loaded_model = keras_cnn_model_from_pickle(pickle_data, keras)
 
         logger.debug("Loaded model from disk")
 
@@ -302,16 +313,9 @@ def evaluate_components_CNN(A,
                                               half_crop[1]:com[1] + half_crop[1]] for mm, com in zip(A.tocsc().T, coms)
     ]
     final_crops = np.array([cv2.resize(im / np.linalg.norm(im), (patch_size, patch_size)) for im in crop_imgs])
-    
-    # Numpy to PyTorch and add a channel dimension using unsqueeze
-    final_crops = torch.tensor(final_crops, dtype=torch.float32).unsqueeze(1)
+    predictions = loaded_model.predict(final_crops[:, :, :, np.newaxis], batch_size=32, verbose=1)
 
-    # Pass the preprocessed image crops through the model to get predictions
-    with torch.no_grad():
-        predictions = loaded_model(final_crops)
-
-    predictions_numpy = predictions.cpu().numpy()
-    return predictions_numpy, final_crops
+    return predictions, final_crops
 
 def evaluate_components(Y: np.ndarray,
                         traces: np.ndarray,

@@ -1029,7 +1029,7 @@ def compute_residuals(Yr_mmap_file, A_, b_, C_, f_, dview=None, block_size=1000,
             YrA: ndarray
                 residuals per neuron
     '''
-    if not ('sparse' in str(type(A_))):
+    if 'sparse' not in str(type(A_)):
         A_ = scipy.sparse.coo_matrix(A_)
 
     Ab = scipy.sparse.hstack((A_, b_)).tocsc()

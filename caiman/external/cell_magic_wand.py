@@ -139,8 +139,12 @@ def find_edge_2d(polar, min_radius):
     mask[0:r + 1, 0] = 1
     for t in range(1, polar.shape[1]):
         r += directions[r, t - 1]
-        if r >= directions.shape[0]: r = directions.shape[0] - 1
-        if r < 0: r = 0
+        if r >= directions.shape[0]:
+            r = directions.shape[0] - 1
+
+        if r < 0:
+            r = 0
+
         edge.append((r + min_radius, t))
         mask[0:r + 1, t] = 1
 

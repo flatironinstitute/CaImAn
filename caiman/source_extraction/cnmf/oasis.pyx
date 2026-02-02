@@ -25,6 +25,7 @@ cdef struct Pool:
 cdef min1000(a):
     return a if a < 1000 else 1000
 
+np.import_array()
 
 cdef class OASIS:
     """

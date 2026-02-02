@@ -187,7 +187,7 @@ class timeseries(np.ndarray):
                         if i % 200 == 0:
                             logger.debug(f'{i} frames saved')
                         curfr = self[i].copy()
-                        if to32 and not ('float32' in str(self.dtype)):
+                        if to32 and ('float32' not in str(self.dtype)):
                             curfr = curfr.astype(np.float32)
                         return curfr
                     if compress == 0:
@@ -200,13 +200,13 @@ class timeseries(np.ndarray):
                         if i % 200 == 0:
                             logger.debug(f'{i} frames saved')
                         curfr = self[i].copy()
-                        if to32 and not ('float32' in str(self.dtype)):
+                        if to32 and ('float32' not in str(self.dtype)):
                             curfr = curfr.astype(np.float32)
                         tif.save(curfr, compress=compress)
             return file_name
 
         elif extension == '.npz':
-            if to32 and not ('float32' in str(self.dtype)):
+            if to32 and ('float32' not in str(self.dtype)):
                 input_arr = self.astype(np.float32)
             else:
                 input_arr = np.array(self)
@@ -259,7 +259,7 @@ class timeseries(np.ndarray):
             else:
                 f_name = ''
 
-            if to32 and not ('float32' in str(self.dtype)):
+            if to32 and ('float32' not in str(self.dtype)):
                 input_arr = self.astype(np.float32)
             else:
                 input_arr = np.array(self)
@@ -286,7 +286,7 @@ class timeseries(np.ndarray):
 
         elif extension in ('.hdf5', '.h5'):
             with h5py.File(file_name, "w") as f:
-                if to32 and not ('float32' in str(self.dtype)):
+                if to32 and ('float32' not in str(self.dtype)):
                     input_arr = self.astype(np.float32)
                 else:
                     input_arr = np.array(self)
@@ -307,7 +307,7 @@ class timeseries(np.ndarray):
 
             T = self.shape[0]
             dims = self.shape[1:]
-            if to32 and not ('float32' in str(self.dtype)):
+            if to32 and ('float32' not in str(self.dtype)):
                 input_arr = self.astype(np.float32)
             else:
                 input_arr = np.array(self)
@@ -328,7 +328,7 @@ class timeseries(np.ndarray):
             del big_mov, input_arr
             return fname_tot
         elif extension == '.nwb':
-            if to32 and not ('float32' in str(self.dtype)):
+            if to32 and ('float32' not in str(self.dtype)):
                 input_arr = self.astype(np.float32)
             else:
                 input_arr = np.array(self)

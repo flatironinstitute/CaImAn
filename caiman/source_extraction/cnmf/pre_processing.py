@@ -76,7 +76,7 @@ def find_unsaturated_pixels(Y, saturationValue=None, saturationThreshold=0.9, sa
         normalPixels:   nd.array
             list of unsaturated pixels
     """
-    if saturationValue == None:
+    if saturationValue is None:
         saturationValue = np.power(2, np.ceil(np.log2(np.max(Y)))) - 1
 
     Ysat = (Y >= saturationThreshold * saturationValue)
@@ -223,7 +223,7 @@ def get_noise_fft_parallel(Y, n_pixels_per_process=100, dview=None, **kwargs):
     pixel_groups = list(
         range(0, Y.shape[0] - n_pixels_per_process + 1, n_pixels_per_process))
 
-    if isinstance(Y, np.core.memmap):  # if input file is already memory mapped then find the filename
+    if isinstance(Y, np.memmap):  # if input file is already memory mapped then find the filename
         Y_name = Y.filename
 
     else:

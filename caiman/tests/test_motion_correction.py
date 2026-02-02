@@ -5,7 +5,7 @@ import numpy as np
 from scipy.ndimage import gaussian_filter
 from skimage.data import lfw_subset
 import caiman as cm
-from caiman.motion_correction import *
+from caiman.motion_correction import apply_shifts_dft, MotionCorrect, motion_correct_iteration, motion_correct_iteration_fast, register_translation, register_translation_3d, tile_and_correct, tile_and_correct_3d
 
 
 def gen_frame_n_templ(true_shifts=np.array([2, 4])):

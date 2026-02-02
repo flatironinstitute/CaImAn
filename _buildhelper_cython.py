@@ -10,11 +10,9 @@
 
 from Cython.Build import cythonize
 import numpy as np
-import os
-import sys
-from setuptools import setup, find_packages
 from setuptools.command.build_py import build_py as _build_py
 import setuptools.extension
+import sys
 
 class build_py(_build_py):
     def run(self):

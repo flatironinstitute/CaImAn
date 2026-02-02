@@ -33,7 +33,7 @@ except:
     print('OpenCV is naturally single threaded')
 
 logging.getLogger("caiman").setLevel(logging.ERROR)
-# %% Select a dataset (specify the ID variable as a list of datasets to be processed)
+# Select a dataset (specify the ID variable as a list of datasets to be processed)
 # 0: neuforinder.03.00.test (N.03.00.t)
 # 1: neurofinder.04.00.test (N.04.00.t)
 # 2: neurofinder.02.00 (N.02.00)
@@ -61,7 +61,7 @@ save_results = False
 plot_results = False
 
 base_folder = '/mnt/ceph/neuro/DataForPublications/DATA_PAPER_ELIFE/'
-# %% set some global parameters here
+# set some global parameters here
 # 'use_cases/edge-cutter/binary_cross_bootstrapped.json'
 global_params = {
     'min_SNR': 1.2,            # minimum SNR when considering adding a new neuron
@@ -158,7 +158,7 @@ for ind_dataset in ID:
         cm.load(os.path.abspath(base_folder + params_movie[ind_dataset]['folder_name']) +
                 '/correlation_image.tif')).squeeze()
 
-    # %% Set up some parameters
+    # Set up some parameters
     ds_factor = params_movie[ind_dataset][
         'ds_factor']                                                                      # spatial downsampling factor (increases speed but may lose some fine structure)
     fr = params_movie[ind_dataset]['fr']
@@ -180,7 +180,7 @@ for ind_dataset in ID:
     except:
         epochs = global_params['epochs']               # number of passes over the data
 
-    # %%
+
     params_dict = {
         'data': {
                 'decay_time': decay_time,
@@ -238,14 +238,14 @@ for ind_dataset in ID:
         print('*****  reloading   **********')
         cnm = load_OnlineCNMF(fls[0][:-4] + 'hdf5')
 
-    # %% filter results by using the batch CNN
+    # filter results by using the batch CNN
     use_cnn = False
     if use_cnn:
         cnm.params.set('quality', {'min_cnn_thr': 0.1})
         cnm.estimates.evaluate_components_CNN(cnm.params)
         cnm.estimates.select_components(use_object=True)
 
-    # %% remove small and duplicate components
+    # remove small and duplicate components
 
     min_radius = max(cnm.params.init['gSig'][0] * ds_factor / 2., 2.)  # minimum acceptable radius
     max_radius = 2. * cnm.params.init['gSig'][0] * ds_factor           # maximum acceptable radius
@@ -257,7 +257,7 @@ for ind_dataset in ID:
     _ = cnm.estimates.remove_duplicates(r_values=None, dist_thr=0.1, min_dist=10, thresh_subset=0.6)
     cnm.estimates.select_components(use_object=True)
 
-    # %% load consensus annotations and filter for size
+    # load consensus annotations and filter for size
     gt_file = glob.glob(os.path.join(base_folder, params_movie[ind_dataset]['folder_name'], '*masks.npz'))[0]
     with np.load(gt_file, encoding='latin1', allow_pickle=True) as ld:
         d1_or = int(ld['d1'])
@@ -280,7 +280,7 @@ for ind_dataset in ID:
     gt_estimate.select_components(use_object=True)
     print(gt_estimate.A.shape)
 
-    # %% compute performance and plot against consensus annotations
+    # compute performance and plot against consensus annotations
     tp_gt, tp_comp, fn_gt, fp_comp, performance_cons_off = compare_components(gt_estimate,
                                                                               cnm.estimates,
                                                                               Cn=Cn_orig,
@@ -293,7 +293,7 @@ for ind_dataset in ID:
     plt.rcParams['pdf.fonttype'] = 42
     font = {'family': 'Arial', 'weight': 'regular', 'size': 20}
 
-    # %% compute correlations
+    # compute correlations
     plt.rc('font', **font)
     print(gt_file)
     print(params_movie[ind_dataset]['folder_name'] +
@@ -309,7 +309,7 @@ for ind_dataset in ID:
         plt.hist(xcorrs, 100, cumulative=True)
         plt.title('Empirical CDF of trace correlation coefficients')
 
-    # %% Save results
+    # Save results
     performance_tmp = performance_cons_off.copy()
     performance_tmp['A_gt_thr'] = gt_estimate.A_thr
     performance_tmp['A_thr'] = cnm.estimates.A_thr
@@ -334,7 +334,7 @@ for ind_dataset in ID:
     performance_tmp['CCs'] = xcorrs
     all_results[params_movie[ind_dataset]['folder_name']] = performance_tmp
 
-    # %% Plot Timing performance
+    # Plot Timing performance
     if plot_results:
         plt.figure()
         plt.stackplot(np.arange(len(cnm.t_detect)),
@@ -350,7 +350,7 @@ if save_results:
     path_save_file = os.path.join(base_folder, 'results_CaImAn_Online_' + str(ID[0]) + '.npz')
     np.savez(path_save_file, all_results=all_results)
 
-# %% The variables ALL_CCs and all_results contain all the info necessary to create the figures
+# The variables ALL_CCs and all_results contain all the info necessary to create the figures
 results_old = {'N.00.00': 0.692, 'N.01.01': 0.75, 'N.03.00.t': 0.742, 'N.04.00.t': 0.7, 'YST': 0.775}
 
 results_holding = True

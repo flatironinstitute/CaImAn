@@ -31,7 +31,7 @@ from caiman.source_extraction.cnmf.cnmf import load_CNMF
 logging.getLogger("caiman").setLevel(logging.ERROR)
 
 warnings.filterwarnings("ignore", category=FutureWarning)
-# %%  ANALYSIS MODE AND PARAMETERS
+# ANALYSIS MODE AND PARAMETERS
 reload = False
 plot_on = False
 save_on = False  # set to true to recreate
@@ -61,7 +61,7 @@ base_folder = '/mnt/ceph/neuro/DataForPublications/DATA_PAPER_ELIFE/WEBSITE/'
 n_pixels_per_process = 4000
 block_size = 5000
 num_blocks_per_run = 20
-# %%
+
 global_params = {'SNR_lowest': 0.5,
                  'min_SNR': 2,  # minimum SNR when considering adding a new neuron
                  'gnb': 2,  # number of background components
@@ -88,9 +88,9 @@ global_params = {'SNR_lowest': 0.5,
                  'tsub': 2,
                  'ssub': 2
                  }
-# %%
+
 params_movies = []
-# %%
+
 params_movie = {'fname': 'N.03.00.t/Yr_d1_498_d2_467_d3_1_order_C_frames_2250_.mmap',
                 'gtname': 'N.03.00.t/joined_consensus_active_regions.npy',
                 # order of the autoregressive system
@@ -106,7 +106,7 @@ params_movie = {'fname': 'N.03.00.t/Yr_d1_498_d2_467_d3_1_order_C_frames_2250_.m
                 'decay_time': 0.4,
                 }
 params_movies.append(params_movie.copy())
-# %%
+
 params_movie = {'fname': 'N.04.00.t/Yr_d1_512_d2_512_d3_1_order_C_frames_3000_.mmap',
                 'gtname': 'N.04.00.t/joined_consensus_active_regions.npy',
                 # order of the autoregressive system
@@ -123,7 +123,7 @@ params_movie = {'fname': 'N.04.00.t/Yr_d1_512_d2_512_d3_1_order_C_frames_3000_.m
                 }
 params_movies.append(params_movie.copy())
 
-# %% yuste
+# yuste
 params_movie = {'fname': 'YST/Yr_d1_200_d2_256_d3_1_order_C_frames_3000_.mmap',
                 'gtname': 'YST/joined_consensus_active_regions.npy',
                 # order of the autoregressive system
@@ -139,7 +139,7 @@ params_movie = {'fname': 'YST/Yr_d1_200_d2_256_d3_1_order_C_frames_3000_.mmap',
                 'crop_pix': 0
                 }
 params_movies.append(params_movie.copy())
-# %% neurofinder 00.00
+# neurofinder 00.00
 params_movie = {'fname': 'N.00.00/Yr_d1_512_d2_512_d3_1_order_C_frames_2936_.mmap',
                 'gtname': 'N.00.00/joined_consensus_active_regions.npy',
                 'merge_thresh': 0.8,  # merging threshold, max correlation allow
@@ -154,7 +154,7 @@ params_movie = {'fname': 'N.00.00/Yr_d1_512_d2_512_d3_1_order_C_frames_2936_.mma
                 'crop_pix': 10
                 }
 params_movies.append(params_movie.copy())
-# %% neurofinder 01.01
+# neurofinder 01.01
 params_movie = {'fname': 'N.01.01/Yr_d1_512_d2_512_d3_1_order_C_frames_1825_.mmap',
                 'gtname': 'N.01.01/joined_consensus_active_regions.npy',
                 'merge_thresh': 0.9,  # merging threshold, max correlation allow
@@ -169,7 +169,7 @@ params_movie = {'fname': 'N.01.01/Yr_d1_512_d2_512_d3_1_order_C_frames_1825_.mma
                 'crop_pix': 2,
                 }
 params_movies.append(params_movie.copy())
-# %% neurofinder 02.00
+# neurofinder 02.00
 params_movie = {
     # 'fname': '/opt/local/Data/labeling/neurofinder.02.00/Yr_d1_512_d2_512_d3_1_order_C_frames_8000_.mmap',
     'fname': 'N.02.00/Yr_d1_512_d2_512_d3_1_order_C_frames_8000_.mmap',
@@ -187,7 +187,7 @@ params_movie = {
     'decay_time': 0.3,
 }
 params_movies.append(params_movie.copy())
-# %% Sue Ann k53
+# Sue Ann k53
 params_movie = {  # 'fname': '/opt/local/Data/labeling/k53_20160530/Yr_d1_512_d2_512_d3_1_order_C_frames_116043_.mmap',
     'fname': 'K53/Yr_d1_512_d2_512_d3_1_order_C_frames_116043_.mmap',
     'gtname': 'K53/joined_consensus_active_regions.npy',
@@ -204,7 +204,7 @@ params_movie = {  # 'fname': '/opt/local/Data/labeling/k53_20160530/Yr_d1_512_d2
     'crop_pix': 2,
 }
 params_movies.append(params_movie.copy())
-# %% J115
+# J115
 params_movie = {
     # 'fname': '/opt/local/Data/labeling/J115_2015-12-09_L01_ELS/Yr_d1_463_d2_472_d3_1_order_C_frames_90000_.mmap',
     'fname': 'J115/Yr_d1_463_d2_472_d3_1_order_C_frames_90000_.mmap',
@@ -223,7 +223,7 @@ params_movie = {
 
 }
 params_movies.append(params_movie.copy())
-# %% J123
+# J123
 params_movie = {
     # 'fname': '/opt/local/Data/labeling/J123_2015-11-20_L01_0/Yr_d1_458_d2_477_d3_1_order_C_frames_41000_.mmap',
     'fname': 'J123/Yr_d1_458_d2_477_d3_1_order_C_frames_41000_.mmap',
@@ -242,8 +242,6 @@ params_movie = {
 }
 params_movies.append(params_movie.copy())
 
-
-# %%
 all_perfs = []
 all_rvalues = []
 all_comp_SNR_raw = []
@@ -272,7 +270,7 @@ for params_movie in np.array(params_movies)[ID]:
 
 
 
-    # %% LOAD MEMMAP FILE
+    # LOAD MEMMAP FILE
     Yr, dims, T = cm.load_memmap(fname_new)
     d1, d2 = dims
     images = np.reshape(Yr.T, [T] + list(dims), order='F')
@@ -289,7 +287,7 @@ for params_movie in np.array(params_movies)[ID]:
                     params_movie['gtname'].split('/')[:-2] + ['projections', 'correlation_image.tif'])))).squeeze()
 
     check_nan = False
-    # %% start cluster
+    # start cluster
     # TODO: show screenshot 10
     try:
         cm.stop_server()
@@ -299,7 +297,7 @@ for params_movie in np.array(params_movies)[ID]:
 
     c, dview, n_processes = setup_cluster(
         backend=backend_patch, n_processes=n_processes, single_thread=False)
-    # %%
+
     params_dict = {
                   'data': {
                           'decay_time': params_movie['decay_time'],
@@ -355,40 +353,36 @@ for params_movie in np.array(params_movies)[ID]:
         cnm2 = load_CNMF(fname_new[:-5] + '_cnmf_gsig.hdf5')
 
     else:
-        # %% Extract spatial and temporal components on patches
+        # Extract spatial and temporal components on patches
         t1 = time.time()
         print('Starting CNMF')
         cnm = cnmf.CNMF(n_processes, params=opts, dview=dview)
         cnm.fit(images)
         t_patch = time.time() - t1
-        # %%
+        #
         try:
             dview.terminate()
         except:
             pass
         c, dview, n_processes = cm.cluster.setup_cluster(
             backend=backend_refine, n_processes=n_processes, single_thread=False)
-        # %%
         if plot_on:
             cnm.estimates.plot_contours(img=Cn)
 
-        # %% UPDATE SOME PARAMETERS
+        # UPDATE SOME PARAMETERS
         cnm.params.change_params({'update_background_components': global_params['update_background_components'],
                                   'skip_refinement': skip_refinement,
-                                  'n_pixels_per_process': n_pixels_per_process, 'dview': dview});
-        # %%
+                                  'n_pixels_per_process': n_pixels_per_process, 'dview': dview})
+
         t1 = time.time()
         cnm2 = cnm.refit(images, dview=dview)
         t_refit = time.time() - t1
         if save_on:
             cnm2.save(fname_new[:-5] + '_cnmf_gsig.hdf5')
 
-
-
-    # %%
     if plot_on:
         cnm2.estimates.plot_contours(img=Cn)
-    # %% check quality of components and eliminate low quality
+    # check quality of components and eliminate low quality
     cnm2.params.set('quality', {'SNR_lowest': global_params['SNR_lowest'],
                                 'min_SNR': global_params['min_SNR'],
                                 'rval_thr': global_params['rval_thr'],
@@ -408,10 +402,10 @@ for params_movie in np.array(params_movies)[ID]:
     t_eva_comps = time.time() - t1
     print(' ***** ')
     print((len(cnm2.estimates.C)))
-    # %%
+
     if plot_on:
         cnm2.estimates.plot_contours(img=Cn)
-    # %% prepare ground truth masks
+    # prepare ground truth masks
     gt_file = os.path.join(os.path.split(fname_new)[0], os.path.split(fname_new)[1][:-4] + 'match_masks.npz')
     with np.load(gt_file, encoding='latin1', allow_pickle=True) as ld:
         print(ld.keys())
@@ -428,13 +422,13 @@ for params_movie in np.array(params_movies)[ID]:
                                       thresh_subset=0.6)
     gt_estimate.select_components(use_object=True)
     print(gt_estimate.A_thr.shape)
-    # %% prepare CNMF mask
+    # prepare CNMF mask
     cnm2.estimates.threshold_spatial_components(maxthr=0.2, dview=dview)
     cnm2.estimates.remove_small_large_neurons(min_size_neuro, max_size_neuro)
     cnm2.estimates.remove_duplicates(r_values=None, dist_thr=0.1, min_dist=10, thresh_subset=0.6)
     cnm2.estimates.select_components(use_object=True)
     print('Num neurons to match:' + str(cnm2.estimates.A.shape))
-    # %%
+
     params_display = {
         'downsample_ratio': .2,
         'thr_plot': 0.8

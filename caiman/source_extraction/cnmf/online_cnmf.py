@@ -21,26 +21,26 @@ from math import sqrt
 from multiprocessing import cpu_count
 import numpy as np
 import os
+import pickle
 from scipy.ndimage import percentile_filter
 from scipy.sparse import coo_matrix, csc_matrix, spdiags, hstack
 from scipy.stats import norm
 from sklearn.decomposition import NMF
 from skimage.morphology import disk
 from sklearn.preprocessing import normalize
-import torch
-from torch.utils.data import DataLoader, TensorDataset
-from time import time
+import time
 
 import caiman
 import caiman.base.movies
 from caiman.components_evaluation import compute_event_exceptionality
+from caiman.keras_model_arch import keras_cnn_model_from_pickle
 import caiman.mmapping
 from caiman.motion_correction import (motion_correct_iteration_fast,
                                   tile_and_correct, tile_and_correct_3d,
                                   high_pass_filter_space, sliding_window,
                                   register_translation_3d, apply_shifts_dft)
 import caiman.paths
-from caiman.pytorch_model_arch import PyTorchCNN
+from caiman.paths import caiman_datadir
 from caiman.source_extraction.cnmf.cnmf import CNMF
 from caiman.source_extraction.cnmf.estimates import Estimates
 from caiman.source_extraction.cnmf.initialization import imblur, initialize_components, hals, downscale
@@ -52,17 +52,18 @@ from caiman.source_extraction.cnmf.utilities import (update_order, peak_local_ma
 import caiman.summary_images
 from caiman.utils.nn_models import (fit_NL_model, create_LN_model, quantile_loss, rate_scheduler)
 from caiman.utils.stats import pd_solve
-from caiman.utils.utils import save_dict_to_hdf5, load_dict_from_hdf5, parmap
+from caiman.utils.utils import save_dict_to_hdf5, load_dict_from_hdf5, parmap, hdf5_runmode
 
 try:
     cv2.setNumThreads(0)
 except():
     pass
 
+os.environ["KERAS_BACKEND"] = "torch"
 try:
-    profile
-except:
-    def profile(a): return a
+    import keras_core as keras
+except ImportError:
+    import keras
 
 #TODO If we ever get a chance, it would make sense to refactor CNMF and OnACID to have a
 #     parent class, as OnACID started as a copy of the CNMF codebase and they have similar
@@ -111,6 +112,7 @@ class OnACID(object):
                 To use set ``"init_method"`` to ``"seeded"``
 
         """
+        self.runmode = "OnACID" # Single field to query to determine where an hdf5 file comes from
         if path is None:
             self.params = CNMFParams() if params is None else params
             self.estimates = Estimates() if estimates is None else estimates
@@ -127,6 +129,8 @@ class OnACID(object):
             # value or providing an alternate parameter for that), but that's a much more intrusive change and would potentially
             # change things for code/notebooks that've worked for a long time; we should save such changes for a major rewrite
             # (if someone takes a particular interest in that).
+        self.provenance = []
+        self.provenance.append({'event': 'create', 'time': int(time.time()), 'description': 'OnACID Object created'})
 
     def __str__(self):
         ret = f"Caiman OnACID Object. subfields:{list(self.__dict__.keys()) }"
@@ -153,9 +157,8 @@ class OnACID(object):
         return getattr(self, idx)
     # We want subscripting to be read-only so we do not define a __setitem__ method
 
-    @profile
     def _prepare_object(self, Yr, T, new_dims=None, idx_components=None):
-
+        # Internal function used by initialize_online()
         logger = logging.getLogger("caiman")
         init_batch = self.params.get('online', 'init_batch')
         old_dims = self.params.get('data', 'dims')
@@ -359,11 +362,20 @@ class OnACID(object):
             loaded_model = None
             self.params.set('online', {'sniper_mode': False})
         else:
-            logger.info('Using Torch')
-            path = self.params.get('online', 'path_to_model').split(".")[:-1]
-            model_path = '.'.join(path + ['pt'])
-            loaded_model = PyTorchCNN()
-            loaded_model.load_state_dict(torch.load(model_path))
+            logger.info('Using Keras with PyTorch backend')
+            model_name = self.params.get('online', 'path_to_model').split(".")[0]  # Remove extension
+
+            if os.path.isfile(os.path.join(caiman_datadir(), model_name + ".pkl")):
+                with open(os.path.join(caiman_datadir(), model_name + ".pkl"), 'rb') as f:
+                    pickle_data = pickle.load(f)
+            elif os.path.isfile(model_name + ".pkl"):
+                with open(model_name + ".pkl", 'rb') as f:
+                    pickle_data = pickle.load(f)
+            else:
+                raise FileNotFoundError(f"File for requested model {model_name} not found")
+
+            logger.info(f"USING MODEL (Keras from Pickle)")
+            loaded_model = keras_cnn_model_from_pickle(pickle_data, keras)
 
         self.loaded_model = loaded_model
 
@@ -414,6 +426,10 @@ class OnACID(object):
             self.estimates.max_img = Yres.max(-1)
 
         self.comp_upd = []
+        # The following are used for real-clock statistics for how the code is performing.
+        # If we ever find a better way to do this, it'd be preferable (although that may require a
+        # different overall design of the online code - one possibility would be the Apache bucket
+        # model) --pgunn
         self.t_shapes:list = []
         self.t_detect:list = []
         self.t_motion:list = []
@@ -421,7 +437,6 @@ class OnACID(object):
 
         return self
 
-    @profile
     def fit_next(self, t, frame_in, num_iters_hals=3):
         """
         This method fits the next frame using the online algorithm and
@@ -439,7 +454,7 @@ class OnACID(object):
         """
         # FIXME This whole function is overly complex; should rewrite it for legibility
         logger = logging.getLogger("caiman")
-        t_start = time()
+        t_start = time.time()
 
         # locally scoped variables for brevity of code and faster look up
         nb_ = self.params.get('init', 'nb')
@@ -500,11 +515,11 @@ class OnACID(object):
                           self.estimates.upscale_matrix.dot(self.estimates.W.dot(
                             self.estimates.downscale_matrix.dot(res_frame))))
         mn_ = self.estimates.mn.copy()
-        self.estimates.mn = (t-1)/t*self.estimates.mn + res_frame/t
-        self.estimates.vr = (t-1)/t*self.estimates.vr + (res_frame - mn_)*(res_frame - self.estimates.mn)/t
+        self.estimates.mn = (t - 1) / t * self.estimates.mn + res_frame / t
+        self.estimates.vr = (t - 1) / t * self.estimates.vr + (res_frame - mn_) * (res_frame - self.estimates.mn) / t
         self.estimates.sn = np.sqrt(self.estimates.vr)
         
-        t_new = time()
+        t_new = time.time()
         num_added = 0
         if self.params.get('online', 'update_num_comps'):
             if self.params.get('online', 'use_corr_img'):
@@ -538,6 +553,7 @@ class OnACID(object):
                 g_est = np.mean(self.estimates.g, 0)
             else:
                 g_est = 0
+
             use_corr = self.params.get('online', 'use_corr_img')
             # FIXME The next statement is really hard to read
             (self.estimates.Ab, Cf_temp, self.estimates.Yres_buf, self.estimates.rho_buf,
@@ -664,8 +680,8 @@ class OnACID(object):
                 # set the update counter to 0 for components that are overlapping the newly added
                 idx_overlap = self.estimates.AtA[nb_:-num_added, -num_added:].nonzero()[0]
                 self.update_counter[idx_overlap] = 0
-            self.t_detect.append(time() - t_new)
-        t_stat = time()
+        self.t_detect.append(time.time() - t_new) # Used to be inside the conditional and dependent on finding components, but that messes up statistics
+        t_stat = time.time()
         if self.params.get('online', 'batch_update_suff_stat'):
         # faster update using minibatch of frames
             min_batch = min(self.params.get('online', 'update_freq'), mbs)
@@ -748,10 +764,10 @@ class OnACID(object):
                                                        nb_].dot(y[:, self.ind_A[m]]) / t
             self.estimates.CY[:nb_] = self.estimates.CY[:nb_] * (1 - 1. / t) + ccf[:nb_].dot(y / t)
             self.estimates.CC = self.estimates.CC * (1 - 1. / t) + ccf.dot(ccf.T / t)
-        self.t_stat.append(time() - t_stat)
+        self.t_stat.append(time.time() - t_stat)
 
         # update shapes
-        t_sh = time()
+        t_sh = time.time()
         if not self.params.get('online', 'dist_shape_update'):  # bulk shape update
             if ((t + 1 - self.params.get('online', 'init_batch')) %
                     self.params.get('online', 'update_freq') == 0):
@@ -852,7 +868,7 @@ class OnACID(object):
 
         else:  # distributed shape update
             self.update_counter *= 2**(-1. / self.params.get('online', 'update_freq'))
-            if (not num_added) and (time() - t_start < 2*self.time_spend / (t - self.params.get('online', 'init_batch') + 1)):
+            if (not num_added) and (time.time() - t_start < 2*self.time_spend / (t - self.params.get('online', 'init_batch') + 1)):
                 candidates = np.where(self.update_counter <= 1)[0]
                 if len(candidates):
                     indicator_components = candidates[:self.N // mbs + 1]
@@ -885,19 +901,20 @@ class OnACID(object):
                 self.estimates.Ab = Ab_
             else:
                 self.comp_upd.append(0)
-            self.time_spend += time() - t_start
-        self.t_shapes.append(time() - t_sh)
+            self.time_spend += time.time() - t_start
+        self.t_shapes.append(time.time() - t_sh)
 
         return self
 
     def initialize_online(self, model_LN=None, T=None):
         logger = logging.getLogger("caiman")
+        self.provenance.append({'event': 'init', 'time': int(time.time()), 'description': 'OnACID initialized'})
         fls = self.params.get('data', 'fnames')
         opts = self.params.get_group('online')
         Y = caiman.load(fls[0], subindices=slice(0, opts['init_batch'],
                  None), var_name_hdf5=self.params.get('data', 'var_name_hdf5')).astype(np.float32)
         if model_LN is not None:
-            Y = Y - caiman.movie(np.squeeze(model_LN.predict(np.expand_dims(Y, -1))))
+            Y = Y - caiman.movie(np.squeeze(model_LN.predict(np.expand_dims(Y, -1), verbose=0)))
             Y = np.maximum(Y, 0)
         # Downsample if needed
         ds_factor = np.maximum(opts['ds_factor'], 1)
@@ -1004,7 +1021,8 @@ class OnACID(object):
             self.estimates.lam = np.zeros(nr)
         else:
             raise Exception('Unknown initialization method!')
-        dims, Ts = caiman.base.movies.get_file_size(fls, var_name_hdf5=self.params.get('data', 'var_name_hdf5'))
+
+        _, Ts = caiman.base.movies.get_file_size(fls, var_name_hdf5=self.params.get('data', 'var_name_hdf5'))
         dims = Y.shape[1:]
         self.params.set('data', {'dims': dims})
         T1 = np.array(Ts).sum()*self.params.get('online', 'epochs') if T is None else T
@@ -1126,8 +1144,10 @@ class OnACID(object):
         """
 
         logger = logging.getLogger("caiman")
-        self.t_init = -time()
+        self.t_init = -time.time()
         fls = self.params.get('data', 'fnames')
+        self.provenance.append({'event': 'fit_online', 'time': int(time.time()), 'description': f'Ran fit_online', 'data_target': str(fls)})
+
         init_batch = self.params.get('online', 'init_batch')
         if self.params.get('online', 'ring_CNN'):
             logger.info('Using Ring CNN model')
@@ -1167,7 +1187,7 @@ class OnACID(object):
 
         epochs = self.params.get('online', 'epochs')
         self.initialize_online(model_LN=model_LN)
-        self.t_init += time()
+        self.t_init += time.time()
         extra_files = len(fls) - 1
         init_files = 1
         t = init_batch
@@ -1201,8 +1221,8 @@ class OnACID(object):
             for file_count, ffll in enumerate(process_files):
                 logger.warning(f'Now processing file {ffll}')
                 Y_ = caiman.base.movies.load_iter(
-                    ffll, var_name_hdf5=self.params.get('data', 'var_name_hdf5'),
-                    subindices=slice(init_batc_iter[file_count], None, None))
+                    ffll, var_name_hdf5 = self.params.get('data', 'var_name_hdf5'),
+                    subindices = slice(init_batc_iter[file_count], None, None))
 
                 old_comps = self.N     # number of existing components
                 frame_count = -1
@@ -1216,14 +1236,13 @@ class OnACID(object):
                                     activity *= self.img_norm
                             else:
                                 activity = 0.
-#                                frame = frame.astype(np.float32) - activity
                             frame = frame - np.squeeze(model_LN.predict(np.expand_dims(np.expand_dims(frame.astype(np.float32) - activity, 0), -1), verbose=0))
                             frame = np.maximum(frame, 0)
                         frame_count += 1
-                        t_frame_start = time()
+                        t_frame_start = time.time()
                         if np.isnan(np.sum(frame)):
-                            raise Exception('Frame ' + str(frame_count) +
-                                            ' contains NaN')
+                            raise Exception(f'Frame {frame_count} contains NaN')
+
                         if t % 500 == 0:
                             logger.info(f'Epoch: {iter + 1}. {t}' +
                                          ' frames have been processed in total. ' +
@@ -1233,6 +1252,7 @@ class OnACID(object):
 
                         if np.isnan(np.sum(frame)):
                             raise Exception(f'Frame {frame_count} contains NaN')
+
                         if t % 500 == 0:
                             logger.info(f'Epoch: {iter + 1}. {t} frames have been processed.'
                                          f'{self.N - old_comps} new components were added. Total: {self.N}')
@@ -1247,16 +1267,17 @@ class OnACID(object):
                             frame_ -= self.img_min     # make data non-negative
 
                         # Motion Correction
-                        t_mot = time()
+                        t_mot = time.time()
                         if self.params.get('online', 'motion_correct'):    # motion correct
                             frame_cor = self.mc_next(t, frame_)
                         else:
                             templ = None
                             frame_cor = frame_
-                        self.t_motion.append(time() - t_mot)
+
+                        self.t_motion.append(time.time() - t_mot)
                         
                         if self.params.get('online', 'normalize'):
-                            frame_cor = frame_cor/self.img_norm
+                            frame_cor = frame_cor / self.img_norm
                         # Fit next frame
                         self.fit_next(t, frame_cor.reshape(-1, order='F'))
                         # Show
@@ -1274,7 +1295,7 @@ class OnACID(object):
                             if cv2.waitKey(1) & 0xFF == ord('q'):
                                 break
                         t += 1
-                        t_online.append(time() - t_frame_start)
+                        t_online.append(time.time() - t_frame_start)
                     except  (StopIteration, RuntimeError):
                         break
         
@@ -1288,6 +1309,7 @@ class OnACID(object):
                          epochs:t], self.estimates.C_on[:self.params.get('init', 'nb'), t - t // epochs:t]
         noisyC = self.estimates.noisyC[self.params.get('init', 'nb'):self.M, t - t // epochs:t]
         self.estimates.YrA = noisyC - self.estimates.C
+
         if self.estimates.OASISinstances is not None:
             self.estimates.bl = [osi.b for osi in self.estimates.OASISinstances]
             self.estimates.S = np.stack([osi.s for osi in self.estimates.OASISinstances])
@@ -1295,6 +1317,7 @@ class OnACID(object):
         else:
             self.estimates.bl = [0] * self.estimates.C.shape[0]
             self.estimates.S = np.zeros_like(self.estimates.C)
+
         if self.params.get('online', 'ds_factor') > 1:
             dims = frame.shape
             self.estimates.A = hstack([coo_matrix(cv2.resize(self.estimates.A[:, i].reshape(self.estimates.dims, order='F').toarray(),
@@ -1304,16 +1327,21 @@ class OnACID(object):
                                                               dims[::-1]).reshape(-1, order='F')[:,None] for i in range(self.params.get('init', 'nb'))], axis=1)
             else:
                 self.estimates.b = np.resize(self.estimates.b, (self.estimates.A.shape[0], 0))
+
             if self.estimates.b0 is not None:
                 b0 = self.estimates.b0.reshape(self.estimates.dims, order='F')
                 b0 = cv2.resize(b0, dims[::-1])
                 self.estimates.b0 = b0.reshape((-1, 1), order='F')
+
             self.params.set('data', {'dims': dims})
             self.estimates.dims = dims
+
         if self.params.get('online', 'save_online_movie'):
             out.release()
+
         if self.params.get('online', 'show_movie'):
             cv2.destroyAllWindows()
+
         self.t_online = t_online
         self.estimates.C_on = self.estimates.C_on[:self.M]
         self.estimates.noisyC = self.estimates.noisyC[:self.M]
@@ -1358,7 +1386,6 @@ class OnACID(object):
                 all_comps = np.nan_to_num(est.corr_img * pnr_img)
                 fac = 1. / self.params.get('init', 'min_corr') / self.params.get('init', 'min_pnr')
             else:
-                #all_comps = np.reshape(self.Yres_buf.mean(0), self.dims, order='F')
                 all_comps = np.reshape(est.mean_buff, self.dims, order='F')
                 fac = 1. / np.percentile(est.mean_buff, 99.995)
         else:
@@ -1406,7 +1433,9 @@ def bare_initialization(Y, init_batch=1000, k=1, method_init='greedy_roi', gnb=1
                         gSig=[5, 5], motion_flag=False, p=1,
                         return_object=True, **kwargs):
     """
-    Quick and dirty initialization for OnACID, bypassing CNMF entirely
+    Quick and dirty initialization for OnACID, bypassing CNMF entirely. Returns datasets
+    suitable to initialize an OnACID object. Usually called by initialize_online()
+
     Args:
         Y               movie object or np.array
                         matrix of data
@@ -1429,16 +1458,35 @@ def bare_initialization(Y, init_batch=1000, k=1, method_init='greedy_roi', gnb=1
         motion_flag     bool
                         also perform motion correction
 
-    Output:
-        cnm_init    object
-                    caiman CNMF-like object to initialize OnACID
+    Returns:
+        Either a CNMF object or a set of parameters suitable to initialize OnACID:
+
+        Ain
+        b_in
+        Cin
+        f_in
+        YrA
+        W (optionally)
+        b0 (optionally)
     """
+
+    # FIXME The semantics around return_object and variable returns are terrible
+    #       and in dire need of refactoring. If we really need both, we should consider making
+    #       one use case a wrapper for the other. 
 
     if Y.ndim == 4:  # 3D data
         Y = Y[:, :, :, :init_batch]
     else:
         Y = Y[:, :, :init_batch]
 
+    # FIXME Unclear what parts in the try block might fail, otherwise we could
+    # presumably hoist the common elements out
+    #
+    # It may be that the inconsistent return type for initialize_components()
+    # is what's being handled here (it returns an extra parameter if
+    # method == 'corr_pnr' and there is a ring_size_factor), in which case this
+    # is a particularly bad way to handle that variation because it will run twice
+    # in some circumstances without a good reason.
     try:
         Ain, Cin, b_in, f_in, center = initialize_components(
             Y, K=k, gSig=gSig, nb=gnb, method_init=method_init, **kwargs)
@@ -1457,6 +1505,7 @@ def bare_initialization(Y, init_batch=1000, k=1, method_init='greedy_roi', gnb=1
             Y, K=k, gSig=gSig, nb=gnb, method_init=method_init, **kwargs)
         Ain = coo_matrix(Ain)
         YrA, _, W, b0 = extra_1p[-4:]
+
     if return_object:
         cnm_init = caiman.source_extraction.cnmf.cnmf.CNMF(2, k=k, gSig=gSig, Ain=Ain, Cin=Cin, b_in=np.array(
             b_in), f_in=f_in, method_init=method_init, p=p, gnb=gnb, **kwargs)
@@ -1464,7 +1513,6 @@ def bare_initialization(Y, init_batch=1000, k=1, method_init='greedy_roi', gnb=1
         cnm_init.estimates.A, cnm_init.estimates.C, cnm_init.estimates.b, cnm_init.estimates.f, cnm_init.estimates.S,\
             cnm_init.estimates.YrA = Ain, Cin, b_in, f_in, np.maximum(np.atleast_2d(Cin), 0), YrA
 
-        #cnm_init.g = np.array([-np.poly([0.9]*max(p,1))[1:] for gg in np.ones(k)])
         cnm_init.estimates.g = np.array([-np.poly([0.9, 0.5][:max(1, p)])[1:]
                                for gg in np.ones(k)])
         cnm_init.estimates.bl = np.zeros(k)
@@ -1473,10 +1521,9 @@ def bare_initialization(Y, init_batch=1000, k=1, method_init='greedy_roi', gnb=1
         cnm_init.estimates.lam = np.zeros(k)
         cnm_init.dims = Y.shape[:-1]
         cnm_init.params.set('online', {'init_batch': init_batch})
-
         return cnm_init
     else:
-        try:
+        try: # XXX Can this try actually fail?
             return Ain, np.array(b_in), Cin, f_in, YrA, W, b0
         except:
             return Ain, np.array(b_in), Cin, f_in, YrA
@@ -1506,10 +1553,19 @@ def seeded_initialization(Y, Ain, dims=None, init_batch=1000, order_init=None, g
                         order of elements to be initialized using rank1 nmf restricted to the support of
                         each component
 
-    Output:
-        cnm_init    object
-                    caiman CNMF-like object to initialize OnACID
+    Returns:
+        Either a CNMF object or a set of parameters suitable to initialize OnACID:
+
+        Ain
+        b_in
+        Cin
+        f_in
+        YrA
     """
+
+    # FIXME As above, the semantics around return_object and variable returns are terrible
+    #       and in dire need of refactoring. If we really need both, we should consider making
+    #       one use case a wrapper for the other. 
 
     if 'ndarray' not in str(type(Ain)):
         Ain = Ain.toarray()
@@ -1526,9 +1582,7 @@ def seeded_initialization(Y, Ain, dims=None, init_batch=1000, order_init=None, g
     f_in = model.components_.squeeze()
     f_in = np.atleast_2d(f_in)
     Y_resf = np.dot(Yr, f_in.T)
-#    b_in = np.maximum(Y_resf.dot(np.linalg.inv(f_in.dot(f_in.T))), 0)
     b_in = np.maximum(np.linalg.solve(f_in.dot(f_in.T), Y_resf.T), 0).T
-    # b_in = np.maximum(pd_solve(f_in.dot(f_in.T), Y_resf.T), 0).T
     Yr_no_bg = (Yr - b_in.dot(f_in)).astype(np.float32)
 
     Cin = np.zeros([Ain.shape[-1],Yr.shape[-1]], dtype = np.float32)
@@ -1562,7 +1616,6 @@ def seeded_initialization(Y, Ain, dims=None, init_batch=1000, order_init=None, g
             2, Ain=Ain, Cin=Cin, b_in=np.array(b_in), f_in=f_in, p=1, **kwargs)
         cnm_init.estimates.A, cnm_init.estimates.C, cnm_init.estimates.b, cnm_init.estimates.f, cnm_init.estimates.S, \
                 cnm_init.estimates.YrA = Ain, Cin, b_in, f_in, np.fmax(np.atleast_2d(Cin), 0), YrA
-    #    cnm_init.g = np.array([[gg] for gg in np.ones(nr)*0.9])
         cnm_init.estimates.g = np.array([-np.poly([0.9] * max(p, 1))[1:]
                                for gg in np.ones(nr)])
         cnm_init.estimates.bl = np.zeros(nr)
@@ -1578,6 +1631,8 @@ def seeded_initialization(Y, Ain, dims=None, init_batch=1000, order_init=None, g
 
 
 def HALS4shapes(Yr, A, C, iters=2):
+    # Helper function used by seeded_initialization()
+    # XXX What does this do?
     K = A.shape[-1]
     ind_A = A > 0
     U = C.dot(Yr.T)
@@ -1594,7 +1649,6 @@ def HALS4shapes(Yr, A, C, iters=2):
 
 
 # definitions for demixed time series extraction and denoising/deconvolving
-@profile
 def HALS4activity(Yr, A, noisyC, AtA=None, iters=5, tol=1e-3, groups=None,
                   order=None):
     """Solves C = argmin_C ||Yr-AC|| using block-coordinate decent. Can use
@@ -1633,6 +1687,11 @@ def HALS4activity(Yr, A, noisyC, AtA=None, iters=5, tol=1e-3, groups=None,
         noisyC : np.array (# of components x t)
             solution of HALS + residuals, i.e, (C + YrA)
     """
+    # FIXME This has a cousin function with the same name and not-quite-the-same functionality
+    #       in caiman/source_extraction/initialization.py
+    #       as a subfunction scoped inside of the hals() function.
+    #       It would be good to either merge them or to rename one of them; of the two this is the
+    #       more involved version. Or we could pull all the hals stuff into a separate namespace.
 
     AtY = A.T.dot(Yr)
     num_iters = 0
@@ -1695,7 +1754,7 @@ def demix1p(y, A, noisyC, AtA, Atb, AtW, AtWA, iters=5, tol=1e-3,
     C_old = np.zeros_like(noisyC)
     C = noisyC.copy()
     # faster than np.linalg.norm
-    def norm(c): return sqrt(c.ravel().dot(c.ravel()))
+    def norm(c): return sqrt(c.ravel().dot(c.ravel())) # same inline norm as above; pull it out?
     while (norm(C_old - C) >= tol * norm(C_old)) and (num_iters < iters):
         C_old[:] = C
         AtB = AtWyb - AtWA.dot(C)  # A'B = A'WY - A'WAC - A'(Wb0-b0)
@@ -1711,7 +1770,6 @@ def demix1p(y, A, noisyC, AtA, Atb, AtW, AtWA, iters=5, tol=1e-3,
     return C, noisyC
 
 
-@profile
 def demix_and_deconvolve(C, noisyC, AtY, AtA, OASISinstances, iters=3, n_refit=0):
     """
     Solve C = argmin_C ||Y-AC|| subject to C following AR(p) dynamics
@@ -1802,8 +1860,6 @@ def init_shapes_and_sufficient_stats(Y, A, C, b, f, W=None, b0=None, ssub_B=1, b
     K = A.shape[1]  # number of neurons
     if W is None:
         nb = b.shape[1]  # number of background components
-    # if isinstance(bSiz, (int, float)):
-    #     bSiz = [bSiz] * len(dims)
         Ab = np.hstack([b, A])
     else:
         Ab = A
@@ -1834,7 +1890,6 @@ def init_shapes_and_sufficient_stats(Y, A, C, b, f, W=None, b0=None, ssub_B=1, b
     return Ab, ind_A, CY, CC
 
 
-@profile
 def update_shapes(CY, CC, Ab, ind_A, sn=None, q=0.5, indicator_components=None,
                   Ab_dense=None, update_bkgrd=True, iters=5):
 
@@ -1911,8 +1966,6 @@ def update_shapes(CY, CC, Ab, ind_A, sn=None, q=0.5, indicator_components=None,
                         Ab_dense[ind_pixels, m] = tmp / max(1, sqrt(tmp.dot(tmp)))
                         Ab.data[Ab.indptr[m]:Ab.indptr[m + 1]] = Ab_dense[ind_pixels, m]
                         ind_A[m - nb] = Ab.indices[slice(Ab.indptr[m], Ab.indptr[m + 1])]
-                # Ab.data[Ab.indptr[nb]:] = np.concatenate(
-                #     [Ab_dense[ind_A[m - nb], m] for m in range(nb, M)])
                 # N.B. why does selecting only overlapping neurons help surprisingly little, i.e
                 # Ab[ind_pixels][:, overlap[m]].dot(CC[overlap[m], m])
                 # where overlap[m] are the indices of all neurons overlappping with & including m?
@@ -2006,22 +2059,15 @@ def rank1nmf(Ypx, ain, iters=10):
         cin_res = ain.dot(Ypx)  # / ain.dot(ain)
         cin = np.maximum(cin_res, 0)
         ain = np.maximum(Ypx.dot(cin), 0)
-        # ain /= (sqrt(ain.dot(ain)) + np.finfo(np.float32).eps)
         if t in (0, iters-1):
             ain /= (sqrt(ain.dot(ain)) + eps)
         elif t % 2 == 0:  # division by squared norm every 2nd iter is faster yet numerically stable
             ain /= (ain.dot(ain) + eps)
-        # nc = cin.dot(cin)
-        # ain = np.maximum(Ypx.dot(cin.T) / nc, 0)
-        # tmp = cin - cin_old
-        # if tmp.dot(tmp) < 1e-6 * nc:
-        #     break
-        # cin_old = cin.copy()
+
     cin_res = ain.dot(Ypx)  # / ain.dot(ain)
     cin = np.maximum(cin_res, 0)
     return ain, cin, cin_res
 
-@profile
 def get_candidate_components(sv, dims, Yres_buf, min_num_trial=3, gSig=(5, 5),
                              gHalf=(5, 5), sniper_mode=True, rval_thr=0.85,
                              patch_size=50, loaded_model=None, test_both=False,
@@ -2088,7 +2134,6 @@ def get_candidate_components(sv, dims, Yres_buf, min_num_trial=3, gSig=(5, 5),
             compute_corr = True  # determine when to compute corr coef
 
         na = ain.dot(ain)
-        # sv[indices_] /= 1  # 0
         if na:
             ain /= sqrt(na)
             Ain.append(ain)
@@ -2108,21 +2153,10 @@ def get_candidate_components(sv, dims, Yres_buf, min_num_trial=3, gSig=(5, 5),
         Ain2 = np.reshape(Ain2,(-1,) + tuple(np.diff(ijSig_cnn).squeeze()),order= 'F')
         Ain2 = np.stack([cv2.resize(ain,(patch_size ,patch_size)) for ain in Ain2])
 
-        final_crops = Ain2[:, :, :, np.newaxis]
-        final_crops_tensor = torch.tensor(final_crops, dtype=torch.float32).permute(0, 3, 1, 2)
-        
-        #Create DataLoader for batching 
-        dataset = TensorDataset(final_crops_tensor)
-        loader = DataLoader(dataset, batch_size=int(min_num_trial), shuffle=False)
+        final_crops = Ain2[:, :, :, np.newaxis]  # Keep in Keras format (BHWC)
 
-        loaded_model.eval()
-        all_predictions = []
-        with torch.no_grad():
-            for batch in loader:
-                outputs = loaded_model(batch[0])
-                all_predictions.append(outputs)   
-        
-        predictions = torch.cat(all_predictions).cpu().numpy()
+        # Use Keras model prediction instead of PyTorch
+        predictions = loaded_model.predict(final_crops, batch_size=int(min_num_trial), verbose=0)
         keep_cnn = list(np.where(predictions[:,0] > thresh_CNN_noisy)[0])
         cnn_pos = Ain2[keep_cnn]
     else:
@@ -2158,7 +2192,6 @@ def get_candidate_components(sv, dims, Yres_buf, min_num_trial=3, gSig=(5, 5),
 
     return Ain, Cin, Cin_res, idx, ijsig_all, cnn_pos, local_maxima
 
-@profile
 def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                           dims, gSig, gSiz, ind_A, CY, CC, groups, oases, gnb=1,
                           rval_thr=0.875, bSiz=3, robust_std=False,
@@ -2175,8 +2208,16 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
                           max_img=None, downscale_matrix=None, upscale_matrix=None):
     """
     Checks for new components in the residual buffer and incorporates them if they pass the acceptance tests
+
+    Returns:
+    Ab, Cf, Yres_buf, rho_buf, CC, CY, ind_A, sv, groups, ind_new, ind_new_all, sv, cnn_pos
     """
 
+    # FIXME This is called once in fit_next() and it would be good to refactor it, possibly into a method
+    # (making argument passing easier to read), possibly inlining it and then looking for a new abstraction,
+    # or possibly some more fundamental reworking. Please do not call this from outside code.
+
+    logger = logging.getLogger("caiman")
     ind_new = []
     gHalf = np.array(gSiz) // 2
 
@@ -2460,103 +2501,6 @@ def remove_components_online(ind_rem, gnb, Ab, use_dense, Ab_dense, AtA, CY,
 
     return Ab, Ab_dense, CC, CY, M, N, noisyC, OASISinstances, C_on, exp_comps, ind_A, groups, AtA
 
-def initialize_movie_online(Y, K, gSig, rf, stride, base_name,
-                            p=1, merge_thresh=0.95, rval_thr_online=0.9, thresh_fitness_delta_online=-30, thresh_fitness_raw_online=-50,
-                            rval_thr_init=.5, thresh_fitness_delta_init=-20, thresh_fitness_raw_init=-20,
-                            rval_thr_refine=0.95, thresh_fitness_delta_refine=-100, thresh_fitness_raw_refine=-100,
-                            final_frate=10, Npeaks=10, single_thread=True, dview=None, n_processes=None):
-    """
-    Initialize movie using CNMF on minibatch. See CNMF parameters
-    """
-
-    Yr = Y.to_2D().T
-    # merging threshold, max correlation allowed
-    # order of the autoregressive system
-    base_name = base_name + '.mmap'
-    fname_new = Y.save(caiman.paths.fn_relocated(base_name), order='C')
-    Yr, dims, T = caiman.load_memmap(fname_new)
-    d1, d2 = dims
-    images = np.reshape(Yr.T, [T] + list(dims), order='F')
-    Y = np.reshape(Yr, dims + (T,), order='F')
-    Cn2 = caiman.local_correlations(Y)
-    # RUN ALGORITHM ON PATCHES
-    cnm_init = caiman.source_extraction.cnmf.CNMF(n_processes, method_init='greedy_roi', k=K, gSig=gSig, merge_thresh=merge_thresh,
-                                              p=0, dview=dview, Ain=None, rf=rf, stride=stride, method_deconvolution='oasis', skip_refinement=False,
-                                              normalize_init=False, options_local_NMF=None,
-                                              minibatch_shape=100, minibatch_suff_stat=5,
-                                              update_num_comps=True, rval_thr=rval_thr_online, thresh_fitness_delta=thresh_fitness_delta_online, thresh_fitness_raw=thresh_fitness_raw_online,
-                                              batch_update_suff_stat=True, max_comp_update_shape=5)
-
-    cnm_init.fit(images)
-    A_tot = cnm_init.A
-    C_tot = cnm_init.C
-    YrA_tot = cnm_init.YrA
-    b_tot = cnm_init.b
-    f_tot = cnm_init.f
-
-    print(f"Number of components: {A_tot.shape[-1]}")
-
-    traces = C_tot + YrA_tot
-    fitness_raw, fitness_delta, erfc_raw, erfc_delta, r_values, significant_samples = caiman.components_evaluation.evaluate_components(
-        Y, traces, A_tot, C_tot, b_tot, f_tot, final_frate, remove_baseline=True, N=5, robust_std=False, Athresh=0.1, Npeaks=Npeaks,  thresh_C=0.3)
-
-    idx_components_r = np.where(r_values >= rval_thr_init)[0]
-    idx_components_raw = np.where(fitness_raw < thresh_fitness_raw_init)[0]
-    idx_components_delta = np.where(
-        fitness_delta < thresh_fitness_delta_init)[0]
-
-    idx_components = np.union1d(idx_components_r, idx_components_raw)
-    idx_components = np.union1d(idx_components, idx_components_delta)
-    idx_components_bad = np.setdiff1d(list(range(len(traces))), idx_components)
-
-    print(('Keeping ' + str(len(idx_components)) +
-           ' and discarding  ' + str(len(idx_components_bad))))
-
-    A_tot = A_tot.tocsc()[:, idx_components]
-    C_tot = C_tot[idx_components]
-
-    cnm_refine = caiman.source_extraction.cnmf.CNMF(n_processes, method_init='greedy_roi', k=A_tot.shape, gSig=gSig, merge_thresh=merge_thresh, rf=None, stride=None,
-                                                p=p, dview=dview, Ain=A_tot, Cin=C_tot, f_in=f_tot, method_deconvolution='oasis', skip_refinement=True,
-                                                normalize_init=False, options_local_NMF=None,
-                                                minibatch_shape=100, minibatch_suff_stat=5,
-                                                update_num_comps=True, rval_thr=rval_thr_refine, thresh_fitness_delta=thresh_fitness_delta_refine, thresh_fitness_raw=thresh_fitness_raw_refine,
-                                                batch_update_suff_stat=True, max_comp_update_shape=5)
-
-    cnm_refine.fit(images)
-
-    A, C, b, f, YrA = cnm_refine.A, cnm_refine.C, cnm_refine.b, cnm_refine.f, cnm_refine.YrA
-
-    final_frate = 10
-    Npeaks = 10
-    traces = C + YrA
-
-    fitness_raw, fitness_delta, erfc_raw, erfc_delta, r_values, significant_samples = \
-        caiman.components_evaluation.evaluate_components(Y, traces, A, C, b, f, final_frate, remove_baseline=True,
-                                                     N=5, robust_std=False, Athresh=0.1, Npeaks=Npeaks,  thresh_C=0.3)
-
-    idx_components_r = np.where(r_values >= rval_thr_refine)[0]
-    idx_components_raw = np.where(fitness_raw < thresh_fitness_raw_refine)[0]
-    idx_components_delta = np.where(
-        fitness_delta < thresh_fitness_delta_refine)[0]
-
-    idx_components = np.union1d(idx_components_r, idx_components_raw)
-    idx_components = np.union1d(idx_components, idx_components_delta)
-    idx_components_bad = np.setdiff1d(list(range(len(traces))), idx_components)
-
-    print(' ***** ')
-    print((len(traces)))
-    print((len(idx_components)))
-
-    cnm_refine.sn = sn # FIXME: There is no sn in scope here
-    cnm_refine.idx_components = idx_components
-    cnm_refine.idx_components_bad = idx_components_bad
-    cnm_refine.r_values = r_values
-    cnm_refine.fitness_raw = fitness_raw
-    cnm_refine.fitness_delta = fitness_delta
-    cnm_refine.Cn2 = Cn2
-
-    return cnm_refine, Cn2, fname_new
-
 def load_OnlineCNMF(filename, dview = None):
     """load object saved with the CNMF save method
 
@@ -2567,7 +2511,12 @@ def load_OnlineCNMF(filename, dview = None):
             useful to set up parllelization in the objects
     """
 
+    logger = logging.getLogger("caiman")
     filename = caiman.paths.fn_relocated(filename)
+    runmode = hdf5_runmode(filename)
+    if runmode != 'OnACID':
+        logger.warning(f'Datafile {filename} not marked as OnACID')
+
     for key, val in load_dict_from_hdf5(filename).items():
         if key == 'params':
             prms = CNMFParams()
@@ -2591,4 +2540,6 @@ def load_OnlineCNMF(filename, dview = None):
     return new_obj
 
 def inv_mat_vec(A):
+    # Helper function, used in fit_next() method
     return np.linalg.solve(A[0], A[1])
+

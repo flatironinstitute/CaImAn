@@ -1028,7 +1028,7 @@ def computing_indicator(Y, A_in, b, C, f, nb, method, dims, min_size, max_size, 
                 scipy.sparse.hstack([A_in, scipy.sparse.coo_matrix(b)]), dims, method=method, min_size=min_size, max_size=max_size, dist=dist, expandCore=expandCore,
                 dview=dview)
 
-        ind2_ = [np.where(iid_.squeeze())[0]  for iid_ in dist_indicator.astype(bool).toarray()]
+        ind2_ = [np.where(np.atleast_1d(iid_))[0]  for iid_ in dist_indicator.astype(bool).toarray()]
         ind2_ = [iid_ if (np.size(iid_) > 0) and (np.min(iid_) < nr) else [] for iid_ in ind2_]
 
     return ind2_, nr, C, f, b, A_in
@@ -1069,7 +1069,7 @@ def creatememmap(Y, Cf, dview):
         C_name = os.path.join(folder, 'C_temp.npy')
         np.save(C_name, Cf)
 
-        if isinstance(Y, np.core.memmap):  # if input file is already memory mapped then find the filename
+        if isinstance(Y, np.memmap):  # if input file is already memory mapped then find the filename
             Y_name = Y.filename
         # if not create a memory mapped version (necessary for parallelization)
         elif isinstance(Y, str) or dview is None:
@@ -1077,7 +1077,7 @@ def creatememmap(Y, Cf, dview):
         else:
             Y_name = os.path.join(folder, 'Y_temp.npy')
             np.save(Y_name, Y)
-            Y, _, _, _ = caiman.mmapping.load_memmap(Y_name)
+            Y, _, _ = caiman.mmapping.load_memmap(Y_name)
             raise Exception('Not implemented consistently')
     return C_name, Y_name, folder
 

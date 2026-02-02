@@ -20,6 +20,5 @@ Contents:
    CaImAn_Tips
    file_formats
    GUI
-   readme-gpu
    cluster
    core_functions

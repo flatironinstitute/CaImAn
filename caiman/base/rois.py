@@ -527,12 +527,12 @@ def register_ROIs(A1,
 
         masks_1 = np.reshape(A1.toarray(), dims + (-1,), order='F').transpose(2, 0, 1)
         masks_2 = np.reshape(A2.toarray(), dims + (-1,), order='F').transpose(2, 0, 1)
-        #        try : #Plotting function
         level = 0.98
         pl.rcParams['pdf.fonttype'] = 42
         font = {'family': 'Myriad Pro', 'weight': 'regular', 'size': 10}
         pl.rc('font', **font)
-        lp, hp = np.nanpercentile(Cn, [5, 95])
+        # We cast to an array because if it somehow ends up as a Matrix numpy can get very upset.
+        lp, hp = np.nanpercentile(np.array(Cn), [5, 95])
         pl.figure(figsize=(20, 10))
         pl.subplot(1, 2, 1)
         pl.imshow(Cn, vmin=lp, vmax=hp, cmap=cmap)

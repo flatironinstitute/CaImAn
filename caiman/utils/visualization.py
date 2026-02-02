@@ -414,7 +414,7 @@ def get_contours(A, dims, thr=0.9, thr_method='nrg', swap_dim=False, slice_dim: 
             if len(cumEn) == 0:
                 pars = dict(
                     coordinates=np.array([]),
-                    CoM=np.array([np.NaN, np.NaN]),
+                    CoM=np.array([np.nan, np.nan]),
                     neuron_id=i + 1,
                 )
                 coordinates.append(pars)

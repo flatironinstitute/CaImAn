@@ -60,7 +60,7 @@ def main():
 
     #  Load demo movie and ROIs
     file_dir = os.path.split(fnames)[0]
-    
+
     # dataset dependent parameters
     fr = 400                                        # sample rate of the movie
 
@@ -126,7 +126,7 @@ def main():
         # you can include the boundaries of the FOV if you used the 'copy' option
         # during motion correction, although be careful about the components near
         # the boundaries
-        
+
         # memory map the file in order 'C'
         fname_new = caiman.save_memmap_join(mc.mmap_file, base_name='memmap_' + os.path.splitext(os.path.split(fnames)[-1])[0],
                                         add_to_mov=border_to_0, dview=dview)  # exclude border
@@ -135,12 +135,12 @@ def main():
                      ('memmap_' + os.path.splitext(os.path.split(fnames)[-1])[0]) in file]
         fname_new = os.path.join(file_dir, mmap_list[0])
         print(f'reuse previously saved memory mapping file: {fname_new}')
-    
+
     # SEGMENTATION
     # create summary images
     img = mean_image(mc.mmap_file[0], window = 1000, dview=dview)
     img = (img-np.mean(img))/np.std(img)
-    
+
     gaussian_blur = False        # Use gaussian blur when there is too much noise in the video
     Cn = local_correlations_movie_offline(mc.mmap_file[0], fr=fr, window=fr*4, 
                                           stride=fr*4, winSize_baseline=fr, 
@@ -151,15 +151,17 @@ def main():
     # save summary images which are used in the VolPy GUI
     caiman.movie(summary_images).save(fnames[:-5] + '_summary_images.tif')
     fig, axs = plt.subplots(1, 2)
-    axs[0].imshow(summary_images[0]); axs[1].imshow(summary_images[2])
-    axs[0].set_title('mean image'); axs[1].set_title('corr image');
+    axs[0].imshow(summary_images[0])
+    axs[1].imshow(summary_images[2])
+    axs[0].set_title('mean image')
+    axs[1].set_title('corr image')
 
     if cfg.method == 'manual_annotation':
         with h5py.File(path_ROIs, 'r') as fl:
             ROIs = fl['mov'][()]  
 
     elif cfg.method == 'maskrcnn':
-        weights_path = download_model('mask_rcnn')    
+        weights_path = download_model('mask_rcnn')
         ROIs = utils.mrcnn_inference(img=summary_images.transpose([1, 2, 0]), size_range=[5, 22],
                                      weights_path=weights_path, display_result=True) # size parameter decides size range of masks to be selected
         caiman.movie(ROIs).save(fnames[:-5] + '_mrcnn_ROIs.hdf5')
@@ -171,9 +173,11 @@ def main():
             ROIs = fl['mov'][()]
 
     fig, axs = plt.subplots(1, 2)
-    axs[0].imshow(summary_images[0]); axs[1].imshow(ROIs.sum(0))
-    axs[0].set_title('mean image'); axs[1].set_title('masks')
-        
+    axs[0].imshow(summary_images[0])
+    axs[1].imshow(ROIs.sum(0))
+    axs[0].set_title('mean image')
+    axs[1].set_title('masks')
+
     # restart cluster to clean up memory
     caiman.stop_server(dview=dview)
     c, dview, n_processes = caiman.cluster.setup_cluster(backend=cfg.cluster_backend, n_processes=cfg.cluster_nproc)
@@ -199,7 +203,7 @@ def main():
     sub_freq = 20                                 # frequency for subthreshold extraction
     weight_update = 'ridge'                       # ridge or NMF for weight update
     n_iter = 2                                    # number of iterations alternating between estimating spike times and spatial filters
-    
+
     opts_dict={'fnames': fname_new,
                'ROIs': ROIs,
                'index': index,
@@ -220,25 +224,25 @@ def main():
                'weight_update': weight_update,
                'n_iter': n_iter}
 
-    opts.change_params(params_dict=opts_dict);          
+    opts.change_params(params_dict=opts_dict)
 
     # TRACE DENOISING AND SPIKE DETECTION
     vpy = VOLPY(n_processes=n_processes, dview=dview, params=opts)
-    vpy.fit(n_processes=n_processes, dview=dview);
-   
+    vpy.fit(n_processes=n_processes, dview=dview)
+
     # visualization
     if not cfg.no_play:
         print(np.where(vpy.estimates['locality'])[0])    # neurons that pass locality test
         idx = np.where(vpy.estimates['locality'] > 0)[0]
         utils.view_components(vpy.estimates, img_corr, idx)
-    
+
     # reconstructed movie 
-    # note the negative spatial weights are cutoff    
+    # note the negative spatial weights are cutoff
     if not cfg.no_play:
         mv_all = utils.reconstructed_movie(vpy.estimates.copy(), fnames=mc.mmap_file,
                                            idx=idx, scope=(0,1000), flip_signal=flip_signal)
         mv_all.play(fr=40, magnification=3)
-    
+
     # save the result in .npy format 
     save_result = True
     if save_result:
@@ -246,7 +250,7 @@ def main():
         vpy.estimates['params'] = opts
         save_name = f'volpy_{os.path.split(fnames)[1][:-5]}_{threshold_method}'
         np.save(os.path.join(file_dir, save_name), vpy.estimates)
-        
+
     # reuse weights 
     # set weights = reuse_weights in opts_dict dictionary
     estimates = np.load(os.path.join(file_dir, save_name+'.npy'), allow_pickle=True).item()
@@ -254,9 +258,12 @@ def main():
     for idx in range(ROIs.shape[0]):
         coord = estimates['context_coord'][idx]
         w = estimates['weights'][idx][coord[0][0]:coord[1][0]+1, coord[0][1]:coord[1][1]+1] 
-        plt.figure(); plt.imshow(w);plt.colorbar(); plt.show()
+        plt.figure()
+        plt.imshow(w)
+        plt.colorbar()
+        plt.show()
         reuse_weights.append(w)
-    
+
     # Stop the cluster and clean up log files
     caiman.stop_server(dview=dview)
 
