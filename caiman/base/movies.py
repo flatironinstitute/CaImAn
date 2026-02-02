@@ -1151,7 +1151,17 @@ def load(file_name: Union[str, list[str]],
                     ret, frame = cap.read()
                     if not ret:
                         break
-                    input_arr[counter] = frame[:, :, 0]
+                    if frame.ndim == 2:
+                        gray_frame = frame
+                    elif frame.shape[2] == 3:
+                        gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
+                    elif frame.shape[2] == 4:
+                        gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGRA2GRAY)
+                    else:
+                        gray_frame = frame[:, :, 0]
+                    
+                    input_arr[counter] = gray_frame
+                    
                     counter += 1
                     current_frame += 1
                 # handle spatial subindices
