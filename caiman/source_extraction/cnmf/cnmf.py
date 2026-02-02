@@ -287,6 +287,7 @@ class CNMF(object):
         T = images.shape[0]
         self.params.set('online', {'init_batch': T}, warn=False)
         self.dims = images.shape[1:]
+        self.estimates.dims = self.dims
         Y = np.transpose(images, list(range(1, len(self.dims) + 1)) + [0])
         Yr = np.transpose(np.reshape(images, (T, -1), order='F'))
         if np.isfortran(Yr):
@@ -358,7 +359,7 @@ class CNMF(object):
                 return
 
             logger.info('update spatial ...')
-            self.update_spatial(Yr, use_init=True)
+            self.update_spatial(Yr)
 
             logger.info('update temporal ...')
             if not self.skip_refinement:
@@ -378,11 +379,11 @@ class CNMF(object):
 
                 logger.info('Updating spatial ...')
 
-                self.update_spatial(Yr, use_init=False)
+                self.update_spatial(Yr)
                 # set it back to original value to perform full deconvolution
                 self.params.set('temporal', {'p': self.params.get('preprocess', 'p')}, warn=False)
                 logger.info('update temporal ...')
-                self.update_temporal(Yr, use_init=False)
+                self.update_temporal(Yr)
 
             # embed in the whole FOV
             if is_sliced:
@@ -444,14 +445,14 @@ class CNMF(object):
                         self.merge_comps(Yr, mx=np.inf, fast_merge=True)
 
                     logger.info("update temporal")
-                    self.update_temporal(Yr, use_init=False)
+                    self.update_temporal(Yr)
 
                     self.params.set('spatial', {'se': np.ones((1,) * len(self.dims), dtype=np.uint8)}, warn=False)
                     logger.info('update spatial ...')
-                    self.update_spatial(Yr, use_init=False)
+                    self.update_spatial(Yr)
 
                     logger.info("update temporal")
-                    self.update_temporal(Yr, use_init=False)
+                    self.update_temporal(Yr)
                 else:
                     while len(self.estimates.merged_ROIs) > 0:
                         self.merge_comps(Yr, mx=np.inf, fast_merge=True)
@@ -473,7 +474,7 @@ class CNMF(object):
                     self.merge_comps(Yr, mx=np.inf)
 
                 logger.info("Updating temporal components")
-                self.update_temporal(Yr, use_init=False)
+                self.update_temporal(Yr)
 
         self.estimates.normalize_components()
 
@@ -608,12 +609,14 @@ class CNMF(object):
                 input data
 
         """
-        lc = locals()
-        pr = inspect.signature(self.update_temporal)
-        params = [k for k, v in pr.parameters.items() if '=' in str(v)]
-        kw2 = {k: lc[k] for k in params}
-        kwargs_new = {**kw2, **kwargs}
-        self.params.set('temporal', kwargs_new, warn=False)
+        logger = logging.getLogger('caiman')
+        
+        if use_init is not None:
+            logger.warning('The use_init parameter is deprecated and has no effect.')
+
+        if kwargs:
+            self.params.change_params({'temporal': kwargs})
+
         self.provenance.append({'event': 'update_temporal', 'time': int(time.time()), 'description': f'Updated temporal components based on provided Y'})
 
         self.estimates.C, self.estimates.A, self.estimates.b, self.estimates.f, self.estimates.S, \
@@ -623,26 +626,24 @@ class CNMF(object):
                 **self.params.get_group('temporal'))
         self.estimates.R = self.estimates.YrA
 
-    def update_spatial(self, Y, use_init=True, **kwargs) -> None:
+    def update_spatial(self, Y, use_init=None, **kwargs) -> None:
         """Updates spatial components
         modifies values self.estimates.A, self.estimates.b possibly self.estimates.C, self.estimates.f
 
         Args:
             Y:  np.array (d1*d2) x T
                 input data
-            use_init: bool
-                use Cin, f_in for computing A, b otherwise use C, f
-
         """
-        lc = locals()
-        pr = inspect.signature(self.update_spatial)
-        params = [k for k, v in pr.parameters.items() if '=' in str(v)]
-        kw2 = {k: lc[k] for k in params}
-        kwargs_new = {**kw2, **kwargs}
-        self.params.set('spatial', kwargs_new, warn=False)
-        for key in kwargs_new:
-            if hasattr(self, key):
-                setattr(self, key, kwargs_new[key])
+        logger = logging.getLogger('caiman')
+        
+        if use_init is not None:
+            logger.warning('The use_init parameter is deprecated and has no effect.')
+            
+        if kwargs:
+            self.params.change_params({'spatial': kwargs})
+            for key in kwargs:
+                if hasattr(self, key):
+                    setattr(self, key, kwargs[key])
 
         self.provenance.append({'event': 'update_spatial', 'time': int(time.time()), 'description': f'Updated spatial components based on provided Y'})
 
