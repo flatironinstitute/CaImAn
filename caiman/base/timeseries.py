@@ -250,7 +250,10 @@ class timeseries(np.ndarray):
             y, x = data[0].shape
             vw = cv2.VideoWriter(file_name, codec, self.fr, (x, y), isColor=is_color)
             for d in data:
-                vw.write(cv2.cvtColor(d, cv2.COLOR_GRAY2BGR))
+                if is_color:
+                    vw.write(cv2.cvtColor(d, cv2.COLOR_GRAY2BGR))
+                else:
+                    vw.write(d)
             vw.release()
             return file_name
 
