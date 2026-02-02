@@ -110,7 +110,7 @@ def main():
 
     # play movie with results (original, reconstructed, amplified residual)
     if not cfg.no_play:
-        cnm2.estimates.play_movie(images, magnification=4);
+        cnm2.estimates.play_movie(images, magnification=4)
 
     # Stop the cluster and clean up log files
     caiman.stop_server(dview=dview)
@@ -132,4 +132,5 @@ def handle_args():
     return parser.parse_args()
 
 ########
-main()
+if __name__ == '__main__':
+    main()

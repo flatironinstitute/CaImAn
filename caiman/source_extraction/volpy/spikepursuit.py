@@ -19,7 +19,6 @@ import cv2
 import caiman as cm
 from caiman.base.movies import movie
 
-# %%
 def volspike(pars):
     """ Function for finding spikes of single neuron with given ROI in
         voltage imaging. Use function denoise_spikes to find spikes
@@ -191,7 +190,7 @@ def volspike(pars):
         raise Exception('Dimensions of movie and ROIs do not accord')
         
     # extract the context region from the entire movie
-    bwexp = dilation(bw, np.ones([args['context_size'], args['context_size']]), shift_x=True, shift_y=True)
+    bwexp = dilation(bw, _shift_footprint_old(np.ones([args['context_size']), args['context_size']]))
     Xinds = np.where(np.any(bwexp > 0, axis=1) > 0)[0]
     Yinds = np.where(np.any(bwexp > 0, axis=0) > 0)[0]
     bw = bw[Xinds[0]:Xinds[-1] + 1, Yinds[0]:Yinds[-1] + 1]
@@ -212,7 +211,7 @@ def volspike(pars):
         plt.show()
     
     # flip the signal if necessary
-    if args['flip_signal']==True:
+    if args['flip_signal']:
         data = -data
     
     # remove the photobleaching effect by high-pass filtering the signal
@@ -725,3 +724,20 @@ def signal_filter(sg, freq, fr, order=3, mode='high'):
     b, a = signal.butter(order, normFreq, mode)
     sg = np.single(signal.filtfilt(b, a, sg, padtype='odd', padlen=3 * (max(len(b), len(a)) - 1)))
     return sg
+
+def _shift_footprint_old(footprint) -> np.array:
+    # This emulates a removed feature from scipy that grows/centers footprints for dilation
+    # Please do not call this from outside the library, and consider it a longer-term todo to
+    # rework that call not to need this as a stopgap measure --pgunn
+    footprint = np.array(footprint)
+    if footprint.ndim != 2:
+        return footprint # Only works on 2d footprints
+    m, n = footprint.shape
+    if m % 2 == 0:
+        extra_row = np.zeros((1, n), footprint.dtype)
+        footprint = np.vstack((footprint, extra_row))
+        m += 1
+    if n % 2 == 0:
+        extra_col = np.zeros((m, 1), footprint.dtype)
+        footprint = np.hstack((footprint, extra_col))
+    return footprint

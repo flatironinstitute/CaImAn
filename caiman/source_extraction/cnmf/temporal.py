@@ -177,9 +177,8 @@ def update_temporal_components(Y, A, b, Cin, fin, bl=None, c1=None, g=None, sn=N
     d, T = Y.shape
     nr = A.shape[-1]
     if b is not None:
-        # if b.shape[0] < b.shape[1]:
-        #     b = b.T
         nb = b.shape[1]
+
     if bl is None:
         bl = np.repeat(None, nr)
 
@@ -199,15 +198,15 @@ def update_temporal_components(Y, A, b, Cin, fin, bl=None, c1=None, g=None, sn=N
     nA = np.ravel(A.power(2).sum(axis=0)) + np.finfo(np.float32).eps
 
     logger.info('Generating residuals')
-#    dview_res = None if block_size >= 500 else dview
     if 'memmap' in str(type(Y)):
         bl_siz1 = d // (np.maximum(num_blocks_per_run_temp - 1, 1))
         bl_siz2 = int(psutil.virtual_memory().available/(num_blocks_per_run_temp + 1) - 4*A.nnz) // int(4*T)
         # block_size_temp
         YA = caiman.mmapping.parallel_dot_product(Y, A.tocsr(), dview=dview, block_size=min(bl_siz1, bl_siz2),
-                                  transpose=True, num_blocks_per_run=num_blocks_per_run_temp) * diags(1. / nA);
+                                  transpose=True, num_blocks_per_run=num_blocks_per_run_temp) * diags(1. / nA)
     else:
         YA = (A.T.dot(Y).T) * diags(1. / nA)
+
     AA = ((A.T.dot(A)) * diags(1. / nA)).tocsr()
     YrA = YA - AA.T.dot(Cin).T
     # creating the patch of components to be computed in parallel
@@ -386,7 +385,7 @@ def update_iteration(parrllcomp, len_parrllcomp, nb, C, S, bl, nr,
             YrA -= AA[ii, :].T.dot((cc - Cin[ii])[None, :]).T
             C[ii, :] = cc
 
-        if dview is not None and not('multiprocessing' in str(type(dview))):
+        if dview is not None and ('multiprocessing' not in str(type(dview))):
             dview.results.clear()
 
         try:

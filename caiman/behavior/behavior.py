@@ -91,6 +91,8 @@ def extract_motor_components_OF(m,
                            axis=0)
 
     if only_magnitude:
+        # FIXME: I don't think this flag works because the "of" variable for this code path
+        # can't update when it was never initially defined. Remove the flag?
         of = np.sqrt(of[0]**2 + of[1]**2)
     else:
         if method_factorization == 'nmf':

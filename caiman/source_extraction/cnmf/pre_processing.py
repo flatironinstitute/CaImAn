@@ -76,7 +76,7 @@ def find_unsaturated_pixels(Y, saturationValue=None, saturationThreshold=0.9, sa
         normalPixels:   nd.array
             list of unsaturated pixels
     """
-    if saturationValue == None:
+    if saturationValue is None:
         saturationValue = np.power(2, np.ceil(np.log2(np.max(Y)))) - 1
 
     Ysat = (Y >= saturationThreshold * saturationValue)

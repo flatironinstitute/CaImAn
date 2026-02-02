@@ -1945,7 +1945,7 @@ def play_movie(movie,
             frame = cv2.resize(frame, None, fx=magnification, fy=magnification, interpolation=interpolation)
         frame = (offset + frame - minmov) * gain / (maxmov - minmov)
 
-        if plot_text == True:
+        if plot_text:
             text_width, text_height = cv2.getTextSize('Frame = ' + str(iddxx),
                                                         fontFace=5,
                                                         fontScale=0.8,
@@ -2024,7 +2024,7 @@ def play_movie(movie,
                     display_handle.update(Image(data=cv2.imencode(
                             '.jpg', np.clip((frame * 255.), 0, 255).astype('u1'))[1].tobytes()))
                     plt.pause(1. / fr)
-                if stopButton.value==True:
+                if stopButton.value:
                     break
         display(stopButton)
         thread = threading.Thread(target=view, args=(stopButton,))

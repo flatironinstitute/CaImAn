@@ -16,6 +16,7 @@ torch
 scikit-image
 scikit-learn
 scipy
+setuptools
 tifffile
 tqdm
 zarr

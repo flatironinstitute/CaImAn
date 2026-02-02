@@ -103,12 +103,10 @@ Caiman also provides commandline demos, similar to the notebooks, demonstrating 
 # How to get help
 - [Online documentation](https://caiman.readthedocs.io/en/latest/) contains a lot of general information about Caiman, the parameters, how to interpret its outputs, and more.
 - [GitHub Discussions](https://github.com/flatironinstitute/Caiman/discussions) is our preferred venue for users to ask for help.
-- The [Gitter forum](https://app.gitter.im/#/room/#agiovann_Constrained_NMF:gitter.im) is our old forum: we sometimes will ask people to join us there when something can best be solved in real time (e.g., installation problems).
-- If you have found a bug, we recommend searching the [issues at github](https://github.com/flatironinstitute/Caiman/issues) and opening a new issue if you can't find the solution there. 
-- If there is a feature you would like to see implemented, feel free to come chat at the above forums or open an issue at Github.
+- If you have found a bug or have a feature request, search the [issues at github](https://github.com/flatironinstitute/Caiman/issues) and open a new issue if you can't find a solution there. 
 
 # How to contribute
- Caiman is an open-source project and improves because of contributions from users all over the world. If there is something about Caiman that you would like to work on, then please reach out. We are always looking for more contributors, so please come read the [contributors page](./CONTRIBUTING.md) for more details about how. 
+ Caiman is an open-source project and improves because of contributions from users all over the world. If there is something about Caiman that you would like to work on, reach out. The [contributors page](./CONTRIBUTING.md) has details on how contribution works.
 
 # Videos 
 There are multiple online videos by Andrea Giovannucci from past Caiman workshops/events that are an excellent start for newcomers.

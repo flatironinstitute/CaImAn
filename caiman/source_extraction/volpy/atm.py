@@ -249,6 +249,11 @@ def denoise_spikes(trace, sampleRate, windowLength, superfactor, threshs=(.4, .6
 
     # calculate beforehand the matrix for calculating pre-spike ramp gradients
 
+    # FIXME This function has confusing semantics around the variable "spiketrain" that
+    # break code analysis tools. It would be better to rewrite the code for more clarity.
+    # A simple assignment to spiketrain would also solve the issue, but the semantics
+    # would remain hard to follow.
+
     regressor = np.hstack((np.array([[1], [1], [1]]), np.array([[-1], [-0], [1]])))
     inverse_matrix = np.dot(np.linalg.inv(np.dot(regressor.T, regressor)), regressor.T)
 

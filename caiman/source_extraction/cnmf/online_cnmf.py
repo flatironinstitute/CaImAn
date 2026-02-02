@@ -2218,6 +2218,7 @@ def update_num_components(t, sv, Ab, Cf, Yres_buf, Y_buf, rho_buf,
     # (making argument passing easier to read), possibly inlining it and then looking for a new abstraction,
     # or possibly some more fundamental reworking. Please do not call this from outside code.
 
+    logger = logging.getLogger("caiman")
     ind_new = []
     gHalf = np.array(gSiz) // 2
 

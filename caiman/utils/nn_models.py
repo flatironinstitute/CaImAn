@@ -252,7 +252,7 @@ def rate_scheduler(factor=0.5, epoch_length=200, samples_length=1e4):
         return rate
     return my_scheduler
 
-def total_variation(image):
+def total_variation(images):
     """
     Implements PyTorch version of the the anisotropic 2-D version of the formula described here:
     https://en.wikipedia.org/wiki/Total_variation_denoising
@@ -268,7 +268,7 @@ def total_variation(image):
     Returns:
         The total variation of `images`.
     """
-    ndim = image.ndim
+    ndim = images.ndim
     if ndim == 3: 
         # The input is a single image with shape [height, width, channels].
 
@@ -277,7 +277,7 @@ def total_variation(image):
         pixel_dif1 = images[1:, :, :] - images[:-1, :, :]
         pixel_dif2 = images[:, 1:, :] - images[:, :-1, :]
         sum_axis = None
-    elif ndims == 4:
+    elif ndim == 4:
         # The input is a batch of images with shape:
         # [batch, height, width, channels].
 

@@ -794,10 +794,10 @@ def load_CNMF(filename:str, n_processes=1, dview=None):
                 estims.idx_components = np.where(keep)[0]
             if 'accepted' in rois.table:
                 accepted = rois.table['accepted'][roi_indices]
-                estims.accepted_list = np.where(accepted==True)[0]
+                estims.accepted_list = np.where(accepted)[0]
             if 'rejected' in rois.table:
                 rejected = rois.table['rejected'][roi_indices]
-                estims.rejected_list = np.where(rejected==True)[0]                
+                estims.rejected_list = np.where(rejected)[0]                
                 print(estims.rejected_list)
             estims.nr = len(roi_indices)
 

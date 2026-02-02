@@ -126,11 +126,11 @@ def rotate90(img, right=None, vector=None, sparse=False):
     # If vector is False, then we directly rotate the matrix
     global dims
     a = int(right)
-    if vector == False:
+    if not vector:
         img = img.transpose([1,0])
         img = np.flip(img, axis=a)
-    elif vector == True:
-        if sparse == False:
+    elif vector:
+        if not sparse:
             img = img.reshape((dims[1-a], dims[a], img.shape[1]), order='F')
             img = img.transpose([1,0,2])
             img = np.flip(img, axis=a)
@@ -270,8 +270,6 @@ def draw_contours_update(cf, im):
 
     im.setImage(curFrame, autoLevels=False)
 
-
-# %%
 
 #  Define a top-level widget to hold everything
 w = QtWidgets.QWidget()
@@ -600,7 +598,7 @@ def save_object():
     ffll = F.getSaveFileName(filter='HDF5 (*.hdf5);;NWB (*.nwb)')
     print(ffll[0])
     # rotate back
-    if estimates.rotation == True:
+    if estimates.rotation:
         estimates.Cn = rotate90(estimates.Cn, right=False, vector=False)  
         estimates.A = rotate90(estimates.A, right=False, vector=True, sparse=True)
         estimates.b = rotate90(estimates.b, right=False, vector=True)
@@ -663,7 +661,7 @@ w.show()
 app.exec_()
 
 # Rotate back
-if estimates.rotation == True:
+if estimates.rotation:
     estimates.Cn = rotate90(estimates.Cn, right=False, vector=False)  
     estimates.A = rotate90(estimates.A, right=False, vector=True, sparse=True)
     estimates.b = rotate90(estimates.b, right=False, vector=True)

@@ -190,7 +190,7 @@ class Comparison(object):
 
                 """
         # getting the DATA FOR COMPARISONS
-        assert (params != None and self.cnmpatch != None)
+        assert (params is not None and self.cnmpatch is not None)
         logger.info('Parameters must be set in order to save anything\n')
         # actions on the sparse matrix
         cnm = self.cnmpatch.__dict__
@@ -370,7 +370,7 @@ def see(filename=None):
             @image html caiman/tests/comparison/data.pdf
             """
 
-    if filename == None:
+    if filename is None:
         dr = os.path.join(caiman_datadir(), "testdata", "groundtruth.npz")
     else:
         dr = os.path.join(caiman_datadir(), "testdata", filename, filename + ".npz")
