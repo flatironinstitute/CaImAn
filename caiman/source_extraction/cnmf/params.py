@@ -12,16 +12,18 @@ from pathlib import Path
 from pprint import pformat
 from pydantic import (
     ConfigDict, TypeAdapter, BeforeValidator, AfterValidator, InstanceOf, ValidateAs,
-    PlainSerializer, ValidationError, ValidatorFunctionWrapHandler, ValidationInfo,
-    Field, field_validator, model_validator)
+    PlainSerializer, ValidationError, ValidationInfo,
+    WithJsonSchema, Field, field_validator, computed_field, model_validator)
 from pydantic.dataclasses import dataclass 
 from pydantic.fields import FieldInfo
+from pydantic.json_schema import SkipJsonSchema, PydanticJsonSchemaWarning
 from pydantic_core import ArgsKwargs
 import scipy.special
 from scipy.ndimage import generate_binary_structure, iterate_structure
 from tabulate import tabulate
 from typing import (Optional, Any, Union, Literal, Annotated,
                     Mapping, Iterator, TypeVar, ClassVar, cast, Type)
+import warnings
 
 import caiman.base.movies
 import caiman.utils.utils
@@ -44,38 +46,24 @@ SafeOptional = Union[SafeNone, T]
 
 
 # validation/serialization of types not supported by pydantic out of the box
-NDArray = Annotated[InstanceOf[np.ndarray],  # after applying np.asarray, just check that it is the right type
-                    BeforeValidator(np.asarray),
-                    PlainSerializer(lambda x: x.tolist())]
+NDArray = Annotated[
+    InstanceOf[np.ndarray],  # after applying np.asarray, just check that it is the right type
+    BeforeValidator(np.asarray),
+    PlainSerializer(lambda x: x.tolist()),
+    WithJsonSchema({})
+]
+
+def ser_slice(sl: slice) -> tuple[Any, Any, Any]:
+    return (sl.start, sl.stop, sl.step)
 
 Slice = Annotated[
     Union[  # these are the same base types (slice) but with different validators
         InstanceOf[slice],  # accept existing slices as is
         # anything convertible to a len-3 tuple, with 'NoneType' conversion, can be a slice
         Annotated[slice, ValidateAs(tuple[SafeAny, SafeAny, SafeAny], lambda tup: slice(*tup))]],
-    PlainSerializer(lambda sl: [sl.start, sl.stop, sl.step])
+    PlainSerializer(ser_slice),
+    WithJsonSchema(TypeAdapter(tuple[Any, Any, Any]).json_schema())
 ]
-
-
-def OnlySetFrom(group: str) -> AfterValidator:
-    """
-    Warn that a parameter shouldn't be set here.
-    We just warn here and then change it back to match
-    what is in the given group in check_consistency.
-    """
-
-    def warn_shared_param(obj: Any, info: ValidationInfo) -> Any:
-
-        logger = logging.getLogger('caiman')
-        name = info.field_name
-        # skip if the parameter was not actually changed
-        if info.context is None or 'changed_params' not in info.context or name in info.context['changed_params']:
-            logger.warning(f"The '{name}' parameter can only be set in the {group} part of CNMFParams. "
-                            "Attempts to set it elsewhere are ignored.")
-        return obj
-    
-    return AfterValidator(warn_shared_param)
-
 
 # string pre-processing to use for string literals
 LiteralType = TypeVar('LiteralType', bound=str)
@@ -89,6 +77,10 @@ AutoListStr = Union[list[str],  # first try parsing as the list of the desired t
 ]
 
 
+# for gSiz, potentially other values that have to be odd integers
+OddInt = Annotated[int, AfterValidator(lambda x: x + 1 if x % 2 == 0 else x)]
+
+
 # ("Self" type for python < 3.11)
 GPSelf = TypeVar('GPSelf', bound='GroupParams')
 
@@ -97,70 +89,37 @@ class GroupParams(Mapping):
     """
     Struct that can also be used as a non-mutable mapping, to be used
     for subfields of CNMFParams, which have historically been dicts.
+
+    Aliases and computed fields are used for parameters that are computed
+    from other fields (potentially elsewhere in CNMFParams) if an explicit
+    value is not provided. This allows these parameters to continue to be updated
+    when the params it depends on are changed. The field containing the user-provided
+    value (or None if none was provided) is prefixed with an underscore, but has
+    the un-prefixed name as an alias; this allows the name to be used in the constructor,
+    change_params, etc. This alias can also used to serialize the user-provided value
+    when the round_trip option is True (e.g., when saving to JSON, or when copying
+    the object using replace). When accessing the parameter using .<name> attribute or
+    ['name'] mapping syntax, a property with the same name computes the actual value
+    to use if none has been provided.
     """
-    __pydantic_config__ = ConfigDict(extra='forbid')
+    __pydantic_config__ = ConfigDict(extra='forbid', serialize_by_alias=True)
     __pydantic_fields__: ClassVar[Mapping[str, FieldInfo]]  # automatic, just declaring for typing purposes
 
     group_name: ClassVar[str]  # name of the attribute on CNMFParams
 
+    # back-reference to help with some computed fields
+    _full_params: 'SkipJsonSchema[Optional[CNMFParams]]' = Field(default=None, init=False, exclude=True)
+
+    
     @classmethod
     @cache
-    def fields(cls) -> dict[str, FieldInfo]:
-        return {fname: info for fname, info in cls.__pydantic_fields__.items() if not info.init_var}
-        
-
-    def __getitem__(self, key: str) -> Any:
-        if key in self.fields():
-            return getattr(self, key)
-        raise KeyError(key)
-    
-    def __iter__(self) -> Iterator[str]:
-        return iter(self.fields())
-    
-    def __len__(self) -> int:
-        return len(self.fields())
-    
-    def copy(self) -> dict[str, Any]:
-        """Make a copy of the data as a (mutable) dict"""
-        # It's safe to assign to a copy, so just make it a (shallow-copied) dict
-        return {**self}
-
-    def replace(self: GPSelf, warn_unused=True, **changes) -> GPSelf:
-        """Create a GroupParams object with the given fields replaced"""
-        # add context to prevent complaining when WarnShared types are set,
-        # we do still want to copy them though because otherwise we would lose
-        # that existing information for no reason
-        updated_dict = {**self, **changes}
-        context = {'changed_params': changes.keys(), 'warn_unused': warn_unused}
-        ta = TypeAdapter(type(self))
-        return ta.validate_python(updated_dict, context=context)
-
-    # support copy.replace (for 3.13 and above)
-    __replace__ = replace
-
-    
-    def get_differing_params(self: GPSelf, other: GPSelf) -> Iterator[tuple[str, Any, Any]]:
-        """
-        Returns an iterable of params that are not considered equal
-        Each return value is a tuple: (name, this_value, other_value)
-        """
-        for field in self.keys():
-            self_val = getattr(self, field)
-            other_val = getattr(other, field)
-            if not utilities.all_same(self_val, other_val):
-                yield field, self_val, other_val
-
-    def __eq__(self, other) -> bool:
-        if isinstance(other, type(self)):
-            return not any(self.get_differing_params(other))
-        else:
-            return NotImplemented
-    
-    def __ne__(self, other) -> bool:
-        if isinstance(other, type(self)):
-            return any(self.get_differing_params(other))
-        else:
-            return NotImplemented
+    def input_params(cls) -> set[str]:
+        """Param names that can be used in constructor etc. (excludes purely computed fields)"""
+        ta = TypeAdapter(cls)
+        # we don't care if some defaults aren't serializable
+        with warnings.catch_warnings():
+            warnings.filterwarnings('ignore', category=PydanticJsonSchemaWarning, message='Default value')
+            return set(ta.json_schema(mode='validation')['properties'].keys())
 
 
     @model_validator(mode='before')
@@ -189,9 +148,12 @@ class GroupParams(Mapping):
         # check for and remove extra fields
         argnames = tuple(input_dict)
         for argname in argnames:
-            if argname not in cls.__pydantic_fields__:
+            if argname not in cls.input_params():
                 del input_dict[argname]
-                if warn_unused:
+                if argname in cls.params():
+                    logger.warning(f'The parameter {cls.group_name}/{argname} was ignored because it is '
+                                   'computed from other parameters and cannot be set directly. ')
+                elif warn_unused:
                     logger.warning(
                         f'When creating {cls.group_name} params, provided key {argname} was not consumed. '
                         'This is a bug!')
@@ -200,7 +162,7 @@ class GroupParams(Mapping):
 
     @field_validator('*', mode='wrap')
     @classmethod
-    def validation_wrapper(cls, value: Any, handler: ValidatorFunctionWrapHandler, info: ValidationInfo) -> Any:
+    def validation_wrapper(cls, value: Any, handler, info: ValidationInfo) -> Any:
         """
         Function that wraps validation on every field.
         This avoids raising a validation error when fields can't be converted, instead logging a warning.
@@ -209,16 +171,103 @@ class GroupParams(Mapping):
             return handler(value)
         except ValidationError:
             logger = logging.getLogger('caiman')
-            if info.field_name is not None:
-                expected_type = cls.__pydantic_fields__[info.field_name].annotation
-            else:
-                expected_type = None
+            assert info.field_name is not None, 'Should have field name in model field validator'
+
+            field_info = cls.__pydantic_fields__[info.field_name]
+            expected_type = field_info.annotation
+            name = field_info.alias or info.field_name
 
             logger.warning(
-                f'The value {repr(value)} provided for {cls.group_name}.{info.field_name} could not be converted '
+                f'The value {repr(value)} provided for {cls.group_name}.{name} could not be converted '
                 f'to the expected type {expected_type} and may not be valid.')
             
             return value
+
+
+    def replace(self: GPSelf, warn_unused=True, **changes) -> GPSelf:
+        """Create a GroupParams object with the given fields replaced"""
+        ta = TypeAdapter(type(self))
+        # use round_trip=True to serialize underlying fields rather than computed properties
+        param_dict = ta.dump_python(self, round_trip=True)
+        param_dict.update(changes)
+        context = {'warn_unused': warn_unused}
+        new_obj = ta.validate_python(param_dict, context=context)
+
+        # copy the reference to full params if we have one
+        if self._full_params is not None:
+            object.__setattr__(new_obj, '_full_params', self._full_params)
+        
+        return new_obj
+
+    # support copy.replace (for 3.13 and above)
+    __replace__ = replace
+
+    
+    def get_differing_params(self: GPSelf, other: GPSelf) -> Iterator[tuple[str, Any, Any]]:
+        """
+        Returns an iterable of params that are not considered equal
+        Each return value is a tuple: (name, this_value, other_value)
+        """
+        # here since we care about equality of the underlying fields, use
+        # __pydantic_fields__ which includes the underscore-prefixed names
+        for field, info in type(self).__pydantic_fields__.items():
+            if info.exclude or info.init_var:
+                continue
+
+            self_val = getattr(self, field)
+            other_val = getattr(other, field)
+            if not utilities.all_same(self_val, other_val):
+                yield field, self_val, other_val
+
+    def __eq__(self, other) -> bool:
+        if isinstance(other, type(self)):
+            return not any(self.get_differing_params(other))
+        else:
+            return NotImplemented
+    
+    def __ne__(self, other) -> bool:
+        if isinstance(other, type(self)):
+            return any(self.get_differing_params(other))
+        else:
+            return NotImplemented
+
+
+    #---- read-only mapping interface (for algorithms that use the parameters, includes computed fields) ----#
+
+    # define things that don't require parameter values as classmethods
+
+    @classmethod
+    @cache
+    def params(cls) -> set[str]:
+        """Parameters available to read from this group"""
+        # Use the JSON schema to ensure we respect excluded fields, etc
+        ta = TypeAdapter(cls)
+        # we don't care if some defaults aren't serializable
+        with warnings.catch_warnings():
+            warnings.filterwarnings('ignore', category=PydanticJsonSchemaWarning, message='Default value')
+            return set(ta.json_schema(mode='serialization')['properties'].keys())
+
+    @classmethod
+    def __iter__(cls) -> Iterator[str]:
+        yield from cls.params()
+
+    @classmethod
+    @cache
+    def __len__(cls) -> int:
+        return len(cls.params())
+
+
+    def __getitem__(self, key: str) -> Any:
+        if key in self.params():
+            return getattr(self, key)
+        raise KeyError(key)
+
+    def copy(self) -> dict[str, Any]:
+        """Implement dict.copy - make a copy of the data as a (mutable) dict"""
+        # It's safe to assign to a copy, so just make it a (shallow-copied) dict
+        ta = TypeAdapter(type(self))
+        # user round_trip=False to serialize computed properties
+        return ta.dump_python(self, round_trip=False)
 
 
 # Parameter group definitions (see docstring of CNMFParams for full documentation)
@@ -229,13 +278,46 @@ class DataParams(GroupParams):
     group_name = 'data'
 
     fnames: SafeOptional[AutoListStr] = None
-    dims: SafeOptional[tuple[int, ...]] = None  # None = read from fnames
     fr: float = Field(default=30., gt=0)
     decay_time: float = Field(default=0.4, gt=0)
     dxy: tuple[float, float] = (1., 1.)     # resolution, unit: pixels/um
     var_name_hdf5: str = 'mov'
     caiman_version: str = importlib.metadata.version('caiman')
     last_commit: str = '-'.join(caiman.utils.utils.get_caiman_version())
+
+    @cached_property
+    def first_file_size(self) -> Optional[tuple[tuple[int, ...], int]]:
+        """get dims and T of first file, as in caiman.base.movies.get_file_size"""
+        logger = logging.getLogger('caiman')
+
+        if self.fnames is not None and len(self.fnames) > 0:
+            try:
+                dims, T = caiman.base.movies.get_file_size(self.fnames[0], var_name_hdf5=self.var_name_hdf5)
+                return dims, cast(int, T)
+            except FileNotFoundError:
+                logger.warning('The first movie path in fnames was not found; cannot use dims.')
+
+
+    @model_validator(mode='after')
+    def refresh_file_size(self):
+        """
+        Make sure file size & things that depend on it are updated at least when
+        the data params are changed (not foolproof but better than before)
+        """
+        # this is how you clear cache for a cached_property
+        try:
+            object.__delattr__(self, 'x')
+        except AttributeError:
+            pass
+        return self
+
+    @computed_field
+    @property
+    def dims(self) -> Optional[tuple[int, ...]]:
+        sz = self.first_file_size
+        if sz is not None:
+            return sz[0]
+
 
 
 @dataclass(kw_only=True, eq=False, frozen=True)
@@ -299,7 +381,8 @@ class InitParams(GroupParams):
                     BeforeValidator(interpret_string_none),
                     BeforeValidator(lambda val: [-1, -1] if val is None else val)
                     ] = Field(default_factory=lambda: [5, 5])
-    gSiz: SafeOptional[list[int]] = None
+    # default based on gSiz computed below
+    _gSiz: SafeOptional[list[OddInt]] = Field(default=None, alias='gSiz')
     # init method used in calls to NMF if geedy_roi method for component initialisation is used (offline or online)
     greedyroi_nmf_init_method: str = 'nndsvdar'
     # max_iter used in calls to NMF if greedy_roi method for component initialisation is used (online or offline)
@@ -326,6 +409,12 @@ class InitParams(GroupParams):
     ssub: int = 2                        # spatial downsampling factor
     ssub_B: int = 2
     tsub: int = 2                        # temporal downsampling factor
+
+    @property
+    def gSiz(self) -> list[OddInt]:
+        if self._gSiz is not None:
+            return self._gSiz
+        return [2*gs + 1 for gs in self.gSig]
 
 
 @dataclass(kw_only=True, eq=False, frozen=True)
@@ -357,7 +446,6 @@ class SpatialParams(GroupParams):
     method_ls: LitStr[Literal['nnls_L0', 'lasso_lars']] = 'lasso_lars'
     # number of pixels to be processed by each worker
     n_pixels_per_process: SafeOptional[int] = None
-    nb: Annotated[int, OnlySetFrom('init')] = Field(default=1, exclude=True)  # number of background components
     normalize_yyt_one: bool = True
     nrgthr: float = 0.9999                  # Energy threshold
     # number of process to parallelize residual computation ** DECREASE IF MEMORY ISSUES
@@ -367,6 +455,13 @@ class SpatialParams(GroupParams):
     thr_method: LitStr[Literal['max', 'nrg']] = 'nrg'  # Method of thresholding ('max' or 'nrg')
     # whether to update the background components in the spatial phase
     update_background_components: bool = True
+
+    @computed_field
+    @property
+    def nb(self) -> int:
+        if self._full_params is None:
+            raise ValueError('Cannot access nb without reference to full params')
+        return self._full_params.init.nb
 
 
 @dataclass(kw_only=True, eq=False, frozen=True)
@@ -388,7 +483,6 @@ class TemporalParams(GroupParams):
     # if method cvxpy, primary and secondary (if problem unfeasible for approx
     # solution) solvers to be used with cvxpy, can be 'ECOS','SCS' or 'CVXOPT'
     method_deconvolution: LitStr[Literal['cvx', 'cvxpy', 'oasis']] = 'oasis'
-    nb: Annotated[int, OnlySetFrom('init')] = Field(default=1, exclude=True)  # number of background components
     noise_method: LitStr[Literal['mean', 'median', 'logmexp']] = 'mean'  # averaging method
     # range of normalized frequencies over which to average
     noise_range: list[float] = Field(default_factory=lambda: [.25, .5])
@@ -398,6 +492,13 @@ class TemporalParams(GroupParams):
     s_min: SafeOptional[float] = None       # minimum spike threshold
     solvers: list[LitStr[Literal['ECOS', 'SCS', 'CVXOPT']]] = Field(default_factory=lambda: ['ECOS', 'SCS'])
     verbosity: bool = False
+
+    @computed_field
+    @property
+    def nb(self) -> int:
+        if self._full_params is None:
+            raise ValueError('Cannot access nb without reference to full params')
+        return self._full_params.init.nb
 
 
 @dataclass(kw_only=True, eq=False, frozen=True)
@@ -432,7 +533,8 @@ class OnlineParams(GroupParams):
     """Params that control the online/OnACID mode"""
     group_name = 'online'
 
-    N_samples_exceptionality: SafeOptional[int] = None  # timesteps to compute SNR
+    # timesteps to compute SNR (default computed below)
+    _N_samples_exceptionality: SafeOptional[int] = Field(default=None, alias='N_samples_exceptionality')
     batch_update_suff_stat: bool = False
     dist_shape_update: bool = False       # update shapes in a distributed way
     ds_factor: int = 1                    # spatial downsampling for faster processing
@@ -450,7 +552,8 @@ class OnlineParams(GroupParams):
     minibatch_shape: int = 100           # number of frames in each minibatch
     minibatch_suff_stat: int = 5
     motion_correct: bool = True          # flag for motion correction
-    movie_name_online: str = 'online_movie.mp4'  # filename of saved movie (appended to directory where data is located)
+    # filename of saved movie (appended to directory where data is located)
+    _movie_name_online: str = Field(default='online_movie.mp4', alias='movie_name_online')
     normalize: bool = False              # normalize frame
     n_refit: int = 0                     # Additional iterations to simultaneously refit
     num_times_comp_updated: Union[int, float] = np.inf
@@ -467,14 +570,50 @@ class OnlineParams(GroupParams):
     test_both: bool = False              # flag for using both CNN and space correlation
     thresh_CNN_noisy: float = 0.5        # threshold for online CNN classifier
     thresh_fitness_delta: float = -50.
-    thresh_fitness_raw: SafeOptional[float] = None  # threshold for trace SNR (computed below)
+    # threshold for trace SNR (default computed below)
+    _thresh_fitness_raw: SafeOptional[float] = Field(default=None, alias='thresh_fitness_raw')
     thresh_overlap: float = 0.5
     update_freq: int = 200               # update every shape at least once every update_freq steps
     update_num_comps: bool = True        # flag for searching for new components
     use_corr_img: bool = False           # flag for using correlation image to detect new components
     use_dense: bool = True               # flag for representation and storing of A and b
     use_peak_max: bool = True            # flag for finding candidate centroids
-    W_update_factor: int = 1             # update W less often than shapes by a given factor 
+    W_update_factor: int = 1             # update W less often than shapes by a given factor
+
+    @computed_field
+    @property
+    def N_samples_exceptionality(self) -> int:
+        """compute N_samples_exceptionality from other params if None"""
+        if self._N_samples_exceptionality is not None:
+            return self._N_samples_exceptionality
+    
+        if self._full_params is None:
+            raise RuntimeError('Cannot compute N_samples_exceptionality without reference to full params')
+        
+        fr = self._full_params.data.fr
+        decay_time = self._full_params.data.decay_time
+        return math.ceil(fr * decay_time)
+
+    @computed_field
+    @property
+    def thresh_fitness_raw(self) -> float:
+        """computes thresh_fitness_raw from other params if None"""
+        if self._thresh_fitness_raw is not None:
+            return self._thresh_fitness_raw
+        return scipy.special.log_ndtr(-self.min_SNR) * self.N_samples_exceptionality
+    
+    @computed_field
+    @property
+    def movie_name_online(self) -> str:
+        """Make movie_name_online relative to first movie path if it is available"""
+        if os.path.isabs(self._movie_name_online) or self._full_params is None:
+            return self._movie_name_online
+
+        fnames = self._full_params.data.fnames
+        if fnames is None or len(fnames) == 0:
+            return self._movie_name_online
+        
+        return os.path.join(os.path.dirname(fnames[0]), self._movie_name_online)
 
 
 @dataclass(kw_only=True, eq=False, frozen=True)
@@ -496,18 +635,53 @@ class MotionParams(GroupParams):
     niter_rig: int = 1                  # number of iterations rigid motion correction
     nonneg_movie: bool = True           # flag for producing a non-negative movie
     num_frames_split: int = 80          # split across time every x frames (approximately)
-    num_splits_to_process_els: SafeNone = None  # Unused, will be removed in a future version of Caiman
-    num_splits_to_process_rig: SafeNone = None  # DO NOT MODIFY
     overlaps: tuple[int, ...] = (32,32) # overlap between patches in pw-rigid motion correction
     pw_rigid: bool = False              # flag for performing pw-rigid motion correction
     shifts_interpolate: bool = False    # interpolate shifts based on patch locations instead of resizing
     shifts_opencv: bool = True          # flag for applying shifts using cubic interpolation (otherwise FFT)
-    splits_els: int = 14                # number of splits across time for pw-rigid registration (usually overridden by code)
-    splits_rig: int = 14                # number of splits across time for rigid    registration (usually overridden by code)
     strides: tuple[int, ...] = (96, 96) # how often to start a new patch in pw-rigid registration
     upsample_factor_grid: int = 4       # motion field upsampling factor during FFT shifts
     use_cuda: bool = False              # flag for using a GPU
     indices: tuple[Slice, ...] = (slice(None), slice(None))  # part of FOV to be corrected
+
+    @computed_field
+    @property
+    def num_splits_to_process_els(self) -> None:
+        """Unused, will be removed in a future version of Caiman"""
+        return None
+    
+    @computed_field
+    @property
+    def num_splits_to_process_rig(self) -> None:
+        """Unused, will be removed in a future version of Caiman"""
+        return None
+    
+    def _compute_splits_from_data(self) -> Optional[int]:
+        """Compute splits_els and splits_rig values to use from data"""
+        if self._full_params is not None:
+            sz = self._full_params.data.first_file_size
+            if sz is not None:
+                # TODO maybe allow different num_splits per file, or use max?
+                T_first = sz[1]
+                return max(T_first // max(self.num_frames_split, 10), 1)
+    
+    @computed_field
+    @property
+    def splits_els(self) -> int:
+        """number of splits across time for pw-rigid registration"""
+        splits_from_data = self._compute_splits_from_data()
+        if splits_from_data is not None:
+            return splits_from_data
+        return 14
+
+    @computed_field
+    @property
+    def splits_rig(self) -> int:
+        """number of splits across time for rigid registration"""
+        splits_from_data = self._compute_splits_from_data()
+        if splits_from_data is not None:
+            return splits_from_data
+        return 14
 
 
 @dataclass(kw_only=True, eq=False, frozen=True)
@@ -1198,7 +1372,6 @@ class CNMFParams:
     @cached_property
     def groups(self) -> list[str]:
         return [f.name for f in fields(self)]
-
     
     @classmethod
     @cache
@@ -1263,61 +1436,21 @@ class CNMFParams:
     
     @model_validator(mode='after')
     def _check_post_validation(self):
+        # add reference to self in each GroupParams object, bypassing frozen
+        for field in fields(self):
+            object.__setattr__(getattr(self, field.name), '_full_params', self)
+
         self.check_consistency()
         return self
 
     def check_consistency(self):
         """ Populates the params object with some dataset dependent values
         and ensures that certain constraints are satisfied.
-
-        TODO - should some of these be changed to special case behavior within the corresponding module
-        code rather than changing the actual parameters? This would help avoid situations where a
-        parameter may be changed and then changed back, but other changes triggered by the first change
-        don't get undone (unless the user pays attention to the warnings and changes it back themselves.)
         """
         logger = logging.getLogger("caiman")
 
         data_updates = {}
-        online_updates = {}
-
         data_updates['last_commit'] = '-'.join(caiman.utils.utils.get_caiman_version())
-
-        if isinstance(self.data.fnames, list) and len(self.data.fnames) > 0:
-            # if movie_name_online is a relative path, resolve relative to input data directory
-            if not os.path.isabs(self.online.movie_name_online):
-                movie_name_abs = os.path.join(os.path.dirname(self.data.fnames[0]), self.online.movie_name_online)
-                self.set('online', {'movie_name_online': movie_name_abs}, warn=False)
-
-            try:
-                dims, T = caiman.base.movies.get_file_size(self.data.fnames, var_name_hdf5=self.data.var_name_hdf5)
-            except FileNotFoundError:
-                logger.warning('At least one movie path in fnames is not found; not setting dims')
-            else:
-                if self.data.dims is None:
-                    data_updates['dims'] = dims
-
-                if not isinstance(T, int):  # tuple returned if there are multiple files
-                    T = cast(int, T[0])  # TODO maybe allow different num_splits per file, or use max?
-
-                # infer number of mcorr splits from frames and num_frames_split
-                num_splits = max(T//max(self.motion.num_frames_split, 10), 1)
-                self.set('motion', {'splits_els': num_splits, 'splits_rig': num_splits}, warn=False)
-
-        self.set('data', data_updates, warn=False)
-
-        gSiz = self.init.gSiz
-        if self.init.gSiz is None:
-            gSiz = [2*gs + 1 for gs in self.init.gSig]
-
-        # ensure each entry of gSiz is odd
-        gSiz_arr = np.array(gSiz)
-        gSiz_is_even = gSiz_arr % 2 == 0
-        if any(gSiz_is_even):
-            gSiz_arr[gSiz_is_even] += 1
-            gSiz = gSiz_arr.tolist()
-
-        if gSiz != self.init.gSiz:
-            self.set('init', {'gSiz': gSiz}, warn=False) 
 
         if self.init.method_init == 'corr_pnr' and self.init.ring_size_factor is not None:
             if self.init.normalize_init:
@@ -1356,37 +1489,14 @@ class CNMFParams:
             if motion_updates:
                 self.set('motion', motion_updates, warn=False, verbose=False)
 
-        # -- update online params together --
-        online_updates = {}            
-
-        if (nsamp_exc := self.online.N_samples_exceptionality) is None:
-            online_updates['N_samples_exceptionality'] = nsamp_exc = math.ceil(self.data.fr * self.data.decay_time)
-
-        if self.online.thresh_fitness_raw is None:
-            online_updates['thresh_fitness_raw'] = scipy.special.log_ndtr(-self.online.min_SNR) * nsamp_exc
-        
-        if online_updates:
-            self.set('online', online_updates, warn=False)
-
-        # do separately b/c of different warning message
         for key in ('max_num_added', 'min_num_trial'):
             if (self.online[key] == 0 and self.online.update_num_comps):
                 logger.warning(f"{key}=0, hence setting key online.update_num_comps to False.")
                 self.set('online', {'update_num_comps': False}, warn=False, verbose=False)
                 break
-
-        # -- end online params --
-
-        # FIXME The authoritative value is stored in the init field. This should later be refactored out
-        #     into a general section, once we're passing around the CNMFParams object rather than splatting it out
-        #     from **get_group
-        
-        # bypass frozen & don't warn that the change is ineffectual
-        object.__setattr__(self.spatial, 'nb', self.init.nb)
-        object.__setattr__(self.temporal, 'nb', self.init.nb)
     
 
-    def set(self, group: str, val_dict: dict, set_if_not_exists=False, verbose=True, warn=True) -> None:
+    def set(self, group: str, val_dict: dict, verbose=True, warn=True) -> None:
         """ Add key-value pairs to a group. Existing key-value pairs will be overwritten
             if specified in val_dict, but not deleted.
 
@@ -1394,7 +1504,6 @@ class CNMFParams:
             group: The name of the group
             val_dict: A dictionary with key-value pairs to be set for the group
             warn_unused: 
-            set_if_not_exists: Whether to set a key-value pair in a group if the key does not currently exist in the group. (DEPRECATED)
 
         This is not intended for general use and does not run consistency checks on the CNMFParams object afterwards
         (or do any triggered actions on certain values being set like filenames). Usually the change_params() method is more appropriate.
@@ -1405,17 +1514,11 @@ class CNMFParams:
             # this is the only way to change a param without running consistency checks...
             logger.warning("CNMFParams.set() is dangerous! Use CNMFParams.change_params() instead.")
 
-        if set_if_not_exists:
-            logger.warning("The set_if_not_exists flag for CNMFParams.set() is deprecated and will be removed in a future version of Caiman")
-            # can't easily catch if it's passed but set to False, but that wouldn't do anything because of the default,
-            # and if they get that error it's at least really easy to fix - just remove the flag
-            # we don't want to support this because it makes the structure of the object unpredictable except at runtime
-
         d = self.get_group(group)
         updates = {}
 
         for k, v in val_dict.items():
-            if k not in d and not set_if_not_exists:
+            if k not in d:
                 if verbose:
                     logger.warning(
                         f"{group}/{k} not set: invalid target in CNMFParams object")
@@ -1484,7 +1587,7 @@ class CNMFParams:
 
         if verify:
             logger.debug('Testing reconstruction from JSON')
-            recon_obj = CNMFParams.from_json(jsonstring)
+            recon_obj = ta.validate_json(jsonstring)
 
             mismatched = list(self.get_differing_params(recon_obj))
             if len(mismatched) > 0:
@@ -1545,8 +1648,14 @@ class CNMFParams:
              # Handle proper pathed part. Latter half of the conditional is because of scoped keys with the same name as categories, because we apparently have those. ring_CNN is an example.
             if paramkey in groups and isinstance(paramval, (dict, GroupParams)):
                 if paramkey not in nested_params:
-                    if len(paramval) > 0:
-                        nested_params[paramkey] = paramval.copy()
+                    if len(paramval) > 0:  # leave missing otherwise
+                        if isinstance(paramval, GroupParams):
+                            # avoid directly converting to dict which uses computed values
+                            # and can fail if _full_params is unavailable
+                            nested_params[paramkey] = TypeAdapter(type(paramval)).dump_python(paramval, round_trip=True)
+                        else:
+                            nested_params[paramkey] = paramval
+                            
                 elif isinstance(paramval, GroupParams):
                     raise ValueError(f'Cannot override other params for the {paramkey} group with a {type(paramval).__name__} object')
                 else: # updating existing dict with a dict
@@ -1564,7 +1673,7 @@ class CNMFParams:
 
                 found = False
                 for group, group_class in groups.items():
-                    if paramkey in group_class.fields(): # Is it known?
+                    if paramkey in group_class.params(): # Is it known?
                         found = True
                         if group not in nested_params:
                             nested_params[group] = {paramkey: paramval}
@@ -1627,15 +1736,3 @@ class CNMFParams:
         with open(json_fn, 'r') as json_fh:
             jsonstring = json_fh.read()
         self.change_params_from_json(jsonstring, verbose=verbose)
-
-
-    @classmethod
-    def from_json(cls, jsonstring: str):
-        """Directly deserialize a new CNMFParams object from json"""
-        return TypeAdapter(cls).validate_json(jsonstring)
-
-    @classmethod
-    def from_jsonfile(cls, json_fn: Union[str, Path]):
-        with open(json_fn, 'r') as json_fh:
-            jsonstring = json_fh.read()
-        return cls.from_json(jsonstring)

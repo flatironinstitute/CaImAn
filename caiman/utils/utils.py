@@ -494,7 +494,8 @@ def recursively_save_dict_contents_to_group(h5file:h5py.File, path:str, dic:dict
             recursively_save_dict_contents_to_group(h5file, path + key + '/', item.__dict__)
         elif is_pydantic_dataclass(type(item)):
             ta = TypeAdapter(type(item))
-            recursively_save_dict_contents_to_group(h5file, path + key + '/', ta.dump_python(item))
+            item_dict = ta.dump_python(item, round_trip=True)
+            recursively_save_dict_contents_to_group(h5file, path + key + '/', item_dict)
         else:
             raise ValueError(f"Cannot save {type(item)} type for key '{key}'.")
 

@@ -80,12 +80,6 @@ def test_validation(caplog):
     assert modified_params.noise_method == 'logmexp', 'dataclasses.replace should update and validate'
     unmodified_params = modified_params.replace(noise_method=temporal_params.noise_method)
     assert unmodified_params == temporal_params, 'Should be the same after changing back'
-
-    # we should get a warning if we try to update nb since it's "shared" (this should never be done this way in practice)
-    caplog.clear()
-    modified_params = temporal_params.replace(nb=2)
-    assert len(caplog.records) == 1 and caplog.records[0].levelname == "WARNING" and \
-        "can only be set in" in caplog.records[0].message, 'Should warn appropriately when setting nb'
     
     # test automatically wrapping scalar filename in list
     data_params = params.DataParams(fnames='abc')  # type: ignore
@@ -104,18 +98,6 @@ def test_validation(caplog):
     assert len(caplog.records) == 1 and caplog.records[0].levelname == "WARNING" and \
         "could not be converted" in caplog.records[0].message, 'Should warn appropriately when changing a value to the wrong type'
     assert modified_params.fudge_factor == 'foobar', 'Should allow change even if there is a validation error'
-    
-    
-def test_params_serialization_eq(caplog):
-    """Ensure we can create CNMFParams and the object is unchanged after roundtripping with JSON"""
-    params_orig = params.CNMFParams()
-    params_json = params_orig.to_json()
-    params_recon = params.CNMFParams.from_json(params_json)
-    assert params_orig == params_recon, \
-        'Default params object should be equal after roundtripping with JSON. Differing parameters: ' + \
-        tabulate_differing_params(params_orig, params_recon)
-
-    assert len(caplog.records) == 0, 'Converting to and from JSON should not cause a warning'
 
 
 def test_change_params_flat():
@@ -141,8 +123,6 @@ def test_change_params_flat():
     assert params_changed.init.nb == params_changed.spatial.nb == params_changed.temporal.nb \
         == params_dict_flat['gnb'], 'Shared and renamed param should be set on all groups'
     object.__setattr__(params_changed.init, 'nb', params_orig.init.nb)
-    object.__setattr__(params_changed.spatial, 'nb', params_orig.spatial.nb)
-    object.__setattr__(params_changed.temporal, 'nb', params_orig.temporal.nb)
 
     assert params_changed == params_orig, 'These should be the only changes. Differing parameters: ' + \
         tabulate_differing_params(params_orig, params_changed)
@@ -258,15 +238,18 @@ def test_mixed_constructor(tmp_path):
         'Trying to override param group with an object should raise an error'
 
 
-def test_json_roundtrip(tmp_path):
-    """Test that saving and restoring whole object to/from JSON is successful"""
+def test_jsonfile_roundtrip(tmp_path, caplog):
+    """Test that saving and restoring whole object to/from JSON file is successful"""
+    caplog.clear()
     json_path = tmp_path / 'full_params.json'
     params_orig = params.CNMFParams()
     params_orig.to_jsonfile(str(json_path), verify=False)
-    params_recon  = params.CNMFParams.from_jsonfile(json_path)
+    params_recon  = params.CNMFParams(params_from_file=json_path)
     assert params_orig == params_recon, \
-        'Full object should be equal after saving and restoring from JSON. Differences: ' + \
+        'Full object should be equal after saving and restoring from JSON file. Differences: ' + \
         tabulate_differing_params(params_orig, params_recon)
+
+    assert len(caplog.records) == 0, 'Converting to and from JSON file should not cause a warning'
 
 
 def test_hdf5_roundtrip(tmp_path):
