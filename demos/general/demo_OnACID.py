@@ -65,7 +65,7 @@ def main():
     use_CNN = True
     if use_CNN:
         # threshold for CNN classifier
-        opts.set('quality', {'min_cnn_thr': 0.05})
+        opts.change_params({'quality': {'min_cnn_thr': 0.05}})
         cnm.estimates.evaluate_components_CNN(opts)
         cnm.estimates.plot_contours(img=Cn, idx=cnm.estimates.idx_components)
     

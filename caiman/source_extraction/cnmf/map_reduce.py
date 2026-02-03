@@ -105,8 +105,7 @@ def cnmf_patches(args_in: tuple[str, np.ndarray, tuple[int, ...], CNMFParams]):
         opts.change_params({
             'patch': {'n_processes': 1, 'rf': None, 'stride': None},
             'init': {'nb': opts.patch.nb_patch},
-            'spatial': {'nb': opts.patch.nb_patch},
-            'temporal': {'nb': opts.patch.nb_patch, 'p': opts.patch.p_patch},
+            'temporal': {'p': opts.patch.p_patch},
             'preprocess': {'p': opts.patch.p_patch},
         })
 

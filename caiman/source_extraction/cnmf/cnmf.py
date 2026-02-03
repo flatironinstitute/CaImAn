@@ -601,13 +601,12 @@ class CNMF(object):
         self.estimates.lam = [results[8][i] for i in order]
         self.estimates.YrA = F - self.estimates.C
 
-    def update_temporal(self, Y, use_init=True, **kwargs) -> None:
+    def update_temporal(self, Y, use_init=None, **kwargs) -> None:
         """Updates temporal components
 
         Args:
             Y:  np.array (d1*d2) x T
                 input data
-
         """
         logger = logging.getLogger('caiman')
         

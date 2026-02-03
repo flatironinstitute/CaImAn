@@ -108,7 +108,7 @@ class GroupParams(Mapping):
     group_name: ClassVar[str]  # name of the attribute on CNMFParams
 
     # back-reference to help with some computed fields
-    _full_params: 'SkipJsonSchema[Optional[CNMFParams]]' = Field(default=None, init=False, exclude=True)
+    _full_params: 'SkipJsonSchema[Optional[CNMFParams]]' = Field(default=None, init=False, exclude=True, repr=False)
 
     
     @classmethod
@@ -367,7 +367,7 @@ class InitParams(GroupParams):
     """Parameters that control how CNMF should be initialized"""
     group_name = 'init'
 
-    K: int = 30                             # number of components
+    K: SafeOptional[int] = 30               # number of components
     SC_kernel: LitStr[Literal['heat', 'cos', 'binary']] = 'heat'  # kernel for graph affinity matrix
     SC_sigma: float = 1.                    # std for SC kernel
     SC_thr: float = 0.                      # threshold for affinity matrix
@@ -415,6 +415,15 @@ class InitParams(GroupParams):
         if self._gSiz is not None:
             return self._gSiz
         return [2*gs + 1 for gs in self.gSig]
+
+    @model_validator(mode='after')
+    def check_K_method(self):
+        """Log an error if K is incompatible with the initialization method"""
+        accept_none_K_methods = ['corr_pnr', 'sparse_nmf', 'graph_nmf']
+        if self.K is None and self.method_init not in accept_none_K_methods:
+            logger = logging.getLogger('caiman')
+            logger.error(f'Parameter init.K cannot be set to None for the initialization method {self.method_init}.')
+        return self
 
 
 @dataclass(kw_only=True, eq=False, frozen=True)
@@ -627,7 +636,7 @@ class MotionParams(GroupParams):
     #  - 'min': replace with minimum value in the frame
     #  - 'copy': copy edge values
     border_nan: Union[bool, LitStr[Literal['min', 'copy']]] = 'copy'
-    gSig_filt: SafeOptional[int] = None # size of kernel for high pass spatial filtering in 1p data
+    gSig_filt: SafeOptional[tuple[int, ...]] = None # size of kernel for high pass spatial filtering in 1p data
     is3D: bool = False                  # flag for 3D recordings for motion correction
     max_deviation_rigid: int = 3        # maximum deviation between rigid and non-rigid
     max_shifts: tuple[int, ...] = (6,6) # maximum shifts per dimension (in pixels)
@@ -855,8 +864,9 @@ class CNMFParams:
                 noise level for each pixel
 
         CNMFParams.init (these control how CNMF should be initialised):
-            K: int, default: 30
+            K: int or None, default: 30
                 number of components to be found (per patch or whole FOV depending on whether rf=None)
+                None is only supported for the following methods: 'corr_pnr', 'sparse_nmf', and 'graph_nmf'.
 
             SC_kernel: {'heat', 'cos', 'binary'}, default: 'heat'
                 kernel for graph affinity matrix
@@ -1241,8 +1251,9 @@ class CNMFParams:
                 flag for allowing NaN in the boundaries. True allows NaN, whereas 'copy' copies the value of the
                 nearest data point.
 
-            gSig_filt: int or None, default: None
-                size of kernel for high pass spatial filtering in 1p data. If None no spatial filtering is performed
+            gSig_filt: tuple of ints or None, default: None
+                size of kernel for high pass spatial filtering in 1p data. If None no spatial filtering is performed.
+                Only the first element is used in practice (the kernel is circular).
 
             is3D: bool, default: False
                 flag for 3D recordings for motion correction
