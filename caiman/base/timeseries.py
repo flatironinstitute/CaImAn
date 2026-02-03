@@ -223,10 +223,16 @@ class timeseries(np.ndarray):
         elif extension in ('.avi', '.mkv'):
             codec = None
             if compress == 0:
-                try:
-                    codec = cv2.FOURCC('I', 'Y', 'U', 'V')
-                except AttributeError:
-                    codec = cv2.VideoWriter_fourcc(*'IYUV')
+                if is_color:
+                    try:
+                        codec = cv2.FOURCC('I', 'Y', 'U', 'V')
+                    except AttributeError:
+                        codec = cv2.VideoWriter_fourcc(*'IYUV')
+                else:
+                    try:
+                        codec = cv2.FOURCC('G','R','E','Y')
+                    except AttributeError:
+                        codec = cv2.VideoWriter_fourcc(*'GREY')
             else:
                 try:
                     codec = cv2.FOURCC('F', 'F', 'V', '1')
