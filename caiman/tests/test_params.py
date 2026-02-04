@@ -8,7 +8,7 @@ import math
 import numpy as np
 import numpy.testing as npt
 import os
-from pydantic import ValidationError
+from pydantic import ValidationError, TypeAdapter
 import pytest
 import scipy.special
 from tabulate import tabulate
@@ -80,10 +80,44 @@ def test_validation(caplog):
     assert modified_params.noise_method == 'logmexp', 'dataclasses.replace should update and validate'
     unmodified_params = modified_params.replace(noise_method=temporal_params.noise_method)
     assert unmodified_params == temporal_params, 'Should be the same after changing back'
+
+    # test None interpretation + K/method_init dependency
+    caplog.clear()
+    init_params = params.InitParams(K='None', method_init='corr_pnr')  # type: ignore
+    assert len(caplog.records) == 0, 'Should not warn converting "None" to None'
+    assert init_params.K is None, 'Should convert "None" to None'
+    init_params = init_params.replace(K=b'NoneType', method_init='greedy_roi')
+    assert init_params.K is None, 'Should convert b"NoneType" to None'
+    assert len(caplog.records) == 1 and caplog.records[0].levelname == 'ERROR' and \
+        'cannot be set to None' in caplog.records[0].getMessage(), \
+        'Should log error when K is set to None with incompatible init method'
+
+    # test NDArray interpretation
+    caplog.clear()
+    preprocess_params = params.PreprocessParams(sn=[0.1, 0.2, 0.3])  # type: ignore
+    assert len(caplog.records) == 0, 'Should not warn converting list to ndarray'
+    assert isinstance(preprocess_params.sn, np.ndarray), 'Should convert list to ndarray'
+    npt.assert_array_equal(preprocess_params.sn, [0.1, 0.2, 0.3], 'Array should be equal to input')
+    preprocess_dumped = TypeAdapter(params.PreprocessParams).dump_python(preprocess_params)
+    assert isinstance(preprocess_dumped['sn'], list), 'ndarray should be serialized to list'
+
+    # test slice interpretation
+    caplog.clear()
+    motion_params = params.MotionParams(indices=(slice(None, None, 2), (1, -1, 2)))  # type: ignore
+    assert len(caplog.records) == 0, 'Should not warn converting tuple to slice'
+    assert motion_params.indices == (slice(None, None, 2), slice(1, -1, 2)),  '3-tuples should be converted to slices'
+    motion_dumped = TypeAdapter(params.MotionParams).dump_python(motion_params)
+    assert motion_dumped['indices'] == ((None, None, 2), (1, -1, 2)), 'Slices should be serialized to 3-tuples'
     
     # test automatically wrapping scalar filename in list
+    caplog.clear()
     data_params = params.DataParams(fnames='abc')  # type: ignore
+    assert len(caplog.records) == 0, 'Should not warn converting scalar to list'
     assert data_params.fnames == ['abc'], 'Scalar fnames should be wrapped in a list.'
+
+    # test gSiz coercing to odd int
+    init_params = params.InitParams(gSiz=[4, 5])
+    assert init_params.gSiz == [5, 5], 'Even ints should be converted to odd in gSiz'
 
     # test frozenness
     with pytest.raises(FrozenInstanceError):

@@ -53,17 +53,16 @@ NDArray = Annotated[
     WithJsonSchema({})
 ]
 
-def ser_slice(sl: slice) -> tuple[Any, Any, Any]:
-    return (sl.start, sl.stop, sl.step)
 
 Slice = Annotated[
     Union[  # these are the same base types (slice) but with different validators
         InstanceOf[slice],  # accept existing slices as is
         # anything convertible to a len-3 tuple, with 'NoneType' conversion, can be a slice
         Annotated[slice, ValidateAs(tuple[SafeAny, SafeAny, SafeAny], lambda tup: slice(*tup))]],
-    PlainSerializer(ser_slice),
+    PlainSerializer(lambda sl: (sl.start, sl.stop, sl.step)),
     WithJsonSchema(TypeAdapter(tuple[Any, Any, Any]).json_schema())
 ]
+
 
 # string pre-processing to use for string literals
 LiteralType = TypeVar('LiteralType', bound=str)
