@@ -11,7 +11,7 @@ import os
 from pathlib import Path
 from pprint import pformat
 from pydantic import (
-    ConfigDict, TypeAdapter, BeforeValidator, AfterValidator, InstanceOf, ValidateAs,
+    ConfigDict, TypeAdapter, BeforeValidator, AfterValidator, InstanceOf,
     PlainSerializer, ValidationError, ValidationInfo,
     WithJsonSchema, Field, field_validator, computed_field, model_validator)
 from pydantic.dataclasses import dataclass 
@@ -21,7 +21,7 @@ from pydantic_core import ArgsKwargs
 import scipy.special
 from scipy.ndimage import generate_binary_structure, iterate_structure
 from tabulate import tabulate
-from typing import (Optional, Any, Union, Literal, Annotated,
+from typing import (Optional, Any, Union, Literal, Annotated, Callable,
                     Mapping, Iterator, TypeVar, ClassVar, cast, Type)
 import warnings
 
@@ -29,6 +29,18 @@ import caiman.base.movies
 import caiman.utils.utils
 from caiman.paths import caiman_datadir
 from caiman.source_extraction.cnmf import utilities
+
+try:
+    from pydantic import ValidateAs
+except ImportError:
+    # polyfill for pydantic < 2.12
+    _FromTypeT = TypeVar('_FromTypeT')
+    def ValidateAs(from_type: type[_FromTypeT], /, instantiation_hook: Callable[[_FromTypeT], Any]) -> Any:
+        def validate_as_validator(obj: Any) -> Any:
+            ta = TypeAdapter(from_type)
+            validated = ta.validate_python(obj)
+            return instantiation_hook(validated)
+        return BeforeValidator(validate_as_validator)        
 
 
 # deal with 'NoneType', b'NoneType' strings
