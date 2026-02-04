@@ -13,7 +13,7 @@ from pathlib import Path
 from pprint import pformat
 from pydantic import (
     ConfigDict, TypeAdapter, BeforeValidator, AfterValidator, InstanceOf,
-    PlainSerializer, ValidationError, ValidationInfo,
+    PlainValidator, PlainSerializer, ValidationError, ValidationInfo,
     WithJsonSchema, Field, field_validator, computed_field, model_validator)
 from pydantic.dataclasses import dataclass 
 from pydantic.fields import FieldInfo
@@ -41,7 +41,7 @@ except ImportError:
             ta = TypeAdapter(from_type)
             validated = ta.validate_python(obj)
             return instantiation_hook(validated)
-        return BeforeValidator(validate_as_validator)        
+        return PlainValidator(validate_as_validator)        
 
 
 # deal with 'NoneType', b'NoneType' strings
