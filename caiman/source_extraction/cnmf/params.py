@@ -449,21 +449,20 @@ class InitParams(GroupParams):
         return self
 
 
+def default_expandcore() -> np.ndarray:
+    """
+    Generates the default morphological element used for footprint expansion
+    with the dilate method, which is a 5x5 matrix that is true where taxicab
+    distance from the center is <= 2 and false elsewhere.
+    """
+    s1 = generate_binary_structure(2, 1)
+    s2 = iterate_structure(s1, 2)
+    return s2.astype(int)  # type: ignore
+
 @dataclass(kw_only=True, eq=False, frozen=True)
 class SpatialParams(GroupParams):
     """Params that control how the algorithms handle spatial components"""
     group_name = 'spatial'
-
-    @staticmethod
-    def default_expandcore() -> np.ndarray:
-        """
-        Generates the default morphological element used for footprint expansion
-        with the dilate method, which is a 5x5 matrix that is true where taxicab
-        distance from the center is <= 2 and false elsewhere.
-        """
-        s1 = generate_binary_structure(2, 1)
-        s2 = iterate_structure(s1, 2)
-        return s2.astype(int)  # type: ignore
 
     dist: float = 3.                        # expansion factor of ellipse
     expandCore: NDArray = Field(default_factory=default_expandcore)
