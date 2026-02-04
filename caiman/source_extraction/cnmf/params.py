@@ -329,7 +329,7 @@ class DataParams(GroupParams):
         """
         # this is how you clear cache for a cached_property
         try:
-            object.__delattr__(self, 'x')
+            object.__delattr__(self, 'first_file_size')
         except AttributeError:
             pass
         return self
