@@ -1563,7 +1563,9 @@ class CNMFParams:
         
         # apply changes, bypassing frozen
         if updates:
-            object.__setattr__(self, group, d.replace(**updates))
+            d_new = d.replace(**updates)
+            object.__setattr__(d_new, '_full_params', self)
+            object.__setattr__(self, group, d_new)
 
 
     def get(self, group, key):
