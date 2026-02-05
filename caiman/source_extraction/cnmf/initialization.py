@@ -25,6 +25,7 @@ import warnings
 
 import caiman
 from caiman.source_extraction.cnmf.deconvolution import constrained_foopsi
+from caiman.source_extraction.cnmf.params import CNMFParams
 from caiman.source_extraction.cnmf.pre_processing import get_noise_fft, get_noise_welch
 from caiman.source_extraction.cnmf.spatial import circular_constraint, connectivity_constraint
 from caiman.utils.stats import pd_solve, compressive_nmf
@@ -1157,7 +1158,7 @@ def hals(Y, A, C, b, f, bSiz=3, maxIter=5):
 def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=True,
                    min_corr=None, min_pnr=None, seed_method='auto',
                    min_pixel=3, bd=0, thresh_init=2, ring_size_factor=None, nb=1,
-                   options: Optional[params.CNMFParams] = None, sn=None, save_video=False,
+                   options: Optional[CNMFParams] = None, sn=None, save_video=False,
                    video_name='initialization.mp4', ssub=1, ssub_B=2, init_iter=2):
     """
     initialize neurons based on pixels' local correlations and peak-to-noise ratios.
