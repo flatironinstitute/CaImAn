@@ -1093,11 +1093,11 @@ def process_movie_parallel(arg_in):
             template = Yr.bin_median()
             fname_no_ext = os.path.splitext(fname)[0]
             if save_hdf5:
-                Yr.save(fname_no_ext + '.hdf5')
-            np.savez(fname_no_ext + '.npz', shifts=shifts,
+                Yr.save(f'{fname_no_ext}.hdf5')
+            np.savez(f'{fname_no_ext}.npz', shifts=shifts,
                      xcorrs=xcorrs, template=template)
             del Yr
-            return fname_no_ext + '.'
+            return f'{fname_no_ext}.'
     else:
         return None
 

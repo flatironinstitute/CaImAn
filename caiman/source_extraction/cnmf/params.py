@@ -27,9 +27,10 @@ from typing import (Optional, Any, Union, Literal, Annotated, Callable,
 import warnings
 
 import caiman.base.movies
-import caiman.utils.utils
 from caiman.paths import caiman_datadir
 from caiman.source_extraction.cnmf import utilities
+import caiman.utils.utils
+
 
 try:
     from pydantic import ValidateAs
@@ -105,7 +106,7 @@ class GroupParams(Mapping):
     Aliases and computed fields are used for parameters that are computed
     from other fields (potentially elsewhere in CNMFParams) if an explicit
     value is not provided. This allows these parameters to continue to be updated
-    when the params it depends on are changed. The field containing the user-provided
+    when the params they depend on are changed. The field containing the user-provided
     value (or None if none was provided) is prefixed with an underscore, but has
     the un-prefixed name as an alias; this allows the name to be used in the constructor,
     change_params, etc. This alias can also used to serialize the user-provided value
@@ -289,7 +290,7 @@ class GroupParams(Mapping):
         """Implement dict.copy - make a copy of the data as a (mutable) dict"""
         # It's safe to assign to a copy, so just make it a (shallow-copied) dict
         ta = TypeAdapter(type(self))
-        # user round_trip=False to serialize computed properties
+        # use round_trip=False to serialize computed properties
         return ta.dump_python(self, round_trip=False)
 
 

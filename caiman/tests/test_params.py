@@ -15,9 +15,9 @@ from tabulate import tabulate
 from typing import Any, cast
 
 from caiman.base import movies
-import caiman.utils.utils
 from caiman.paths import caiman_datadir
 from caiman.source_extraction.cnmf import params, cnmf
+import caiman.utils.utils
 
 
 # ---- UTILITIES ----- #

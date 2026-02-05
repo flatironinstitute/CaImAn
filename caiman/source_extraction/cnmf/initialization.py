@@ -20,14 +20,13 @@ from sklearn.decomposition import NMF, FastICA
 from sklearn.exceptions import ConvergenceWarning
 from sklearn.utils.extmath import randomized_svd, squared_norm, randomized_range_finder
 import sys
-from typing import Sequence
+from typing import Sequence, Optional
 import warnings
 
 import caiman
-from caiman import summary_images
-from caiman.base import rois
-from caiman.source_extraction.cnmf import (
-    deconvolution, pre_processing, spatial, temporal, merging, utilities, params)
+from caiman.source_extraction.cnmf.deconvolution import constrained_foopsi
+from caiman.source_extraction.cnmf.pre_processing import get_noise_fft, get_noise_welch
+from caiman.source_extraction.cnmf.spatial import circular_constraint, connectivity_constraint
 from caiman.utils.stats import pd_solve, compressive_nmf
 from caiman.utils.utils import parmap
 
@@ -99,7 +98,7 @@ def downscale(Y, ds: Sequence[int], opencv=False):
             ds = tuple(ds) + (1,)
 
         if d == 3 and Y.shape[-1] > 1 and ds[0] == ds[1]:
-            ds_mat = utilities.decimation_matrix(Y.shape[:2], ds[0])
+            ds_mat = caiman.source_extraction.cnmf.utilities.decimation_matrix(Y.shape[:2], ds[0])
             Y_ds = ds_mat.dot(Y.reshape((-1, Y.shape[-1]), order='F')).reshape(
                 (1 + (Y.shape[0] - 1) // ds[0], 1 + (Y.shape[1] - 1) // ds[0], -1), order='F')
             if ds[2] > 1:
@@ -473,7 +472,7 @@ def ICA_PCA(Y_ds, nr, sigma_smooth=(.5, .5, .5), truncate=2, fun='logcosh',
     masks = np.reshape(A_in.T, (d1, d2, pca_comp),
                        order='F').transpose([2, 0, 1])
 
-    masks = np.array(rois.extractROIsFromPCAICA(masks)[0])
+    masks = np.array(caiman.base.rois.extractROIsFromPCAICA(masks)[0])
 
     if masks.size > 0:
 
@@ -492,7 +491,7 @@ def ICA_PCA(Y_ds, nr, sigma_smooth=(.5, .5, .5), truncate=2, fun='logcosh',
     b_in = model.fit_transform(np.maximum(m1, 0)).astype(np.float32)
     f_in = model.components_.astype(np.float32)
 
-    center = rois.com(A_in, d1, d2)
+    center = caiman.base.rois.com(A_in, d1, d2)
 
     return A_in, C_in, center, b_in, f_in
 
@@ -574,7 +573,7 @@ def sparseNMF(Y_ds, nr, max_iter_snmf=200, alpha=0.5, sigma_smooth=(.5, .5, .5),
                 random_state=0, max_iter=max_iter_snmf)
     b_in = model.fit_transform(np.maximum(m1, 0)).astype(np.float32)
     f_in = model.components_.astype(np.float32)
-    center = rois.com(A_in, *dims)
+    center = caiman.base.rois.com(A_in, *dims)
 
     return A_in, C_in, center, b_in, f_in
 
@@ -634,7 +633,7 @@ def compressedNMF(Y_ds, nr, r_ov=10, max_iter_snmf=500,
                 random_state=0, max_iter=max_iter_snmf)
     b_in = model.fit_transform(np.maximum(m1, 0)).astype(np.float32)
     f_in = model.components_.astype(np.float32)
-    center = rois.com(A_in, *dims)
+    center = caiman.base.rois.com(A_in, *dims)
 
     return A_in, C_in, center, b_in, f_in
 
@@ -663,7 +662,7 @@ def graphNMF(Y_ds, nr, max_iter_snmf=500, lambda_gnmf=1,
               max_iter=5)
     C = mdl.fit_transform(yr).T
     A = mdl.components_.T
-    W = utilities.fast_graph_Laplacian_patches(
+    W = caiman.source_extraction.cnmf.utilities.fast_graph_Laplacian_patches(
             [np.reshape(m, [T, d], order='F').T, [], SC_kernel, SC_sigma, SC_thr,
              SC_nnn, SC_normalize, SC_use_NN])
     D = scipy.sparse.spdiags(W.sum(0), 0, W.shape[0], W.shape[0])
@@ -686,7 +685,7 @@ def graphNMF(Y_ds, nr, max_iter_snmf=500, lambda_gnmf=1,
                 random_state=0, max_iter=max_iter_snmf)
     b_in = model.fit_transform(np.maximum(m1, 0)).astype(np.float32)
     f_in = model.components_.astype(np.float32)
-    center = rois.com(A_in, *dims)
+    center = caiman.base.rois.com(A_in, *dims)
 
     return A_in, C_in, center, b_in, f_in
 
@@ -1155,11 +1154,11 @@ def hals(Y, A, C, b, f, bSiz=3, maxIter=5):
 
 
 @profile
-def greedyROI_corr(Y, Y_ds, options: params.CNMFParams, max_number=None, gSiz=None, gSig=None, center_psf=True,
+def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=True,
                    min_corr=None, min_pnr=None, seed_method='auto',
                    min_pixel=3, bd=0, thresh_init=2, ring_size_factor=None, nb=1,
-                   sn=None, save_video=False, video_name='initialization.mp4', ssub=1,
-                   ssub_B=2, init_iter=2):
+                   options: Optional[params.CNMFParams] = None, sn=None, save_video=False,
+                   video_name='initialization.mp4', ssub=1, ssub_B=2, init_iter=2):
     """
     initialize neurons based on pixels' local correlations and peak-to-noise ratios.
 
@@ -1200,6 +1199,9 @@ def greedyROI_corr(Y, Y_ds, options: params.CNMFParams, max_number=None, gSiz=No
     if min_corr is None or min_pnr is None:
         raise Exception(
             'Either min_corr or min_pnr are None. Both of them must be real numbers.')
+    
+    if options is None:
+        raise ValueError('options is required to be a CNMFParams object.')
 
     logger.info('One photon initialization (GreedyCorr)')
     o = options.temporal.copy()
@@ -1243,14 +1245,14 @@ def greedyROI_corr(Y, Y_ds, options: params.CNMFParams, max_number=None, gSiz=No
         B += Y_ds.reshape((-1, total_frames), order='F')  # "Y-B"
 
         logger.info('Updating spatial components')
-        A, _, C, _ = spatial.update_spatial_components(
+        A, _, C, _ = caiman.source_extraction.cnmf.spatial.update_spatial_components(
             B, C=C, f=np.zeros((0, total_frames), np.float32), A_in=A,
             sn=np.sqrt(downscale((sn**2).reshape(dims, order='F'),
                                  tuple([ssub] * len(dims))).ravel() / tsub) / ssub,
             b_in=np.zeros((d1 * d2, 0), np.float32),
             dview=None, dims=(d1, d2), **options.spatial)
         logger.info('Updating temporal components')
-        C, A = temporal.update_temporal_components(
+        C, A = caiman.source_extraction.cnmf.temporal.update_temporal_components(
             B, spr.csc_matrix(A, dtype=np.float32),
             np.zeros((d1 * d2, 0), np.float32),
             C, np.zeros((0, total_frames), np.float32),
@@ -1277,13 +1279,13 @@ def greedyROI_corr(Y, Y_ds, options: params.CNMFParams, max_number=None, gSiz=No
 
         # 1st iteration on decimated data
         logger.info('Merging components')
-        A, C = merging.merge_components(
+        A, C = caiman.source_extraction.cnmf.merging.merge_components(
             B, A, [], C, None, [], C, [], o, options.spatial,
             dview=None, thr=options.merging.merge_thr, mx=np.inf, fast_merge=True)[:2]
         A = A.astype(np.float32)
         C = C.astype(np.float32)
         logger.info('Updating spatial components')
-        A, _, C, _ = spatial.update_spatial_components(
+        A, _, C, _ = caiman.source_extraction.cnmf.spatial.update_spatial_components(
             B, C=C, f=np.zeros((0, total_frames), np.float32), A_in=A,
             sn=np.sqrt(downscale((sn**2).reshape(dims, order='F'),
                                  tuple([ssub] * len(dims))).ravel() / tsub) / ssub,
@@ -1291,7 +1293,7 @@ def greedyROI_corr(Y, Y_ds, options: params.CNMFParams, max_number=None, gSiz=No
             dview=None, dims=(d1, d2), **options.spatial)
         A = A.astype(np.float32)
         logger.info('Updating temporal components')
-        C, A = temporal.update_temporal_components(
+        C, A = caiman.source_extraction.cnmf.temporal.update_temporal_components(
             B, spr.csc_matrix(A),
             np.zeros((d1 * d2, 0), np.float32),
             C, np.zeros((0, total_frames), np.float32),
@@ -1326,21 +1328,21 @@ def greedyROI_corr(Y, Y_ds, options: params.CNMFParams, max_number=None, gSiz=No
         B += Y.reshape((-1, T), order='F')  # "Y-B"
 
         logger.info('Merging components')
-        A, C = merging.merge_components(
+        A, C = caiman.source_extraction.cnmf.merging.merge_components(
             B, A, [], C, None, [], C, [], o, options.spatial,
             dview=None, thr=options.merging.merge_thr, mx=np.inf, fast_merge=True)[:2]
         A = A.astype(np.float32)
         C = C.astype(np.float32)
         
         logger.info('Updating spatial components')
-        A, _, C, _ = spatial.update_spatial_components(
+        A, _, C, _ = caiman.source_extraction.cnmf.spatial.update_spatial_components(
             B, C=C, f=np.zeros((0, T), np.float32), A_in=A, sn=sn,
             b_in=np.zeros((np.prod(dims), 0), np.float32),
             dview=None, dims=dims, **options.spatial)
 
         logger.info('Updating temporal components')
         C, A, b__, f__, S, bl, c1, neurons_sn, g1, YrA, lam__ = \
-            temporal.update_temporal_components(
+            caiman.source_extraction.cnmf.temporal.update_temporal_components(
                 B, spr.csc_matrix(A, dtype=np.float32),
                 np.zeros((np.prod(dims), 0), np.float32), C, np.zeros((0, T), np.float32),
                 dview=None, bl=None, c1=None, sn=None, g=None, **options.temporal)
@@ -1481,14 +1483,14 @@ def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
     # compute peak-to-noise ratio
     data_filtered -= data_filtered.mean(axis=0)
     data_max = np.max(data_filtered, axis=0)
-    noise_pixel = pre_processing.get_noise_fft(data_filtered.T, noise_method='mean')[0].T
+    noise_pixel = get_noise_fft(data_filtered.T, noise_method='mean')[0].T
     pnr = np.divide(data_max, noise_pixel)
 
     # remove small values and only keep pixels with large fluorescence signals
     tmp_data = np.copy(data_filtered)
     tmp_data[tmp_data < thresh_init * noise_pixel] = 0
     # compute correlation image
-    cn = summary_images.local_correlations_fft(tmp_data, swap_dim=False)
+    cn = caiman.summary_images.local_correlations_fft(tmp_data, swap_dim=False)
     del(tmp_data)
 #    cn[np.isnan(cn)] = 0  # remove abnormal pixels
 
@@ -1733,7 +1735,7 @@ def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
                 if deconvolve_options['p']:
                     # deconvolution
                     ci, baseline, c1, _, _, si, _ = \
-                        deconvolution.constrained_foopsi(ci_raw, **deconvolve_options)
+                        constrained_foopsi(ci_raw, **deconvolve_options)
                     if ci.sum() == 0:
                         continue
                     Cin[num_neurons] = ci
@@ -1801,7 +1803,7 @@ def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
                 # update correlation image
                 data_filtered_box[data_filtered_box <
                                   thresh_init * noise_box] = 0
-                cn_box = summary_images.local_correlations_fft(
+                cn_box = caiman.summary_images.local_correlations_fft(
                     data_filtered_box, swap_dim=False)
                 cn_box[np.isnan(cn_box) | (cn_box < 0)] = 0
                 cn[r_min:r_max, c_min:c_max] = cn_box[
@@ -1882,12 +1884,12 @@ def extract_ac(data_filtered, data_raw, ind_ctr, patch_dims):
     ai[ai < 0] = 0
 
     # post-process neuron shape
-    ai = spatial.circular_constraint(ai)
-    ai = spatial.connectivity_constraint(ai)
+    ai = circular_constraint(ai)
+    ai = connectivity_constraint(ai)
 
     # remove baseline
     # ci -= np.median(ci)
-    sn = pre_processing.get_noise_welch(ci)
+    sn = get_noise_welch(ci)
     y_diff = np.concatenate([[-1], np.diff(ci)])
     b = np.median(ci[(y_diff >= 0) * (y_diff < sn)])
     ci -= b
@@ -1957,7 +1959,7 @@ def compute_W(Y, A, C, dims, radius, data_fits_in_memory=True, ssub=1, tsub=1, p
     b0 = np.array(Y.mean(1)) - A.dot(C.mean(1))
 
     if ssub > 1:
-        ds_mat = utilities.decimation_matrix(dims, ssub)
+        ds_mat = caiman.source_extraction.cnmf.utilities.decimation_matrix(dims, ssub)
         ds = lambda x: ds_mat.dot(x)
     else:
         ds = lambda x: x
