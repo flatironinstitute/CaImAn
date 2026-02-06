@@ -1,6 +1,5 @@
 #!/usr/bin/env python
 
-from copy import copy, deepcopy
 from dataclasses import fields, InitVar
 from functools import cache, cached_property
 import importlib.metadata
@@ -204,27 +203,13 @@ class GroupParams(Mapping):
         param_dict = ta.dump_python(self, round_trip=True)
         param_dict.update(changes)
         context = {'warn_unused': warn_unused}
-        new_obj = ta.validate_python(param_dict, context=context)        
+        new_obj = ta.validate_python(param_dict, context=context)
+        # set _full_params so computed fields remain consistent
+        object.__setattr__(new_obj, '_full_params', self._full_params)
         return new_obj
 
     # support copy.replace (for 3.13 and above)
     __replace__ = replace
-
-    # don't copy _full_params through copy or deepcopy
-    def _copy_no_full(self: GPSelf, deep: bool, memo=None) -> GPSelf:
-        attrs = self.__dict__.copy()
-        del attrs['_full_params']
-        if deep:
-            attrs = deepcopy(attrs, memo=memo)
-        my_copy = type(self)()
-        my_copy.__dict__.update(attrs)
-        return my_copy
-    
-    def __copy__(self):
-        return self._copy_no_full(deep=False)
-    
-    def __deepcopy__(self, memo):
-        return self._copy_no_full(deep=True, memo=memo)
 
     
     def get_differing_params(self: GPSelf, other: GPSelf) -> Iterator[tuple[str, Any, Any]]:
@@ -1564,7 +1549,6 @@ class CNMFParams:
         # apply changes, bypassing frozen
         if updates:
             d_new = d.replace(**updates)
-            object.__setattr__(d_new, '_full_params', self)
             object.__setattr__(self, group, d_new)
 
 
@@ -1709,7 +1693,7 @@ class CNMFParams:
 
                 found = False
                 for group, group_class in groups.items():
-                    if paramkey in group_class.params(): # Is it known?
+                    if paramkey in group_class.input_params(): # Is it known?
                         found = True
                         if group not in nested_params:
                             nested_params[group] = {paramkey: paramval}
@@ -1759,7 +1743,6 @@ class CNMFParams:
                 # update group, bypassing frozen
                 group_params = self.get_group(group)
                 new_group_params = group_params.replace(warn_unused=warn_unused, **group_updates)
-                object.__setattr__(new_group_params, '_full_params', self)
                 object.__setattr__(self, group, new_group_params)
 
         self.check_consistency()
