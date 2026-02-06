@@ -67,7 +67,8 @@ def mrcnn_inference(model,
         pred = predictions[0]
     
     predicted_masks, predicted_boxes = thresholded_predictions(pred, threshold=thresh) 
-    binarized_masks = (0.5+predicted_masks).detach().cpu().numpy().astype(np.uint8) 
+    #binarized_masks = (0.5+predicted_masks).detach().cpu().numpy().astype(np.uint8) 
+    binarized_masks = (predicted_masks > 0.5).detach().cpu().numpy().astype(np.uint8) 
     return predicted_masks, predicted_boxes, binarized_masks
 
 def thresholded_predictions(pred, threshold=0.7):

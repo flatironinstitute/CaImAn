@@ -136,8 +136,15 @@ def mrcnn_inference_pytorch(img, size_range, weights_path, display_result=True):
     model.eval() #Set to evaluation mode 
 
     # Pre-process Image
-    img_tensor = torch.from_numpy(img.copy().astype(np.float32)).permute(2, 0, 1) #
-    img_tensor = img_tensor / 255.0  # Normalize to 0-1 range
+    img_tensor = torch.from_numpy(img.copy().astype(np.float32)).permute(2, 0, 1)
+    #img_tensor = img_tensor / 255.0  # Normalize to 0-1 range 
+    img_tensor = torch.from_numpy(img.copy().astype(np.float32)).permute(2, 0, 1)
+    if img_tensor.max() <= 1.0 and img-tensor.min() >= 0.0:
+        pass
+    elif img_tensor.max() > 1.0 and img_tensor.min() >= 0.0:
+        img_tensor = img_tensor / 255.0
+    else:
+        img_tensor = (img_tensor - img_tensor.min()) / (img_tensor.max() - img_tensor.min())
     img_tv_tensor = torchvision.tv_tensors.Image(img_tensor)
 
     # Perform Inference
