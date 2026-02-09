@@ -11,7 +11,7 @@ Revised by Changjia Cai, Eric Thompson, Manuel Paez
 
 class Config:
     # Paths
-    DATA_DIR = r'~./volpy_training_data/' #Edit to your data directory
+    DATA_DIR = r'~/volpy_training_data/' #Edit to your data directory
     MODEL_SAVE_DIR = r'~/volpy_models/' #Edit to your model directory
 
     # Model and Training Hyperparameters
