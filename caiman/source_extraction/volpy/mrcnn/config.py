@@ -17,7 +17,7 @@ class Config:
     # Model and Training Hyperparameters
     NUM_CLASSES = 1 + 1  # Background + Neuron
     BATCH_SIZE = 2 
-    NUM_EPOCHS = 100
+    NUM_EPOCHS = 200
     MAX_LR = 0.005
     BASE_LR = 0.000001
     STEP_SIZE_UP = 3

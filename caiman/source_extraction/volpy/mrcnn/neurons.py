@@ -221,7 +221,7 @@ def perform_final_evaluation(model: nn.Module, config, device: torch.device, plo
             data_masks = vp_target['masks']
 
             # Run inference to get predicted masks
-            _, _, binarized_masks = mrcnn_inference(model, img=vp_im.to(device), thresh=config.INFERENCE_THRESHOLD,
+            _, _, _, binarized_masks = mrcnn_inference(model, img=vp_im.to(device), thresh=config.INFERENCE_THRESHOLD,
                                                     eval_transform=data_transform(train=False), device=device)
 
             # Compare GT and Predicted Masks
