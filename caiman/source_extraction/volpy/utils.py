@@ -16,7 +16,7 @@ import caiman as cm
 from caiman.external.cell_magic_wand import cell_magic_wand_single_point
 from caiman.paths import caiman_datadir
 
-from caiman.source_extraction.volpy.mrcnn import utils
+from caiman.source_extraction.volpy.mrcnn import utils, visualize
 from caiman.source_extraction.volpy.mrcnn.config import Config
 from caiman.source_extraction.volpy.mrcnn.model import get_model_instance_segmentation, mrcnn_inference
 from caiman.source_extraction.volpy.mrcnn.utils import ScaleImage, data_transform 
@@ -123,7 +123,7 @@ def mrcnn_inference_pytorch(img, size_range, weights_path, display_result=True):
         GPU_COUNT = 1
         IMAGES_PER_GPU = 1
         NUM_CLASSES = 1 + 1  # background + neuron
-        DETECTION_MIN_CONFIDENCE = 0.7 #
+        DETECTION_MIN_CONFIDENCE = 0.65 #
     config = InferenceConfig()
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -148,38 +148,58 @@ def mrcnn_inference_pytorch(img, size_range, weights_path, display_result=True):
     img_tv_tensor = torchvision.tv_tensors.Image(img_tensor)
 
     # Perform Inference
-    _, _, binarized_masks = mrcnn_inference(
+    _, predicted_boxes, predicted_scores, binarized_masks = mrcnn_inference(
         model=model,
         img=img_tv_tensor, 
         thresh=config.DETECTION_MIN_CONFIDENCE,
         eval_transform=data_transform(train=False),
         device=device
     )
+    
+    boxes_np = predicted_boxes.detach().cpu().numpy()
+    scores_np = predicted_scores.detach().cpu().numpy()
+
+    print(f"DEBUG - boxes_np shape: {boxes_np.shape}, scores_np shape: {scores_np.shape}, binarized_masks shape: {binarized_masks.shape}")
 
     # Post-process and Filter by Size
     if binarized_masks.size == 0:
         ROIs = np.empty((0, *img.shape[:2]), dtype=bool) #
+        boxes_fiiltered = np.empty((0, 4))
+        scores_filtered = np.empty((0,))
     else:
         mask_areas = binarized_masks.sum(axis=(1, 2)) #
         selection = np.logical_and(mask_areas > size_range[0] ** 2,
-                                   mask_areas < size_range[1] ** 2) #
+                                   mask_areas < size_range[1] ** 2) # 
         ROIs = binarized_masks[selection].astype(bool) 
+        boxes_filtered = boxes_np[selection]
+        scores_filtered = scores_np[selection]
 
     print(f"Inference complete. Found {ROIs.shape[0]} neurons.") #
 
     if display_result:
-        plt.figure(figsize=(12, 12))
-        plt.imshow(img)
+        #plt.figure(figsize=(12, 12))
+        #plt.imshow(img)
         # Overlay each ROI with a distinct color
-        if ROIs.any():
-            composite_mask = np.zeros_like(ROIs[0], dtype=float)
-            for i, roi in enumerate(ROIs):
-                composite_mask += roi * (i + 1)
-            plt.imshow(np.ma.masked_where(composite_mask == 0, composite_mask), cmap='nipy_spectral', alpha=0.6)
-        plt.title(f"PyTorch Predictions ({len(ROIs)} ROIs found)")
-        plt.axis('off')
-        plt.show()
+        #if ROIs.any():
+            #composite_mask = np.zeros_like(ROIs[0], dtype=float)
+            #for i, roi in enumerate(ROIs):
+                #composite_mask += roi * (i + 1)
+            #plt.imshow(np.ma.masked_where(composite_mask == 0, composite_mask), cmap='nipy_spectral', alpha=0.6)
+        #plt.title(f"PyTorch Predictions ({len(ROIs)} ROIs found)")
+        #plt.axis('off')
+        #plt.show()
+        
+        if len(boxes_filtered) > 0:
+            boxes_viz = boxes_filtered[:, [1, 0, 3, 2]]
+        else:
+            boxes_viz = np.empty((0, 4))
 
+        masks_viz = ROIs.transpose(1, 2, 0) if ROIs.size > 0 else np.empty((img.shape[0], img.shape[1], 0))
+        class_ids = np.ones(len(ROIs), dtype=np.int32)
+        _, ax = plt.subplots(1, 1, figsize=(16,16))
+        visualize.display_instances(img, boxes_viz, masks_viz, class_ids, 
+                                    ['BG', 'neurons'], scores_filtered, ax=ax,
+                                    title="Predictions")
     return ROIs
 
 def reconstructed_movie(estimates, fnames, idx, scope, flip_signal):

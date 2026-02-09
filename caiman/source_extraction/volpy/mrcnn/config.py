@@ -11,13 +11,13 @@ Revised by Changjia Cai, Eric Thompson, Manuel Paez
 
 class Config:
     # Paths
-    DATA_DIR = r'~/volpy_training_data/' #Edit to your data directory
+    DATA_DIR = r'~./volpy_training_data/' #Edit to your data directory
     MODEL_SAVE_DIR = r'~/volpy_models/' #Edit to your model directory
 
     # Model and Training Hyperparameters
     NUM_CLASSES = 1 + 1  # Background + Neuron
     BATCH_SIZE = 2 
-    NUM_EPOCHS = 100
+    NUM_EPOCHS = 200
     MAX_LR = 0.005
     BASE_LR = 0.000001
     STEP_SIZE_UP = 3

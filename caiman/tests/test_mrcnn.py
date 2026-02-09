@@ -28,7 +28,7 @@ def mrcnn_pytorch(model, img, size_range, confidence_threshold=0.5,
     img_tensor = ScaleImage()(img_tensor) # Apply the same 0-1 scaling used during training
     img_tv_tensor = torchvision.tv_tensors.Image(img_tensor) # Wrap the tensor in the tv_tensors.Image class
 
-    _, _, binarized_masks = mrcnn_inference(
+    _, _, _, binarized_masks = mrcnn_inference(
         model,
         img=img_tv_tensor, 
         thresh=confidence_threshold,
