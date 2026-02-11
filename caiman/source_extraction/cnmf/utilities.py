@@ -10,14 +10,13 @@ description of the array's dtype.
 
 import cv2
 import logging
+import matplotlib.pyplot as plt
 import numpy as np
 import numpy.testing as npt
-import os
-import pathlib
-import matplotlib.pyplot as plt
+import psutil
 import scipy
-from scipy.sparse import spdiags, issparse, csc_matrix, csr_matrix
 import scipy.ndimage as ndi
+from scipy.sparse import csc_matrix, csr_matrix, issparse, spdiags
 
 import caiman.base.rois
 import caiman.cluster
@@ -1254,3 +1253,15 @@ def fast_graph_Laplacian_pixel(pars):
         ind = np.where(w>0)[0]
 
     return indices[ind].tolist(), w[ind].tolist()
+
+
+def estimate_n_pixels_per_process(n_processes: int, T: int, dims: tuple[int, ...]) -> int:
+    """
+    Estimate a safe number of pixels to allocate to each parallel process at a time
+    """
+    # FIXME The code below is really ugly and it's hard to tell if it's doing the right thing.
+    avail_memory_per_process = psutil.virtual_memory()[1] / n_processes / 2.0**30
+    mem_per_pix = 3.6977678498329843e-09
+    npx_per_proc = int(avail_memory_per_process / 8. / mem_per_pix / T)
+    npx_per_proc = int(np.minimum(npx_per_proc, np.prod(dims) // n_processes))
+    return npx_per_proc

@@ -16,8 +16,6 @@ See Also:
 
 from copy import deepcopy
 import cv2
-import glob
-import inspect
 import logging
 import numpy as np
 import os
@@ -25,7 +23,6 @@ import pathlib
 import psutil
 import pynwb
 import scipy
-import sys
 import time
 from typing import Optional
 
@@ -42,7 +39,7 @@ from caiman.source_extraction.cnmf.params import CNMFParams
 from caiman.source_extraction.cnmf.pre_processing import preprocess_data
 from caiman.source_extraction.cnmf.spatial import update_spatial_components
 from caiman.source_extraction.cnmf.temporal import update_temporal_components, constrained_foopsi_parallel
-from caiman.source_extraction.cnmf.utilities import update_order, all_same
+from caiman.source_extraction.cnmf.utilities import all_same, estimate_n_pixels_per_process
 from caiman.utils.utils import save_dict_to_hdf5, load_dict_from_hdf5, hdf5_runmode
 
 
@@ -307,15 +304,12 @@ class CNMF(object):
             pass
 
         logger.info(f"Using {self.params.patch.n_processes} processes")
-        # FIXME The code below is really ugly and it's hard to tell if it's doing the right thing.
-        #     These decisions should also probably be set higher up the call stack in some kind of a performance
-        #     API (if we go with execution contexts, definitely there)
+
         npx_per_proc = self.params.spatial.n_pixels_per_process
         if npx_per_proc is None:
-            avail_memory_per_process = psutil.virtual_memory()[1] / 2.**30 / self.params.patch.n_processes
-            mem_per_pix = 3.6977678498329843e-09
-            npx_per_proc = int(avail_memory_per_process / 8. / mem_per_pix / T)
-            npx_per_proc = int(np.minimum(npx_per_proc, np.prod(self.dims) // self.params.patch.n_processes))
+            npx_per_proc = estimate_n_pixels_per_process(
+                n_processes=self.params.patch.n_processes, T=T, dims=self.dims
+            )
 
         logger.info(f'using {npx_per_proc} pixels per process')
         logger.info(f'using {self.params.temporal.block_size_temp} block_size_temp')
