@@ -346,9 +346,7 @@ class PatchParams(GroupParams):
     remove_very_bad_comps: bool = False
     rf: Union[int, list[int], SafeNone] = None
     skip_refinement: bool = False
-    p_ssub: float = 2.                      # spatial downsampling factor
     stride: Union[int, list[int], SafeNone] = None
-    p_tsub: float = 2.                      # temporal downsampling factor
 
 
 @dataclass(kw_only=True, eq=False, frozen=True)
@@ -673,18 +671,7 @@ class MotionParams(GroupParams):
     use_cuda: bool = False              # flag for using a GPU
     indices: tuple[Slice, ...] = (slice(None), slice(None))  # part of FOV to be corrected
 
-    @computed_field
-    @property
-    def num_splits_to_process_els(self) -> None:
-        """Unused, will be removed in a future version of Caiman"""
-        return None
-    
-    @computed_field
-    @property
-    def num_splits_to_process_rig(self) -> None:
-        """Unused, will be removed in a future version of Caiman"""
-        return None
-    
+
     def _compute_splits_from_data(self) -> Optional[int]:
         """Compute splits_els and splits_rig values to use from data"""
         if self._full_params is not None:
@@ -840,15 +827,9 @@ class CNMFParams:
                 If true it only performs one iteration of update spatial update temporal instead of two
                 TODO: why is this in the patch section?
 
-            p_ssub: float, default: 2
-                Spatial downsampling factor
-
             stride: int or list[int] or None, default: None
                 Overlap between neighboring patches in pixels. If None, when running CNMF.fit with
                 rf not None, it is automatically set to 10% of 2x rf along each dimension.
-
-            p_tsub: float, default: 2
-                Temporal downsampling factor
 
         CNMFParams.preprocess (these control preprocessing steps for the data):
             check_nan: bool, default: True
