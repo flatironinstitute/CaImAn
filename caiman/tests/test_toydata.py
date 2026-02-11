@@ -78,7 +78,6 @@ def get_params_dicts(D: int):
     return {
         'no-patch': {
             'init': {'K': 4, 'gSig': [2, 2, 2][:D]},
-            'preprocess': {'p': 1, 'n_pixels_per_process': np.prod(dims)},
             'spatial': {'n_pixels_per_process': np.prod(dims), 'thr_method': 'nrg', 'extract_cc': False},
             'temporal': {'p': 1, 'block_size_temp': np.prod(dims)},
         },

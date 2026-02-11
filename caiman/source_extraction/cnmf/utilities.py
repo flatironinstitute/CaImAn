@@ -23,6 +23,7 @@ import caiman.base.rois
 import caiman.cluster
 import caiman.mmapping
 import caiman.source_extraction.cnmf.initialization
+import caiman.source_extraction.cnmf.map_reduce
 import caiman.utils.stats
 
 
@@ -1174,7 +1175,7 @@ def fast_graph_Laplacian(mmap_file, dims, max_radius=10, kernel='heat',
         D = scipy.sparse.spdiags(W.sum(0), 0, Np, Np)
         L = D - W
     else:
-        indices, _ = caiman.cluster.extract_patch_coordinates(dims, rf, strides)
+        indices, _ = caiman.source_extraction.cnmf.map_reduce.extract_patch_coordinates(dims, rf, strides)
         pars = []
         for i in range(len(indices)):
             pars.append([mmap_file, indices[i], kernel, sigma, thr, p,

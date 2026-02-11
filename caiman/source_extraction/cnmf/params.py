@@ -347,7 +347,7 @@ class PatchParams(GroupParams):
     rf: Union[int, list[int], SafeNone] = None
     skip_refinement: bool = False
     p_ssub: float = 2.                      # spatial downsampling factor
-    stride: SafeOptional[int] = None
+    stride: Union[int, list[int], SafeNone] = None
     p_tsub: float = 2.                      # temporal downsampling factor
 
 
@@ -362,13 +362,25 @@ class PreprocessParams(GroupParams):
     # number of autocovariance lags to be considered for time constant estimation
     lags: int = 5
     max_num_samples_fft: int = 3 * 1024
-    n_pixels_per_process: SafeOptional[int] = None
     noise_method: LitStr[Literal['mean', 'median', 'logmexp']] = 'mean'  # averaging method
     # range of normalized frequencies over which to average
     noise_range: list[float] = Field(default_factory=lambda: [0.25, 0.5])
-    p: int = 2                              # order of AR indicator dynamics
     pixels: SafeOptional[list[int]] = None  # pixels to be excluded due to saturation
     sn: SafeOptional[NDArray] = None        # noise level for each pixel
+
+    @computed_field
+    @property
+    def p(self) -> int:
+        if self._full_params is None:
+            raise RuntimeError('Cannot access p without reference to full params')
+        return self._full_params.temporal.p
+
+    @computed_field
+    @property
+    def n_pixels_per_process(self) -> Optional[int]:
+        if self._full_params is None:
+            raise RuntimeError('Cannot access n_pixels_to_process without reference to full params')
+        return self._full_params.spatial.n_pixels_per_process
 
 
 @dataclass(kw_only=True, eq=False, frozen=True)
@@ -443,7 +455,7 @@ def default_expandcore() -> np.ndarray:
     """
     s1 = generate_binary_structure(2, 1)
     s2 = iterate_structure(s1, 2)
-    return s2.astype(int)  # type: ignore
+    return s2.astype(int)
 
 @dataclass(kw_only=True, eq=False, frozen=True)
 class SpatialParams(GroupParams):
@@ -477,7 +489,7 @@ class SpatialParams(GroupParams):
     @property
     def nb(self) -> int:
         if self._full_params is None:
-            raise ValueError('Cannot access nb without reference to full params')
+            raise RuntimeError('Cannot access nb without reference to full params')
         return self._full_params.init.nb
 
 
@@ -514,7 +526,7 @@ class TemporalParams(GroupParams):
     @property
     def nb(self) -> int:
         if self._full_params is None:
-            raise ValueError('Cannot access nb without reference to full params')
+            raise RuntimeError('Cannot access nb without reference to full params')
         return self._full_params.init.nb
 
 
@@ -820,7 +832,7 @@ class CNMFParams:
                 This might create some minor imprecisions, but can be important for performance because of bottlenecks
                 caused by handling many components (we have seen over 2000) that will need to be processed.
 
-            rf: int or list or None, default: None
+            rf: int or list[int] or None, default: None
                 Half-size of patch in pixels. If None, no patches are constructed and the whole FOV is processed jointly.
                 If list, it should be a list of two elements corresponding to the height and width of patches
 
@@ -831,8 +843,9 @@ class CNMFParams:
             p_ssub: float, default: 2
                 Spatial downsampling factor
 
-            stride: int or None, default: None
-                Overlap between neighboring patches in pixels.
+            stride: int or list[int] or None, default: None
+                Overlap between neighboring patches in pixels. If None, when running CNMF.fit with
+                rf not None, it is automatically set to 10% of 2x rf along each dimension.
 
             p_tsub: float, default: 2
                 Temporal downsampling factor
@@ -853,17 +866,11 @@ class CNMFParams:
             max_num_samples_fft: int, default: 3*1024
                 Chunk size for computing the PSD of the data (for memory considerations)
 
-            n_pixels_per_process: int, default: 1000
-                Number of pixels to be allocated to each process
-
             noise_method: 'mean'|'median'|'logmexp', default: 'mean'
                 PSD averaging method for computing the noise std
 
             noise_range: [float, float], default: [.25, .5]
                 range of normalized frequencies over which to compute the PSD for noise determination
-
-            p: int, default: 2
-                    order of AR indicator dynamics
 
             pixels: list, default: None
                     pixels to be excluded due to saturation
@@ -1009,11 +1016,8 @@ class CNMFParams:
                 'nnls_L0'. Nonnegative least square with L0 penalty
                 'lasso_lars' lasso lars function from scikit learn
 
-            n_pixels_per_process: int, default: 1000
+            n_pixels_per_process: int, default: <estimate based on available memory and n_processes>
                 number of pixels to be processed by each worker
-
-            nb: int, default: 1
-                number of global background components. Do not set this directly; modify it in init.
 
             normalize_yyt_one: bool, default: True
                 Whether to normalize the C and A matrices so that diag(C*C.T) = 1 during update spatial
@@ -1059,9 +1063,6 @@ class CNMFParams:
             method_deconvolution: 'cvx'|'cvxpy'|'oasis', default: 'oasis'
                 method for solving the constrained deconvolution problem ('oasis','cvx' or 'cvxpy')
                 if method cvxpy, primary and secondary (if problem unfeasible for approx solution)
-
-            nb: int, default: 1
-                number of global background components. Do not set this directly; modify it in init.
 
             noise_method: 'mean'|'median'|'logmexp', default: 'mean'
                 PSD averaging method for computing the noise std
@@ -1370,6 +1371,15 @@ class CNMFParams:
         'gnb': 'nb',
     }
 
+    # mapping of nested param names to the group the parameter should be set on
+    # this is used to still set the parameter on the appropriate group while logging a warning.
+    canonical_groups: ClassVar[dict[str, dict[str, str]]] = {
+        'temporal': {'nb': 'init'},
+        'spatial': {'nb': 'init'},
+        'preprocess': {'p': 'temporal', 'n_pixels_per_process': 'spatial'}
+    }
+
+
     # init-only params - these are the normal arguments to the constructor
     params_from_file: InitVar[Union[str, Path, None]] = None
     params_dict: InitVar[Optional[dict[str, Any]]] = None
@@ -1648,18 +1658,70 @@ class CNMFParams:
 
 
     @classmethod
-    def update_nested_params(cls, nested_params: dict[str, dict], new_params: Mapping[str, Any],
-                             allow_legacy=True, warn_unused=True) -> dict[str, dict]:
+    def _update_group(cls, nested_params: dict[str, dict], group: str, group_params: Union[dict, GroupParams],
+                      error_on_changing_override: bool):
+        """Helper to update one group of nested_params"""
+        logger = logging.getLogger('caiman')
+
+        # if a dict, check whether any params need to be set on a different group
+        if not isinstance(group_params, GroupParams) and group in cls.canonical_groups:
+            wrong_group_params = group_params.keys() & cls.canonical_groups[group].keys()
+            for param in wrong_group_params:
+                new_group = cls.canonical_groups[group][param]
+                logger.warning(f'Setting parameter {param} on group {group} is deprecated; set on {new_group} instead.')
+                cls._update_group(
+                    nested_params, new_group, {param: group_params[param]}, error_on_changing_override=error_on_changing_override)
+            
+            if len(wrong_group_params) > 0:
+                group_params = {k: v for k, v in group_params.items() if k not in wrong_group_params}
+
+        if group not in nested_params:
+            if len(group_params) > 0:  # leave missing otherwise
+                if isinstance(group_params, GroupParams):
+                    # avoid directly converting to dict which uses computed values
+                    # and can fail if _full_params is unavailable
+                    nested_params[group] = TypeAdapter(type(group_params)).dump_python(group_params, round_trip=True)
+                else:
+                    nested_params[group] = group_params
+                    
+        elif isinstance(group_params, GroupParams):
+            raise ValueError(f'Cannot override other params for the {group} group with a {type(group_params).__name__} object')
+        else: # updating existing dict with a dict
+            overridden_params = nested_params[group].keys() & group_params.keys()
+            for param in overridden_params:
+                if not utilities.all_same(old := nested_params[group][param], new := group_params[param]):
+                    if error_on_changing_override:
+                        raise RuntimeError(f'Parameter {group}/{param} received two different values.')
+                    else:
+                        logger.warning(f'Parameter {group}/{param} was overridden (old = {old}, new = {new}) - was this intended?')
+            nested_params[group].update(group_params)  # don't check every subkey here, they will be checked in GroupParams validator
+
+
+    @classmethod
+    def update_nested_params(
+        cls, nested_params: dict[str, dict], new_params: Mapping[str, Any], allow_legacy=True,
+        warn_unused=True, error_on_changing_override: Union[bool, Literal['within_new']] = 'within_new') -> dict[str, dict]:
         """
         Update a nested params dict with a dict potentially containing both flat and nested params.
-        Keys are processed in order, later ones overriding earlier ones,
-        but a warning is logged for each override. Does not check nested keys for validity.
-
+        Does not check nested keys for validity.
+        Keys are processed in order, later ones overriding earlier ones, but a warning is logged 
+        for each override if it changes the value of the parameter. If error_on_changing_override is true,
+        an error is raised instead. By default, an error is raised for changing overrides
+        only within new_params, not when something in new_params overrides something in nested_params. 
 
         Pre-constructed objects of GroupParams subtypes are accepted under the group top-level keys,
         but only if no params have previously been processed from that group (including existing keys in
         nested_dict_in) because we don't know which params are user-specified vs. defaults.
         """
+        if error_on_changing_override == 'within_new':
+            # implement by combining new_params first, then combining with nested_params
+            # add an empty dict for each group present in nested_params to block updating with GroupParams
+            combined_new: dict[str, Any] = {group: {} for group in nested_params}
+            cls.update_nested_params(
+                combined_new, new_params, allow_legacy=allow_legacy, warn_unused=warn_unused, error_on_changing_override=True)
+            new_params = combined_new
+            error_on_changing_override = False
+
         logger = logging.getLogger('caiman')
         groups = cls.get_group_types()
 
@@ -1667,22 +1729,7 @@ class CNMFParams:
         for paramkey, paramval in new_params.items():
              # Handle proper pathed part. Latter half of the conditional is because of scoped keys with the same name as categories, because we apparently have those. ring_CNN is an example.
             if paramkey in groups and isinstance(paramval, (dict, GroupParams)):
-                if paramkey not in nested_params:
-                    if len(paramval) > 0:  # leave missing otherwise
-                        if isinstance(paramval, GroupParams):
-                            # avoid directly converting to dict which uses computed values
-                            # and can fail if _full_params is unavailable
-                            nested_params[paramkey] = TypeAdapter(type(paramval)).dump_python(paramval, round_trip=True)
-                        else:
-                            nested_params[paramkey] = paramval
-                            
-                elif isinstance(paramval, GroupParams):
-                    raise ValueError(f'Cannot override other params for the {paramkey} group with a {type(paramval).__name__} object')
-                else: # updating existing dict with a dict
-                    overridden_keys = nested_params[paramkey].keys() & paramval.keys()
-                    for subkey in overridden_keys:
-                        logger.warning(f'Top-level parameter {subkey} was overridden by nested parameter {paramkey}/{subkey} - was this intended?') 
-                    nested_params[paramkey].update(paramval)  # don't check every subkey here, they will be checked in GroupParams validator
+                cls._update_group(nested_params, group=paramkey, group_params=paramval, error_on_changing_override=error_on_changing_override)
             
             # BEGIN code that we will remove in some future version of caiman
             elif allow_legacy:
@@ -1698,8 +1745,12 @@ class CNMFParams:
                         if group not in nested_params:
                             nested_params[group] = {paramkey: paramval}
                         else:
-                            if paramkey in nested_params[group]:  # works for dicts or GroupParams
-                                logger.warning(f'Parameter {group}/{paramkey} was overridden by top-level parameter {paramkey_orig} - was this intended?')
+                            # deal with override
+                            if paramkey in nested_params[group] and not utilities.all_same(old := nested_params[group][paramkey], paramval):
+                                if error_on_changing_override:
+                                    raise RuntimeError(f'Parameter {group}/{paramkey} recevied two different values.')
+                                else:
+                                    logger.warning(f'Parameter {group}/{paramkey} was overridden (old = {old}, new = {paramval}) - was this intended?')
 
                             nested_params[group][paramkey] = paramval                
                 if found:
@@ -1735,7 +1786,8 @@ class CNMFParams:
         # confusingly override all params for that group)
         nested_params = {group: {} for group in self.groups}
         self.update_nested_params(
-            nested_params=nested_params, new_params=params_dict, allow_legacy=allow_legacy, warn_unused=warn_unused)
+            nested_params=nested_params, new_params=params_dict, allow_legacy=allow_legacy, warn_unused=warn_unused,
+            error_on_changing_override=True)
 
         # now update each group, attempting to convert each value
         for group, group_updates in nested_params.items():

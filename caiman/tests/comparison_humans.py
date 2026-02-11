@@ -328,11 +328,8 @@ for params_movie in np.array(params_movies)[ID]:
                            },
                   'preprocess': {
                                 'check_nan': check_nan,
-                                'n_pixels_per_process': n_pixels_per_process,
-                                'p': global_params['p'],
                                 },
                   'spatial':   {
-                               'nb': global_params['gnb'],
                                'num_blocks_per_run_spat': num_blocks_per_run,
                                'n_pixels_per_process': n_pixels_per_process,
                                'thr_method': 'nrg'
@@ -340,7 +337,6 @@ for params_movie in np.array(params_movies)[ID]:
                   'temporal':   {
                                 'block_size_temp': block_size,
                                 'method_deconvolution': 'oasis',
-                                'nb': global_params['gnb'],
                                 'num_blocks_per_run_temp': num_blocks_per_run,
                                 'p': global_params['p'],
                                 },

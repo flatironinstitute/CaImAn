@@ -8,6 +8,7 @@ import math
 import numpy as np
 import numpy.testing as npt
 import os
+from pathlib import Path
 from pydantic import ValidationError, TypeAdapter
 import pytest
 import scipy.special
@@ -41,16 +42,13 @@ def check_params_equal_expected(params_obj: params.CNMFParams, expected_params: 
 
 
 # example nested dict with some various parameters to test constructors with
-params_dict = {
+params_dict: dict[str, Any] = {
     'data': {
         'var_name_hdf5': 'movie',
     },
     'init': {
         'K': 20,
         'nb': 2  # automatically updates spatial.nb and temporal.nb
-    },
-    'preprocess': {
-        'p': 3
     },
     'temporal': {
         'p': 3
@@ -62,13 +60,13 @@ params_dict_flat = {
     'var_name_hdf5': params_dict['data']['var_name_hdf5'],
     'k': params_dict['init']['K'],
     'gnb': params_dict['init']['nb'],
-    'p': params_dict['preprocess']['p']
+    'p': params_dict['temporal']['p']
 }
 
 
 # ---- TESTS ---- #
 
-def test_validation(caplog):
+def test_validation(caplog: pytest.LogCaptureFixture):
     """Test GroupParams type validators"""
     temporal_params = params.TemporalParams(solvers=[b'CVXOPT', 'SCS'], noise_range=(0.25, 0.5))  # type: ignore
     assert temporal_params.solvers == ['CVXOPT', 'SCS'], 'Bytes should be converted to string'
@@ -98,7 +96,7 @@ def test_validation(caplog):
     assert len(caplog.records) == 0, 'Should not warn converting list to ndarray'
     assert isinstance(preprocess_params.sn, np.ndarray), 'Should convert list to ndarray'
     npt.assert_array_equal(preprocess_params.sn, [0.1, 0.2, 0.3], 'Array should be equal to input')
-    preprocess_dumped = TypeAdapter(params.PreprocessParams).dump_python(preprocess_params)
+    preprocess_dumped = TypeAdapter(params.PreprocessParams).dump_python(preprocess_params, round_trip=True)
     assert isinstance(preprocess_dumped['sn'], list), 'ndarray should be serialized to list'
 
     # test slice interpretation
@@ -106,7 +104,7 @@ def test_validation(caplog):
     motion_params = params.MotionParams(indices=(slice(None, None, 2), (1, -1, 2)))  # type: ignore
     assert len(caplog.records) == 0, 'Should not warn converting tuple to slice'
     assert motion_params.indices == (slice(None, None, 2), slice(1, -1, 2)),  '3-tuples should be converted to slices'
-    motion_dumped = TypeAdapter(params.MotionParams).dump_python(motion_params)
+    motion_dumped = TypeAdapter(params.MotionParams).dump_python(motion_params, round_trip=True)
     assert motion_dumped['indices'] == ((None, None, 2), (1, -1, 2)), 'Slices should be serialized to 3-tuples'
     
     # test automatically wrapping scalar filename in list
@@ -116,7 +114,7 @@ def test_validation(caplog):
     assert data_params.fnames == ['abc'], 'Scalar fnames should be wrapped in a list.'
 
     # test gSiz coercing to odd int
-    init_params = params.InitParams(gSiz=[4, 5])
+    init_params = params.InitParams(gSiz=[4, 5])  # type: ignore  (alias)
     assert init_params.gSiz == [5, 5], 'Even ints should be converted to odd in gSiz'
 
     # test frozenness
@@ -151,7 +149,6 @@ def test_change_params_flat():
 
     assert params_changed.preprocess.p == params_changed.temporal.p == params_dict_flat['p'], \
         'Shared flat param should be set on both groups'
-    object.__setattr__(params_changed.preprocess, 'p', params_orig.preprocess.p)
     object.__setattr__(params_changed.temporal, 'p', params_orig.temporal.p)
 
     assert params_changed.init.nb == params_changed.spatial.nb == params_changed.temporal.nb \
@@ -178,11 +175,37 @@ def test_change_params_nested():
         params_changed_nested.change_params({'init': params.InitParams()})
 
 
+def test_redundant_change_params(caplog: pytest.LogCaptureFixture):
+    """Test setting a parameter that is shared between 2 groups"""
+    params_base = params.CNMFParams(temporal=params.TemporalParams(p=2))
+    caplog.clear()
+    params_base.change_params({'preprocess': {'p': 1}})
+    assert (len(caplog.records) == 1 and caplog.records[0].levelname == 'WARNING' and
+        'set on temporal instead' in caplog.records[0].message), 'Should warn when setting param on wrong group'
+    assert params_base.preprocess.p == 1, 'Should set the parameter on the non-canonical group'
+    assert params_base.temporal.p == 1, 'Should set the parameter on the canonical group'
+
+    try:
+        params_base.change_params({'preprocess': {'p': 2}, 'temporal': {'p': 2}})
+    except Exception as e:
+        raise AssertionError('Should not error when setting shared parameter in 2 groups to matching values') from e
+    assert params_base.preprocess.p == 2, 'Should set the parameter on the non-canonical group'
+    assert params_base.temporal.p == 2, 'Should set the parameter on the canonical group'
+
+    exc = None
+    try:
+        params_base.change_params({'preprocess': {'p': 1}, 'temporal': {'p': 2}})
+    except RuntimeError as e:
+        exc = e
+    if exc is None or 'received two different values' not in exc.args[0]:
+        raise AssertionError('Should error when trying to set shared parameter in 2 groups to different values') from exc
+
+
 def test_flat_constructor():
     """Test constructing CNMFParams with flat parameter names"""
     params_changed_flat = params.CNMFParams()
     params_changed_flat.change_params(params_dict_flat, verbose=False) 
-    params_constr_flat = params.CNMFParams(**params_dict_flat)
+    params_constr_flat = params.CNMFParams(**params_dict_flat)  # type: ignore
     assert params_changed_flat == params_constr_flat, \
         'Constructing directly with flat params should work the same as change_params. Differences: ' + \
         tabulate_differing_params(params_changed_flat, params_constr_flat)
@@ -198,7 +221,7 @@ def test_dict_constructor():
         tabulate_differing_params(params_changed, params_constr_dict)
 
 
-def test_json_constructor(tmp_path):
+def test_json_constructor(tmp_path: Path):
     """Test constructing from a JSON file"""
     json_path = tmp_path / 'test_params.json'
     with open(json_path, 'w') as fh:
@@ -216,12 +239,11 @@ def test_object_constructor():
     """Test constructing from individual GroupParams objects"""
     data = params.DataParams(**params_dict['data'])
     init = params.InitParams(**params_dict['init'])
-    preprocess = params.PreprocessParams(**params_dict['preprocess'])
     temporal = params.TemporalParams(**params_dict['temporal'])
 
     params_changed = params.CNMFParams()
     params_changed.change_params(params_dict)
-    params_from_objs = params.CNMFParams(data=data, init=init, preprocess=preprocess, temporal=temporal)
+    params_from_objs = params.CNMFParams(data=data, init=init, temporal=temporal)
     assert params_changed == params_from_objs, \
         'Constructing from sub-objects should work the same as change_params. Differences: ' + \
         tabulate_differing_params(params_changed, params_from_objs)
@@ -237,7 +259,7 @@ def test_multi_dict_constructor():
         tabulate_differing_params(params_changed, params_from_dicts)
     
 
-def test_mixed_constructor(tmp_path):
+def test_mixed_constructor(tmp_path: Path):
     """Test valid and invalid combinations of constructor syntaxes"""
     json_params = {'data': {'var_name_hdf5': 'movie'}, 'patch': {'border_pix': 5}}
     dict_params = {'preprocess': {'check_nan': False}, 'init': {'K': 40}}
@@ -258,7 +280,7 @@ def test_mixed_constructor(tmp_path):
     check_params_equal_expected(json_plus_dict, {**json_params, **dict_params}, 
                                 ' not set correctly in JSON + dict constructor')
     
-    dict_plus_indiv = params.CNMFParams(params_dict=dict_params, **indiv_params)
+    dict_plus_indiv = params.CNMFParams(params_dict=dict_params, **indiv_params)  # type: ignore
     check_params_equal_expected(dict_plus_indiv, dict_plus_indiv_params, 
                                 ' not set correctly in dict + group keyword constructor')
 
@@ -272,7 +294,7 @@ def test_mixed_constructor(tmp_path):
         'Trying to override param group with an object should raise an error'
 
 
-def test_jsonfile_roundtrip(tmp_path, caplog):
+def test_jsonfile_roundtrip(tmp_path: Path, caplog: pytest.LogCaptureFixture):
     """Test that saving and restoring whole object to/from JSON file is successful"""
     caplog.clear()
     json_path = tmp_path / 'full_params.json'
@@ -286,7 +308,7 @@ def test_jsonfile_roundtrip(tmp_path, caplog):
     assert len(caplog.records) == 0, 'Converting to and from JSON file should not cause a warning'
 
 
-def test_hdf5_roundtrip(tmp_path):
+def test_hdf5_roundtrip(tmp_path: Path):
     """Test that saving and restoring to/from HDF5 (as part of CNMF object) is successful"""
     params_in = params.CNMFParams(data=params.DataParams(var_name_hdf5='movie2'))
     n_processes = 4

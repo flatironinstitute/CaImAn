@@ -211,18 +211,11 @@ for ind_dataset in ID:
                   'use_dense': False,
                   'use_peak_max': True,
                   },
-        'preprocess': {
-                      'p': global_params['p'],
-                      },
         'quality': {
                    'min_SNR': global_params['min_SNR'],
                    'rval_thr': global_params['rval_thr'],
                    },
-        'spatial': {
-                   'nb': gnb,
-                   },
         'temporal': {
-                    'nb': gnb,
                     'p': global_params['p'],
                     },
     }

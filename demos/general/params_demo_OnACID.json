@@ -19,7 +19,7 @@
 	"rf": 16,
 	"stride": 3
         },
-"preprocess": {
+"temporal": {
         "p": 1
 	}
 }

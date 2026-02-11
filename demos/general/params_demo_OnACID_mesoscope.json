@@ -8,9 +8,6 @@
         "nb": 2,
         "K": 2
         },
-    "preprocess": {
-        "p": 1
-        },
     "temporal": {
         "p": 1
         },

@@ -11,9 +11,6 @@
 "merging": {
 	"merge_thr": 0.80
 	},
-"preprocess": {
-	"p": 2
-	},
 "temporal": {
 	"p": 2
 	},

@@ -11,8 +11,8 @@ import os
 import scipy
 from sklearn.decomposition import NMF
 import time
+from typing import Sequence, Callable
 
-from caiman.cluster import extract_patch_coordinates
 from caiman.mmapping import load_memmap
 from caiman.source_extraction.cnmf.params import CNMFParams
 
@@ -106,7 +106,6 @@ def cnmf_patches(args_in: tuple[str, np.ndarray, tuple[int, ...], CNMFParams]):
             'patch': {'n_processes': 1, 'rf': None, 'stride': None},
             'init': {'nb': opts.patch.nb_patch},
             'temporal': {'p': opts.patch.p_patch},
-            'preprocess': {'p': opts.patch.p_patch},
         })
 
         cnm = CNMF(n_processes=1, params=opts)
@@ -120,13 +119,13 @@ def cnmf_patches(args_in: tuple[str, np.ndarray, tuple[int, ...], CNMFParams]):
     else:
         return None
 
-def run_CNMF_patches(file_name, shape, params, gnb=1, dview=None,
+def run_CNMF_patches(file_name, shape: tuple[int, ...], params: CNMFParams, gnb=1, dview=None,
                      memory_fact=1, border_pix=0, low_rank_background=True,
-                     del_duplicates=False, indices=[slice(None)]*3):
+                     del_duplicates=False, indices=[slice(None)]*3,
+                     rf2stride: Callable[[int], int] = lambda rf: 4):
     """Function that runs CNMF in patches
 
      Either in parallel or sequentially, and return the result for each.
-     It requires that ipyparallel is running
 
      Will basically initialize everything in order to compute on patches then call a function in parallel that will
      recreate the cnmf object and fit the values.
@@ -167,6 +166,10 @@ def run_CNMF_patches(file_name, shape, params, gnb=1, dview=None,
         indices: List[slice]
             TODO
 
+        rf2stride: Callable[[int], int]
+            factory for default stride as a function of rf along each dimension.
+            TODO maybe eliminate this if nobody relies on the current default (which is different from in CNMF.fit())
+
     Returns:
 
         A_tot: matrix containing all the components from all the patches
@@ -192,26 +195,26 @@ def run_CNMF_patches(file_name, shape, params, gnb=1, dview=None,
     d = np.prod(dims)
     T = shape[-1]
 
-    rf = params.get('patch', 'rf')
+    rf = params.patch.rf
     if rf is None:
         rf = 16
-    if np.isscalar(rf):
-        rfs = [rf] * len(dims)
-    else:
-        rfs = rf
 
-    stride = params.get('patch', 'stride')
-    if stride is None:
-        stride = 4
-    if np.isscalar(stride):
-        strides = [stride] * len(dims)
+    if isinstance(rf, Sequence):
+        rfs = list(rf)
     else:
-        strides = stride
+        rfs = [rf] * len(dims)
+
+    stride = params.patch.stride
+    if stride is None:
+        strides = [rf2stride(rf) for rf in rfs]
+    elif isinstance(stride, Sequence):
+        strides = list(stride)
+    else:
+        strides = [stride] * len(dims)
 
     params_copy = deepcopy(params)
     npx_per_proc = np.prod(rfs) // memory_fact
     params_copy.change_params({
-        'preprocess': {'n_pixels_per_process': npx_per_proc},
         'spatial': {'n_pixels_per_process': npx_per_proc}
     })
 
@@ -353,7 +356,7 @@ def run_CNMF_patches(file_name, shape, params, gnb=1, dview=None,
                     idx_tot_A.append(idx_)
                     idx_ptr_A.append(len(idx_))
                     C_tot[count, :] = C[ii, :]
-                    if params.get('init', 'center_psf'):
+                    if S_tot is not None:
                         S_tot[count, :] = S[ii, :]
                     YrA_tot[count, :] = YrA[ii, :]
                     id_patch_tot.append(patch_id)
@@ -483,3 +486,73 @@ def run_CNMF_patches(file_name, shape, params, gnb=1, dview=None,
     logger.info("Constructing background DONE")
 
     return A_tot, C_tot, YrA_tot, b, f, sn_tot, optional_outputs
+
+
+def extract_patch_coordinates(dims: tuple,
+                              rf: Sequence[int],
+                              stride: Sequence[int],
+                              border_pix: int = 0,
+                              indices=[slice(None)] * 2) -> tuple[list, list]:
+    """
+    Partition the FOV in patches
+    and return the indexed in 2D and 1D (flatten, order='F') formats
+
+    Args:
+        dims: Sequence of int
+            dimensions of the original matrix that will be divided in patches
+
+        rf: Sequence of int
+            radius of receptive field, corresponds to half the size of the square patch
+
+        stride: tuple of int
+            degree of overlap of the patches
+    """
+    sl_start = [0 if sl.start is None else sl.start for sl in indices]
+    sl_stop = [dim if sl.stop is None else sl.stop for (sl, dim) in zip(indices, dims)]
+    sl_step = [1 for sl in indices]    # not used
+    dims_large = dims
+    dims = np.minimum(np.array(dims) - border_pix, sl_stop) - np.maximum(border_pix, sl_start)
+
+    coords_flat = []
+    shapes = []
+    iters = [list(range(rf[i], dims[i] - rf[i], 2 * rf[i] - stride[i])) + [dims[i] - rf[i]] for i in range(len(dims))]
+
+    coords = np.empty(list(map(len, iters)) + [len(dims)], dtype=object)
+    for count_0, xx in enumerate(iters[0]):
+        coords_x = np.arange(xx - rf[0], xx + rf[0] + 1)
+        coords_x = coords_x[(coords_x >= 0) & (coords_x < dims[0])]
+        coords_x += border_pix * 0 + np.maximum(sl_start[0], border_pix)
+
+        for count_1, yy in enumerate(iters[1]):
+            coords_y = np.arange(yy - rf[1], yy + rf[1] + 1)
+            coords_y = coords_y[(coords_y >= 0) & (coords_y < dims[1])]
+            coords_y += border_pix * 0 + np.maximum(sl_start[1], border_pix)
+
+            if len(dims) == 2:
+                idxs = np.meshgrid(coords_x, coords_y)
+
+                coords[count_0, count_1] = idxs
+                shapes.append(idxs[0].shape[::-1])
+
+                coords_ = np.ravel_multi_index(idxs, dims_large, order='F')
+                coords_flat.append(coords_.flatten())
+            else:      # 3D data
+
+                if border_pix > 0:
+                    raise Exception(
+                        'The parameter border pix must be set to 0 for 3D data since border removal is not implemented')
+
+                for count_2, zz in enumerate(iters[2]):
+                    coords_z = np.arange(zz - rf[2], zz + rf[2] + 1)
+                    coords_z = coords_z[(coords_z >= 0) & (coords_z < dims[2])]
+                    idxs = np.meshgrid(coords_x, coords_y, coords_z)
+                    shps = idxs[0].shape
+                    shapes.append([shps[1], shps[0], shps[2]])
+                    coords[count_0, count_1, count_2] = idxs
+                    coords_ = np.ravel_multi_index(idxs, dims, order='F')
+                    coords_flat.append(coords_.flatten())
+
+    for i, c in enumerate(coords_flat):
+        assert len(c) == np.prod(shapes[i])
+
+    return list(map(np.sort, coords_flat)), shapes
