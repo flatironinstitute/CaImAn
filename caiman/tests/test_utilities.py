@@ -115,3 +115,12 @@ def test_peak_local_max():
         for m in (1, 2, 3, 4):
             npt.assert_array_equal(peak_local_max(img, min_distance=m),
                                    utilities.peak_local_max(img, min_distance=m))
+
+
+def test_axcov():
+    data = np.random.randn(1000)
+    maxlag = 5
+    C = utilities.axcov(data, maxlag)
+    print(C)
+
+    npt.assert_allclose(C, np.concatenate((np.zeros(maxlag), np.array([1]), np.zeros(maxlag))), atol=1)

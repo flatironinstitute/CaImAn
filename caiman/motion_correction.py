@@ -1373,8 +1373,8 @@ def register_translation_3d(src_image, target_image, upsample_factor = 1,
         target_freq = target_image
     # real data needs to be fft'd.
     elif space.lower() == 'real':
-        src_image_cpx = np.asarray(src_image, dtype=np.complex64)
-        target_image_cpx = np.asarray(target_image, dtype=np.complex64)
+        src_image_cpx = np.asarray(src_image, dtype=np.complex128)  # numpy 1.x always treats FFT input as complex128
+        target_image_cpx = np.asarray(target_image, dtype=np.complex128)
         src_freq = np.fft.fftn(src_image_cpx)
         target_freq = np.fft.fftn(target_image_cpx)
     else:
@@ -1382,7 +1382,7 @@ def register_translation_3d(src_image, target_image, upsample_factor = 1,
 
     shape = src_freq.shape
     image_product = src_freq * target_freq.conj()
-    cross_correlation = np.fft.ifftn(image_product)
+    cross_correlation = np.fft.ifftn(image_product.astype(np.complex128, copy=False))
     new_cross_corr = np.abs(cross_correlation)
 
     CCmax = cross_correlation.max()
@@ -1699,7 +1699,7 @@ def apply_shifts_dft(src_freq, shifts, diffphase, is_freq=True, border_nan=True)
     is3D = len(src_freq.shape) == 3
     if not is_freq:
         if is3D:
-            src_freq = np.fft.fftn(src_freq)
+            src_freq = np.fft.fftn(src_freq.astype(np.complex128, copy=False))
         else:
             src_freq = np.dstack([np.real(src_freq), np.imag(src_freq)])
             src_freq = cv2.dft(src_freq, flags=cv2.DFT_COMPLEX_OUTPUT + cv2.DFT_SCALE)
@@ -1725,7 +1725,7 @@ def apply_shifts_dft(src_freq, shifts, diffphase, is_freq=True, border_nan=True)
 
     Greg = Greg.dot(np.exp(1j * diffphase))
     if is3D:
-        new_img = np.real(np.fft.ifftn(Greg))
+        new_img = np.real(np.fft.ifftn(Greg.astype(np.complex128, copy=False)))
     else:
         Greg = np.dstack([np.real(Greg), np.imag(Greg)])
         new_img = cv2.idft(Greg)[:, :, 0]
