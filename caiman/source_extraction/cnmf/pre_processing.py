@@ -17,7 +17,7 @@ import shutil
 import tempfile
 
 import caiman.mmapping
-from caiman.source_extraction.cnmf import utilities
+from caiman.source_extraction import cnmf
 
 
 def interpolate_missing_data(Y):
@@ -404,7 +404,7 @@ def estimate_time_constant(Y, sn, p=None, lags=5, include_noise=False, pixels=No
     lags += p
     XC = np.zeros((npx, 2 * lags + 1))
     for j in range(npx):
-        XC[j, :] = np.squeeze(utilities.axcov(np.squeeze(Y[pixels[j], :]), lags))
+        XC[j, :] = np.squeeze(cnmf.utilities.axcov(np.squeeze(Y[pixels[j], :]), lags))
 
     gv = np.zeros(npx * lags)
     if not include_noise:

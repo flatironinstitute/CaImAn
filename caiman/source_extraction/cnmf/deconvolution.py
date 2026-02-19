@@ -11,7 +11,7 @@ import scipy.linalg
 import sys
 from warnings import warn
 
-from caiman.source_extraction.cnmf import utilities
+from caiman.source_extraction import cnmf
 
 
 def constrained_foopsi(fluor, bl=None,  c1=None, g=None,  sn=None, p=None, method_deconvolution='oasis', bas_nonneg=True,
@@ -999,7 +999,7 @@ def estimate_time_constant(fluor, p=2, sn=None, lags=5, fudge_factor=1.):
         sn = GetSn(fluor)
 
     lags += p
-    xc = utilities.axcov(fluor, lags)
+    xc = cnmf.utilities.axcov(fluor, lags)
     xc = xc[:, np.newaxis]
 
     A = scipy.linalg.toeplitz(c=np.ravel(xc[lags + np.arange(lags)]),
