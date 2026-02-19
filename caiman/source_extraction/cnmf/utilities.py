@@ -710,7 +710,7 @@ def manually_refine_components(Y, xxx_todo_changeme, A, C, Cn, thr=0.9, display_
                    movie in 2D
 
          (dx,dy): tuple
-                   dimensions of the square used to identify neurons (should be set to the galue of gsiz)
+                   dimensions of the square used to identify neurons (should be set to the value of gsiz)
 
          A:   np.ndarray or sparse matrix
                    Matrix of Spatial components (d x K)
@@ -739,7 +739,7 @@ def manually_refine_components(Y, xxx_todo_changeme, A, C, Cn, thr=0.9, display_
     """
     (dx, dy) = xxx_todo_changeme
     if issparse(A):
-        A = np.array(A.todense())
+        A = A.toarray()
     else:
         A = np.array(A)
 
@@ -755,12 +755,8 @@ def manually_refine_components(Y, xxx_todo_changeme, A, C, Cn, thr=0.9, display_
 
     Bmat = np.zeros((np.minimum(nr, max_number), d1, d2))
     for i in range(np.minimum(nr, max_number)):
-        indx = np.argsort(A[:, i], axis=None)[::-1]
-        cumEn = np.cumsum(A[:, i].flatten()[indx]**2)
-        cumEn /= cumEn[-1]
-        Bvec = np.zeros(d)
-        Bvec[indx] = cumEn
-        Bmat[i] = np.reshape(Bvec, Cn.shape, order='F')
+        comp_nrg = caiman.base.rois.norm_nrg(A[:, i])
+        Bmat[i] = np.reshape(comp_nrg, Cn.shape, order='F')
 
     T = Y.shape[-1]
 
@@ -807,11 +803,7 @@ def manually_refine_components(Y, xxx_todo_changeme, A, C, Cn, thr=0.9, display_
 
             A = np.concatenate([A, a_f], axis=1)
             C = np.concatenate([C, c__], axis=0)
-            indx = np.argsort(a_f, axis=None)[::-1]
-            cumEn = np.cumsum(a_f.flatten()[indx]**2)
-            cumEn /= cumEn[-1]
-            Bvec = np.zeros(d)
-            Bvec[indx] = cumEn
+            Bvec = caiman.base.rois.norm_nrg(a_f)
             bmat = np.reshape(Bvec, Cn.shape, order='F')
             plt.contour(y, x, bmat, [thr])
             plt.pause(.01)

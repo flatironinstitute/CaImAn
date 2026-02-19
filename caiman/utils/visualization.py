@@ -405,26 +405,22 @@ def get_contours(A, dims, thr=0.9, thr_method='nrg', swap_dim=False, slice_dim: 
 
     # for each patches
     for i in range(nr):
-        pars:dict = dict()
-        # we compute the cumulative sum of the energy of the Ath component that has been ordered from least to highest
+        if A.indptr[i] == A.indptr[i + 1]:
+            # component is all zeros
+            pars = dict(
+                coordinates=np.array([]),
+                CoM=np.array([np.nan, np.nan]),
+                neuron_id=i + 1,
+            )
+            coordinates.append(pars)
+            continue
+
         patch_data = A.data[A.indptr[i]:A.indptr[i + 1]]
-        indx = np.argsort(patch_data)[::-1]
+
         if thr_method == 'nrg':
-            cumEn = np.cumsum(patch_data[indx]**2)
-            if len(cumEn) == 0:
-                pars = dict(
-                    coordinates=np.array([]),
-                    CoM=np.array([np.nan, np.nan]),
-                    neuron_id=i + 1,
-                )
-                coordinates.append(pars)
-                continue
-            else:
-                # we work with normalized values
-                cumEn /= cumEn[-1]
-                Bvec = np.ones(d)
-                # we put it in a similar matrix
-                Bvec[A.indices[A.indptr[i]:A.indptr[i + 1]][indx]] = cumEn
+            comp_nrg = caiman.base.rois.norm_nrg(patch_data)
+            Bvec = np.ones(d)
+            Bvec[A.indices[A.indptr[i]:A.indptr[i + 1]]] = comp_nrg
         else:
             if thr_method != 'max':
                 warn("Unknown threshold method. Choosing max")
@@ -441,7 +437,7 @@ def get_contours(A, dims, thr=0.9, thr_method='nrg', swap_dim=False, slice_dim: 
             d1, d2 = B.shape
             vertices = find_contours(B.T, thr)
             # this fix is necessary for having disjoint figures and borders plotted correctly
-            v = np.atleast_2d([np.nan, np.nan])
+            v = np.array([[np.nan, np.nan]])
             for _, vtx in enumerate(vertices):
                 num_close_coords = np.sum(np.isclose(vtx[0, :], vtx[-1, :]))
                 if num_close_coords < 2:
@@ -453,9 +449,10 @@ def get_contours(A, dims, thr=0.9, thr_method='nrg', swap_dim=False, slice_dim: 
                         # case one is border
                         vtx = np.concatenate((vtx, vtx[0, np.newaxis]), axis=0)
                 v = np.concatenate(
-                    (v, vtx, np.atleast_2d([np.nan, np.nan])), axis=0)
+                    (v, vtx, np.array([[np.nan, np.nan]])), axis=0)
             return v
         
+        pars = {}
         if len(dims) == 2:
             pars['coordinates'] = get_slice_coords(Bmat)
         else:
