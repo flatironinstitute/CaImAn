@@ -1350,6 +1350,7 @@ class CNMFParams:
         'only_init_patch': 'only_init',
         'k': 'K',
         'gnb': 'nb',
+        'merge_thresh': 'merge_thr'
     }
 
     # mapping of nested param names to the group the parameter should be set on
