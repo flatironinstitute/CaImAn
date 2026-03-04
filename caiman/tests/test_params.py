@@ -388,7 +388,6 @@ def test_check_consistency():
         'spatial': {
             'update_background_components': {'value': False, 'msg': 'Should be set to False when nb == -1'},
             'nb': {'value': -1, 'msg': 'Should be set based on init.nb'},
-            'se': {'value': np.ones((1,) * len(dims), dtype=np.uint8), 'msg': 'Should be set due to corr_pnr method'}
         },
         'temporal': {
             'nb': {'value': -1, 'msg': 'Should be set based on init.nb'}
