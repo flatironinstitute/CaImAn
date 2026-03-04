@@ -435,10 +435,9 @@ class CNMF(object):
                     logger.info("update temporal")
                     self.update_temporal(Yr)
 
-                    # TODO maybe remove this line since it's done in check_consistency
-                    self.params.set('spatial', {'se': np.ones((1,) * len(self.dims), dtype=np.uint8)}, warn=False)
                     logger.info('update spatial ...')
-                    self.update_spatial(Yr, n_pixels_per_process=npx_per_proc)
+                    # skip binary closing on original-resolution data
+                    self.update_spatial(Yr, n_pixels_per_process=npx_per_proc, skip_closing=True)
 
                     logger.info("update temporal")
                     self.update_temporal(Yr)
@@ -619,7 +618,7 @@ class CNMF(object):
                 **temporal_params)
         self.estimates.R = self.estimates.YrA
 
-    def update_spatial(self, Y, use_init=None, n_pixels_per_process: Optional[int] = None, **kwargs) -> None:
+    def update_spatial(self, Y, use_init=None, n_pixels_per_process: Optional[int] = None, skip_closing=False, **kwargs) -> None:
         """Updates spatial components
         modifies values self.estimates.A, self.estimates.b possibly self.estimates.C, self.estimates.f
 
@@ -641,6 +640,9 @@ class CNMF(object):
         spatial_params = self.params.spatial
         if n_pixels_per_process is not None:
             spatial_params = {**spatial_params, 'n_pixels_per_process': n_pixels_per_process}
+
+        if skip_closing:
+            spatial_params = {**spatial_params, 'se': np.ones((1, 1), dtype=np.uint8)}
 
         self.provenance.append({'event': 'update_spatial', 'time': int(time.time()), 'description': f'Updated spatial components based on provided Y'})
 

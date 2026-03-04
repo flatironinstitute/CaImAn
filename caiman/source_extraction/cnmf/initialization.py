@@ -1336,10 +1336,12 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
         C = C.astype(np.float32)
         
         logger.info('Updating spatial components')
+        # skip binary closing on original-resolution data
+        spatial_opts = {**options.spatial, 'se': np.ones((1, 1), dtype=np.uint8)}
         A, _, C, _ = caiman.source_extraction.cnmf.spatial.update_spatial_components(
             B, C=C, f=np.zeros((0, T), np.float32), A_in=A, sn=sn,
             b_in=np.zeros((np.prod(dims), 0), np.float32),
-            dview=None, dims=dims, **options.spatial)
+            dview=None, dims=dims, **spatial_opts)
 
         logger.info('Updating temporal components')
         C, A, b__, f__, S, bl, c1, neurons_sn, g1, YrA, lam__ = \

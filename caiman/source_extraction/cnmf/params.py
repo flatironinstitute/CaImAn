@@ -1473,16 +1473,7 @@ class CNMFParams:
                 logger.warning("using CNMF-E's ringmodel for background hence setting key " +
                                "normalize_init in group init automatically to False.")
                 self.set('init', {'normalize_init': False}, warn=False, verbose=False)
-            
-            # Set structuring element to the no-op value (previously done in initialization.greedyROI_corr)
-            ndim = len(self.data.dims) if self.data.dims is not None else 2
-            null_se = np.ones((1,) * ndim, dtype=np.uint8)
-            if not utilities.all_same(self.spatial.se, null_se):
-                logger.warning("using CNMF-E's ringmodel for background hence setting key "
-                               "se in group spatial automatically to null element.")
-                self.set('spatial', {'se': null_se}, warn=False, verbose=False)
-       
-        # -- end init params --
+
 
         if self.init.nb <= 0 and (self.patch.nb_patch != self.init.nb or self.patch.low_rank_background is not None):
             logger.warning(f"nb={self.init.nb}, hence setting keys nb_patch and low_rank_background in group patch automatically.")
