@@ -631,7 +631,7 @@ class OnlineParams(GroupParams):
         """computes thresh_fitness_raw from other params if None"""
         if self._thresh_fitness_raw is not None:
             return self._thresh_fitness_raw
-        return scipy.special.log_ndtr(-self.min_SNR) * self.N_samples_exceptionality
+        return float(scipy.special.log_ndtr(-self.min_SNR) * self.N_samples_exceptionality)
     
     @computed_field
     @property
