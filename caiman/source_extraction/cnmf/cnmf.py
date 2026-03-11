@@ -413,7 +413,7 @@ class CNMF(object):
                     gnb=self.params.init.nb, border_pix=self.params.patch.border_pix,
                     low_rank_background=self.params.patch.low_rank_background,
                     del_duplicates=self.params.patch.del_duplicates,
-                    indices=indices, rf2stride=lambda rf: rf * 2 * .1)
+                    indices=indices, rf2stride=lambda rf: int(rf * 2 * .1))
 
             #print("D: Finished with run_CNMF_patches(), self.estimates.* are populated. Next step would be update_temporal() but first: Entering a shell.")
             #code.interact(local=dict(globals(), **locals()) )
