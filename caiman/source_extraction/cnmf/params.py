@@ -549,7 +549,7 @@ class QualityParams(GroupParams):
 
     SNR_lowest: float = 0.5         # minimum accepted SNR value
     cnn_lowest: float = 0.1         # minimum accepted value for CNN classifier
-    gSig_range: SafeOptional[list[int]] = None  # range for gSig scale for CNN classifier
+    gSig_range: SafeOptional[list[list[int]]] = None  # range for gSig scale for CNN classifier
     min_SNR: float = 2.5            # transient SNR threshold
     min_cnn_thr: float = 0.9        # threshold for CNN classifier
     rval_lowest: float = -1.        # minimum accepted space correlation
@@ -1088,8 +1088,8 @@ class CNMFParams:
             cnn_lowest: float, default: 0.1
                 minimum required CNN threshold. Components with score lower than this will get rejected.
 
-            gSig_range: list or integers, default: None
-                gSig scale values for CNN classifier. In not None, multiple values are tested in the CNN classifier.
+            gSig_range: list of [int, int] or None, default: None
+                gSig scale values for CNN classifier. If not None, multiple values are tested in the CNN classifier.
 
             min_SNR: float, default: 2.5
                 trace SNR threshold. Traces with SNR above this will get accepted
