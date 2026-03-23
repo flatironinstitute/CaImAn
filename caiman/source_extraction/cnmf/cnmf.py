@@ -61,7 +61,8 @@ class CNMF(object):
     .. image:: docs/img/quickintro.png
     """ 
     def __init__(self, n_processes, dview=None, Ain=None, Cin=None, b_in=None, f_in=None,
-                 params: Optional[CNMFParams] = None, **param_kwargs):
+                 params: Optional[CNMFParams] = None, skip_refinement: Optional[bool] = None,
+                 remove_very_bad_comps: Optional[bool] = None, **param_kwargs):
         """
         Constructor of CNMF objects
 
@@ -115,16 +116,36 @@ class CNMF(object):
                     'Ignoring extra parameters passed to CNMF constructor because a params object was passed. '
                     'If you want to update the params object, use params.change_params first.')
 
+        # set skip_refinement and remove_very_bad_comps regardless of whether params was passed,
+        # to maintain legacy behavior
+        deprec_param_msg = 'Passing {0} to CNMF() is deprecated - use change_params({{"patch": {{"{0}": ...}}}}) instead.'
+        if skip_refinement is not None:
+            logger.warning(deprec_param_msg.format('skip_refinement'))
+            self.skip_refinement = skip_refinement
+        
+        if remove_very_bad_comps is not None:
+            logger.warning(deprec_param_msg.format('remove_very_bad_comps'))
+            self.remove_very_bad_comps = remove_very_bad_comps
+
         self.estimates = Estimates(A=Ain, C=Cin, b=b_in, f=f_in,
                                    dims=self.params.data['dims'])
 
     @property
     def skip_refinement(self) -> bool:
-        return self.params.patch.skip_refinement        
+        return self.params.patch.skip_refinement
+
+    @skip_refinement.setter
+    def skip_refinement(self, val: bool):
+        self.params.change_params({'patch': {'skip_refinement': val}})
 
     @property
     def remove_very_bad_comps(self) -> bool:
         return self.params.patch.remove_very_bad_comps
+
+    @remove_very_bad_comps.setter
+    def remove_very_bad_comps(self, val: bool):
+        self.params.change_params({'patch': {'remove_very_bad_comps': val}})
+
 
     def __str__(self):
         ret = f"Caiman CNMF Object. subfields:{list(self.__dict__.keys()) }"
