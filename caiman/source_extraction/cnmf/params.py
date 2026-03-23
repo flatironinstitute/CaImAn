@@ -1401,6 +1401,15 @@ class CNMFParams:
         return groups
     
 
+    def __setstate__(self, state: dict[str, Any]):
+        """Ensure fields are objects of the proper type (i.e. when unpickling old-version CNMFParams)"""
+        for group, GroupClass in self.get_group_types().items():
+            if isinstance(group_obj := state.get(group), dict):
+                state[group] = GroupClass(**group_obj)
+        
+        self.__dict__.update(state)
+    
+
     @model_validator(mode='before')
     @classmethod
     def _combine_parameters(cls, data: Any) -> Any:
@@ -1717,8 +1726,8 @@ class CNMFParams:
                     paramkey = cls.flat_param_renames[paramkey]
 
                 found = False
-                for group, group_class in groups.items():
-                    if paramkey in group_class.input_params(): # Is it known?
+                for group, GroupClass in groups.items():
+                    if paramkey in GroupClass.input_params(): # Is it known?
                         found = True
                         if group not in nested_params:
                             nested_params[group] = {paramkey: paramval}
