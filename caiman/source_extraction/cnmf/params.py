@@ -67,11 +67,19 @@ NDArray = Annotated[
 ]
 
 
+# deal with slices, potentially other objects that are saved as bytes (note should only be used on trusted data!)
+def eval_bytes(obj: Any) -> Any:
+    if isinstance(obj, bytes):
+        return eval(obj.decode('utf-8'))
+    return obj
+
+
 Slice = Annotated[
     Union[  # these are the same base types (slice) but with different validators
         InstanceOf[slice],  # accept existing slices as is
         # anything convertible to a len-3 tuple, with 'NoneType' conversion, can be a slice
         Annotated[slice, ValidateAs(tuple[SafeAny, SafeAny, SafeAny], lambda tup: slice(*tup))]],
+    BeforeValidator(eval_bytes),
     PlainSerializer(lambda sl: (sl.start, sl.stop, sl.step)),
     WithJsonSchema(TypeAdapter(tuple[Any, Any, Any]).json_schema())
 ]
