@@ -237,7 +237,9 @@ class GroupParams(Mapping):
             self_val = getattr(self, field)
             other_val = getattr(other, field)
             if not utilities.all_same(self_val, other_val):
-                yield field, self_val, other_val
+                # use alias when reporting mismatched field
+                fieldname = field if info.alias is None else info.alias
+                yield fieldname, self_val, other_val
 
     def __eq__(self, other) -> bool:
         if isinstance(other, type(self)):
