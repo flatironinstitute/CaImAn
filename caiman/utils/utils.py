@@ -528,6 +528,11 @@ def recursively_load_dict_contents_from_group(h5file:h5py.File, path:str) -> dic
             val = item[()]
             if isinstance(val, str) and val == 'NoneType' or isinstance(val, bytes) and val == b'NoneType':
                 ans[key] = None
+            elif key in ['dims', 'medw', 'sigma_smooth_snmf',
+                         'dxy', 'max_shifts', 'strides', 'overlaps'] and isinstance(val, np.ndarray):
+                ans[key] = tuple(val.tolist())
+            elif isinstance(val, np.bool_): # sigh
+                ans[key] = bool(val)
             else:
                 ans[key] = val
 
