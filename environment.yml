@@ -18,7 +18,7 @@ dependencies:
 - matplotlib
 - moviepy
 - mypy
-- numpy >=2.0.0
+- numpy
 - numpydoc
 - opencv
 - panel >=1.0.2

@@ -306,7 +306,7 @@ def initialize_components(Y, K=30, gSig=[5, 5], gSiz=None, ssub=1, tsub=1, nIter
             img += np.finfo(np.float32).eps
 
         Y = Y / np.reshape(img, d + (-1,), order='F')
-        alpha_snmf /= np.mean(img) # normalize alpha for sparse nmf
+        alpha_snmf /= float(np.mean(img)) # normalize alpha for sparse nmf
     else:
         Y = np.array(Y)
 
@@ -448,7 +448,7 @@ def ICA_PCA(Y_ds, nr, sigma_smooth=(.5, .5, .5), truncate=2, fun='logcosh',
     m = scipy.ndimage.gaussian_filter(np.transpose(
         Y_ds, [2, 0, 1]), sigma=sigma_smooth, mode='nearest', truncate=truncate)
     if remove_baseline:
-        bl = np.percentile(m, perc_baseline, axis=0)
+        bl = np.percentile(m, np.float64(perc_baseline), axis=0)  # use double for pct as in numpy 1.x
         m1 = np.maximum(0, m - bl)
     else:
         bl = np.zeros(m.shape[1:])
@@ -488,7 +488,7 @@ def ICA_PCA(Y_ds, nr, sigma_smooth=(.5, .5, .5), truncate=2, fun='logcosh',
 
     model = NMF(n_components=nb, init='random', random_state=0)
 
-    b_in = model.fit_transform(np.maximum(m1, 0)).astype(np.float32)
+    b_in = model.fit_transform(np.maximum(m1, np.float64(0))).astype(np.float32)
     f_in = model.components_.astype(np.float32)
 
     center = caiman.base.rois.com(A_in, d1, d2)
@@ -543,7 +543,7 @@ def sparseNMF(Y_ds, nr, max_iter_snmf=200, alpha=0.5, sigma_smooth=(.5, .5, .5),
         mode='nearest', truncate=truncate)
     if remove_baseline:
         logger.info('Removing baseline')
-        bl = np.percentile(m, perc_baseline, axis=0)
+        bl = np.percentile(m, np.float64(perc_baseline), axis=0)  # use double for pct as in numpy 1.x
         m1 = np.maximum(0, m - bl)
     else:
         logger.info('Not removing baseline')
@@ -563,7 +563,7 @@ def sparseNMF(Y_ds, nr, max_iter_snmf=200, alpha=0.5, sigma_smooth=(.5, .5, .5),
               shuffle=False, 
               alpha_W=alpha, 
               l1_ratio=l1_ratio)
-    C = mdl.fit_transform(yr).T
+    C = mdl.fit_transform(yr.astype(np.float64, copy=False)).T
     A = mdl.components_.T
     A_in = A
     C_in = C
@@ -571,7 +571,7 @@ def sparseNMF(Y_ds, nr, max_iter_snmf=200, alpha=0.5, sigma_smooth=(.5, .5, .5),
     m1 = yr.T - A_in.dot(C_in) + np.maximum(0, bl.flatten())[:, np.newaxis]
     model = NMF(n_components=nb, init='random',
                 random_state=0, max_iter=max_iter_snmf)
-    b_in = model.fit_transform(np.maximum(m1, 0)).astype(np.float32)
+    b_in = model.fit_transform(np.maximum(m1, np.float64(0))).astype(np.float32)
     f_in = model.components_.astype(np.float32)
     center = caiman.base.rois.com(A_in, *dims)
 
@@ -631,7 +631,7 @@ def compressedNMF(Y_ds, nr, r_ov=10, max_iter_snmf=500,
     m1 = yr.T - A_in.dot(C_in) + np.maximum(0, bl.flatten(order='F'))[:, np.newaxis]
     model = NMF(n_components=nb, init='random',
                 random_state=0, max_iter=max_iter_snmf)
-    b_in = model.fit_transform(np.maximum(m1, 0)).astype(np.float32)
+    b_in = model.fit_transform(np.maximum(m1, np.float64(0))).astype(np.float32)
     f_in = model.components_.astype(np.float32)
     center = caiman.base.rois.com(A_in, *dims)
 
@@ -660,7 +660,7 @@ def graphNMF(Y_ds, nr, max_iter_snmf=500, lambda_gnmf=1,
     yr = np.reshape(m1, [T, d], order='F')
     mdl = NMF(n_components=nr, verbose=False, init='nndsvd', tol=1e-10,
               max_iter=5)
-    C = mdl.fit_transform(yr).T
+    C = mdl.fit_transform(yr.astype(np.float64, copy=False)).T
     A = mdl.components_.T
     W = caiman.source_extraction.cnmf.utilities.fast_graph_Laplacian_patches(
             [np.reshape(m, [T, d], order='F').T, [], SC_kernel, SC_sigma, SC_thr,
@@ -683,7 +683,7 @@ def graphNMF(Y_ds, nr, max_iter_snmf=500, lambda_gnmf=1,
     m1 = yr.T - A_in.dot(C_in) + np.maximum(0, bl.flatten(order='F'))[:, np.newaxis]
     model = NMF(n_components=nb, init='random',
                 random_state=0, max_iter=max_iter_snmf)
-    b_in = model.fit_transform(np.maximum(m1, 0)).astype(np.float32)
+    b_in = model.fit_transform(np.maximum(m1, np.float64(0))).astype(np.float32)
     f_in = model.components_.astype(np.float32)
     center = caiman.base.rois.com(A_in, *dims)
 
@@ -955,7 +955,7 @@ def greedyROI(Y, nr=30, gSig=[5, 5], gSiz=[11, 11], nIter=5, kernel=None, nb=1,
 
     model = NMF(n_components=nb, max_iter=nmf_max_iter, init=nmf_init_method)
 
-    b_in = model.fit_transform(np.maximum(res, 0)).astype(np.float32)
+    b_in = model.fit_transform(np.maximum(res, np.float64(0))).astype(np.float32)
     f_in = model.components_.astype(np.float32)
 
     return A, C, np.array(center, dtype='uint16'), b_in, f_in
@@ -1357,8 +1357,8 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
         print(nb)
         if use_NMF:
             model = NMF(n_components=nb, init='nndsvdar')
-            b_in = model.fit_transform(np.maximum(B, 0))
-            f_in = np.linalg.lstsq(b_in, B)[0]
+            b_in = model.fit_transform(np.maximum(B, np.float64(0)))  # preserve numpy 1.x promotion
+            f_in = np.linalg.lstsq(b_in, B, rcond=-1)[0]
         else:
             b_in, s_in, f_in = spr.linalg.svds(B, k=nb)
             f_in *= s_in[:, np.newaxis]
@@ -1668,7 +1668,7 @@ def init_neurons_corr_pnr(data, max_number=None, gSiz=15, gSig=None,
             #     v_search[r, c] = 0
             #     continue
             y0 = np.diff(data_filtered[:, r, c])
-            if y0.max() < 3 * y0.std():
+            if y0.max() < 3 * float(y0.std()):
                 v_search[r, c] = 0
                 continue
 
@@ -1972,7 +1972,7 @@ def compute_W(Y, A, C, dims, radius, data_fits_in_memory=True, ssub=1, tsub=1, p
             index = get_indices_of_pixels_on_ring(p)
             B = X[index]
             tmp = np.array(B.dot(B.T))
-            tmp[np.diag_indices(len(tmp))] += np.trace(tmp) * 1e-5
+            tmp[np.diag_indices(len(tmp))] += float(np.trace(tmp)) * 1e-5
             tmp2 = X[p]
             data = pd_solve(tmp, B.dot(tmp2))
             return index, data

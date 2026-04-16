@@ -12,7 +12,7 @@ dependencies:
 - keras
 - matplotlib
 - moviepy
-- numpy >=2.0.0
+- numpy
 - numpydoc
 - opencv
 - peakutils >=1.3.5

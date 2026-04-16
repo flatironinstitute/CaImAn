@@ -422,7 +422,7 @@ def run_CNMF_patches(file_name, shape, params, gnb=1, dview=None,
         # Filter out nan components in the bg components
         nan_components = np.any(np.isnan(F_tot), axis=1)
         F_tot = F_tot[~nan_components, :]
-        mdl.fit(np.maximum(F_tot, 0))
+        mdl.fit(np.maximum(F_tot, np.float64(0)))
         Bm = Bm[:, ~nan_components]
         f = mdl.components_.squeeze()
         f = np.atleast_2d(f)
