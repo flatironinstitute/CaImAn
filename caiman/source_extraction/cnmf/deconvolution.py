@@ -4,14 +4,15 @@
 Extract neural activity from a fluorescence trace using a constrained deconvolution approach
 """
 
+from math import log, sqrt, exp
 import numpy as np
 import scipy.signal
 import scipy.linalg
-
-from warnings import warn
-from math import log, sqrt, exp
-
 import sys
+from warnings import warn
+
+from caiman.source_extraction import cnmf
+
 
 def constrained_foopsi(fluor, bl=None,  c1=None, g=None,  sn=None, p=None, method_deconvolution='oasis', bas_nonneg=True,
                        noise_range=[.25, .5], noise_method='logmexp', lags=5, fudge_factor=1.,
@@ -747,7 +748,7 @@ def constrained_oasisAR2(y, g, sn, optimize_b=True, b_nonneg=True, optimize_g=0,
 
         # this window size seems necessary and sufficient
         possible_spikes = [x + np.arange(-2, 3)
-                           for x in np.where(s > s.max() / 10.)[0]]
+                           for x in np.where(s > float(s.max()) / 10.)[0]]
         ff = np.array(possible_spikes, dtype=int).ravel()
         ff = np.unique(ff[(ff >= 0) * (ff < T)])
         mask = np.zeros(T, dtype=bool)
@@ -998,11 +999,11 @@ def estimate_time_constant(fluor, p=2, sn=None, lags=5, fudge_factor=1.):
         sn = GetSn(fluor)
 
     lags += p
-    xc = axcov(fluor, lags)
+    xc = cnmf.utilities.axcov(fluor, lags)
     xc = xc[:, np.newaxis]
 
     A = scipy.linalg.toeplitz(c=np.ravel(xc[lags + np.arange(lags)]),
-                              r=np.ravel(xc[lags + np.arange(p)])) - sn**2 * np.eye(lags, p)
+                              r=np.ravel(xc[lags + np.arange(p)])) - float(sn)**2 * np.eye(lags, p)
     g = np.linalg.lstsq(A, xc[lags + 1:], rcond=None)[0]
     gr = np.roots(np.concatenate([np.array([1]), -g.flatten()]))
     gr = (gr + gr.conjugate()) / 2.
@@ -1050,46 +1051,3 @@ def GetSn(fluor, range_ff=[0.25, 0.5], method='logmexp'):
         return np.sqrt(np.exp(np.mean(np.log(Pxx_ind / 2))))
     else:
         raise Exception('Invalid method requested for GetSn')
-
-def axcov(data, maxlag=5):
-    """
-    Compute the autocovariance of data at lag = -maxlag:0:maxlag
-
-    Args:
-        data : array
-            Array containing fluorescence data
-    
-        maxlag : int
-            Number of lags to use in autocovariance calculation
-
-    Returns:
-        axcov : array
-            Autocovariances computed from -maxlag:0:maxlag
-    """
-
-    data = data - np.mean(data)
-    T = len(data)
-    bins = np.size(data)
-    xcov = np.fft.fft(data, np.power(2, nextpow2(2 * bins - 1)))
-    xcov = np.fft.ifft(np.square(np.abs(xcov)))
-    xcov = np.concatenate([xcov[np.arange(xcov.size - maxlag, xcov.size)],
-                           xcov[np.arange(0, maxlag + 1)]])
-    return np.real(xcov / T)
-
-
-def nextpow2(value):
-    """
-    Find exponent such that 2^exponent is equal to or greater than abs(value).
-
-    Args:
-        value : int
-
-    Returns:
-        exponent : int
-    """
-
-    exponent = 0
-    avalue = np.abs(value)
-    while avalue > np.power(2, exponent):
-        exponent += 1
-    return exponent

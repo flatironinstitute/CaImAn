@@ -1579,7 +1579,7 @@ def seeded_initialization(Y, Ain, dims=None, init_batch=1000, order_init=None, g
         not_px = np.array(not_px).flatten()
     Yr = np.reshape(Y, (Ain.shape[0], Y.shape[-1]), order='F')
     model = NMF(n_components=gnb, init='nndsvdar', max_iter=10)
-    _ = model.fit_transform(np.maximum(Yr[not_px], 0)) # Done to update the model object
+    _ = model.fit_transform(np.maximum(Yr[not_px], np.float64(0))) # Done to update the model object
     f_in = model.components_.squeeze()
     f_in = np.atleast_2d(f_in)
     Y_resf = np.dot(Yr, f_in.T)
@@ -1595,7 +1595,7 @@ def seeded_initialization(Y, Ain, dims=None, init_batch=1000, order_init=None, g
                 print(count)
             idx_domain = np.where(Ain[:,idx_in])[0]
             Ain[idx_domain,idx_in] = model_comp.fit_transform(\
-                                   np.maximum(Yr_no_bg[idx_domain], 0)).squeeze()
+                                   np.maximum(Yr_no_bg[idx_domain], np.float64(0))).squeeze()
             Cin[idx_in] = model_comp.components_.squeeze()
             Yr_no_bg[idx_domain] -= np.outer(Ain[idx_domain, idx_in],Cin[idx_in])
     else:

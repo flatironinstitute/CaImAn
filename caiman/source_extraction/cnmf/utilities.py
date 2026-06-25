@@ -1255,6 +1255,51 @@ def fast_graph_Laplacian_pixel(pars):
     return indices[ind].tolist(), w[ind].tolist()
 
 
+def axcov(data, maxlag=5):
+    """
+    Compute the autocovariance of data at lag = -maxlag:0:maxlag
+
+    Args:
+        data : array
+            Array containing fluorescence data
+
+        maxlag : int
+            Number of lags to use in autocovariance calculation
+
+    Returns:
+        axcov : array
+            Autocovariances computed from -maxlag:0:maxlag
+    """
+
+    data = data - np.mean(data)
+    T = len(data)
+    bins = np.size(data)
+    # use float64 to maintain numpy 1.x always-double-precision behavior
+    xcov = np.fft.fft(data.astype(np.float64, copy=False), np.power(2, nextpow2(2 * bins - 1)))
+    xcov = np.fft.ifft(np.square(np.abs(xcov)))
+    xcov = np.concatenate([xcov[np.arange(xcov.size - maxlag, xcov.size)],
+                           xcov[np.arange(0, maxlag + 1)]])
+    return np.real(xcov / T)
+
+
+def nextpow2(value):
+    """
+    Find exponent such that 2^exponent is equal to or greater than abs(value).
+
+    Args:
+        value : int
+
+    Returns:
+        exponent : int
+    """
+
+    exponent = 0
+    avalue = np.abs(value)
+    while avalue > np.power(2, exponent):
+        exponent += 1
+    return exponent
+
+
 def estimate_n_pixels_per_process(n_processes: int, T: int, dims: tuple[int, ...]) -> int:
     """
     Estimate a safe number of pixels to allocate to each parallel process at a time
