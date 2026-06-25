@@ -286,10 +286,8 @@ class GroupParams(Mapping):
 
     def copy(self) -> dict[str, Any]:
         """Implement dict.copy - make a copy of the data as a (mutable) dict"""
-        # It's safe to assign to a copy, so just make it a (shallow-copied) dict
-        ta = TypeAdapter(type(self))
-        # use round_trip=False to serialize computed properties
-        return ta.dump_python(self, round_trip=False)
+        # It should be safe to assign to a copy, so just make it a (shallow-copied) dict
+        return dict(self)
 
 
 # Parameter group definitions (see docstring of CNMFParams for full documentation)
@@ -1595,10 +1593,15 @@ class CNMFParams:
 
 
     def to_dict(self) -> dict[str, GroupParams]:
-        """Returns the params class as a dictionary with subdictionaries for each
-        category."""
+        """Convert to a dictionary mapping group names to objects to read params for that group."""
         return {group: self.get_group(group) for group in self.groups}
+
     
+    def to_dict_roundtrip(self, format: Literal['json', 'python'] = 'python') -> dict[str, dict[str, Any]]:
+        """Convert to a dict that can be used to recreate an identical object by passing as params_dict"""
+        ta = TypeAdapter(type(self))
+        return ta.dump_python(self, round_trip=True, mode=format)
+
 
     def to_json(self, verify=True) -> str:
         """ 
@@ -1607,13 +1610,12 @@ class CNMFParams:
         possible that this happens even if they don't all match the schema).
         """
         logger = logging.getLogger('caiman')
-
-        ta = TypeAdapter(type(self))
-        encoded = ta.dump_python(self, mode='json', round_trip=True)
+        encoded = self.to_dict_roundtrip(format='json')
         jsonstring = json.dumps(encoded)  # use json library for dumping b/c it allows nans and infs
 
         if verify:
             logger.debug('Testing reconstruction from JSON')
+            ta = TypeAdapter(type(self))
             recon_obj = ta.validate_json(jsonstring)
 
             mismatched = list(self.get_differing_params(recon_obj))
