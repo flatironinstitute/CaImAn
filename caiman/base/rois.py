@@ -18,6 +18,7 @@ from skimage.segmentation import watershed
 import tempfile
 import time
 from typing import Any, Optional
+import warnings
 import zipfile
 
 from caiman.motion_correction import tile_and_correct, get_patch_centers, interpolate_shifts
@@ -57,7 +58,10 @@ def com(A, d1: int, d2: int, d3: Optional[int] = None, order: str = 'F') -> np.n
     coor = np.stack([c.ravel(order=order) for c in coors])
 
     # take weighted sum of pixel positions along each coordinate
-    cm = (coor @ A / A.sum(axis=0)).T
+    with warnings.catch_warnings():
+        # ignore 0 / 0 (should give nan)
+        warnings.filterwarnings('ignore', category=RuntimeWarning, message='invalid value encountered in divide')
+        cm = (coor @ A / A.sum(axis=0)).T
     return np.array(cm)
 
 
@@ -687,17 +691,23 @@ def extract_active_components(assignments, indices, only=True):
     return components
 
 
-def norm_nrg(a_):
+def norm_nrg(a: np.ndarray) -> np.ndarray:
+    """
+    Construct an array of the same shape as a containing energy
+    (squared values) accumulated from highest to lowest-valued pixel,
+    normalized so the maximum value is 1. This version maintains ties
+    between pixel values, such that in each set of tied pixels, each pixel
+    in the set gets the total energy from all pixels in that set added to its 
+    cumulative energy.
+    """
+    if a.size == 0:
+        return a.copy()
 
-    a = a_.copy()
-    dims = a.shape
-    a = a.reshape(-1, order='F')
-    indx = np.argsort(a, axis=None)[::-1]
-    cumEn = np.cumsum(a.flatten()[indx]**2)
-    cumEn /= cumEn[-1]
-    a = np.zeros(np.prod(dims))
-    a[indx] = cumEn
-    return a.reshape(dims, order='F')
+    vals_asc, inds_inv, counts = np.unique(a, return_inverse=True, return_counts=True)
+    energy = vals_asc ** 2 * counts  # each energy value is multiplied by its frequency to get the same total
+    cumEn = np.cumsum(energy[::-1])[::-1]  # accumulate from high to low
+    cumEn /= cumEn[0]
+    return np.reshape(cumEn[inds_inv], a.shape)
 
 
 def distance_masks(M_s:list, cm_s: list[list], max_dist: float, enclosed_thr: Optional[float] = None) -> list:
