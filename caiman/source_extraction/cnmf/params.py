@@ -22,7 +22,7 @@ import scipy.special
 from scipy.ndimage import generate_binary_structure, iterate_structure
 from tabulate import tabulate
 from typing import (Optional, Any, Union, Literal, Annotated, Callable,
-                    Mapping, Iterator, TypeVar, ClassVar, cast, Type, Sequence)
+                    Mapping, Iterator, TypeVar, ClassVar, cast, Type)
 import warnings
 
 import caiman.base.movies
@@ -208,20 +208,25 @@ class GroupParams(Mapping):
 
     
     @classmethod
-    def _ser_numpy_scalar_helper(cls, value: Any) -> Any:
+    def _ser_numpy_scalar_helper(cls, value: Any, seen: frozenset[int] = frozenset()) -> Any:
         """Recursive helper for ser_numpy_number"""
-        if isinstance(value, tuple):
-            return tuple(cls._ser_numpy_scalar_helper(v) for v in value)
+        if id(value) in seen:  # avoid cycles, keep track of objects in path from here to root
+            return value
+        else:
+            seen = seen.union({id(value)})
 
-        if isinstance(value, Sequence):
-            return [cls._ser_numpy_scalar_helper(v) for v in value]
+        if isinstance(value, tuple):
+            return tuple(cls._ser_numpy_scalar_helper(v, seen) for v in value)
+
+        if isinstance(value, list):
+            return [cls._ser_numpy_scalar_helper(v, seen) for v in value]
 
         if isinstance(value, slice):
-            return slice(cls._ser_numpy_scalar_helper(v) for v in (value.start, value.stop, value.step))
+            return slice(cls._ser_numpy_scalar_helper(v, seen) for v in (value.start, value.stop, value.step))
 
         if isinstance(value, Mapping):
             return {
-                cls._ser_numpy_scalar_helper(key): cls._ser_numpy_scalar_helper(val)
+                cls._ser_numpy_scalar_helper(key, seen): cls._ser_numpy_scalar_helper(val, seen)
                 for key, val in value.items()
             }
 
