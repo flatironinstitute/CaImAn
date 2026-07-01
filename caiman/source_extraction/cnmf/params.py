@@ -222,7 +222,7 @@ class GroupParams(Mapping):
             return [cls._ser_numpy_scalar_helper(v, seen) for v in value]
 
         if isinstance(value, slice):
-            return slice(cls._ser_numpy_scalar_helper(v, seen) for v in (value.start, value.stop, value.step))
+            return slice(*(cls._ser_numpy_scalar_helper(v, seen) for v in (value.start, value.stop, value.step)))
 
         if isinstance(value, Mapping):
             return {
