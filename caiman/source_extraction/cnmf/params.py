@@ -13,7 +13,7 @@ from pprint import pformat
 from pydantic import (
     ConfigDict, TypeAdapter, BeforeValidator, AfterValidator, InstanceOf,
     PlainValidator, PlainSerializer, ValidationError, ValidationInfo,
-    WithJsonSchema, Field, field_validator, computed_field, model_validator)
+    WithJsonSchema, Field, field_validator, field_serializer, computed_field, model_validator)
 from pydantic.dataclasses import dataclass 
 from pydantic.fields import FieldInfo
 from pydantic.json_schema import SkipJsonSchema, PydanticJsonSchemaWarning
@@ -22,7 +22,7 @@ import scipy.special
 from scipy.ndimage import generate_binary_structure, iterate_structure
 from tabulate import tabulate
 from typing import (Optional, Any, Union, Literal, Annotated, Callable,
-                    Mapping, Iterator, TypeVar, ClassVar, cast, Type)
+                    Mapping, Iterator, TypeVar, ClassVar, cast, Type, Sequence)
 import warnings
 
 import caiman.base.movies
@@ -205,6 +205,36 @@ class GroupParams(Mapping):
                 f'to the expected type {expected_type} and may not be valid.')
             
             return value
+
+    
+    @classmethod
+    def _ser_numpy_scalar_helper(cls, value: Any) -> Any:
+        """Recursive helper for ser_numpy_number"""
+        if isinstance(value, tuple):
+            return tuple(cls._ser_numpy_scalar_helper(v) for v in value)
+
+        if isinstance(value, Sequence):
+            return [cls._ser_numpy_scalar_helper(v) for v in value]
+
+        if isinstance(value, slice):
+            return slice(cls._ser_numpy_scalar_helper(v) for v in (value.start, value.stop, value.step))
+
+        if isinstance(value, Mapping):
+            return {
+                cls._ser_numpy_scalar_helper(key): cls._ser_numpy_scalar_helper(val)
+                for key, val in value.items()
+            }
+
+        if isinstance(value, np.generic):
+            return value.item()
+        
+        return value
+
+
+    @field_serializer('*', mode='wrap')
+    def ser_numpy_scalar(self, value: Any, handler) -> Any:
+        """Convert numpy scalars, which pydantic doesn't know how to deal with"""
+        return handler(self._ser_numpy_scalar_helper(value))
 
 
     def replace(self: GPSelf, warn_unused=True, **changes) -> GPSelf:
