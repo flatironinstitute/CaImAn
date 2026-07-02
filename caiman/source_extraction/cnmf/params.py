@@ -122,7 +122,7 @@ class GroupParams(Mapping):
     ['name'] mapping syntax, a property with the same name computes the actual value
     to use if none has been provided.
     """
-    __pydantic_config__ = ConfigDict(extra='forbid', serialize_by_alias=True)
+    __pydantic_config__ = ConfigDict(extra='forbid', serialize_by_alias=True, ser_json_inf_nan='constants')
     __pydantic_fields__: ClassVar[Mapping[str, FieldInfo]]  # automatic, just declaring for typing purposes
 
     group_name: ClassVar[str]  # name of the attribute on CNMFParams
@@ -1390,7 +1390,7 @@ class CNMFParams:
             reuse_model: bool, default: False
                 Flag for reusing an already trained model (saved in path to model)
     """
-    __pydantic_config__ = ConfigDict(extra='forbid')
+    __pydantic_config__ = ConfigDict(extra='forbid', ser_json_inf_nan='constants')
     __pydantic_fields__: ClassVar[Mapping[str, FieldInfo]]  # automatic, just declaring for typing purposes
 
     # mapping of alternate names of flat params (previously used in constructor) to their canonical names
@@ -1638,19 +1638,18 @@ class CNMFParams:
         return ta.dump_python(self, round_trip=True, mode=format)
 
 
-    def to_json(self, verify=True) -> str:
+    def to_json(self, verify=True) -> bytes:
         """ 
         Reversibly serialise CNMFParams to json. If verify is true, test that it can be
         deserialized correctly (meaning that all values match the original; it is
         possible that this happens even if they don't all match the schema).
         """
         logger = logging.getLogger('caiman')
-        encoded = self.to_dict_roundtrip(format='json')
-        jsonstring = json.dumps(encoded)  # use json library for dumping b/c it allows nans and infs
+        ta = TypeAdapter(type(self))
+        jsonstring = ta.dump_json(self, round_trip=True)
 
         if verify:
             logger.debug('Testing reconstruction from JSON')
-            ta = TypeAdapter(type(self))
             recon_obj = ta.validate_json(jsonstring)
 
             mismatched = list(self.get_differing_params(recon_obj))
@@ -1680,7 +1679,7 @@ class CNMFParams:
 
     def to_jsonfile(self, targfn: Union[str, Path], verify=True) -> None:
         """ Reversibly serialise CNMFParams to a json file """
-        with open(targfn, 'w') as targfh:
+        with open(targfn, 'wb') as targfh:
             targfh.write(self.to_json(verify=verify))
 
     def __repr__(self) -> str:
