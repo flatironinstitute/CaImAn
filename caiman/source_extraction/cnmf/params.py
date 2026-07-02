@@ -13,7 +13,7 @@ from pprint import pformat
 from pydantic import (
     ConfigDict, TypeAdapter, BeforeValidator, AfterValidator, InstanceOf,
     PlainValidator, PlainSerializer, ValidationError, ValidationInfo,
-    WithJsonSchema, Field, field_validator, field_serializer, computed_field, model_validator)
+    WithJsonSchema, Field, field_validator, computed_field, model_validator)
 from pydantic.dataclasses import dataclass 
 from pydantic.fields import FieldInfo
 from pydantic.json_schema import SkipJsonSchema, PydanticJsonSchemaWarning
@@ -74,12 +74,19 @@ def eval_bytes(obj: Any) -> Any:
     return obj
 
 
-Slice = Annotated[
-    Union[  # these are the same base types (slice) but with different validators
-        InstanceOf[slice],  # accept existing slices as is
-        # anything convertible to a len-3 tuple, with 'NoneType' conversion, can be a slice
-        Annotated[slice, ValidateAs(tuple[SafeAny, SafeAny, SafeAny], lambda tup: slice(*tup))]],
-    BeforeValidator(eval_bytes),
+def preprocess_intslice(obj: Any) -> Any:
+    obj = eval_bytes(obj)
+    if isinstance(obj, slice):
+        obj = (obj.start, obj.stop, obj.step)
+    return obj
+
+
+IntSlice = Annotated[
+    slice,
+    # anything convertible to a len-3 tuple of int or None, with 'NoneType' conversion, can be interpreted as a slice
+    ValidateAs(tuple[SafeOptional[int], SafeOptional[int], SafeOptional[int]], lambda tup: slice(*tup)),
+    BeforeValidator(preprocess_intslice),
+    # serialize as a tuple
     PlainSerializer(lambda sl: (sl.start, sl.stop, sl.step)),
     WithJsonSchema(TypeAdapter(tuple[Any, Any, Any]).json_schema())
 ]
@@ -205,41 +212,6 @@ class GroupParams(Mapping):
                 f'to the expected type {expected_type} and may not be valid.')
             
             return value
-
-    
-    @classmethod
-    def _ser_numpy_scalar_helper(cls, value: Any, seen: frozenset[int] = frozenset()) -> Any:
-        """Recursive helper for ser_numpy_number"""
-        if id(value) in seen:  # avoid cycles, keep track of objects in path from here to root
-            return value
-        else:
-            seen = seen.union({id(value)})
-
-        if isinstance(value, tuple):
-            return tuple(cls._ser_numpy_scalar_helper(v, seen) for v in value)
-
-        if isinstance(value, list):
-            return [cls._ser_numpy_scalar_helper(v, seen) for v in value]
-
-        if isinstance(value, slice):
-            return slice(*(cls._ser_numpy_scalar_helper(v, seen) for v in (value.start, value.stop, value.step)))
-
-        if isinstance(value, Mapping):
-            return {
-                cls._ser_numpy_scalar_helper(key, seen): cls._ser_numpy_scalar_helper(val, seen)
-                for key, val in value.items()
-            }
-
-        if isinstance(value, np.generic):
-            return value.item()
-        
-        return value
-
-
-    @field_serializer('*', mode='wrap')
-    def ser_numpy_scalar(self, value: Any, handler) -> Any:
-        """Convert numpy scalars, which pydantic doesn't know how to deal with"""
-        return handler(self._ser_numpy_scalar_helper(value))
 
 
     def replace(self: GPSelf, warn_unused=True, **changes) -> GPSelf:
@@ -717,7 +689,7 @@ class MotionParams(GroupParams):
     strides: tuple[int, ...] = (96, 96) # how often to start a new patch in pw-rigid registration
     upsample_factor_grid: int = 4       # motion field upsampling factor during FFT shifts
     use_cuda: bool = False              # flag for using a GPU
-    indices: tuple[Slice, ...] = (slice(None), slice(None))  # part of FOV to be corrected
+    indices: tuple[IntSlice, ...] = (slice(None), slice(None))  # part of FOV to be corrected
 
 
     def _compute_splits_from_data(self) -> Optional[int]:
