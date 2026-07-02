@@ -88,7 +88,7 @@ IntSlice = Annotated[
     BeforeValidator(preprocess_intslice),
     # serialize as a tuple
     PlainSerializer(lambda sl: (sl.start, sl.stop, sl.step)),
-    WithJsonSchema(TypeAdapter(tuple[Any, Any, Any]).json_schema())
+    WithJsonSchema(TypeAdapter(tuple[Optional[int], Optional[int], Optional[int]]).json_schema())
 ]
 
 
