@@ -267,7 +267,7 @@ def train_validate(config, plot_results=False):
 
     if config.RANDOM_SPLIT:
         print("Using random split for train/validation sets.")
-        indices = list(range(len(dataset_train_instance)))
+        indices = list(range(len(dataset_train)))
         np.random.shuffle(indices)
         train_indices = indices[:-config.NUM_TEST_RANDOM]
         val_indices = indices[-config.NUM_TEST_RANDOM:]
@@ -390,7 +390,7 @@ if __name__ == '__main__':
 
     if args.mode == 'train':
         # Call evaluation at the end of training, passing the plotting flag
-        train_and_validate(config, plot_results=args.plot_results) 
+        train_validate(config, plot_results=args.plot_results) 
     elif args.mode == 'infer':
         # Call inference, passing the plotting flag
         run_inference(config, plot_results=args.plot_results)

@@ -886,7 +886,7 @@ def constrained_oasisAR1(np.ndarray[SINGLE, ndim=1] y, SINGLE g, SINGLE sn,
             RSS = res.dot(res)
 
     else:  # optimize b and dependent on optimize_g g too
-        b = np.percentile(y, 15)  # initial estimate of baseline
+        b = np.percentile(y, np.float64(15))  # initial estimate of baseline, force using double as in numpy 1.x
         if b_nonneg:
             b = fmax(b, 0)
         c, P = oasis1strun(y - b, g, c)
@@ -918,8 +918,8 @@ def constrained_oasisAR1(np.ndarray[SINGLE, ndim=1] y, SINGLE g, SINGLE sn,
                     for j in range(P[i].l):
                         tmp[P[i].t + j] = aa
                         aa *= g
-            tmp -= 1. / T / (1 - g) * np.sum([(1 - g**P[i].l) ** 2 / P[i].w
-                                              for i in range(P.size())])
+            tmp -= 1. / T / (1 - g) * float(np.sum([(1 - g**P[i].l) ** 2 / P[i].w
+                                            for i in range(P.size())]))
             aa = tmp.dot(tmp)
             bb = res.dot(tmp)
             cc = RSS - thresh

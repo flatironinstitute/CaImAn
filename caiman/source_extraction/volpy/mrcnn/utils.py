@@ -24,6 +24,9 @@ from torchvision.transforms.v2 import functional as F
 import torchvision.transforms.v2 as T
 from typing import Any, Optional
 
+from caiman.base.rois import norm_nrg
+
+
 class ScaleImage:
     """
     Scale image so it is between 0-1: works on floats only
@@ -473,29 +476,3 @@ def normalize_image(image):
     image_shifted = image - image.min()
     image_normed = image_shifted/image_shifted.max()
     return np.array(image_normed, dtype=np.float32)
-
-def norm_nrg(a_):
-    """
-    Calculates the normalized cumulative energy map of an array.
-
-    The function flattens the input array, sorts its elements in descending
-    order, and computes the normalized cumulative energy. The resulting energy
-    values are then placed back into an array with the original shape at the
-    locations corresponding to the original element values.
-
-    Args:
-        a_ (np.ndarray): The input NumPy array.
-
-    Returns:
-        np.ndarray: An array of the same shape as the input, containing the
-                    normalized cumulative energy values.
-    """
-    a = a_.copy()
-    dims = a.shape
-    a = a.reshape(-1, order='F')
-    indx = np.argsort(a, axis=None)[::-1]
-    cumEn = np.cumsum(a.flatten()[indx]**2)
-    cumEn /= cumEn[-1]
-    a = np.zeros(np.prod(dims))
-    a[indx] = cumEn
-    return a.reshape(dims, order='F')

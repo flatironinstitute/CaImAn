@@ -362,6 +362,27 @@ def hv_view_patches(Yr, A, C, b, f, d1, d2, YrA=None, image_neurons=None, denois
                 .redim.range(unit_id=(0, nr-1), scale=(0.0, 1.0)))
 
 
+def get_slice_coords(B: np.ndarray, thr: float) -> np.ndarray:
+    """Get contour coordinates for a 2D slice"""
+    d1, d2 = B.shape
+    vertices = find_contours(B.T, thr)
+    # this fix is necessary for having disjoint figures and borders plotted correctly
+    v = np.array([[np.nan, np.nan]])
+    for _, vtx in enumerate(vertices):
+        num_close_coords = np.sum(np.isclose(vtx[0, :], vtx[-1, :]))
+        if num_close_coords < 2:
+            if num_close_coords == 0:
+                # case angle
+                newpt = np.round(np.mean(vtx[[0, -1], :], axis=0) / [d2, d1]) * [d2, d1]
+                vtx = np.concatenate((newpt[np.newaxis, :], vtx, newpt[np.newaxis, :]), axis=0)
+            else:
+                # case one is border
+                vtx = np.concatenate((vtx, vtx[0, np.newaxis]), axis=0)
+        v = np.concatenate(
+            (v, vtx, np.array([[np.nan, np.nan]])), axis=0)
+    return v
+
+
 def get_contours(A, dims, thr=0.9, thr_method='nrg', swap_dim=False, slice_dim: Optional[int] = None):
     """Gets contour of spatial components and returns their coordinates
 
@@ -405,26 +426,22 @@ def get_contours(A, dims, thr=0.9, thr_method='nrg', swap_dim=False, slice_dim: 
 
     # for each patches
     for i in range(nr):
-        pars:dict = dict()
-        # we compute the cumulative sum of the energy of the Ath component that has been ordered from least to highest
+        if A.indptr[i] == A.indptr[i + 1]:
+            # component is all zeros
+            pars = dict(
+                coordinates=np.array([]),
+                CoM=np.array([np.nan, np.nan]),
+                neuron_id=i + 1,
+            )
+            coordinates.append(pars)
+            continue
+
         patch_data = A.data[A.indptr[i]:A.indptr[i + 1]]
-        indx = np.argsort(patch_data)[::-1]
+
         if thr_method == 'nrg':
-            cumEn = np.cumsum(patch_data[indx]**2)
-            if len(cumEn) == 0:
-                pars = dict(
-                    coordinates=np.array([]),
-                    CoM=np.array([np.nan, np.nan]),
-                    neuron_id=i + 1,
-                )
-                coordinates.append(pars)
-                continue
-            else:
-                # we work with normalized values
-                cumEn /= cumEn[-1]
-                Bvec = np.ones(d)
-                # we put it in a similar matrix
-                Bvec[A.indices[A.indptr[i]:A.indptr[i + 1]][indx]] = cumEn
+            comp_nrg = caiman.base.rois.norm_nrg(patch_data)
+            Bvec = np.ones(d)
+            Bvec[A.indices[A.indptr[i]:A.indptr[i + 1]]] = comp_nrg
         else:
             if thr_method != 'max':
                 warn("Unknown threshold method. Choosing max")
@@ -435,29 +452,10 @@ def get_contours(A, dims, thr=0.9, thr_method='nrg', swap_dim=False, slice_dim: 
             Bmat = np.reshape(Bvec, dims, order='C')
         else:
             Bmat = np.reshape(Bvec, dims, order='F')
-
-        def get_slice_coords(B: np.ndarray) -> np.ndarray:
-            """Get contour coordinates for a 2D slice"""
-            d1, d2 = B.shape
-            vertices = find_contours(B.T, thr)
-            # this fix is necessary for having disjoint figures and borders plotted correctly
-            v = np.atleast_2d([np.nan, np.nan])
-            for _, vtx in enumerate(vertices):
-                num_close_coords = np.sum(np.isclose(vtx[0, :], vtx[-1, :]))
-                if num_close_coords < 2:
-                    if num_close_coords == 0:
-                        # case angle
-                        newpt = np.round(np.mean(vtx[[0, -1], :], axis=0) / [d2, d1]) * [d2, d1]
-                        vtx = np.concatenate((newpt[np.newaxis, :], vtx, newpt[np.newaxis, :]), axis=0)
-                    else:
-                        # case one is border
-                        vtx = np.concatenate((vtx, vtx[0, np.newaxis]), axis=0)
-                v = np.concatenate(
-                    (v, vtx, np.atleast_2d([np.nan, np.nan])), axis=0)
-            return v
         
+        pars = {}
         if len(dims) == 2:
-            pars['coordinates'] = get_slice_coords(Bmat)
+            pars['coordinates'] = get_slice_coords(Bmat, thr)
         else:
             # make a list of the contour coordinates for each 2D slice
             pars['coordinates'] = []
@@ -465,7 +463,7 @@ def get_contours(A, dims, thr=0.9, thr_method='nrg', swap_dim=False, slice_dim: 
                 slice_dim = 0 if swap_dim else -1
             for s in range(dims[slice_dim]):
                 B = Bmat.take(s, axis=slice_dim)
-                pars['coordinates'].append(get_slice_coords(B))
+                pars['coordinates'].append(get_slice_coords(B, thr))
 
         pars['CoM'] = np.squeeze(cm[i, :])
         pars['neuron_id'] = i + 1
@@ -497,6 +495,8 @@ def nb_view_patches3d(Y_r, A, C, dims, image_type='mean', Yr=None,
 
         max_projection: boolean
             plot max projection along specified axis if True, plot layers if False
+            FIXME - type checking reveals that this code path can't work, namely 
+                    coors is a list of dicts that doesn't have a "shape" attribute
 
         axis: int (0, 1 or 2)
             axis along which max projection is performed or layers are shown
@@ -1033,7 +1033,7 @@ def view_patches_bar(Yr, A, C, b, f, d1, d2, YrA=None, img=None,
     plt.show()
 
 def plot_contours(A, Cn, thr=None, thr_method='max', maxthr=0.2, nrgthr=0.9, display_numbers=True, max_number=None,
-                  cmap=None, swap_dim=False, colors='w', vmin=None, vmax=None, coordinates=None,
+                  cmap=None, swap_dim=False, color='w', vmin=None, vmax=None, coordinates=None,
                   contour_args={}, number_args={}, **kwargs):
     """Plots contour of spatial components against a background image and returns their coordinates
 
@@ -1087,8 +1087,7 @@ def plot_contours(A, Cn, thr=None, thr_method='max', maxthr=0.2, nrgthr=0.9, dis
 
     for key in ['c', 'colors', 'line_color']:
         if key in kwargs.keys():
-            color = kwargs[key]
-            kwargs.pop(key)
+            color = kwargs.pop(key)
 
     ax = plt.gca()
     if vmax is None and vmin is None:
@@ -1104,14 +1103,14 @@ def plot_contours(A, Cn, thr=None, thr_method='max', maxthr=0.2, nrgthr=0.9, dis
         v = c['coordinates']
         c['bbox'] = [np.floor(np.nanmin(v[:, 1])), np.ceil(np.nanmax(v[:, 1])),
                      np.floor(np.nanmin(v[:, 0])), np.ceil(np.nanmax(v[:, 0]))]
-        plt.plot(*v.T, c=colors, **contour_args)
+        plt.plot(*v.T, c=color, **contour_args)
 
     if display_numbers:
         nr = A.shape[1]
         if max_number is None:
             max_number = nr
         for i, c in zip(range(np.minimum(nr, max_number)), coordinates):
-            ax.text(c['CoM'][1], c['CoM'][0], str(i + 1), color=colors, **number_args)
+            ax.text(c['CoM'][1], c['CoM'][0], str(i + 1), color=color, **number_args)
     return coordinates
 
 def plot_shapes(Ab, dims, num_comps=15, size=(15, 15), comps_per_row=None,

@@ -389,7 +389,7 @@ def update_iteration(parrllcomp, len_parrllcomp, nb, C, S, bl, nr,
             dview.results.clear()
 
         try:
-            if scipy.linalg.norm(Cin - C, 'fro') <= 1e-3*scipy.linalg.norm(C, 'fro'):
+            if scipy.linalg.norm(Cin - C, 'fro') <= 1e-3 * float(scipy.linalg.norm(C, 'fro')):
                 logger.info("stopping: overall temporal component not changing" +
                              " significantly")
                 break

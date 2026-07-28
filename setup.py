@@ -63,7 +63,7 @@ setup(
     name='caiman',
     version=version,
     author='Andrea Giovannucci, Eftychios Pnevmatikakis, Johannes Friedrich, Valentina Staneva, Ben Deverett, Erick Cobos, Jeremie Kalfon',
-    author_email='pgunn@flatironinstitute.org',
+    author_email='pgunn01@gmail.com',
     url='https://github.com/flatironinstitute/CaImAn',
     license='GPL-2',
     description='Advanced algorithms for ROI detection and deconvolution of Calcium Imaging datasets.',
