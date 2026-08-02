@@ -202,7 +202,7 @@ def local_correlations(Y, eight_neighbours: bool = True, swap_dim: bool = True, 
     Returns:
         rho: d1 x d2 [x d3] matrix, cross-correlation with adjacent pixels
     """
-
+    print("Testing corr func")
     if swap_dim:
         Y = np.transpose(Y, tuple(np.hstack((Y.ndim - 1, list(range(Y.ndim))[:-1]))))
 
@@ -249,14 +249,14 @@ def local_correlations(Y, eight_neighbours: bool = True, swap_dim: bool = True, 
                 rho_d1 = rho_d1
                 rho_d2 = rho_d2
                 rho[:-1, :-1] = rho[:-1, :-1] * rho_d2
-                rho[1:,   1:] = rho[1:,   1:] * rho_d1
+                rho[1:,   1:] = rho[1:,   1:] * rho_d2
                 rho[1:,  :-1] = rho[1:,  :-1] * rho_d1
-                rho[:-1,  1:] = rho[:-1,  1:] * rho_d2
+                rho[:-1,  1:] = rho[:-1,  1:] * rho_d1
             else:
                 rho[:-1, :-1] = rho[:-1, :-1] + rho_d2**(order_mean)
-                rho[1:,   1:] = rho[1:,   1:] + rho_d1**(order_mean)
+                rho[1:,   1:] = rho[1:,   1:] + rho_d2**(order_mean)
                 rho[1:,  :-1] = rho[1:,  :-1] + rho_d1**(order_mean)
-                rho[:-1,  1:] = rho[:-1,  1:] + rho_d2**(order_mean)
+                rho[:-1,  1:] = rho[:-1,  1:] + rho_d1**(order_mean)
 
             neighbors = 8 * np.ones(Y.shape[1:3])
             neighbors[0,   :] = neighbors[0,   :] - 3
