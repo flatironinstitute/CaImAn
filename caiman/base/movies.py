@@ -1151,7 +1151,16 @@ def load(file_name: Union[str, list[str]],
                     ret, frame = cap.read()
                     if not ret:
                         break
-                    input_arr[counter] = frame[:, :, 0]
+                    if frame.ndim == 2:
+                        gray_frame = frame  #Fallback: For 1-channel (2D) frames, use as-is
+                    elif frame.ndim == 3:
+                        if frame.shape[2] == 3:
+                            gray_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY) #Default for opencv: 3-channel (3D, bgr) frames, convert it into gray
+                        else:
+                            gray_frame = frame[:, :, 0] #Fallback: For other cases, just copy channel 1 
+                    
+                    input_arr[counter] = gray_frame
+                    
                     counter += 1
                     current_frame += 1
                 # handle spatial subindices

@@ -126,6 +126,7 @@ class timeseries(np.ndarray):
              compress=0,
              q_max=99.75,
              q_min=1,
+             is_color = True,
              var_name_hdf5='mov',
              sess_desc='some_description',
              identifier='some identifier',
@@ -222,10 +223,16 @@ class timeseries(np.ndarray):
         elif extension in ('.avi', '.mkv'):
             codec = None
             if compress == 0:
-                try:
-                    codec = cv2.FOURCC('I', 'Y', 'U', 'V')
-                except AttributeError:
-                    codec = cv2.VideoWriter_fourcc(*'IYUV')
+                if is_color:
+                    try:
+                        codec = cv2.FOURCC('I', 'Y', 'U', 'V')
+                    except AttributeError:
+                        codec = cv2.VideoWriter_fourcc(*'IYUV')
+                else:
+                    try:
+                        codec = cv2.FOURCC('G','R','E','Y')
+                    except AttributeError:
+                        codec = cv2.VideoWriter_fourcc(*'GREY')
             else:
                 try:
                     codec = cv2.FOURCC('F', 'F', 'V', '1')
@@ -247,9 +254,12 @@ class timeseries(np.ndarray):
                 data = data.astype(np.uint8)
                 
             y, x = data[0].shape
-            vw = cv2.VideoWriter(file_name, codec, self.fr, (x, y), isColor=True)
+            vw = cv2.VideoWriter(file_name, codec, self.fr, (x, y), isColor=is_color)
             for d in data:
-                vw.write(cv2.cvtColor(d, cv2.COLOR_GRAY2BGR))
+                if is_color:
+                    vw.write(cv2.cvtColor(d, cv2.COLOR_GRAY2BGR))
+                else:
+                    vw.write(d)
             vw.release()
             return file_name
 
