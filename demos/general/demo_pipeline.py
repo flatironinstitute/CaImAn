@@ -19,7 +19,7 @@ import argparse
 import cv2
 import glob
 import logging
-import matplotlib
+import matplotlib.pyplot as plt
 import numpy as np
 import os
 
@@ -67,6 +67,7 @@ def main():
     # To close the video press q
 
     if not cfg.no_play:
+        plt.ion()
         ds_ratio = 0.2
         moviehandle = m_orig.resize(1, 1, ds_ratio)
         moviehandle.play(q_max=99.5, fr=60, magnification=2)
@@ -179,7 +180,7 @@ def main():
     # Stop the cluster and clean up log files
     caiman.stop_server(dview=dview)
     if not cfg.no_play:
-        matplotlib.pyplot.show(block=True)
+        plt.show()
 
     if not cfg.keep_logs:
         log_files = glob.glob('*_LOG_*')
@@ -198,5 +199,6 @@ def handle_args():
     return parser.parse_args()
 
 ########
-main()
+if __name__ == '__main__':
+    main()
 
