@@ -21,9 +21,6 @@
 	"max_deviation_rigid": 3,
 	"border_nan": "copy"
     },
-    "preprocess": {
-	"p": 1
-    },
     "temporal": {
 	"p": 1
     },

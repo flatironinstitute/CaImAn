@@ -22,6 +22,8 @@ import multiprocessing
 import numpy as np
 import os
 import pickle
+from pydantic import TypeAdapter
+from pydantic.dataclasses import is_pydantic_dataclass
 import scipy
 from scipy.ndimage import gaussian_filter
 import ssl
@@ -488,8 +490,12 @@ def recursively_save_dict_contents_to_group(h5file:h5py.File, path:str, dic:dict
                      'strides', 'overlaps', 'gSig']:
             logger.info(f'{key} is a tuple ****')
             h5file[path + key] = np.array(item)
-        elif type(item).__name__ in ['CNMFParams', 'Estimates']: #  parameter object
+        elif type(item).__name__ == 'Estimates': #  object
             recursively_save_dict_contents_to_group(h5file, path + key + '/', item.__dict__)
+        elif is_pydantic_dataclass(type(item)):
+            ta = TypeAdapter(type(item))
+            item_dict = ta.dump_python(item, round_trip=True)
+            recursively_save_dict_contents_to_group(h5file, path + key + '/', item_dict)
         else:
             raise ValueError(f"Cannot save {type(item)} type for key '{key}'.")
 
@@ -524,11 +530,11 @@ def recursively_load_dict_contents_from_group(h5file:h5py.File, path:str) -> dic
                 ans[key] = None
             elif key in ['dims', 'medw', 'sigma_smooth_snmf',
                          'dxy', 'max_shifts', 'strides', 'overlaps'] and isinstance(val, np.ndarray):
-                    ans[key] = tuple(val)
+                ans[key] = tuple(val.tolist())
             elif isinstance(val, np.bool_): # sigh
                 ans[key] = bool(val)
             else:
-                ans[key] = item[()]
+                ans[key] = val
 
         elif isinstance(item, h5py._hl.group.Group):
             if key in ('A', 'W', 'Ab', 'downscale_matrix', 'upscale_matrix'):

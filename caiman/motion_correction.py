@@ -1105,13 +1105,13 @@ def process_movie_parallel(arg_in):
 
             #            logger.debug('median computing')
             template = Yr.bin_median()
-            idx_dot = len(fname.split('.')[-1])
+            fname_no_ext = os.path.splitext(fname)[0]
             if save_hdf5:
-                Yr.save(fname[:-idx_dot] + 'hdf5')
-            np.savez(fname[:-idx_dot] + 'npz', shifts=shifts,
+                Yr.save(f'{fname_no_ext}.hdf5')
+            np.savez(f'{fname_no_ext}.npz', shifts=shifts,
                      xcorrs=xcorrs, template=template)
             del Yr
-            return fname[:-idx_dot]
+            return f'{fname_no_ext}.'
     else:
         return None
 
@@ -1967,6 +1967,12 @@ def high_pass_filter_space(img_orig, gSig_filt=None, freq=None, order=None):
     Function for high passing the image(s) with centered Gaussian if gSig_filt
     is specified or Butterworth filter if freq and order are specified
 
+    FIXME: 
+    - gSig_filt is expected to be a sequence, but only the first element is ever used
+      (kernel is always circular)
+    - does not support 3D images - assumes 3D = movie and only filters along last
+      2 dimensions (X and Z).
+
     Args:
         img_orig: 2-d or 3-d array
             input image/movie
@@ -1985,6 +1991,10 @@ def high_pass_filter_space(img_orig, gSig_filt=None, freq=None, order=None):
             image/movie after filtering            
     """
     if freq is None or order is None:  # Gaussian
+        if gSig_filt is None:
+            raise ValueError(
+                'Must provide either gSig_filt (for Gaussian) or both freq and order (for Butterworth)')
+
         ksize = tuple([(3 * i) // 2 * 2 + 1 for i in gSig_filt])
         ker = cv2.getGaussianKernel(ksize[0], gSig_filt[0])
         ker2D = ker.dot(ker.T)

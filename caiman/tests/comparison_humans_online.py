@@ -211,18 +211,11 @@ for ind_dataset in ID:
                   'use_dense': False,
                   'use_peak_max': True,
                   },
-        'preprocess': {
-                      'p': global_params['p'],
-                      },
         'quality': {
                    'min_SNR': global_params['min_SNR'],
                    'rval_thr': global_params['rval_thr'],
                    },
-        'spatial': {
-                   'nb': gnb,
-                   },
         'temporal': {
-                    'nb': gnb,
                     'p': global_params['p'],
                     },
     }
@@ -241,7 +234,7 @@ for ind_dataset in ID:
     # filter results by using the batch CNN
     use_cnn = False
     if use_cnn:
-        cnm.params.set('quality', {'min_cnn_thr': 0.1})
+        cnm.params.change_params({'quality': {'min_cnn_thr': 0.1}})
         cnm.estimates.evaluate_components_CNN(cnm.params)
         cnm.estimates.select_components(use_object=True)
 
