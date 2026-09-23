@@ -190,10 +190,8 @@ def volspike(pars):
         raise Exception('Dimensions of movie and ROIs do not accord')
         
     # extract the context region from the entire movie
-    context_footprint = np.ones(
-        (args['context_size'], args['context_size']), dtype=bool
-    )
-    bwexp = dilation(bw, _shift_footprint_old(context_footprint))
+    bwexp = dilation(bw,
+        _shift_footprint_old(np.ones([args['context_size'], args['context_size']])))
 
     Xinds = np.where(np.any(bwexp > 0, axis=1) > 0)[0]
     Yinds = np.where(np.any(bwexp > 0, axis=0) > 0)[0]
@@ -694,7 +692,9 @@ def whitened_matched_filter(data, locs, window):
     scaling_vector = 1 / np.sqrt(Nf2)
 
     cc = np.pad(data.copy(),(0,int(2**N-len(data))),'constant')    
-    dd = (cv2.dft(cc,flags=cv2.DFT_SCALE+cv2.DFT_COMPLEX_OUTPUT)[:,0,:]*scaling_vector[:,np.newaxis])[:,np.newaxis,:]
+    # cv2.dft returns (n, 2) for a 1-D input under OpenCV 5 but (n, 1, 2) for an (n, 1) input,
+    # which is the shape the indexing below (and cv2.idft) expects; pass a column vector.
+    dd = (cv2.dft(cc[:, np.newaxis],flags=cv2.DFT_SCALE+cv2.DFT_COMPLEX_OUTPUT)[:,0,:]*scaling_vector[:,np.newaxis])[:,np.newaxis,:]
     dataScaled = cv2.idft(dd)[:,0,0]
     PTDscaled = dataScaled[(locs[:, np.newaxis] + window)]
     PTAscaled = np.mean(PTDscaled, 0)
