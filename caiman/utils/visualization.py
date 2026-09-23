@@ -570,8 +570,8 @@ def nb_view_patches3d(Y_r, A, C, dims, image_type='mean', Yr=None,
 
         plt.close()
         K = np.max([[len(cor['coordinates']) for cor in cc] for cc in coors])
-        cc1 = np.nan * np.zeros(coors.shape + (K,))
-        cc2 = np.nan * np.zeros(coors.shape + (K,))
+        cc1 = np.full((len(coors), nr, K), np.nan)
+        cc2 = np.full((len(coors), nr, K), np.nan)
         for i, cor in enumerate(coors[0]):
             cc1[0, i, :len(cor['coordinates'])
                 ] = cor['coordinates'][:, 0] + offset1

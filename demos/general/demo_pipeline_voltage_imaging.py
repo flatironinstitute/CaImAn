@@ -162,8 +162,12 @@ def main():
 
     elif cfg.method == 'maskrcnn':
         weights_path = download_model('mask_rcnn')
-        ROIs = utils.mrcnn_inference(img=summary_images.transpose([1, 2, 0]), size_range=[5, 22],
-                                     weights_path=weights_path, display_result=True) # size parameter decides size range of masks to be selected
+        ROIs = utils.mrcnn_inference_pytorch(
+            img=summary_images.transpose([1, 2, 0]),
+            size_range=[5, 22],
+            weights_path=weights_path,
+            display_result=True,
+        )
         caiman.movie(ROIs).save(fnames[:-5] + '_mrcnn_ROIs.hdf5')
 
     elif cfg.method == 'gui_annotation':
@@ -287,4 +291,3 @@ def handle_args():
 
 ########
 main()
-
