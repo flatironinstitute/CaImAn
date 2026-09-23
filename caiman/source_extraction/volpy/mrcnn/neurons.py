@@ -16,7 +16,7 @@ import numpy as np
 from skimage.color import gray2rgb
 import torch 
 import torch.nn as nn
-from torch.utils.data import DataLoader, WeightedRandomSampler
+from torch.utils.data import DataLoader
 import torchvision
 from torchvision import tv_tensors
 from torch.optim.lr_scheduler import CyclicLR
@@ -378,24 +378,15 @@ def train_validate(config, plot_results=False):
     dataset_train = torch.utils.data.Subset(dataset_train, train_indices)
     dataset_val = torch.utils.data.Subset(dataset_val, val_indices)
 
-    region_by_index = {}
-    for idx in train_indices:
-        region_by_index[idx] = dataset_train.dataset.image_filenames[idx].split('.')[0]
-    region_counts = {
-        region: list(region_by_index.values()).count(region)
-        for region in set(region_by_index.values())
-    }
-    sample_weights = [1.0 / region_counts[region_by_index[idx]] for idx in train_indices]
-    sampler_generator = torch.Generator().manual_seed(config.RANDOM_SEED)
-    sampler = WeightedRandomSampler(
-        sample_weights,
-        num_samples=len(sample_weights),
-        replacement=True,
-        generator=sampler_generator,
+    shuffle_generator = torch.Generator().manual_seed(config.RANDOM_SEED)
+    data_loader_train = DataLoader(
+        dataset_train,
+        batch_size=config.BATCH_SIZE,
+        shuffle=True,
+        generator=shuffle_generator,
+        num_workers=config.NUM_TORCH_WORKERS,
+        collate_fn=collate_fn,
     )
-
-    data_loader_train = DataLoader(dataset_train, batch_size=config.BATCH_SIZE, sampler=sampler,
-                                   num_workers=config.NUM_TORCH_WORKERS, collate_fn=collate_fn)
     data_loader_val = DataLoader(dataset_val, batch_size=1, shuffle=False,
                                  num_workers=config.NUM_TORCH_WORKERS, collate_fn=collate_fn)
 

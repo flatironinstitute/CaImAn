@@ -190,8 +190,10 @@ def volspike(pars):
         raise Exception('Dimensions of movie and ROIs do not accord')
         
     # extract the context region from the entire movie
-    bwexp = dilation(bw,
-        _shift_footprint_old(np.ones([args['context_size']]), args['context_size']))
+    context_footprint = np.ones(
+        (args['context_size'], args['context_size']), dtype=bool
+    )
+    bwexp = dilation(bw, _shift_footprint_old(context_footprint))
 
     Xinds = np.where(np.any(bwexp > 0, axis=1) > 0)[0]
     Yinds = np.where(np.any(bwexp > 0, axis=0) > 0)[0]

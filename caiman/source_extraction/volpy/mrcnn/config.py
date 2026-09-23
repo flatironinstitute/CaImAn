@@ -41,10 +41,10 @@ class Config:
     NUM_TORCH_WORKERS = 4
     RANDOM_SEED = 42
     DATASET_REGION_MAP = {
-            'HPC': [1],
+            'HPC': [0, 1, 2, 3],
             'L1': [12, 13, 14],
-            'TEG': [22],
-            'Train': [0, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 15, 16, 17, 18, 19, 20, 21, 23]
+            'TEG': [21],
+            'Train': [4, 5, 6, 7, 8, 9, 10, 11, 15, 16, 17, 18, 19, 20, 22, 23]
         }
 
     # Inference settings used by the current FPN-v2 checkpoints.

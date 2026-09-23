@@ -65,28 +65,28 @@ def download_demo(name:str='Sue_2x_3000_40_-46.tif', save_folder:str='') -> str:
     logger = logging.getLogger("caiman")
 
     file_dict = {
-		'Sue_2x_3000_40_-46.tif': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/Sue_2x_3000_40_-46.tif',
-		'Sue_Split1.tif': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/Sue_Split1.tif',
-		'Sue_Split2.tif': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/Sue_Split2.tif',
-                'Tolias_mesoscope_1.hdf5': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/Tolias_mesoscope_1.hdf5',
-                'Tolias_mesoscope_2.hdf5': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/Tolias_mesoscope_2.hdf5',
-                'Tolias_mesoscope_3.hdf5': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/Tolias_mesoscope_3.hdf5',
-                'alignment.pickle': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/alignment.pickle',
-                'blood_vessel_10Hz.mat': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/blood_vessel_10Hz.mat',
-                'data_dendritic.tif': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/2014-04-05-003.tif',
-                'data_endoscope.tif': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/data_endoscope.tif',
-                'demoMovieJ.tif': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/demoMovieJ.tif',
-                'demo_behavior.h5': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/demo_behavior.h5',
-                'demo_voltage_imaging_ROIs.hdf5': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/demo_voltage_imaging_ROIs.hdf5',
-                'demo_voltage_imaging.hdf5': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/demo_voltage_imaging.hdf5', 
-                'demo_voltage_imaging_summary_images.tif': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/demo_voltage_imaging_summary_images.tif',
-                'gmc_960_30mw_00001_red.tif': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/gmc_960_30mw_00001_red.tif',
-                'gmc_960_30mw_00001_green.tif': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/gmc_960_30mw_00001_green.tif',
-                'k53.tif': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/k53.tif',
-                'k53_ROIs.hdf5': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/k53_ROIs.hdf5',
-                'mrcnn_epoch_100.pt': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/model/mrcnn_epoch_100.pt',
-                'msCam13.avi': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/msCam13.avi',
-                'online_vs_offline.npz': 'https://caiman.flatironinstitute.org/~neuro/caiman_downloadables/online_vs_offline.npz',
+		'Sue_2x_3000_40_-46.tif': 'https://users.flatironinstitute.org/~neuro/caiman_downloadables/Sue_2x_3000_40_-46.tif',
+		'Sue_Split1.tif': 'https://users.flatironinstitute.org/~neuro/caiman_downloadables/Sue_Split1.tif',
+		'Sue_Split2.tif': 'https://users.flatironinstitute.org/~neuro/caiman_downloadables/Sue_Split2.tif',
+                'Tolias_mesoscope_1.hdf5': 'https://users.flatironinstitute.org/~neuro/caiman_downloadables/Tolias_mesoscope_1.hdf5',
+                'Tolias_mesoscope_2.hdf5': 'https://users.flatironinstitute.org/~neuro/caiman_downloadables/Tolias_mesoscope_2.hdf5',
+                'Tolias_mesoscope_3.hdf5': 'https://users.flatironinstitute.org/~neuro/caiman_downloadables/Tolias_mesoscope_3.hdf5',
+                'alignment.pickle': 'https://users.flatironinstitute.org/~neuro/caiman_downloadables/alignment.pickle',
+                'blood_vessel_10Hz.mat': 'https://users.flatironinstitute.org/~neuro/caiman_downloadables/blood_vessel_10Hz.mat',
+                'data_dendritic.tif': 'https://users.flatironinstitute.org/~neuro/caiman_downloadables/2014-04-05-003.tif',
+                'data_endoscope.tif': 'https://users.flatironinstitute.org/~neuro/caiman_downloadables/data_endoscope.tif',
+                'demoMovieJ.tif': 'https://users.flatironinstitute.org/~neuro/caiman_downloadables/demoMovieJ.tif',
+                'demo_behavior.h5': 'https://users.flatironinstitute.org/~neuro/caiman_downloadables/demo_behavior.h5',
+                'demo_voltage_imaging_ROIs.hdf5': 'https://users.flatironinstitute.org/~neuro/caiman_downloadables/demo_voltage_imaging_ROIs.hdf5',
+                'demo_voltage_imaging.hdf5': 'https://users.flatironinstitute.org/~neuro/caiman_downloadables/demo_voltage_imaging.hdf5',
+                'demo_voltage_imaging_summary_images.tif': 'https://users.flatironinstitute.org/~neuro/caiman_downloadables/demo_voltage_imaging_summary_images.tif',
+                'gmc_960_30mw_00001_red.tif': 'https://users.flatironinstitute.org/~neuro/caiman_downloadables/gmc_960_30mw_00001_red.tif',
+                'gmc_960_30mw_00001_green.tif': 'https://users.flatironinstitute.org/~neuro/caiman_downloadables/gmc_960_30mw_00001_green.tif',
+                'k53.tif': 'https://users.flatironinstitute.org/~neuro/caiman_downloadables/k53.tif',
+                'k53_ROIs.hdf5': 'https://users.flatironinstitute.org/~neuro/caiman_downloadables/k53_ROIs.hdf5',
+                'mrcnn_epoch_100.pt': 'https://users.flatironinstitute.org/~neuro/caiman_downloadables/model/mrcnn_epoch_100.pt',
+                'msCam13.avi': 'https://users.flatironinstitute.org/~neuro/caiman_downloadables/msCam13.avi',
+                'online_vs_offline.npz': 'https://users.flatironinstitute.org/~neuro/caiman_downloadables/online_vs_offline.npz',
 		}
 
     base_folder = os.path.join(caiman_datadir(), 'example_movies')
@@ -612,7 +612,7 @@ def get_caiman_version() -> tuple[str, str]:
 
     # Attempt: 'FILE'
     # Right now this samples the utils directory
-    modpath = os.path.dirname(inspect.getfile(caiman.utils)) # Probably something like /mnt/home/pgunn/miniconda3/envs/caiman/lib/python3.7/site-packages/caiman
+    modpath = os.path.dirname(inspect.getfile(caiman.utils)) # Locate the installed CaImAn package.
     newest = 0
     for fn in os.listdir(modpath):
         last_modified = os.stat(os.path.join(modpath, fn)).st_mtime

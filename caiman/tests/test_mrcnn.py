@@ -2,9 +2,11 @@
 
 import numpy as np
 import torch
+import matplotlib.pyplot as plt
 
 import caiman as cm
 from caiman.source_extraction.volpy import utils as volpy_utils
+from caiman.source_extraction.volpy.mrcnn.config import Config
 from caiman.source_extraction.volpy.mrcnn.model import (
     mrcnn_inference,
     thresholded_predictions,
@@ -14,7 +16,10 @@ from caiman.source_extraction.volpy.mrcnn.neurons import (
     _check_output_directory,
     validate,
 )
-from caiman.source_extraction.volpy.mrcnn.utils import prepare_mrcnn_image
+from caiman.source_extraction.volpy.mrcnn.utils import (
+    nf_match_neurons_in_binary_masks,
+    prepare_mrcnn_image,
+)
 from caiman.utils.utils import download_demo, download_model
 
 
@@ -40,6 +45,42 @@ def test_prepare_mrcnn_image_supports_2d_and_constant_images():
     assert image.shape == (3, 8, 9)
     assert image.dtype == torch.float32
     assert torch.count_nonzero(image) == 0
+
+
+def test_default_split_matches_reference_training_protocol():
+    assert Config.DATASET_REGION_MAP == {
+        'HPC': [0, 1, 2, 3],
+        'L1': [12, 13, 14],
+        'TEG': [21],
+        'Train': [4, 5, 6, 7, 8, 9, 10, 11, 15, 16, 17, 18, 19, 20, 22, 23],
+    }
+
+
+def test_binary_mask_evaluation_draws_visible_contours(monkeypatch):
+    mask = np.zeros((1, 20, 20), dtype=np.uint8)
+    mask[0, 5:10, 6:11] = 1
+    contour_inputs = []
+    original_contour = plt.contour
+
+    def record_contour(values, *args, **kwargs):
+        contour_inputs.append((np.asarray(values), kwargs.get('levels')))
+        return original_contour(values, *args, **kwargs)
+
+    monkeypatch.setattr(plt, 'contour', record_contour)
+    monkeypatch.setattr(plt, 'show', lambda: None)
+    nf_match_neurons_in_binary_masks(
+        mask,
+        mask,
+        plot_results=True,
+        Cn=np.zeros((20, 20)),
+        labels=['GT', 'VolPy'],
+        colors=['red', 'yellow'],
+    )
+
+    assert len(contour_inputs) == 2
+    assert all(np.array_equal(values, mask[0]) for values, _ in contour_inputs)
+    assert all(levels == [0.5] for _, levels in contour_inputs)
+    plt.close('all')
 
 
 def test_mrcnn_inference_keeps_legacy_three_value_contract():

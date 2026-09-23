@@ -24,9 +24,6 @@ from torchvision import tv_tensors
 import torchvision.transforms.v2 as T
 from typing import Any, Optional
 
-from caiman.base.rois import norm_nrg
-
-
 class ScaleImage:
     """
     Scale image so it is between 0-1: works on floats only
@@ -410,7 +407,11 @@ def nf_match_neurons_in_binary_masks(masks_gt,
         # find the distance between each masks
         D = distance_masks([A_ben, A_cnmf], [cm_ben, cm_cnmf], min_dist, enclosed_thr=enclosed_thr)
 
-    level = 0.98
+    # These inputs are binary instance masks.  Contour them directly at the
+    # boundary between background (0) and foreground (1).  Passing them
+    # through ``norm_nrg`` makes both values equal to 1 with the current
+    # tie-preserving implementation, which leaves no visible contour.
+    level = 0.5
 
     matches, costs = find_matches(D, print_assignment=print_assignment)
     matches = matches[0]
@@ -453,8 +454,10 @@ def nf_match_neurons_in_binary_masks(masks_gt,
         plt.imshow(Cn, vmin=lp, vmax=hp, cmap=cmap)
         #import pdb
         #pdb.set_trace()
-        [plt.contour(norm_nrg(mm), levels=[level], colors=colors[1], linewidths=1) for mm in masks_comp[idx_tp_comp]]
-        [plt.contour(norm_nrg(mm), levels=[level], colors=colors[0], linewidths=1) for mm in masks_gt[idx_tp_gt]]
+        for mm in masks_comp[idx_tp_comp]:
+            plt.contour(mm, levels=[level], colors=colors[1], linewidths=1)
+        for mm in masks_gt[idx_tp_gt]:
+            plt.contour(mm, levels=[level], colors=colors[0], linewidths=1)
         if labels is None:
             plt.title('MATCHES')
         else:
@@ -466,16 +469,18 @@ def nf_match_neurons_in_binary_masks(masks_gt,
         plt.imshow(Cn, vmin=lp, vmax=hp, cmap=cmap)
         
         
-        [plt.contour(norm_nrg(mm), levels=[level], colors=colors[1], linewidths=1) for mm in masks_comp[idx_fp_comp]]
-        [plt.contour(norm_nrg(mm), levels=[level], colors=colors[0], linewidths=1) for mm in masks_gt[idx_fn_gt]]
+        for mm in masks_comp[idx_fp_comp]:
+            plt.contour(mm, levels=[level], colors=colors[1], linewidths=1)
+        for mm in masks_gt[idx_fn_gt]:
+            plt.contour(mm, levels=[level], colors=colors[0], linewidths=1)
         if labels is None:
             plt.title(f'FALSE POSITIVE ({colors[1][0]}), FALSE NEGATIVE ({colors[0][0]})')
         else:
             plt.title(labels[1] + f'({colors[1][0]}), ' + labels[0] + f'({colors[0][0]})')
         #pl.legend(handles=[ses_1, ses_2])
         plt.axis('off')
-        plt.show()
         plt.tight_layout()
+        plt.show()
         #except Exception as e:
         #    logging.warning("not able to plot precision recall: graphics failure")
         #    logging.warning(e)
