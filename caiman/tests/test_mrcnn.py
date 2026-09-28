@@ -1,98 +1,163 @@
 #!/usr/bin/env python
 
 import numpy as np
-import os
-import h5py
 import torch
-import torch.nn as nn
-import torchvision
+import matplotlib.pyplot as plt
 
 import caiman as cm
-from caiman.paths import caiman_datadir
-from caiman.utils.utils import download_model, download_demo
-from caiman.source_extraction.volpy.mrcnn import neurons
-import caiman.source_extraction.volpy.mrcnn.model as modellib
-
+from caiman.source_extraction.volpy import utils as volpy_utils
 from caiman.source_extraction.volpy.mrcnn.config import Config
-from caiman.source_extraction.volpy.mrcnn.model import get_model_instance_segmentation, mrcnn_inference
-from caiman.source_extraction.volpy.mrcnn.utils import ScaleImage, data_transform 
+from caiman.source_extraction.volpy.mrcnn.model import (
+    mrcnn_inference,
+    thresholded_predictions,
+)
+from caiman.source_extraction.volpy.mrcnn.neurons import (
+    _atomic_torch_save,
+    _check_output_directory,
+    validate,
+)
+from caiman.source_extraction.volpy.mrcnn.utils import (
+    nf_match_neurons_in_binary_masks,
+    prepare_mrcnn_image,
+)
+from caiman.utils.utils import download_demo, download_model
 
-def mrcnn_pytorch(model, img, size_range, confidence_threshold=0.5, 
-    device=torch.device('cuda' if torch.cuda.is_available() else 'cpu')):
-    """
-    Performs inference using the PyTorch Mask R-CNN model and filters the results.
-    """
-    model.to(device)
 
-    img_tensor = torch.from_numpy(img.copy()).permute(2, 0, 1)
-    img_tensor = ScaleImage()(img_tensor) # Apply the same 0-1 scaling used during training
-    img_tv_tensor = torchvision.tv_tensors.Image(img_tensor) # Wrap the tensor in the tv_tensors.Image class
+def _prediction(count, height=8, width=9):
+    scores = torch.tensor([0.9, 0.6, 0.1])[:count]
+    return {
+        'scores': scores,
+        'masks': torch.ones((count, 1, height, width)),
+        'boxes': torch.zeros((count, 4)),
+    }
 
-    _, _, binarized_masks = mrcnn_inference(
-        model,
-        img=img_tv_tensor, 
-        thresh=confidence_threshold,
-        eval_transform=data_transform(train=False),
-        device=device
+
+def test_thresholded_predictions_preserves_instance_dimension():
+    for count, expected in ((0, 0), (1, 1), (3, 2)):
+        masks, boxes, scores = thresholded_predictions(_prediction(count), threshold=0.5)
+        assert masks.shape == (expected, 8, 9)
+        assert boxes.shape == (expected, 4)
+        assert scores.shape == (expected,)
+
+
+def test_prepare_mrcnn_image_supports_2d_and_constant_images():
+    image = prepare_mrcnn_image(np.full((8, 9), 3.0, dtype=np.float32))
+    assert image.shape == (3, 8, 9)
+    assert image.dtype == torch.float32
+    assert torch.count_nonzero(image) == 0
+
+
+def test_default_split_matches_reference_training_protocol():
+    assert Config.DATASET_REGION_MAP == {
+        'HPC': [0, 1, 2, 3],
+        'L1': [12, 13, 14],
+        'TEG': [21],
+        'Train': [4, 5, 6, 7, 8, 9, 10, 11, 15, 16, 17, 18, 19, 20, 22, 23],
+    }
+
+
+def test_binary_mask_evaluation_draws_visible_contours(monkeypatch):
+    mask = np.zeros((1, 20, 20), dtype=np.uint8)
+    mask[0, 5:10, 6:11] = 1
+    contour_inputs = []
+    original_contour = plt.contour
+
+    def record_contour(values, *args, **kwargs):
+        contour_inputs.append((np.asarray(values), kwargs.get('levels')))
+        return original_contour(values, *args, **kwargs)
+
+    monkeypatch.setattr(plt, 'contour', record_contour)
+    monkeypatch.setattr(plt, 'show', lambda: None)
+    nf_match_neurons_in_binary_masks(
+        mask,
+        mask,
+        plot_results=True,
+        Cn=np.zeros((20, 20)),
+        labels=['GT', 'VolPy'],
+        colors=['red', 'yellow'],
     )
 
-    print(f"Model detected {len(binarized_masks)} raw masks before size filtering.")
+    assert len(contour_inputs) == 2
+    assert all(np.array_equal(values, mask[0]) for values, _ in contour_inputs)
+    assert all(levels == [0.5] for _, levels in contour_inputs)
+    plt.close('all')
 
-    if binarized_masks.size == 0:
-        ROIs = np.empty((0, *img.shape[:2]), dtype=bool) #
-    else:
-        mask_areas = binarized_masks.sum(axis=(1, 2)) #
-        selection = np.logical_and(mask_areas > size_range[0] ** 2,
-                                   mask_areas < size_range[1] ** 2) #
-        ROIs = binarized_masks[selection].astype(bool) 
-        
-    ROIs = binarized_masks[selection].astype(bool)
-    return ROIs
 
-def test_mrcnn_pytorch():
-    """
-    Test function for the PyTorch Mask R-CNN neuron detector.
-    """
-    class InferenceConfig(Config):
-        GPU_COUNT = 1
-        IMAGES_PER_GPU = 1
-        NUM_CLASSES = 1 + 1 # Number of classes: background + neuron 
-        DETECTION_MIN_CONFIDENCE = 0.7 # Minimum probability value to accept a detected instance.
-    
-    config = InferenceConfig() # Load configuration to get model paths
+def test_mrcnn_inference_keeps_legacy_three_value_contract():
+    class FakeModel(torch.nn.Module):
+        def forward(self, images):
+            return [_prediction(1, images[0].shape[-2], images[0].shape[-1])]
 
-    # Use the PyTorch model weights from the already trained model
-    weights_path = download_model('mask_rcnn') 
-    if not os.path.exists(weights_path):
-        raise FileNotFoundError(f"PyTorch model weights not found at: {weights_path}\n"
-                              "Please run the training script first.") 
-    print(f"Using PyTorch weights from: {weights_path}")
+    image = prepare_mrcnn_image(np.arange(72, dtype=np.float32).reshape(8, 9))
+    masks, boxes, binary_masks = mrcnn_inference(
+        FakeModel(),
+        image,
+        eval_transform=lambda value: value,
+        device=torch.device('cpu'),
+        thresh=0.5,
+    )
+    assert masks.shape == (1, 8, 9)
+    assert boxes.shape == (1, 4)
+    assert binary_masks.shape == (1, 8, 9)
 
-    # Load the model architecture and state
-    device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
-    print(f"Using device: {device}")
-    model = get_model_instance_segmentation(num_classes=config.NUM_CLASSES)
-    model.load_state_dict(torch.load(weights_path, map_location=device))
-    model.eval()
 
-    # Load the same Caiman demo data 
+def test_validation_does_not_update_batch_norm_statistics():
+    class LossModel(torch.nn.Module):
+        def __init__(self):
+            super().__init__()
+            self.batch_norm = torch.nn.BatchNorm2d(1)
+
+        def forward(self, images, targets):
+            value = self.batch_norm(images[0].unsqueeze(0))
+            return {'loss': value.sum()}
+
+    model = LossModel()
+    running_mean = model.batch_norm.running_mean.clone()
+    data_loader = [([torch.ones((1, 2, 2))], [{}])]
+    validate(model, data_loader, torch.device('cpu'), epoch=0)
+    assert torch.equal(model.batch_norm.running_mean, running_mean)
+
+
+def test_atomic_torch_save_replaces_artifact(tmp_path):
+    artifact_path = tmp_path / 'checkpoint.pt'
+    _atomic_torch_save({'epoch': 1}, artifact_path)
+    _atomic_torch_save({'epoch': 2}, artifact_path)
+
+    assert torch.load(artifact_path, weights_only=True) == {'epoch': 2}
+    assert list(tmp_path.iterdir()) == [artifact_path]
+
+
+def test_training_output_directory_protects_existing_artifacts(tmp_path):
+    artifact_path = tmp_path / 'mrcnn_epoch_1.pt'
+    artifact_path.touch()
+
+    with np.testing.assert_raises(FileExistsError):
+        _check_output_directory(tmp_path)
+
+    _check_output_directory(tmp_path, allow_overwrite=True)
+
+
+def test_training_output_directory_only_blocks_planned_epochs(tmp_path):
+    (tmp_path / 'mrcnn_epoch_200.pt').touch()
+    _check_output_directory(tmp_path, num_epochs=100, save_freq=5)
+
+    (tmp_path / 'mrcnn_epoch_100.pt').touch()
+    with np.testing.assert_raises(FileExistsError):
+        _check_output_directory(tmp_path, num_epochs=100, save_freq=5)
+
+
+def test_mrcnn_pytorch_demo_inference():
+    weights_path = download_model('mask_rcnn')
     summary_images = cm.load(download_demo('demo_voltage_imaging_summary_images.tif'))
 
-    # Run inference 
-    ROIs = mrcnn_pytorch(
-        model=model,
+    rois = volpy_utils.mrcnn_inference_pytorch(
         img=summary_images.transpose([1, 2, 0]),
         size_range=[5, 22],
-        confidence_threshold=config.DETECTION_MIN_CONFIDENCE,
-        device=device
+        weights_path=weights_path,
+        display_result=False,
     )
 
-    print(f"Inference complete. Found {ROIs.shape[0]} neurons.")
-    # Assert the number of neurons found 
-    # Note: The number of detected neurons might differ from the original TensorFlow model
-    # Adjust the assertion number based on your model's performance.
-    assert ROIs.shape[0] == 11, f"Test failed: Expected 14 neurons, but found {ROIs.shape[0]}." #Originally 14 so need to see
-    print("\nTest passed successfully!")
-
-if __name__ == "__main__":
-    test_mrcnn_pytorch()
+    assert rois.dtype == bool
+    assert rois.ndim == 3
+    assert rois.shape[1:] == summary_images.shape[1:]
+    assert len(rois) == 14

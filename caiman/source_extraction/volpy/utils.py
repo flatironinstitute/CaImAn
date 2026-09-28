@@ -10,16 +10,17 @@ import matplotlib.pyplot as plt
 from matplotlib.widgets import Slider
 import numpy as np
 import os
+from skimage.morphology import disk, erosion
 import torch
-import torchvision
 import caiman as cm
 from caiman.external.cell_magic_wand import cell_magic_wand_single_point
-from caiman.paths import caiman_datadir
-
-from caiman.source_extraction.volpy.mrcnn import utils
 from caiman.source_extraction.volpy.mrcnn.config import Config
-from caiman.source_extraction.volpy.mrcnn.model import get_model_instance_segmentation, mrcnn_inference
-from caiman.source_extraction.volpy.mrcnn.utils import ScaleImage, data_transform 
+from caiman.source_extraction.volpy.mrcnn.model import (
+    get_model_instance_segmentation,
+    load_mrcnn_weights,
+    mrcnn_inference,
+)
+from caiman.source_extraction.volpy.mrcnn.utils import data_transform, prepare_mrcnn_image
 
 def quick_annotation(img, min_radius, max_radius, roughness=2):
     """ Quick annotation method in VolPy using cell magic wand plugin
@@ -95,7 +96,9 @@ def quick_annotation(img, min_radius, max_radius, roughness=2):
 
     return ROIs
 
-def mrcnn_inference_pytorch(img, size_range, weights_path, display_result=True):
+def mrcnn_inference_pytorch(img, size_range, weights_path, display_result=True,
+                            confidence_threshold=None, mask_threshold=None,
+                            box_nms_threshold=None, erosion_radius=None):
     """ 
     Mask R-CNN inference in VolPy using PyTorch.
     Args:
@@ -111,66 +114,94 @@ def mrcnn_inference_pytorch(img, size_range, weights_path, display_result=True):
         display_result (bool):
             If True, the function will plot the result of the inference.
             
-        confidence_threshold (float):
-            The confidence threshold for accepting detected instances.
+        confidence_threshold (float, optional):
+            Minimum detection score. Defaults to ``Config.INFERENCE_THRESHOLD``.
+
+        mask_threshold (float, optional):
+            Probability threshold used to binarize masks.
+
+        box_nms_threshold (float, optional):
+            IoU threshold for torchvision's final box non-maximum suppression.
+
+        erosion_radius (int, optional):
+            Radius of the disk used to erode accepted masks. Set to zero to disable.
 
     Returns:
         ROIs: 3-D np.ndarray:
             A 3-D array of ROIs (# of components, height, width).
     """
-    # Setup Configuration and Device
-    class InferenceConfig(Config):
-        GPU_COUNT = 1
-        IMAGES_PER_GPU = 1
-        NUM_CLASSES = 1 + 1  # background + neuron
-        DETECTION_MIN_CONFIDENCE = 0.7 #
-    config = InferenceConfig()
+    config = Config()
+    confidence_threshold = (config.INFERENCE_THRESHOLD if confidence_threshold is None
+                            else confidence_threshold)
+    mask_threshold = config.MASK_THRESHOLD if mask_threshold is None else mask_threshold
+    box_nms_threshold = (config.BOX_NMS_THRESHOLD if box_nms_threshold is None
+                         else box_nms_threshold)
+    erosion_radius = (config.MASK_EROSION_RADIUS if erosion_radius is None
+                      else erosion_radius)
+
+    if len(size_range) != 2 or size_range[0] < 0 or size_range[0] >= size_range[1]:
+        raise ValueError("size_range must contain increasing non-negative radii")
+    if erosion_radius < 0:
+        raise ValueError("erosion_radius must be non-negative")
 
     device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
     print(f"Using device: {device}")
 
     #Load Model and weights
-    model = get_model_instance_segmentation(num_classes=config.NUM_CLASSES) 
-    model.load_state_dict(torch.load(weights_path, map_location=device))
+    model = get_model_instance_segmentation(num_classes=config.NUM_CLASSES, pretrained=False)
+    load_mrcnn_weights(model, weights_path, device)
+    model.roi_heads.nms_thresh = box_nms_threshold
     model.to(device)
-    model.eval() #Set to evaluation mode 
+    model.eval()
 
     # Pre-process Image
-    img_tensor = torch.from_numpy(img.copy().astype(np.float32)).permute(2, 0, 1) #
-    img_tensor = img_tensor / 255.0  # Normalize to 0-1 range
-    img_tv_tensor = torchvision.tv_tensors.Image(img_tensor)
+    img_tv_tensor = prepare_mrcnn_image(img)
 
     # Perform Inference
-    _, _, binarized_masks = mrcnn_inference(
+    _, predicted_boxes, binarized_masks, predicted_scores = mrcnn_inference(
         model=model,
         img=img_tv_tensor, 
-        thresh=config.DETECTION_MIN_CONFIDENCE,
+        thresh=confidence_threshold,
+        mask_threshold=mask_threshold,
         eval_transform=data_transform(train=False),
-        device=device
+        device=device,
+        return_scores=True,
     )
 
     # Post-process and Filter by Size
     if binarized_masks.size == 0:
-        ROIs = np.empty((0, *img.shape[:2]), dtype=bool) #
+        ROIs = np.empty((0, *img.shape[:2]), dtype=bool)
+        display_boxes = np.empty((0, 4), dtype=np.float32)
+        display_scores = np.empty((0,), dtype=np.float32)
     else:
-        mask_areas = binarized_masks.sum(axis=(1, 2)) #
+        mask_areas = binarized_masks.sum(axis=(1, 2))
         selection = np.logical_and(mask_areas > size_range[0] ** 2,
-                                   mask_areas < size_range[1] ** 2) #
-        ROIs = binarized_masks[selection].astype(bool) 
+                                   mask_areas < size_range[1] ** 2)
+        ROIs = binarized_masks[selection].astype(bool)
+        if erosion_radius and len(ROIs):
+            footprint = disk(erosion_radius)
+            ROIs = np.stack([erosion(mask, footprint) for mask in ROIs])
+        display_boxes = predicted_boxes.detach().cpu().numpy()[selection]
+        display_scores = predicted_scores.detach().cpu().numpy()[selection]
 
-    print(f"Inference complete. Found {ROIs.shape[0]} neurons.") #
+    print(f"Inference complete. Found {ROIs.shape[0]} neurons.")
 
     if display_result:
-        plt.figure(figsize=(12, 12))
-        plt.imshow(img)
-        # Overlay each ROI with a distinct color
-        if ROIs.any():
-            composite_mask = np.zeros_like(ROIs[0], dtype=float)
-            for i, roi in enumerate(ROIs):
-                composite_mask += roi * (i + 1)
-            plt.imshow(np.ma.masked_where(composite_mask == 0, composite_mask), cmap='nipy_spectral', alpha=0.6)
-        plt.title(f"PyTorch Predictions ({len(ROIs)} ROIs found)")
-        plt.axis('off')
+        from caiman.source_extraction.volpy.mrcnn.visualize import display_instances
+        _, ax = plt.subplots(1, 1, figsize=(16, 16))
+        boxes_yx = display_boxes[:, [1, 0, 3, 2]]
+        masks_hwn = ROIs.astype(np.uint8).transpose(1, 2, 0)
+        class_ids = np.ones(len(ROIs), dtype=int)
+        display_instances(
+            np.asarray(img) if np.asarray(img).ndim == 3 else np.repeat(np.asarray(img)[..., None], 3, axis=-1),
+            boxes_yx,
+            masks_hwn,
+            class_ids,
+            ['BG', 'neurons'],
+            display_scores,
+            ax=ax,
+            title=f"PyTorch Predictions ({len(ROIs)} ROIs found)",
+        )
         plt.show()
 
     return ROIs
