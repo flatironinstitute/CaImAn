@@ -84,12 +84,16 @@ def main():
     T_detect = 1e3*np.array(cnm.t_detect)
     T_shapes = 1e3*np.array(cnm.t_shapes)
     T_track  = 1e3*np.array(cnm.t_online) - T_motion - T_detect - T_shapes
-    plt.figure()
-    plt.stackplot(np.arange(len(T_motion)), T_motion, T_track, T_detect, T_shapes)
-    plt.legend(labels=['motion', 'tracking', 'detect', 'shapes'], loc=2)
-    plt.title('Processing time allocation')
-    plt.xlabel('Frame #')
-    plt.ylabel('Processing time [ms]')
+
+    if not cfg.no_play:
+        plt.ion()
+        plt.figure()
+        plt.stackplot(np.arange(len(T_motion)), T_motion, T_track, T_detect, T_shapes)
+        plt.legend(labels=['motion', 'tracking', 'detect', 'shapes'], loc=2)
+        plt.title('Processing time allocation')
+        plt.xlabel('Frame #')
+        plt.ylabel('Processing time [ms]')
+        plt.show()
 
     # Prepare result visualisations (might take time)
     c, dview, n_processes = cm.cluster.setup_cluster(backend=cfg.cluster_backend, n_processes=cfg.cluster_nproc)
@@ -120,8 +124,6 @@ def main():
     cnm.save(os.path.splitext(fnames[0])[0] + '_results.hdf5')
 
     dview.terminate()
-    if not cfg.no_play:
-        matplotlib.pyplot.show(block=True)
 
 def handle_args():
     parser = argparse.ArgumentParser(description="Full OnACID Caiman demo")
@@ -135,4 +137,5 @@ def handle_args():
     return parser.parse_args()
 
 ########
-main()
+if __name__ == '__main__':
+    main()
