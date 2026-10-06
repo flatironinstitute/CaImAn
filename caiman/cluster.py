@@ -11,6 +11,7 @@ Alongside each array x we ensure the value x.dtype which stores the data type.
 import ipyparallel
 import logging
 import multiprocessing
+import multiprocessing.pool
 import numpy as np
 import os
 import platform
@@ -21,78 +22,8 @@ import sys
 import time
 from typing import Any, Optional, Union
 
-def extract_patch_coordinates(dims: tuple,
-                              rf: Union[list, tuple],
-                              stride: Union[list[int], tuple],
-                              border_pix: int = 0,
-                              indices=[slice(None)] * 2) -> tuple[list, list]:
-    """
-    Partition the FOV in patches
-    and return the indexed in 2D and 1D (flatten, order='F') formats
 
-    Args:
-        dims: tuple of int
-            dimensions of the original matrix that will be divided in patches
-
-        rf: tuple of int
-            radius of receptive field, corresponds to half the size of the square patch
-
-        stride: tuple of int
-            degree of overlap of the patches
-    """
-
-    # TODO: Find a new home for this function
-    sl_start = [0 if sl.start is None else sl.start for sl in indices]
-    sl_stop = [dim if sl.stop is None else sl.stop for (sl, dim) in zip(indices, dims)]
-    sl_step = [1 for sl in indices]    # not used
-    dims_large = dims
-    dims = np.minimum(np.array(dims) - border_pix, sl_stop) - np.maximum(border_pix, sl_start)
-
-    coords_flat = []
-    shapes = []
-    iters = [list(range(rf[i], dims[i] - rf[i], 2 * rf[i] - stride[i])) + [dims[i] - rf[i]] for i in range(len(dims))]
-
-    coords = np.empty(list(map(len, iters)) + [len(dims)], dtype=object)
-    for count_0, xx in enumerate(iters[0]):
-        coords_x = np.arange(xx - rf[0], xx + rf[0] + 1)
-        coords_x = coords_x[(coords_x >= 0) & (coords_x < dims[0])]
-        coords_x += border_pix * 0 + np.maximum(sl_start[0], border_pix)
-
-        for count_1, yy in enumerate(iters[1]):
-            coords_y = np.arange(yy - rf[1], yy + rf[1] + 1)
-            coords_y = coords_y[(coords_y >= 0) & (coords_y < dims[1])]
-            coords_y += border_pix * 0 + np.maximum(sl_start[1], border_pix)
-
-            if len(dims) == 2:
-                idxs = np.meshgrid(coords_x, coords_y)
-
-                coords[count_0, count_1] = idxs
-                shapes.append(idxs[0].shape[::-1])
-
-                coords_ = np.ravel_multi_index(idxs, dims_large, order='F')
-                coords_flat.append(coords_.flatten())
-            else:      # 3D data
-
-                if border_pix > 0:
-                    raise Exception(
-                        'The parameter border pix must be set to 0 for 3D data since border removal is not implemented')
-
-                for count_2, zz in enumerate(iters[2]):
-                    coords_z = np.arange(zz - rf[2], zz + rf[2] + 1)
-                    coords_z = coords_z[(coords_z >= 0) & (coords_z < dims[2])]
-                    idxs = np.meshgrid(coords_x, coords_y, coords_z)
-                    shps = idxs[0].shape
-                    shapes.append([shps[1], shps[0], shps[2]])
-                    coords[count_0, count_1, count_2] = idxs
-                    coords_ = np.ravel_multi_index(idxs, dims, order='F')
-                    coords_flat.append(coords_.flatten())
-
-    for i, c in enumerate(coords_flat):
-        assert len(c) == np.prod(shapes[i])
-
-    return list(map(np.sort, coords_flat)), shapes
-
-def start_server(ipcluster: str = "ipcluster", ncpus: int = None) -> None:
+def start_server(ipcluster: str = "ipcluster", ncpus: Optional[int] = None) -> None:
     """
     programmatically start the ipyparallel server
 
@@ -126,7 +57,7 @@ def start_server(ipcluster: str = "ipcluster", ncpus: int = None) -> None:
     logger.debug('Making sure everything is up and running')
     client.direct_view().execute('__a=1', block=True)      # when done on all, we're set to go
 
-def stop_server(ipcluster: str = 'ipcluster', pdir: str = None, profile: str = None, dview=None) -> None:
+def stop_server(ipcluster: str = 'ipcluster', pdir: Optional[str] = None, profile: Optional[str] = None, dview=None) -> None:
     """
     programmatically stops the ipyparallel server
 
@@ -141,7 +72,7 @@ def stop_server(ipcluster: str = 'ipcluster', pdir: str = None, profile: str = N
 
     """
     logger = logging.getLogger("caiman")
-    if 'multiprocessing' in str(type(dview)):
+    if isinstance(dview, multiprocessing.pool.Pool):
         dview.terminate()
     else:
         logger.info("Stopping cluster...")
@@ -156,6 +87,7 @@ def stop_server(ipcluster: str = 'ipcluster', pdir: str = None, profile: str = N
                                     shell=True,
                                     stderr=subprocess.PIPE,
                                     close_fds=(os.name != 'nt'))
+        assert proc.stderr is not None, 'Should have stderr when using PIPE'
 
         line_out = proc.stderr.readline()
         if b'CRITICAL' in line_out:
@@ -179,7 +111,7 @@ def setup_cluster(backend:str = 'multiprocessing',
                   n_processes:Optional[int] = None,
                   single_thread:bool = False,
                   ignore_preexisting:bool = False,
-                  maxtasksperchild:int = None) -> tuple[Any, Any, Optional[int]]:
+                  maxtasksperchild:Optional[int] = None) -> tuple[Any, Any, Optional[int]]:
     """
     Setup and/or restart a parallel cluster.
 

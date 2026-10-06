@@ -166,8 +166,7 @@ def do_nt_run_demotests(targdir: str) -> None:
     # Windows platform can't run shell scripts, and doing it in batch files
     # is a terrible idea. So we'll do a minimal implementation of run_demos for
     # windows inline here.
-    os.environ['MPLCONFIG'] = 'ps'             # Not sure this does anything on windows
-    demos = glob.glob('demos/general/*.py')    # Should still work on windows I think
+    demos = glob.glob('demos/general/*.py', root_dir=caiman_datadir())
     for demo in demos:
         print("========================================")
         print(f"Testing {demo}")
@@ -178,7 +177,8 @@ def do_nt_run_demotests(targdir: str) -> None:
         elif "demo_pipeline_voltage_imaging.py" in demo:
             print(f"  Skipping tests on {demo}: This needs Keras, an optional dependency")
         else:
-            out, err, ret = runcmd(["python", demo], ignore_error=False)
+            demo_path = os.path.join(caiman_datadir(), demo)
+            out, err, ret = runcmd(["python", demo_path], ignore_error=False)
             if ret != 0:
                 print(f"  Tests failed with returncode {ret}")
                 print(f"  Failed test is {demo}")

@@ -1139,7 +1139,7 @@ class Estimates(object):
                     CNN classifier values for each component
         """
         dims = imgs.shape[1:]
-        params.set('quality', new_dict)
+        params.set('quality', new_dict, warn=False)
 
         opts = params.get_group('quality')
         flag = [a is None for a in [self.r_values, self.SNR_comp, self.cnn_preds]]

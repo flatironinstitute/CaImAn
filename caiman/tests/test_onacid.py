@@ -49,18 +49,11 @@ def demo():
                           'rf': patch_size // 2,
                           'stride': stride
                           },
-                  'preprocess': {
-                                'p': p
-                                },
                   'quality': {
                              'min_SNR': min_SNR # FIXME duplicated between online.min_SNR and quality.min_SNR
                              },
-                  'spatial': {
-                             'nb': gnb # FIXME duplicated between init.nb and spatial.nb and temporal.nb
-                             },
                   'temporal': {
-                              'nb': gnb, # FIXME duplicated between init.nb and spatial.nb and temporal.nb
-                              'p': p, # FIXME duplicated between preprocess.p and temporal.p
+                              'p': p
                               },
     }
     opts = cnmf.params.CNMFParams(params_dict=params_dict)

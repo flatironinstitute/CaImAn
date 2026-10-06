@@ -180,11 +180,11 @@ class OnACID(object):
         self.M = self.params.get('init', 'nb') + self.N
 
         if not self.params.get('online', 'update_num_comps'):
-            self.params.set('online', {'expected_comps': self.N})
+            self.params.set('online', {'expected_comps': self.N}, warn=False)
         elif (self.params.get('online', 'expected_comps') <= 
             self.N + self.params.get('online', 'max_num_added')):
             self.params.set('online', {'expected_comps': self.N + 
-                self.params.get('online', 'max_num_added') + 200})
+                self.params.get('online', 'max_num_added') + 200}, warn=False)
         expected_comps = self.params.get('online', 'expected_comps')
 
         if Yr.shape[-1] != self.params.get('online', 'init_batch'):
@@ -300,7 +300,7 @@ class OnACID(object):
 
         if not self.is1p:
             self.params.set('init', {'gSiz': np.add(np.multiply(np.ceil(
-                self.params.get('init', 'gSig')).astype(int), 2), 1)})
+                self.params.get('init', 'gSig')).astype(int), 2), 1)}, warn=False)
 
         self.estimates.Yr_buf = RingBuffer(Yr[:, self.params.get('online', 'init_batch') - self.params.get('online', 'minibatch_shape'):
                                     self.params.get('online', 'init_batch')].T.copy(), self.params.get('online', 'minibatch_shape'))
@@ -360,10 +360,10 @@ class OnACID(object):
 
         if self.params.get('online', 'path_to_model') is None or self.params.get('online', 'sniper_mode') is False:
             loaded_model = None
-            self.params.set('online', {'sniper_mode': False})
+            self.params.set('online', {'sniper_mode': False}, warn=False)
         else:
             logger.info('Using Keras with PyTorch backend')
-            model_name = self.params.get('online', 'path_to_model').split(".")[0]  # Remove extension
+            model_name = os.path.splitext(self.params.get('online', 'path_to_model'))[0]  # Remove extension
 
             if os.path.isfile(os.path.join(caiman_datadir(), model_name + ".pkl")):
                 with open(os.path.join(caiman_datadir(), model_name + ".pkl"), 'rb') as f:
@@ -603,7 +603,7 @@ class OnACID(object):
                 self.M += num_added
                 if self.N + self.params.get('online', 'max_num_added') > expected_comps:
                     expected_comps += 200
-                    self.params.set('online', {'expected_comps': expected_comps})
+                    self.params.set('online', {'expected_comps': expected_comps}, warn=False)
                     self.estimates.CY.resize(
                         [expected_comps + nb_, self.estimates.CY.shape[-1]])
                     self.estimates.C_on.resize(
@@ -968,7 +968,7 @@ class OnACID(object):
                 k=self.params.get('init', 'K'), gnb=self.params.get('init', 'nb'),
                 method_init=self.params.get('init', 'method_init'), sn=self.estimates.sn,
                 gSig=self.params.get('init', 'gSig'), return_object=False,
-                options_total=self.params.to_dict(), **init)
+                options_total=self.params, **init)
             if is1p:
                 (self.estimates.A, self.estimates.b, self.estimates.C, self.estimates.f,
                  self.estimates.YrA, self.estimates.W, self.estimates.b0) = tmp
@@ -1024,7 +1024,7 @@ class OnACID(object):
 
         _, Ts = caiman.base.movies.get_file_size(fls, var_name_hdf5=self.params.get('data', 'var_name_hdf5'))
         dims = Y.shape[1:]
-        self.params.set('data', {'dims': dims})
+        self.params.set('data', {'dims': dims}, warn=False)
         T1 = np.array(Ts).sum()*self.params.get('online', 'epochs') if T is None else T
         self._prepare_object(Yr, T1)
         if opts['show_movie']:
@@ -1106,8 +1106,9 @@ class OnACID(object):
                 # tile_and_correct[_3d] and motion_correct_iteration[_fast] return the shifts needed to apply to get the corrected frame
                 shift = tuple(-np.array(shift))
             else:
+                max_shift_ds = int(self.params.online.max_shifts_online / self.params.online.ds_factor)
                 frame_cor, shift = motion_correct_iteration_fast(
-                        frame, templ, *(self.params.get('online', 'max_shifts_online'),)*2)
+                        frame, templ, max_shift_ds, max_shift_ds)
             if self.is1p:
                 M = np.float32([[1, 0, shift[1]], [0, 1, shift[0]]])
                 frame_cor = cv2.warpAffine(frame_orig, M, frame.shape[::-1],
@@ -1181,7 +1182,7 @@ class OnACID(object):
                                                                 patience=self.params.get('ring_CNN', 'patience'),
                                                                 schedule=sch)
                 logger.info(f'Training complete. Model saved in {path_to_model}.')
-                self.params.set('ring_CNN', {'path_to_model': path_to_model})
+                self.params.set('ring_CNN', {'path_to_model': path_to_model}, warn=False)
         else:
             model_LN = None
 
@@ -1209,7 +1210,7 @@ class OnACID(object):
         # Iterate through the epochs
         for iter in range(epochs):
             if iter == epochs - 1 and self.params.get('online', 'stop_detection'):
-                self.params.set('online', {'update_num_comps': False})
+                self.params.set('online', {'update_num_comps': False}, warn=False)
             logger.info(f"Searching for new components set to: {self.params.get('online', 'update_num_comps')}")
             if iter > 0:
                 # if not on first epoch process all files from scratch
@@ -1333,7 +1334,7 @@ class OnACID(object):
                 b0 = cv2.resize(b0, dims[::-1])
                 self.estimates.b0 = b0.reshape((-1, 1), order='F')
 
-            self.params.set('data', {'dims': dims})
+            self.params.set('data', {'dims': dims}, warn=False)
             self.estimates.dims = dims
 
         if self.params.get('online', 'save_online_movie'):
@@ -1520,7 +1521,7 @@ def bare_initialization(Y, init_batch=1000, k=1, method_init='greedy_roi', gnb=1
         cnm_init.estimates.neurons_sn = np.std(YrA, axis=-1)
         cnm_init.estimates.lam = np.zeros(k)
         cnm_init.dims = Y.shape[:-1]
-        cnm_init.params.set('online', {'init_batch': init_batch})
+        cnm_init.params.set('online', {'init_batch': init_batch}, warn=False)
         return cnm_init
     else:
         try: # XXX Can this try actually fail?
@@ -1623,7 +1624,7 @@ def seeded_initialization(Y, Ain, dims=None, init_batch=1000, order_init=None, g
         cnm_init.estimates.neurons_sn = np.std(YrA, axis=-1)
         cnm_init.estimates.lam = np.zeros(nr)
         cnm_init.dims = Y.shape[:-1]
-        cnm_init.params.set('online', {'init_batch': init_batch})
+        cnm_init.params.set('online', {'init_batch': init_batch}, warn=False)
 
         return cnm_init
     else:

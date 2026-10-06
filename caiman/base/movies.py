@@ -720,7 +720,7 @@ class movie(caiman.base.timeseries.timeseries):
         traces = caiman.base.traces.trace(np.dot(A, np.transpose(Y)).T, **self.__dict__)
         return traces
 
-    def resize(self, fx=1, fy=1, fz=1, interpolation=cv2.INTER_AREA):
+    def resize(self, fx=1., fy=1., fz=1., interpolation=cv2.INTER_AREA):
         """
         Resizing caiman movie into a new one. Note that the temporal
         dimension is controlled by fz and fx, fy, fz correspond to
@@ -1813,13 +1813,15 @@ def get_file_size(file_name, var_name_hdf5:str='mov') -> tuple[tuple, Union[int,
                 raise Exception('Unknown file type')
             dims = tuple(dims)
         else:
-            raise Exception('File not found!')
+            raise FileNotFoundError('File not found!')
     elif isinstance(file_name, tuple):
         dims = caiman.base.movies.load(file_name[0], var_name_hdf5=var_name_hdf5).shape
         T = len(file_name)
 
     elif isinstance(file_name, list):
-        if len(file_name) == 1:
+        if len(file_name) == 0:
+            raise ValueError('No files to load')
+        elif len(file_name) == 1:
             dims, T = get_file_size(file_name[0], var_name_hdf5=var_name_hdf5)
         else:
             dims, T = zip(*[get_file_size(fn, var_name_hdf5=var_name_hdf5)
