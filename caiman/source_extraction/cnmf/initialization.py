@@ -1354,7 +1354,6 @@ def greedyROI_corr(Y, Y_ds, max_number=None, gSiz=None, gSig=None, center_psf=Tr
         f_in = B
     elif nb > 0:
         logger.info(f'Estimate low rank background (rank = {nb})')
-        print(nb)
         if use_NMF:
             model = NMF(n_components=nb, init='nndsvdar')
             b_in = model.fit_transform(np.maximum(B, np.float64(0)))  # preserve numpy 1.x promotion
