@@ -466,8 +466,12 @@ class CNMF(object):
             #print("D: Finished with run_CNMF_patches(), self.estimates.* are populated. Next step would be update_temporal() but first: Entering a shell.")
             #code.interact(local=dict(globals(), **locals()) )
 
-            if (self.estimates.b is not None) and (len(list(np.where(~self.estimates.b.any(axis=0))[0])) > 0): # If any of the background ended up completely empty
-                raise Exception("After run_CNMF_patches(), one or more of the background components is empty. Please restart analysis with init/nb set to a lower value")
+            if self.estimates.b is not None: # If any of the background ended up completely empty
+                # run_CNMF_patches returns a sparse b when low_rank_background is
+                # None, and scipy sparse matrices have no .any(axis=...).
+                _b_nonempty = np.ravel(np.asarray((self.estimates.b != 0).sum(axis=0)))
+                if len(list(np.where(_b_nonempty == 0)[0])) > 0:
+                    raise Exception("After run_CNMF_patches(), one or more of the background components is empty. Please restart analysis with init/nb set to a lower value")
 
             self.estimates.bl, self.estimates.c1, self.estimates.g, self.estimates.neurons_sn = None, None, None, None
             logger.info("Merging")
