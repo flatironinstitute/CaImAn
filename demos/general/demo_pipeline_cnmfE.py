@@ -91,8 +91,7 @@ def main():
     # Parameters for source extraction and deconvolution (CNMF-E algorithm)
     Ain = None          # possibility to seed with predetermined binary masks
 
-    opts.change_params(params_dict={'dims': dims,                          # we rework the source files
-                                    'border_pix': bord_px})                # number of pixels to not consider in the borders)
+    opts.change_params(params_dict={'patch': {'border_pix': bord_px}})   # number of pixels to not consider in the borders)
 
     # compute some summary images (correlation and peak to noise)
     # change swap dim if output looks weird, it is a problem with tiffile
@@ -150,5 +149,6 @@ def handle_args():
     return parser.parse_args()
 
 ########
-main()
+if __name__ == '__main__':
+    main()
 

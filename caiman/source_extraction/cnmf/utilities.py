@@ -10,18 +10,19 @@ description of the array's dtype.
 
 import cv2
 import logging
-import numpy as np
-import os
-import pathlib
 import matplotlib.pyplot as plt
+import numpy as np
+import numpy.testing as npt
+import psutil
 import scipy
-from scipy.sparse import spdiags, issparse, csc_matrix, csr_matrix
 import scipy.ndimage as ndi
+from scipy.sparse import csc_matrix, csr_matrix, issparse, spdiags
 
 import caiman.base.rois
 import caiman.cluster
 import caiman.mmapping
 import caiman.source_extraction.cnmf.initialization
+import caiman.source_extraction.cnmf.map_reduce
 import caiman.utils.stats
 
 
@@ -355,14 +356,31 @@ def peak_local_max(image, min_distance=1, threshold_abs=None,
         return out
 
 
+def all_same(obj1, obj2) -> bool:
+    """
+    An equals method that removes the weirdness around ndarrays and nans
+        (i.e., checks for equality of shape and all values for arrays, and
+        considers nans equal).
+    This is what np.array_equal(equal_nan=True) should do, but it raises an error for
+        non-numeric types; numpy seems to be stuck considering whether the isnan
+        function should be changed before taking action (https://github.com/numpy/numpy/issues/16377)
+    Meanwhile npt.assert_array_equal just does the right thing.
+    """
+    try:
+        npt.assert_array_equal(obj1, obj2, strict=True)
+        return True
+    except AssertionError:
+        return False
+
+
 def dict_compare(d1, d2):
     d1_keys = set(d1.keys())
     d2_keys = set(d2.keys())
     intersect_keys = d1_keys.intersection(d2_keys)
     added = d1_keys - d2_keys
     removed = d2_keys - d1_keys
-    modified = {o : (d1[o], d2[o]) for o in intersect_keys if np.any(d1[o] != d2[o])}
-    same = set(o for o in intersect_keys if np.all(d1[o] == d2[o]))
+    same = set(o for o in intersect_keys if all_same(d1[o], d2[o]))
+    modified = {o : (d1[o], d2[o]) for o in intersect_keys - same}
     return added, removed, modified, same
 
 
@@ -1148,7 +1166,7 @@ def fast_graph_Laplacian(mmap_file, dims, max_radius=10, kernel='heat',
         D = scipy.sparse.spdiags(W.sum(0), 0, Np, Np)
         L = D - W
     else:
-        indices, _ = caiman.cluster.extract_patch_coordinates(dims, rf, strides)
+        indices, _ = caiman.source_extraction.cnmf.map_reduce.extract_patch_coordinates(dims, rf, strides)
         pars = []
         for i in range(len(indices)):
             pars.append([mmap_file, indices[i], kernel, sigma, thr, p,
@@ -1272,3 +1290,15 @@ def nextpow2(value):
     while avalue > np.power(2, exponent):
         exponent += 1
     return exponent
+
+
+def estimate_n_pixels_per_process(n_processes: int, T: int, dims: tuple[int, ...]) -> int:
+    """
+    Estimate a safe number of pixels to allocate to each parallel process at a time
+    """
+    # FIXME The code below is really ugly and it's hard to tell if it's doing the right thing.
+    avail_memory_per_process = psutil.virtual_memory()[1] / n_processes / 2.0**30
+    mem_per_pix = 3.6977678498329843e-09
+    npx_per_proc = int(avail_memory_per_process / 8. / mem_per_pix / T)
+    npx_per_proc = int(np.minimum(npx_per_proc, np.prod(dims) // n_processes))
+    return npx_per_proc

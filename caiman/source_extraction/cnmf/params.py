@@ -1,78 +1,784 @@
 #!/usr/bin/env python
 
+from dataclasses import fields, InitVar
+from functools import cache, cached_property
 import importlib.metadata
 import json
 import logging
+import math
 import numpy as np
 import os
+from pathlib import Path
 from pprint import pformat
-import scipy
+from pydantic import (
+    ConfigDict, TypeAdapter, BeforeValidator, AfterValidator, InstanceOf,
+    PlainValidator, PlainSerializer, ValidationError, ValidationInfo,
+    WithJsonSchema, Field, field_validator, computed_field, model_validator)
+from pydantic.dataclasses import dataclass 
+from pydantic.fields import FieldInfo
+from pydantic.json_schema import SkipJsonSchema, PydanticJsonSchemaWarning
+from pydantic_core import ArgsKwargs
+import scipy.special
 from scipy.ndimage import generate_binary_structure, iterate_structure
-from typing import Optional
+from tabulate import tabulate
+from typing import (Optional, Any, Union, Literal, Annotated, Callable,
+                    Mapping, Iterator, TypeVar, ClassVar, cast, Type)
+import warnings
 
 import caiman.base.movies
-import caiman.utils.utils
 from caiman.paths import caiman_datadir
-from caiman.source_extraction.cnmf.utilities import dict_compare
+from caiman.source_extraction.cnmf import utilities
+import caiman.utils.utils
 
 
-class CNMFParams(object):
-    """Class for setting and changing the various parameters."""
+try:
+    from pydantic import ValidateAs
+except ImportError:
+    # polyfill for pydantic < 2.12
+    _FromTypeT = TypeVar('_FromTypeT')
+    def ValidateAs(from_type: type[_FromTypeT], /, instantiation_hook: Callable[[_FromTypeT], Any]) -> Any:
+        def validate_as_validator(obj: Any) -> Any:
+            ta = TypeAdapter(from_type)
+            validated = ta.validate_python(obj)
+            return instantiation_hook(validated)
+        return PlainValidator(validate_as_validator)        
+
+
+# deal with 'NoneType', b'NoneType' strings
+def interpret_string_none(obj: Any) -> Any:
+    if (isinstance(obj, str) and obj in ['None', 'NoneType']
+        or isinstance(obj, bytes) and obj in [b'None', b'NoneType']):
+        return None
+    return obj
+
+SafeNone = Annotated[None, BeforeValidator(interpret_string_none)]
+SafeAny = Annotated[Any, BeforeValidator(interpret_string_none)]
+
+T = TypeVar('T')
+SafeOptional = Union[SafeNone, T]
+
+
+# validation/serialization of types not supported by pydantic out of the box
+NDArray = Annotated[
+    InstanceOf[np.ndarray],  # after applying np.asarray, just check that it is the right type
+    BeforeValidator(np.asarray),
+    PlainSerializer(lambda x: x.tolist()),
+    WithJsonSchema({})
+]
+
+
+# deal with slices, potentially other objects that are saved as bytes (note should only be used on trusted data!)
+def eval_bytes(obj: Any) -> Any:
+    if isinstance(obj, bytes):
+        return eval(obj.decode('utf-8'))
+    return obj
+
+
+def preprocess_intslice(obj: Any) -> Any:
+    obj = eval_bytes(obj)
+    if isinstance(obj, slice):
+        obj = (obj.start, obj.stop, obj.step)
+    return obj
+
+
+IntSlice = Annotated[
+    slice,
+    # anything convertible to a len-3 tuple of int or None, with 'NoneType' conversion, can be interpreted as a slice
+    ValidateAs(tuple[SafeOptional[int], SafeOptional[int], SafeOptional[int]], lambda tup: slice(*tup)),
+    BeforeValidator(preprocess_intslice),
+    # serialize as a tuple
+    PlainSerializer(lambda sl: (sl.start, sl.stop, sl.step)),
+    WithJsonSchema(TypeAdapter(tuple[Optional[int], Optional[int], Optional[int]]).json_schema())
+]
+
+
+# string pre-processing to use for string literals
+LiteralType = TypeVar('LiteralType', bound=str)
+LitStr = Annotated[LiteralType, BeforeValidator(TypeAdapter(str).validate_python)]
+
+
+# automatically package string in list, for fnames
+ItemType = TypeVar('ItemType')
+AutoListStr = Union[list[str],  # first try parsing as the list of the desired type
+                    Annotated[list[str], ValidateAs(str, lambda x: [x])]  # otherwise pack in list
+]
+
+
+# for gSiz, potentially other values that have to be odd integers
+OddInt = Annotated[int, AfterValidator(lambda x: x + 1 if x % 2 == 0 else x)]
+
+
+# ("Self" type for python < 3.11)
+GPSelf = TypeVar('GPSelf', bound='GroupParams')
+
+@dataclass(kw_only=True, eq=False, frozen=True)
+class GroupParams(Mapping):
+    """
+    Struct that can also be used as a non-mutable mapping, to be used
+    for subfields of CNMFParams, which have historically been dicts.
+
+    Aliases and computed fields are used for parameters that are computed
+    from other fields (potentially elsewhere in CNMFParams) if an explicit
+    value is not provided. This allows these parameters to continue to be updated
+    when the params they depend on are changed. The field containing the user-provided
+    value (or None if none was provided) is prefixed with an underscore, but has
+    the un-prefixed name as an alias; this allows the name to be used in the constructor,
+    change_params, etc. This alias can also used to serialize the user-provided value
+    when the round_trip option is True (e.g., when saving to JSON, or when copying
+    the object using replace). When accessing the parameter using .<name> attribute or
+    ['name'] mapping syntax, a property with the same name computes the actual value
+    to use if none has been provided.
+    """
+    __pydantic_config__ = ConfigDict(extra='forbid', serialize_by_alias=True, ser_json_inf_nan='constants')
+    __pydantic_fields__: ClassVar[Mapping[str, FieldInfo]]  # automatic, just declaring for typing purposes
+
+    group_name: ClassVar[str]  # name of the attribute on CNMFParams
+    removed_params: ClassVar[list[str]] = []  # to log a different message for params that have been removed rather than missing
+
+    # back-reference to help with some computed fields
+    _full_params: 'SkipJsonSchema[Optional[CNMFParams]]' = Field(default=None, init=False, exclude=True, repr=False)
+
     
-    def __init__(self, fnames=None, dims=None, dxy=(1, 1),
-                 border_pix=0, del_duplicates=False, low_rank_background=True,
-                 memory_fact=1, n_processes=1, nb_patch=1, p_ssub=2, p_tsub=2,
-                 remove_very_bad_comps=False, rf=None, stride=None,
-                 check_nan=True, n_pixels_per_process=None,
-                 k=30, alpha_snmf=0.5, center_psf=False, gSig=[5, 5], gSiz=None,
-                 init_iter=2, method_init='greedy_roi', min_corr=.85,
-                 min_pnr=20, gnb=1, normalize_init=True, options_local_NMF=None,
-                 ring_size_factor=1.5, rolling_length=100, rolling_sum=True,
-                 ssub=2, ssub_B=2, tsub=2,
-                 num_blocks_per_run_spat=20,
-                 block_size_temp=5000, num_blocks_per_run_temp=20,
-                 update_background_components=True,
-                 method_deconvolution='oasis', p=2, s_min=None,
-                 do_merge=True, merge_thresh=0.8,
-                 decay_time=0.4, fr=30, min_SNR=2.5, rval_thr=0.8,
-                 N_samples_exceptionality=None, batch_update_suff_stat=False,
-                 expected_comps=500, iters_shape=5, max_comp_update_shape=np.inf,
-                 max_num_added=5, min_num_trial=5, minibatch_shape=100, minibatch_suff_stat=5,
-                 n_refit=0, num_times_comp_updated=np.inf, simultaneously=False,
-                 sniper_mode=False, test_both=False, thresh_CNN_noisy=0.5,
-                 thresh_fitness_delta=-50, thresh_fitness_raw=None, thresh_overlap=0.5,
-                 update_freq=200, update_num_comps=True, use_dense=True, use_peak_max=True,
-                 only_init_patch=True, var_name_hdf5='mov', max_merge_area=None, 
-                 use_corr_img=False,
-                 params_from_file:Optional[str]=None,
-                 params_dict={},
-                 ):
-        """Class for setting the processing parameters. All parameters for CNMF, online-CNMF, quality testing,
-        and motion correction can be set here and then used in the various processing pipeline steps.
+    @classmethod
+    @cache
+    def input_params(cls) -> set[str]:
+        """Param names that can be used in constructor etc. (excludes purely computed fields)"""
+        ta = TypeAdapter(cls)
+        # we don't care if some defaults aren't serializable
+        with warnings.catch_warnings():
+            warnings.filterwarnings('ignore', category=PydanticJsonSchemaWarning, message='Default value')
+            return set(ta.json_schema(mode='validation')['properties'].keys())
 
-        Params have default values; users can override the defaults in two intended ways:
-            A) During initialisation of the object, people can pass a nested dictionary through the
-               params_dict parameter, or the name of a jsonfile containing the same nested dictionary
-               through the params_from_file parameter
-            B) If the CNMFParams object already exists, they can call its change_params() method to pass in
-               a dict or change_params_from_jsonfile() to pass in a filename
-        With both of these, people only need to name and override values they wish to change; all others keep
-        their defaults.
 
-        All other means of changing parameters are deprecated (including other constructor arguments)
-        and will be removed in some future version of Caiman (whether they give a deprecation warning or not). 
+    @model_validator(mode='before')
+    @classmethod
+    def check_for_extra_fields(cls, data: Any, info: ValidationInfo) -> Any:
+        logger = logging.getLogger('caiman')
 
-        Args:
-            params_from_file
-                name of a json file used to initialise the object
-            params_dict
-                a dictionary used to initialise the object
+        warn_unused = True
+        if info.context is not None and 'warn_unused' in info.context:
+            warn_unused = info.context['warn_unused']
 
-            Any parameter that is not set uses a default value
-            All other arguments are deprecated and should not be used.
+        if isinstance(data, ArgsKwargs):  # from constructor
+            if len(data.args) > 0:
+                # Shouldn't happen, but I think kw_only may be buggy
+                raise TypeError(f'{cls.__name__} does not take positional arguments.')
+            
+            if data.kwargs is None:
+                return data
+            
+            input_dict = data.kwargs
+        elif isinstance(data, dict):  # from validate_* methods
+            input_dict = data
+        else:
+            return data
+        
+        # check for and remove extra fields
+        argnames = tuple(input_dict)
+        for argname in argnames:
+            if argname not in cls.input_params():
+                del input_dict[argname]
+                if argname in cls.params():
+                    logger.warning(f'The parameter {cls.group_name}/{argname} was ignored because it is '
+                                   'computed from other parameters and cannot be set directly. ')
+                elif argname in cls.removed_params:
+                    logger.warning(f'The parameter {cls.group_name}/{argname} has been removed; setting it has no effect.')
+                elif warn_unused:
+                    logger.warning(
+                        f'When creating {cls.group_name} params, provided key {argname} was not consumed. '
+                        'This is a bug!')
+        return data
 
-        Object Structure:
-          CNMFParams.data (these represent features of the data and other misc settings):
+
+    @field_validator('*', mode='wrap')
+    @classmethod
+    def validation_wrapper(cls, value: Any, handler, info: ValidationInfo) -> Any:
+        """
+        Function that wraps validation on every field.
+        This avoids raising a validation error when fields can't be converted, instead logging a warning.
+        """
+        try:
+            return handler(value)
+        except ValidationError:
+            logger = logging.getLogger('caiman')
+            assert info.field_name is not None, 'Should have field name in model field validator'
+
+            field_info = cls.__pydantic_fields__[info.field_name]
+            expected_type = field_info.annotation
+            name = field_info.alias or info.field_name
+
+            logger.warning(
+                f'The value {repr(value)} provided for {cls.group_name}.{name} could not be converted '
+                f'to the expected type {expected_type} and may not be valid.')
+            
+            return value
+
+
+    def replace(self: GPSelf, warn_unused=True, **changes) -> GPSelf:
+        """Create a GroupParams object with the given fields replaced"""
+        ta = TypeAdapter(type(self))
+        # use round_trip=True to serialize underlying fields rather than computed properties
+        param_dict = ta.dump_python(self, round_trip=True)
+        param_dict.update(changes)
+        context = {'warn_unused': warn_unused}
+        new_obj = ta.validate_python(param_dict, context=context)
+        # set _full_params so computed fields remain consistent
+        object.__setattr__(new_obj, '_full_params', self._full_params)
+        return new_obj
+
+    # support copy.replace (for 3.13 and above)
+    __replace__ = replace
+
+    
+    def get_differing_params(self: GPSelf, other: GPSelf) -> Iterator[tuple[str, Any, Any]]:
+        """
+        Returns an iterable of params that are not considered equal
+        Each return value is a tuple: (name, this_value, other_value)
+        """
+        # here since we care about equality of the underlying fields, use
+        # __pydantic_fields__ which includes the underscore-prefixed names
+        for field, info in type(self).__pydantic_fields__.items():
+            if info.exclude or info.init_var:
+                continue
+
+            self_val = getattr(self, field)
+            other_val = getattr(other, field)
+            if not utilities.all_same(self_val, other_val):
+                # use alias when reporting mismatched field
+                fieldname = field if info.alias is None else info.alias
+                yield fieldname, self_val, other_val
+
+    def __eq__(self, other) -> bool:
+        if isinstance(other, type(self)):
+            return not any(self.get_differing_params(other))
+        else:
+            return NotImplemented
+    
+    def __ne__(self, other) -> bool:
+        if isinstance(other, type(self)):
+            return any(self.get_differing_params(other))
+        else:
+            return NotImplemented
+
+
+    #---- read-only mapping interface (for algorithms that use the parameters, includes computed fields) ----#
+
+    # define things that don't require parameter values as classmethods
+
+    @classmethod
+    @cache
+    def params(cls) -> set[str]:
+        """Parameters available to read from this group"""
+        # Use the JSON schema to ensure we respect excluded fields, etc
+        ta = TypeAdapter(cls)
+        # we don't care if some defaults aren't serializable
+        with warnings.catch_warnings():
+            warnings.filterwarnings('ignore', category=PydanticJsonSchemaWarning, message='Default value')
+            return set(ta.json_schema(mode='serialization')['properties'].keys())
+
+    @classmethod
+    def __iter__(cls) -> Iterator[str]:
+        yield from cls.params()
+
+    @classmethod
+    @cache
+    def __len__(cls) -> int:
+        return len(cls.params())
+
+
+    def __getitem__(self, key: str) -> Any:
+        if key in self.params():
+            return getattr(self, key)
+        raise KeyError(key)
+
+    def copy(self) -> dict[str, Any]:
+        """Implement dict.copy - make a copy of the data as a (mutable) dict"""
+        # It should be safe to assign to a copy, so just make it a (shallow-copied) dict
+        return dict(self)
+
+
+# Parameter group definitions (see docstring of CNMFParams for full documentation)
+
+@dataclass(kw_only=True, eq=False, frozen=True)
+class DataParams(GroupParams):
+    """Parameters for features of the data and other misc settings"""
+    group_name = 'data'
+
+    fnames: SafeOptional[AutoListStr] = None
+    fr: float = Field(default=30., gt=0)
+    decay_time: float = Field(default=0.4, gt=0)
+    dxy: tuple[float, float] = (1., 1.)     # resolution, unit: pixels/um
+    var_name_hdf5: str = 'mov'
+    caiman_version: str = importlib.metadata.version('caiman')
+    last_commit: str = '-'.join(caiman.utils.utils.get_caiman_version())
+
+    @cached_property
+    def first_file_size(self) -> Optional[tuple[tuple[int, ...], int]]:
+        """get dims and T of first file, as in caiman.base.movies.get_file_size"""
+        logger = logging.getLogger('caiman')
+
+        if self.fnames is not None and len(self.fnames) > 0:
+            try:
+                dims, T = caiman.base.movies.get_file_size(self.fnames[0], var_name_hdf5=self.var_name_hdf5)
+                return dims, cast(int, T)
+            except FileNotFoundError:
+                logger.warning('The first movie path in fnames was not found; cannot use dims.')
+
+
+    @model_validator(mode='after')
+    def refresh_file_size(self):
+        """
+        Make sure file size & things that depend on it are updated at least when
+        the data params are changed (not foolproof but better than before)
+        """
+        # this is how you clear cache for a cached_property
+        try:
+            object.__delattr__(self, 'first_file_size')
+        except AttributeError:
+            pass
+        return self
+
+    @computed_field
+    @property
+    def dims(self) -> Optional[tuple[int, ...]]:
+        sz = self.first_file_size
+        if sz is not None:
+            return sz[0]
+
+
+
+@dataclass(kw_only=True, eq=False, frozen=True)
+class PatchParams(GroupParams):
+    """Parameters for how the data is divided into patches"""
+    group_name = 'patch'
+    removed_params = ['p_ssub', 'p_tsub']
+
+    border_pix: int = 0
+    del_duplicates: bool = False
+    in_memory: bool = True
+    low_rank_background: SafeOptional[bool] = True
+    memory_fact: float = 1.
+    n_processes: int = 1
+    nb_patch: int = 1
+    only_init: bool = True
+    p_patch: int = 0                        # AR order within patch
+    remove_very_bad_comps: bool = False
+    rf: Union[int, list[int], SafeNone] = None
+    skip_refinement: bool = False
+    stride: Union[int, list[int], SafeNone] = None
+
+
+@dataclass(kw_only=True, eq=False, frozen=True)
+class PreprocessParams(GroupParams):
+    """Parameters for data preprocessing steps"""
+    group_name = 'preprocess'
+
+    check_nan: bool = True
+    compute_g: bool = False                 # flag for estimating global time constant
+    include_noise: bool = False             # flag for using noise values when estimating g
+    # number of autocovariance lags to be considered for time constant estimation
+    lags: int = 5
+    max_num_samples_fft: int = 3 * 1024
+    noise_method: LitStr[Literal['mean', 'median', 'logmexp']] = 'mean'  # averaging method
+    # range of normalized frequencies over which to average
+    noise_range: list[float] = Field(default_factory=lambda: [0.25, 0.5])
+    pixels: SafeOptional[list[int]] = None  # pixels to be excluded due to saturation
+    sn: SafeOptional[NDArray] = None        # noise level for each pixel
+
+    @computed_field
+    @property
+    def p(self) -> int:
+        if self._full_params is None:
+            raise RuntimeError('Cannot access p without reference to full params')
+        return self._full_params.temporal.p
+
+    @computed_field
+    @property
+    def n_pixels_per_process(self) -> Optional[int]:
+        if self._full_params is None:
+            raise RuntimeError('Cannot access n_pixels_to_process without reference to full params')
+        return self._full_params.spatial.n_pixels_per_process
+
+
+@dataclass(kw_only=True, eq=False, frozen=True)
+class InitParams(GroupParams):
+    """Parameters that control how CNMF should be initialized"""
+    group_name = 'init'
+
+    K: SafeOptional[int] = 30               # number of components
+    SC_kernel: LitStr[Literal['heat', 'cos', 'binary']] = 'heat'  # kernel for graph affinity matrix
+    SC_sigma: float = 1.                    # std for SC kernel
+    SC_thr: float = 0.                      # threshold for affinity matrix
+    SC_normalize: bool = True               # standardize entries prior to computing affinity matrix
+    SC_use_NN: bool = False                 # sparsify affinity matrix by using only nearest neighbors
+    SC_nnn: int = 20                        # number of nearest neighbors to use
+    alpha_snmf: float = 0.5
+    center_psf: bool = False
+    # this sets the default to [5, 5], but automatically converts None to [-1, -1]
+    gSig: Annotated[list[int], 
+                    BeforeValidator(interpret_string_none),
+                    BeforeValidator(lambda val: [-1, -1] if val is None else val)
+                    ] = Field(default_factory=lambda: [5, 5])
+    # default based on gSiz computed below
+    _gSiz: SafeOptional[list[OddInt]] = Field(default=None, alias='gSiz')
+    # init method used in calls to NMF if geedy_roi method for component initialisation is used (offline or online)
+    greedyroi_nmf_init_method: str = 'nndsvdar'
+    # max_iter used in calls to NMF if greedy_roi method for component initialisation is used (online or offline)
+    greedyroi_nmf_max_iter: int = 200
+    init_iter: int = 2
+    kernel: SafeOptional[NDArray] = None    # user specified template for greedyROI
+    lambda_gnmf: float = 1.                 # regularization weight for graph NMF
+    snmf_l1_ratio: float = 0.               # L1 ratio, used by sparse nmf mode only
+    maxIter: int = 5                        # number of HALS iterations
+    max_iter_snmf: int = 500
+    method_init: str = 'greedy_roi'         # can be greedy_roi, corr_pnr, sparse_nmf, compressed_nmf, graph_nmf
+    min_corr: float = 0.85
+    min_pnr: float = 20.
+    nIter: int = 5                          # number of refinement iterations
+    nb: int = 1                             # number of global background components
+    normalize_init: bool = True             # whether to pixelwise equalize the movies during initialization
+    options_local_NMF: SafeOptional[dict] = None  # unused - local_NMF is removed
+    perc_baseline_snmf: float = 20.
+    ring_size_factor: float = 1.5
+    rolling_length: int = 100
+    rolling_sum: bool = True
+    seed_method: LitStr[Literal['auto', 'manual', 'semi']] = 'auto'
+    sigma_smooth_snmf: tuple[float, float, float] = (0.5, 0.5, 0.5)
+    ssub: int = 2                        # spatial downsampling factor
+    ssub_B: int = 2
+    tsub: int = 2                        # temporal downsampling factor
+
+    @property
+    def gSiz(self) -> list[OddInt]:
+        if self._gSiz is not None:
+            return self._gSiz
+        return [2*gs + 1 for gs in self.gSig]
+
+    @model_validator(mode='after')
+    def check_K_method(self):
+        """Log an error if K is incompatible with the initialization method"""
+        accept_none_K_methods = ['corr_pnr', 'sparse_nmf', 'graph_nmf']
+        if self.K is None and self.method_init not in accept_none_K_methods:
+            logger = logging.getLogger('caiman')
+            logger.error(f'Parameter init.K cannot be set to None for the initialization method {self.method_init}.')
+        return self
+
+
+def default_expandcore() -> np.ndarray:
+    """
+    Generates the default morphological element used for footprint expansion
+    with the dilate method, which is a 5x5 matrix that is true where taxicab
+    distance from the center is <= 2 and false elsewhere.
+    """
+    s1 = generate_binary_structure(2, 1)
+    s2 = iterate_structure(s1, 2)
+    return s2.astype(int)
+
+@dataclass(kw_only=True, eq=False, frozen=True)
+class SpatialParams(GroupParams):
+    """Params that control how the algorithms handle spatial components"""
+    group_name = 'spatial'
+
+    dist: float = 3.                        # expansion factor of ellipse
+    expandCore: NDArray = Field(default_factory=default_expandcore)
+    # Flag to extract connected components (might want to turn to False for dendritic imaging)
+    extract_cc: bool = True
+    maxthr: float = 0.1                     # Max threshold
+    medw: SafeOptional[tuple[int, ...]] = None  # window of median filter
+    # method for determining footprint of spatial components
+    method_exp: LitStr[Literal['ellipse', 'dilate']] = 'dilate'
+    # 'nnls_L0'. Nonnegative least square with L0 penalty
+    # 'lasso_lars' lasso lars function from scikit learn
+    method_ls: LitStr[Literal['nnls_L0', 'lasso_lars']] = 'lasso_lars'
+    # number of pixels to be processed by each worker
+    n_pixels_per_process: SafeOptional[int] = None
+    normalize_yyt_one: bool = True
+    nrgthr: float = 0.9999                  # Energy threshold
+    # number of process to parallelize residual computation ** DECREASE IF MEMORY ISSUES
+    num_blocks_per_run_spat: int = 20
+    se: SafeOptional[NDArray] = None        # Morphological closing structuring element
+    ss: SafeOptional[NDArray] = None        # Binary element for determining connectivity
+    thr_method: LitStr[Literal['max', 'nrg']] = 'nrg'  # Method of thresholding ('max' or 'nrg')
+    # whether to update the background components in the spatial phase
+    update_background_components: bool = True
+
+    @computed_field
+    @property
+    def nb(self) -> int:
+        if self._full_params is None:
+            raise RuntimeError('Cannot access nb without reference to full params')
+        return self._full_params.init.nb
+
+
+@dataclass(kw_only=True, eq=False, frozen=True)
+class TemporalParams(GroupParams):
+    """Params that control how the algorithms handle temporal components"""
+    group_name = 'temporal'
+
+    ITER: int = 2                           # block coordinate descent iterations
+    # flag for setting non-negative baseline (otherwise b >= min(y))
+    bas_nonneg: bool = False
+    # number of pixels to parallelize residual computation ** DECREASE IF MEMORY ISSUES
+    block_size_temp: int = 5000
+    # bias correction factor (between 0 and 1, close to 1)
+    fudge_factor: float = 0.96
+    # number of autocovariance lags to be considered for time constant estimation
+    lags: int = 5
+    optimize_g: bool = False                # flag for optimizing time constants
+    # method for solving the constrained deconvolution problem
+    # if method cvxpy, primary and secondary (if problem unfeasible for approx
+    # solution) solvers to be used with cvxpy, can be 'ECOS','SCS' or 'CVXOPT'
+    method_deconvolution: LitStr[Literal['cvx', 'cvxpy', 'oasis']] = 'oasis'
+    noise_method: LitStr[Literal['mean', 'median', 'logmexp']] = 'mean'  # averaging method
+    # range of normalized frequencies over which to average
+    noise_range: list[float] = Field(default_factory=lambda: [.25, .5])
+    # number of process to parallelize residual computation ** DECREASE IF MEMORY ISSUES
+    num_blocks_per_run_temp: int = 20
+    p: int = 2                              # order of AR indicator dynamics
+    s_min: SafeOptional[float] = None       # minimum spike threshold
+    solvers: list[LitStr[Literal['ECOS', 'SCS', 'CVXOPT']]] = Field(default_factory=lambda: ['ECOS', 'SCS'])
+    verbosity: bool = False
+
+    @computed_field
+    @property
+    def nb(self) -> int:
+        if self._full_params is None:
+            raise RuntimeError('Cannot access nb without reference to full params')
+        return self._full_params.init.nb
+
+
+@dataclass(kw_only=True, eq=False, frozen=True)
+class MergingParams(GroupParams):
+    """Params that control how components are merged"""
+    group_name = 'merging'
+
+    do_merge: bool = True
+    merge_thr: float = 0.8
+    merge_parallel: bool = False
+
+
+@dataclass(kw_only=True, eq=False, frozen=True)
+class QualityParams(GroupParams):
+    """Params that control how the quality of traces is evaluated"""
+    group_name = 'quality'
+
+    SNR_lowest: float = 0.5         # minimum accepted SNR value
+    cnn_lowest: float = 0.1         # minimum accepted value for CNN classifier
+    gSig_range: SafeOptional[list[list[int]]] = None  # range for gSig scale for CNN classifier
+    min_SNR: float = 2.5            # transient SNR threshold
+    min_cnn_thr: float = 0.9        # threshold for CNN classifier
+    rval_lowest: float = -1.        # minimum accepted space correlation
+    rval_thr: float = 0.8           # space correlation threshold
+    use_cnn: bool = True            # use CNN based classifier
+    use_ecc: bool = False           # flag for eccentricity based filtering (2D only)
+    max_ecc: float = 3.
+
+
+@dataclass(kw_only=True, eq=False, frozen=True)
+class OnlineParams(GroupParams):
+    """Params that control the online/OnACID mode"""
+    group_name = 'online'
+
+    # timesteps to compute SNR (default computed below)
+    _N_samples_exceptionality: SafeOptional[int] = Field(default=None, alias='N_samples_exceptionality')
+    batch_update_suff_stat: bool = False
+    dist_shape_update: bool = False       # update shapes in a distributed way
+    ds_factor: int = 1                    # spatial downsampling for faster processing
+    epochs: int = 1                       # number of epochs
+    expected_comps: int = 500             # number of expected components
+    full_XXt: bool = False                # store entire XXt matrix (as opposed to a list of sub-matrices) 
+    init_batch: int = 200                 # length of mini batch for initialization
+    init_method: LitStr[Literal['bare', 'cnmf', 'seeded']] = 'bare'  # initialization method for first batch
+    iters_shape: int = 5                 # number of block-CD iterations
+    max_comp_update_shape: Union[int, float] = np.inf
+    max_num_added: int = 5               # maximum number of new components for each frame
+    max_shifts_online: int = 10          # maximum shifts during motion correction
+    min_SNR: float = 2.5                 # minimum SNR for accepting a new trace
+    min_num_trial: int = 5               # number of mew possible components for each frame
+    minibatch_shape: int = 100           # number of frames in each minibatch
+    minibatch_suff_stat: int = 5
+    motion_correct: bool = True          # flag for motion correction
+    # filename of saved movie (appended to directory where data is located)
+    _movie_name_online: str = Field(default='online_movie.mp4', alias='movie_name_online')
+    normalize: bool = False              # normalize frame
+    n_refit: int = 0                     # Additional iterations to simultaneously refit
+    num_times_comp_updated: Union[int, float] = np.inf
+    opencv_codec: str = 'H264'           # FourCC video codec for saving movie. Check http://www.fourcc.org/codecs.php
+    # path to CNN model for testing new comps
+    path_to_model: str = os.path.join(caiman_datadir(), 'model', 'cnn_model_online.pkl')
+    ring_CNN: bool = False               # flag for using a ring CNN background model 
+    rval_thr: float = 0.8                # space correlation threshold
+    save_online_movie: bool = False      # flag for saving online movie
+    show_movie: bool = False             # display movie online
+    simultaneously: bool = False         # demix and deconvolve simultaneously
+    sniper_mode: bool = False            # flag for using CNN
+    stop_detection: bool = False         # flag for stop detecting new neurons at the last epoch 
+    test_both: bool = False              # flag for using both CNN and space correlation
+    thresh_CNN_noisy: float = 0.5        # threshold for online CNN classifier
+    thresh_fitness_delta: float = -50.
+    # threshold for trace SNR (default computed below)
+    _thresh_fitness_raw: SafeOptional[float] = Field(default=None, alias='thresh_fitness_raw')
+    thresh_overlap: float = 0.5
+    update_freq: int = 200               # update every shape at least once every update_freq steps
+    update_num_comps: bool = True        # flag for searching for new components
+    use_corr_img: bool = False           # flag for using correlation image to detect new components
+    use_dense: bool = True               # flag for representation and storing of A and b
+    use_peak_max: bool = True            # flag for finding candidate centroids
+    W_update_factor: int = 1             # update W less often than shapes by a given factor
+
+    @computed_field
+    @property
+    def N_samples_exceptionality(self) -> int:
+        """compute N_samples_exceptionality from other params if None"""
+        if self._N_samples_exceptionality is not None:
+            return self._N_samples_exceptionality
+    
+        if self._full_params is None:
+            raise RuntimeError('Cannot compute N_samples_exceptionality without reference to full params')
+        
+        fr = self._full_params.data.fr
+        decay_time = self._full_params.data.decay_time
+        return math.ceil(fr * decay_time)
+
+    @computed_field
+    @property
+    def thresh_fitness_raw(self) -> float:
+        """computes thresh_fitness_raw from other params if None"""
+        if self._thresh_fitness_raw is not None:
+            return self._thresh_fitness_raw
+        return float(scipy.special.log_ndtr(-self.min_SNR) * self.N_samples_exceptionality)
+    
+    @computed_field
+    @property
+    def movie_name_online(self) -> str:
+        """Make movie_name_online relative to first movie path if it is available"""
+        if os.path.isabs(self._movie_name_online) or self._full_params is None:
+            return self._movie_name_online
+
+        fnames = self._full_params.data.fnames
+        if fnames is None or len(fnames) == 0:
+            return self._movie_name_online
+        
+        return os.path.join(os.path.dirname(fnames[0]), self._movie_name_online)
+
+
+@dataclass(kw_only=True, eq=False, frozen=True)
+class MotionParams(GroupParams):
+    """Params that control motion correction"""
+    group_name = 'motion'
+    removed_params = ['num_splits_to_process_els', 'num_splits_to_process_rig']
+
+    # flag for allowing NaN in the boundaries
+    #  - True: keep nans
+    #  - False: replace with 0s
+    #  - 'min': replace with minimum value in the frame
+    #  - 'copy': copy edge values
+    border_nan: Union[bool, LitStr[Literal['min', 'copy']]] = 'copy'
+    gSig_filt: SafeOptional[tuple[int, ...]] = None # size of kernel for high pass spatial filtering in 1p data
+    is3D: bool = False                  # flag for 3D recordings for motion correction
+    max_deviation_rigid: int = 3        # maximum deviation between rigid and non-rigid
+    max_shifts: tuple[int, ...] = (6,6) # maximum shifts per dimension (in pixels)
+    min_mov: SafeOptional[float] = None # minimum value of movie
+    niter_rig: int = 1                  # number of iterations rigid motion correction
+    nonneg_movie: bool = True           # flag for producing a non-negative movie
+    num_frames_split: int = 80          # split across time every x frames (approximately)
+    overlaps: tuple[int, ...] = (32,32) # overlap between patches in pw-rigid motion correction
+    pw_rigid: bool = False              # flag for performing pw-rigid motion correction
+    shifts_interpolate: bool = False    # interpolate shifts based on patch locations instead of resizing
+    shifts_opencv: bool = True          # flag for applying shifts using cubic interpolation (otherwise FFT)
+    strides: tuple[int, ...] = (96, 96) # how often to start a new patch in pw-rigid registration
+    upsample_factor_grid: int = 4       # motion field upsampling factor during FFT shifts
+    use_cuda: bool = False              # flag for using a GPU
+    indices: tuple[IntSlice, ...] = (slice(None), slice(None))  # part of FOV to be corrected
+
+
+    def _compute_splits_from_data(self) -> Optional[int]:
+        """Compute splits_els and splits_rig values to use from data"""
+        if self._full_params is not None:
+            sz = self._full_params.data.first_file_size
+            if sz is not None:
+                # TODO maybe allow different num_splits per file, or use max?
+                T_first = sz[1]
+                return max(T_first // max(self.num_frames_split, 10), 1)
+    
+    @computed_field
+    @property
+    def splits_els(self) -> int:
+        """number of splits across time for pw-rigid registration"""
+        splits_from_data = self._compute_splits_from_data()
+        if splits_from_data is not None:
+            return splits_from_data
+        return 14
+
+    @computed_field
+    @property
+    def splits_rig(self) -> int:
+        """number of splits across time for rigid registration"""
+        splits_from_data = self._compute_splits_from_data()
+        if splits_from_data is not None:
+            return splits_from_data
+        return 14
+
+
+@dataclass(kw_only=True, eq=False, frozen=True)
+class RingCNNParams(GroupParams):
+    """Params that control the ring neural networks used for 1P background estimation"""
+    group_name = 'ring_CNN'
+
+    n_channels: int = 2                 # number of "ring" kernels   
+    use_bias: bool = False              # use bias in the convolutions
+    use_add: bool = False               # use an additive layer
+    pct: float = 0.01                   # quantile loss specification
+    patience: int = 3                   # patience for early stopping
+    max_epochs: int = 100               # maximum number of epochs
+    width: int = 5                      # width of "ring" kernel
+    loss_fn: str = 'pct'                # loss function
+    lr: float = 1e-3                    # (initial) learning rate
+    lr_scheduler: SafeOptional[tuple[float, ...]] = None  # learning rate scheduler function arguments
+    path_to_model: SafeOptional[str] = None # path to saved weights
+    remove_activity: bool = False       # remove activity of last frame prior to background extraction
+    reuse_model: bool = False           # reuse an already trained model
+
+
+@dataclass(kw_only=True, frozen=True)
+class CNMFParams:
+    """
+    Class for setting the processing parameters. All parameters for CNMF, online-CNMF, quality testing,
+    and motion correction can be set here and then used in the various processing pipeline steps.
+
+    The constructor supports setting params through 3 methods, in order of precedence (e.g., params
+    set through method A override those set through method B). Note that attempting to override a
+    group's parameters with an existing GroupParams object raises an error (a dict can be used instead).
+
+        A) From individual group parameter objects passed to arguments matching the name of the group, as in:
+            CNMFParams(data=DataParams(fnames=['example.tif']), motion=MotionParams(max_shifts=10))
+            This method allows for static type checking of each parameter value.
+           If preferred, raw dictionaries can also be passed instead of GroupParams objects,
+            as in: CNMFParams(data={'fnames': ['example.tif']}, motion={'max_shifts': 10})
+        B) From a nested dictionary through the params_dict parameter, as in:
+            CNMFParams(params_dict={'data': {'fnames': ['example.tif']}, 'motion': {'max_shifts': 10}})
+        C) From a JSON file through the params_from_file parameter.
+
+    After construction, parameters can be changed from a nested dict using change_params() or from a
+    JSON file using change_params_from_jsonfile(). These are the preferred methods for updating params
+    because they automatically call check_consistency() to enforce consistency between different params.
+    
+    All other means of changing parameters are deprecated (including other constructor arguments)
+    and will be removed in some future version of Caiman (whether they give a deprecation warning or not). 
+
+    Args (keyword only):
+        params_from_file
+            name of a json file used to initialise the object
+        params_dict
+            a dictionary used to initialise the object
+        <groupname> (e.g., data, init, preprocess...)
+            a dictionary or object used to override parameters for just this group
+        
+        Any parameter that is not set uses a default value
+        All other arguments are deprecated and should not be used.
+
+    Object Structure:
+        CNMFParams.data (these represent features of the data and other misc settings):
             fnames
                 list of complete paths to files that need to be processed
 
@@ -97,7 +803,7 @@ class CNMFParams(object):
             last_commit: str
                 hash of last commit in the caiman repo. Pleaes do not override this.
 
-          CNMFParams.patch (these control how the data is divided into patches):
+        CNMFParams.patch (these control how the data is divided into patches):
             border_pix: int, default: 0
                 Number of pixels to exclude around each border.
 
@@ -128,26 +834,24 @@ class CNMFParams(object):
             p_patch: int, default: 0
                 order of AR dynamics when processing within a patch
 
-            remove_very_bad_comps: bool, default: True
-                Whether to remove (very) bad quality components during patch processing
+            remove_very_bad_comps: bool, default: False
+                Whether to remove components with very low values of component quality directly on the patch.
+                This might create some minor imprecisions, but can be important for performance because of bottlenecks
+                caused by handling many components (we have seen over 2000) that will need to be processed.
 
-            rf: int or list or None, default: None
+            rf: int or list[int] or None, default: None
                 Half-size of patch in pixels. If None, no patches are constructed and the whole FOV is processed jointly.
                 If list, it should be a list of two elements corresponding to the height and width of patches
 
             skip_refinement: bool, default: False
-                Whether to skip refinement of components
+                If true it only performs one iteration of update spatial update temporal instead of two
+                TODO: why is this in the patch section?
 
-            p_ssub: float, default: 2
-                Spatial downsampling factor
+            stride: int or list[int] or None, default: None
+                Overlap between neighboring patches in pixels. If None, when running CNMF.fit with
+                rf not None, it is automatically set to 10% of 2x rf along each dimension.
 
-            stride: int or None, default: None
-                Overlap between neighboring patches in pixels.
-
-            p_tsub: float, default: 2
-                Temporal downsampling factor
-
-          CNMFParams.preprocess (these control preprocessing steps for the data):
+        CNMFParams.preprocess (these control preprocessing steps for the data):
             check_nan: bool, default: True
                 whether to check for NaNs
 
@@ -163,27 +867,22 @@ class CNMFParams(object):
             max_num_samples_fft: int, default: 3*1024
                 Chunk size for computing the PSD of the data (for memory considerations)
 
-            n_pixels_per_process: int, default: 1000
-                Number of pixels to be allocated to each process
-
             noise_method: 'mean'|'median'|'logmexp', default: 'mean'
                 PSD averaging method for computing the noise std
 
             noise_range: [float, float], default: [.25, .5]
                 range of normalized frequencies over which to compute the PSD for noise determination
 
-            p: int, default: 2
-                 order of AR indicator dynamics
-
             pixels: list, default: None
-                 pixels to be excluded due to saturation
+                    pixels to be excluded due to saturation
 
-            sn: np.array or None, default: None
+            sn: np.ndarray or None, default: None
                 noise level for each pixel
 
-          CNMFParams.init (these control how CNMF should be initialised):
-            K: int, default: 30
+        CNMFParams.init (these control how CNMF should be initialised):
+            K: int or None, default: 30
                 number of components to be found (per patch or whole FOV depending on whether rf=None)
+                None is only supported for the following methods: 'corr_pnr', 'sparse_nmf', and 'graph_nmf'.
 
             SC_kernel: {'heat', 'cos', 'binary'}, default: 'heat'
                 kernel for graph affinity matrix
@@ -209,10 +908,10 @@ class CNMFParams(object):
             center_psf: bool, default: False
                 whether to use 1p data processing mode. Set to true for 1p
 
-            gSig: [int, int], default: [5, 5]
+            gSig: list of int, default: [5, 5]
                 radius of average neurons (in pixels)
 
-            gSiz: [int, int], default: [int(round((x * 2) + 1)) for x in gSig],
+            gSiz: list of int, default: [int(round((x * 2) + 1)) for x in gSig],
                 half-size of bounding box for each neuron
 
             greedyroi_nmf_init_method: str
@@ -226,11 +925,14 @@ class CNMFParams(object):
             init_iter: int, default: 2
                 number of iterations during corr_pnr (1p) initialization
 
-            kernel: np.array or None, default: None
+            kernel: np.ndarray or None, default: None
                 user specified template for greedyROI
 
             lambda_gnmf: float, default: 1.
                 regularization weight for graph NMF
+
+            snmf_l1_ratio: float, default: 0.
+                L1 ratio, used by sparse NMF mode only
 
             maxIter: int, default: 5
                 number of HALS iterations during initialization
@@ -238,8 +940,8 @@ class CNMFParams(object):
             max_iter_snmf : int, default: 500
                 maximum number of iterations for sparse NMF initialization
 
-            method_init: 'greedy_roi'|'corr_pnr'|'sparse_NMF'|'local_NMF' default: 'greedy_roi'
-                initialization method. use 'corr_pnr' for 1p processing and 'sparse_NMF' for dendritic processing.
+            method_init: 'greedy_roi'|'corr_pnr'|'sparse_nmf'|'compressed_nmf'|'graph_nmf' default: 'greedy_roi'
+                initialization method. use 'corr_pnr' for 1p processing and 'sparse_nmf' for dendritic processing.
 
             min_corr: float, default: 0.85
                 minimum value of correlation image for determining a candidate component during corr_pnr
@@ -257,10 +959,11 @@ class CNMFParams(object):
                 whether to equalize the movies during initialization
 
             options_local_NMF: dict
-                dictionary with parameters to pass to local_NMF initializer
+                dictionary with parameters to pass to local_NMF initializer.
+                Now unused because the local_NMF method was removed.
 
             perc_baseline_snmf: float, default: 20
-                percentile to be removed from the data in sparse_NMF prior to decomposition
+                percentile to be removed from the data in sparse_nmf prior to decomposition
 
             ring_size_factor: float, default: 1.5
                 radius of ring (*gSig) for computing background during corr_pnr
@@ -280,21 +983,22 @@ class CNMFParams(object):
             sigma_smooth_snmf : (float, float, float), default: (.5,.5,.5)
                 std of Gaussian kernel for smoothing data in sparse_NMF
 
-            ssub: float, default: 2
+            ssub: int, default: 2
                 spatial downsampling factor
 
-            ssub_B: float, default: 2
+            ssub_B: int, default: 2
                 downsampling factor for background during corr_pnr
 
-            tsub: float, default: 2
+            tsub: int, default: 2
                 temporal downsampling factor
 
-          CNMFParams.spatial (these control how the algorithms handle spatial components):
+        CNMFParams.spatial (these control how the algorithms handle spatial components):
             dist: float, default: 3
                 expansion factor of ellipse
 
-            expandCore: morphological element, default: None(?)
+            expandCore: np.ndarray
                 morphological element for expanding footprints under dilate
+                default is a diamond generated by 
 
             extract_cc: bool, default: True
                 whether to extract connected components during thresholding
@@ -313,11 +1017,8 @@ class CNMFParams(object):
                 'nnls_L0'. Nonnegative least square with L0 penalty
                 'lasso_lars' lasso lars function from scikit learn
 
-            n_pixels_per_process: int, default: 1000
+            n_pixels_per_process: int, default: <estimate based on available memory and n_processes>
                 number of pixels to be processed by each worker
-
-            nb: int, default: 1
-                number of global background components. Do not set this directly; modify it in init.
 
             normalize_yyt_one: bool, default: True
                 Whether to normalize the C and A matrices so that diag(C*C.T) = 1 during update spatial
@@ -328,10 +1029,10 @@ class CNMFParams(object):
             num_blocks_per_run_spat: int, default: 20
                 Parallelization of A'*Y operation
 
-            se: np.array or None, default: None
-                 Morphological closing structuring element (set to np.ones((3,)*len(dims), dtype=np.uint8) in cnmf.fit)
+            se: np.ndarray or None, default: None
+                    Morphological closing structuring element (set to np.ones((3,)*len(dims), dtype=np.uint8) in cnmf.fit)
 
-            ss: np.array or None, default: None
+            ss: np.ndarray or None, default: None
                 Binary element for determining connectivity (set to np.ones((3,)*len(dims), dtype=np.uint8) in cnmf.fit)
 
             thr_method: 'nrg'|'max', default: 'nrg'
@@ -341,11 +1042,11 @@ class CNMFParams(object):
                 whether to update the spatial background components
 
 
-          CNMFParams.temporal (these control how the algorithms handle temporal components):
+        CNMFParams.temporal (these control how the algorithms handle temporal components):
             ITER: int, default: 2
                 block coordinate descent iterations
 
-            bas_nonneg: bool, default: True
+            bas_nonneg: bool, default: False
                 whether to set a non-negative baseline (otherwise b >= min(y))
 
             block_size_temp : int, default: 5000
@@ -360,12 +1061,9 @@ class CNMFParams(object):
             optimize_g: bool, default: False
                 flag for optimizing time constants
 
-            method_deconvolution: 'oasis'|'cvxpy'|'oasis', default: 'oasis'
+            method_deconvolution: 'cvx'|'cvxpy'|'oasis', default: 'oasis'
                 method for solving the constrained deconvolution problem ('oasis','cvx' or 'cvxpy')
                 if method cvxpy, primary and secondary (if problem unfeasible for approx solution)
-
-            nb: int, default: 1
-                number of global background components. Do not set this directly; modify it in init.
 
             noise_method: 'mean'|'median'|'logmexp', default: 'mean'
                 PSD averaging method for computing the noise std
@@ -382,13 +1080,13 @@ class CNMFParams(object):
             s_min: float or None, default: None
                 Minimum spike threshold amplitude (computed in the code if used).
 
-            solvers: 'ECOS'|'SCS', default: ['ECOS', 'SCS']
-                 solvers to be used with cvxpy, can be 'ECOS','SCS' or 'CVXOPT'
+            solvers: list of 'ECOS'|'SCS'|'CVXOPT', default: ['ECOS', 'SCS']
+                    solvers to be used with cvxpy, can be 'ECOS','SCS' or 'CVXOPT'
 
             verbosity: bool, default: False
                 whether to be verbose
 
-          CNMFParams.merging (these control how components are merged):
+        CNMFParams.merging (these control how components are merged):
             do_merge: bool, default: True
                 Whether or not to merge
 
@@ -398,15 +1096,15 @@ class CNMFParams(object):
             merge_parallel: bool, default: False
                 Perform merging in parallel
 
-          CNMFParams.quality (these control how quality of traces are evaluated):
+        CNMFParams.quality (these control how quality of traces are evaluated):
             SNR_lowest: float, default: 0.5
                 minimum required trace SNR. Traces with SNR below this will get rejected
 
             cnn_lowest: float, default: 0.1
                 minimum required CNN threshold. Components with score lower than this will get rejected.
 
-            gSig_range: list or integers, default: None
-                gSig scale values for CNN classifier. In not None, multiple values are tested in the CNN classifier.
+            gSig_range: list of [int, int] or None, default: None
+                gSig scale values for CNN classifier. If not None, multiple values are tested in the CNN classifier.
 
             min_SNR: float, default: 2.5
                 trace SNR threshold. Traces with SNR above this will get accepted
@@ -429,7 +1127,7 @@ class CNMFParams(object):
             max_ecc:
                 (undocumented)
 
-          CNMFParams.online (these control the Online/OnACID mode):
+        CNMFParams.online (these control the Online/OnACID mode):
             N_samples_exceptionality: int, default: np.ceil(decay_time*fr),
                 Number of frames over which trace SNR is computed (usually length of a typical transient)
 
@@ -485,7 +1183,7 @@ class CNMFParams(object):
             motion_correct: bool, default: True
                 Whether to perform motion correction during online processing
 
-            movie_name_online: str, default: 'online_movie.avi'
+            movie_name_online: str, default: 'online_movie.mp4'
                 Name of saved movie (appended in the data directory)
 
             normalize: bool, default: False
@@ -528,10 +1226,10 @@ class CNMFParams(object):
             test_both: bool, default: False
                 Whether to use both the CNN and space correlation for screening new components
 
-            thresh_CNN_noisy: float, default: 0,5,
+            thresh_CNN_noisy: float, default: 0.5,
                 Threshold for the online CNN classifier
 
-            thresh_fitness_delta: float (negative)
+            thresh_fitness_delta: float (negative), default: -50
                 Derivative test for detecting traces
 
             thresh_fitness_raw: float (negative), default: computed from min_SNR
@@ -558,13 +1256,14 @@ class CNMFParams(object):
             W_update_factor:
                 Update W less often than shapes by a given factor (XXX does this work?)
 
-          CNMFParams.motion (these control motion-correction):
+        CNMFParams.motion (these control motion-correction):
             border_nan: bool or str, default: 'copy'
                 flag for allowing NaN in the boundaries. True allows NaN, whereas 'copy' copies the value of the
                 nearest data point.
 
-            gSig_filt: int or None, default: None
-                size of kernel for high pass spatial filtering in 1p data. If None no spatial filtering is performed
+            gSig_filt: tuple of ints or None, default: None
+                size of kernel for high pass spatial filtering in 1p data. If None no spatial filtering is performed.
+                Only the first element is used in practice (the kernel is circular).
 
             is3D: bool, default: False
                 flag for 3D recordings for motion correction
@@ -572,7 +1271,7 @@ class CNMFParams(object):
             max_deviation_rigid: int, default: 3
                 maximum deviation in pixels between rigid shifts and shifts of individual patches
 
-            max_shifts: (int, int), default: (6,6)
+            max_shifts: tuple of ints, default: (6,6)
                 maximum shifts per dimension in pixels.
 
             min_mov: float or None, default: None
@@ -590,7 +1289,7 @@ class CNMFParams(object):
             num_splits_to_process_rig, default: None
                 (Undocumented, changing this likely to break the code - FIXME why is this a parameter then?)
 
-            overlaps: (int, int), default: (24, 24)
+            overlaps: tuple of ints, default: (24, 24)
                 overlap between patches in pixels in pw-rigid motion correction.
 
             pw_rigid: bool, default: False
@@ -608,7 +1307,7 @@ class CNMFParams(object):
             splits_rig: int, default: 14
                 number of splits across time for rigid registration.
 
-            strides: (int, int), default: (96, 96)
+            strides: tuple of int, default: (96, 96)
                 how often to start a new patch in pw-rigid registration. Size of each patch will be strides + overlaps
 
             upsample_factor_grid" int, default: 4
@@ -620,7 +1319,7 @@ class CNMFParams(object):
             indices: tuple(slice), default: (slice(None), slice(None))
                 Use that to apply motion correction only on a part of the FOV
 
-          CNMFParams.ring_CNN (these control the ring neural networks):
+        CNMFParams.ring_CNN (these control the ring neural networks):
             n_channels: int, default: 2
                 Number of "ring" kernels
 
@@ -649,8 +1348,10 @@ class CNMFParams(object):
             lr: float, default: 1e-3
                 (initial) learning rate
 
-            lr_scheduler: function, default: None
-                Learning rate scheduler function
+            lr_scheduler: tuple of float or None, default: None
+                Learning rate scheduler function. If provided, it should be a tuple
+                with 0 or more positional arguments to nn_models.rate_scheduler.
+                The arguments, in order, are factor, epoch_length, and samples_length.
 
             path_to_model: str, default: None
                 Path to saved weights (if training then path to saved model weights)
@@ -660,331 +1361,173 @@ class CNMFParams(object):
 
             reuse_model: bool, default: False
                 Flag for reusing an already trained model (saved in path to model)
+    """
+    __pydantic_config__ = ConfigDict(extra='forbid', ser_json_inf_nan='constants')
+    __pydantic_fields__: ClassVar[Mapping[str, FieldInfo]]  # automatic, just declaring for typing purposes
+
+    # mapping of alternate names of flat params (previously used in constructor) to their canonical names
+    flat_param_renames: ClassVar[dict[str, str]] = {
+        'only_init_patch': 'only_init',
+        'k': 'K',
+        'gnb': 'nb',
+        'merge_thresh': 'merge_thr'
+    }
+
+    # mapping of nested param names to the group the parameter should be set on
+    # this is used to still set the parameter on the appropriate group while logging a warning.
+    canonical_groups: ClassVar[dict[str, dict[str, str]]] = {
+        'temporal': {'nb': 'init'},
+        'spatial': {'nb': 'init'},
+        'preprocess': {'p': 'temporal', 'n_pixels_per_process': 'spatial'}
+    }
+
+
+    # init-only params - these are the normal arguments to the constructor
+    params_from_file: InitVar[Union[str, Path, None]] = None
+    params_dict: InitVar[Optional[dict[str, Any]]] = None
+
+    # group fields
+    data: DataParams = Field(default_factory=DataParams)
+    patch: PatchParams = Field(default_factory=PatchParams)
+    preprocess: PreprocessParams = Field(default_factory=PreprocessParams)
+    init: InitParams = Field(default_factory=InitParams)
+    spatial: SpatialParams = Field(default_factory=SpatialParams)
+    temporal: TemporalParams = Field(default_factory=TemporalParams)
+    merging: MergingParams = Field(default_factory=MergingParams)
+    quality: QualityParams = Field(default_factory=QualityParams)
+    online: OnlineParams = Field(default_factory=OnlineParams)
+    motion: MotionParams = Field(default_factory=MotionParams)
+    ring_CNN: RingCNNParams = Field(default_factory=RingCNNParams)
+
+
+    @cached_property
+    def groups(self) -> list[str]:
+        return [f.name for f in fields(self)]
+    
+    @classmethod
+    @cache
+    def get_group_types(cls) -> dict[str, Type[GroupParams]]:
+        """Get name and type of each group params object. Depends on these being the only fields."""
+        groups: dict[str, Type[GroupParams]] = {}
+        for info in fields(cls):
+            assert isinstance(info.type, type) and issubclass(info.type, GroupParams), \
+                'Each field should be a GroupParams subclass'
+            groups[info.name] = info.type
+        return groups
+    
+
+    def __setstate__(self, state: dict[str, Any]):
+        """Ensure fields are objects of the proper type (i.e. when unpickling old-version CNMFParams)"""
+        for group, GroupClass in self.get_group_types().items():
+            if isinstance(group_obj := state.get(group), dict):
+                state[group] = GroupClass(**group_obj)
+        
+        self.__dict__.update(state)
+    
+
+    @model_validator(mode='before')
+    @classmethod
+    def _combine_parameters(cls, data: Any) -> Any:
         """
+        Combine nested and/or flat parameters from JSON, params_dict, and/or direct arguments
+        to a single neseted dict and pass this on to the dataclass constructor.
+        This avoids multiple rounds of validation and check_consistency.
+        """
+        if isinstance(data, ArgsKwargs):  # from constructor  
+            if len(data.args) > 0:
+                # Shouldn't happen, but I think kw_only may be buggy
+                raise TypeError('CNMFParams() does not take positional arguments.')
+            
+            if data.kwargs is None:
+                return data
+            
+            input_dict = data.kwargs
+        elif isinstance(data, dict):  # from validate_* method of TypeAdapter
+            input_dict = data
+        else:
+            return data
+        
+        # Order: First JSON, then params_dict, finally individual arguments
+        # No support for combining full GroupParams objects with JSON or params_dict
+        # (will work for params_dict if the top-level keys don't overlap)
+        kwargs = input_dict.copy()
+        new_kwargs: dict[str, Any] = {}
 
-        if float(decay_time) == float(0.0):
-            raise Exception("A decay time of zero is not permitted")
+        if (params_from_file := kwargs.pop('params_from_file', None)) is not None:
+            with open(params_from_file, 'r') as fh:
+                loaded_data = json.load(fh)
+            
+            if not isinstance(loaded_data, dict):
+                raise ValueError('Params loaded from JSON must be a dict')
+            
+            cls.update_nested_params(nested_params=new_kwargs, new_params=loaded_data)
+        
+        if (params_dict := kwargs.pop('params_dict', None)) is not None:
+            if not isinstance(params_dict, dict):
+                raise ValueError('params_dict must be a dict')
 
-        self.data = {
-            'fnames': fnames,
-            'dims': dims,
-            'fr': fr,
-            'decay_time': decay_time,
-            'dxy': dxy,
-            'var_name_hdf5': var_name_hdf5,
-            'caiman_version': importlib.metadata.version('caiman'),
-            'last_commit': None
-        }
+            cls.update_nested_params(nested_params=new_kwargs, new_params=params_dict)
+        
+        # add group params and flat params passed as keyword arguments
+        cls.update_nested_params(nested_params=new_kwargs, new_params=kwargs)
+    
+        return new_kwargs
 
-        self.patch = {
-            'border_pix': border_pix,
-            'del_duplicates': del_duplicates,
-            'in_memory': True,
-            'low_rank_background': low_rank_background,
-            'memory_fact': memory_fact,
-            'n_processes': n_processes,
-            'nb_patch': nb_patch,
-            'only_init': only_init_patch,
-            'p_patch': 0,                 # AR order within patch
-            'remove_very_bad_comps': remove_very_bad_comps,
-            'rf': rf,
-            'skip_refinement': False,
-            'p_ssub': p_ssub,             # spatial downsampling factor
-            'stride': stride,
-            'p_tsub': p_tsub,             # temporal downsampling factor
-        }
+    
+    @model_validator(mode='after')
+    def _check_post_validation(self):
+        # add reference to self in each GroupParams object, bypassing frozen
+        for field in fields(self):
+            object.__setattr__(getattr(self, field.name), '_full_params', self)
 
-        self.preprocess = {
-            'check_nan': check_nan,
-            'compute_g': False,          # flag for estimating global time constant
-            'include_noise': False,      # flag for using noise values when estimating g
-            # number of autocovariance lags to be considered for time constant estimation
-            'lags': 5,
-            'max_num_samples_fft': 3 * 1024,
-            'n_pixels_per_process': n_pixels_per_process,
-            'noise_method': 'mean',      # averaging method ('mean','median','logmexp')
-            'noise_range': [0.25, 0.5],  # range of normalized frequencies over which to average
-            'p': p,                      # order of AR indicator dynamics
-            'pixels': None,              # pixels to be excluded due to saturation
-            'sn': None,                  # noise level for each pixel
-        }
-
-        self.init = {
-            'K': k,                      # number of components,
-            'SC_kernel': 'heat',         # kernel for graph affinity matrix
-            'SC_sigma' : 1,              # std for SC kernel
-            'SC_thr': 0,                 # threshold for affinity matrix
-            'SC_normalize': True,        # standardize entries prior to
-                                         # computing affinity matrix
-            'SC_use_NN': False,          # sparsify affinity matrix by using
-                                         # only nearest neighbors
-            'SC_nnn': 20,                # number of nearest neighbors to use
-            'alpha_snmf': alpha_snmf,
-            'center_psf': center_psf,
-            'gSig': gSig,
-            # size of bounding box
-            'gSiz': gSiz,
-            'greedyroi_nmf_init_method': 'nndsvdar', # init method used in calls to NMF if geedy_roi method for component initialisation is used (offline or online)
-            'greedyroi_nmf_max_iter': 200,           # max_iter used in calls to NMF if greedy_roi method for component initialisation is used (online or offline)
-            'init_iter': init_iter,
-            'kernel': None,           # user specified template for greedyROI
-            'lambda_gnmf': 1,         # regularization weight for graph NMF
-            'snmf_l1_ratio': 0.0,     # L1 ratio, used by sparse nmf mode only
-            'maxIter': 5,             # number of HALS iterations
-            'max_iter_snmf': 500,
-            'method_init': method_init,    # can be greedy_roi, corr_pnr sparse_nmf, local_NMF
-            'min_corr': min_corr,
-            'min_pnr': min_pnr,
-            'nIter': 5,               # number of refinement iterations
-            'nb': gnb,                # number of global background components
-            # whether to pixelwise equalize the movies during initialization
-            'normalize_init': normalize_init,
-            # dictionary with parameters to pass to local_NMF initializer
-            'options_local_NMF': options_local_NMF,
-            'perc_baseline_snmf': 20,
-            'ring_size_factor': ring_size_factor,
-            'rolling_length': rolling_length,
-            'rolling_sum': rolling_sum,
-            'seed_method': 'auto',
-            'sigma_smooth_snmf': (.5, .5, .5),
-            'ssub': ssub,             # spatial downsampling factor
-            'ssub_B': ssub_B,
-            'tsub': tsub,             # temporal downsampling factor
-        }
-
-        self.spatial = {
-            'dist': 3,                       # expansion factor of ellipse
-            'expandCore': iterate_structure(generate_binary_structure(2, 1), 2).astype(int),
-            # Flag to extract connected components (might want to turn to False for dendritic imaging)
-            'extract_cc': True,
-            'maxthr': 0.1,                   # Max threshold
-            'medw': None,                    # window of median filter
-            # method for determining footprint of spatial components ('ellipse' or 'dilate')
-            'method_exp': 'dilate',
-            # 'nnls_L0'. Nonnegative least square with L0 penalty
-            # 'lasso_lars' lasso lars function from scikit learn
-            'method_ls': 'lasso_lars',
-            # number of pixels to be processed by each worker
-            'n_pixels_per_process': n_pixels_per_process,
-            'nb': gnb,                        # number of background components
-            'normalize_yyt_one': True,
-            'nrgthr': 0.9999,                # Energy threshold
-            'num_blocks_per_run_spat': num_blocks_per_run_spat, # number of process to parallelize residual computation ** DECREASE IF MEMORY ISSUES
-            'se': None,  # Morphological closing structuring element
-            'ss': None,  # Binary element for determining connectivity
-            'thr_method': 'nrg',             # Method of thresholding ('max' or 'nrg')
-            # whether to update the background components in the spatial phase
-            'update_background_components': update_background_components,
-        }
-
-        self.temporal = {
-            'ITER': 2,                  # block coordinate descent iterations
-            # flag for setting non-negative baseline (otherwise b >= min(y))
-            'bas_nonneg': False,
-            # number of pixels to process at the same time for dot product. Make it
-            # smaller if memory problems
-            'block_size_temp': block_size_temp, # number of pixels to parallelize residual computation ** DECREASE IF MEMORY ISSUES
-            # bias correction factor (between 0 and 1, close to 1)
-            'fudge_factor': .96,
-            # number of autocovariance lags to be considered for time constant estimation
-            'lags': 5,
-            'optimize_g': False,         # flag for optimizing time constants
-            # method for solving the constrained deconvolution problem ('oasis','cvx' or 'cvxpy')
-            # if method cvxpy, primary and secondary (if problem unfeasible for approx
-            # solution) solvers to be used with cvxpy, can be 'ECOS','SCS' or 'CVXOPT'
-            'method_deconvolution': method_deconvolution,  # 'cvxpy', # 'oasis'
-            'nb': gnb,                   # number of background components
-            'noise_method': 'mean',     # averaging method ('mean','median','logmexp')
-            'noise_range': [.25, .5],   # range of normalized frequencies over which to average
-            'num_blocks_per_run_temp': num_blocks_per_run_temp, # number of process to parallelize residual computation ** DECREASE IF MEMORY ISSUES
-            'p': p,                     # order of AR indicator dynamics
-            's_min': s_min,             # minimum spike threshold
-            'solvers': ['ECOS', 'SCS'],
-            'verbosity': False,
-        }
-
-        self.merging = {
-            'do_merge': do_merge,
-            'merge_thr': merge_thresh,
-            'merge_parallel': False
-        }
-
-        self.quality = {
-            'SNR_lowest': 0.5,         # minimum accepted SNR value
-            'cnn_lowest': 0.1,         # minimum accepted value for CNN classifier
-            'gSig_range': None,        # range for gSig scale for CNN classifier
-            'min_SNR': min_SNR,        # transient SNR threshold
-            'min_cnn_thr': 0.9,        # threshold for CNN classifier
-            'rval_lowest': -1,         # minimum accepted space correlation
-            'rval_thr': rval_thr,      # space correlation threshold
-            'use_cnn': True,           # use CNN based classifier
-            'use_ecc': False,          # flag for eccentricity based filtering (2D only)
-            'max_ecc': 3
-        }
-
-        self.online = {
-            'N_samples_exceptionality': N_samples_exceptionality,  # timesteps to compute SNR
-            'batch_update_suff_stat': batch_update_suff_stat,
-            'dist_shape_update': False,        # update shapes in a distributed way
-            'ds_factor': 1,                    # spatial downsampling for faster processing
-            'epochs': 1,                       # number of epochs
-            'expected_comps': expected_comps,  # number of expected components
-            'full_XXt': False,                 # store entire XXt matrix (as opposed to a list of sub-matrices) 
-            'init_batch': 200,                 # length of mini batch for initialization
-            'init_method': 'bare',             # initialization method for first batch,
-            'iters_shape': iters_shape,        # number of block-CD iterations
-            'max_comp_update_shape': max_comp_update_shape,
-            'max_num_added': max_num_added,    # maximum number of new components for each frame
-            'max_shifts_online': 10,           # maximum shifts during motion correction
-            'min_SNR': min_SNR,                # minimum SNR for accepting a new trace
-            'min_num_trial': min_num_trial,    # number of mew possible components for each frame
-            'minibatch_shape': minibatch_shape,  # number of frames in each minibatch
-            'minibatch_suff_stat': minibatch_suff_stat,
-            'motion_correct': True,            # flag for motion correction
-            'movie_name_online': 'online_movie.mp4',  # filename of saved movie (appended to directory where data is located)
-            'normalize': False,                # normalize frame
-            'n_refit': n_refit,                # Additional iterations to simultaneously refit
-            # path to CNN model for testing new comps
-            'num_times_comp_updated': num_times_comp_updated,
-            'opencv_codec': 'H264',            # FourCC video codec for saving movie. Check http://www.fourcc.org/codecs.php
-            'path_to_model': os.path.join(caiman_datadir(), 'model',
-                                          'cnn_model_online.pkl'),
-            'ring_CNN': False,                 # flag for using a ring CNN background model 
-            'rval_thr': rval_thr,              # space correlation threshold
-            'save_online_movie': False,        # flag for saving online movie
-            'show_movie': False,               # display movie online
-            'simultaneously': simultaneously,  # demix and deconvolve simultaneously
-            'sniper_mode': sniper_mode,        # flag for using CNN
-            'stop_detection': False,           # flag for stop detecting new neurons at the last epoch 
-            'test_both': test_both,            # flag for using both CNN and space correlation
-            'thresh_CNN_noisy': thresh_CNN_noisy,  # threshold for online CNN classifier
-            'thresh_fitness_delta': thresh_fitness_delta,
-            'thresh_fitness_raw': thresh_fitness_raw,    # threshold for trace SNR (computed below)
-            'thresh_overlap': thresh_overlap,
-            'update_freq': update_freq,            # update every shape at least once every update_freq steps
-            'update_num_comps': update_num_comps,  # flag for searching for new components
-            'use_corr_img': use_corr_img,      # flag for using correlation image to detect new components
-            'use_dense': use_dense,            # flag for representation and storing of A and b
-            'use_peak_max': use_peak_max,      # flag for finding candidate centroids
-            'W_update_factor': 1,              # update W less often than shapes by a given factor 
-        }
-
-        self.motion = {
-            'border_nan': 'copy',               # flag for allowing NaN in the boundaries
-            'gSig_filt': None,                  # size of kernel for high pass spatial filtering in 1p data
-            'is3D': False,                      # flag for 3D recordings for motion correction
-            'max_deviation_rigid': 3,           # maximum deviation between rigid and non-rigid
-            'max_shifts': (6, 6),               # maximum shifts per dimension (in pixels)
-            'min_mov': None,                    # minimum value of movie
-            'niter_rig': 1,                     # number of iterations rigid motion correction
-            'nonneg_movie': True,               # flag for producing a non-negative movie
-            'num_frames_split': 80,             # split across time every x frames
-            'num_splits_to_process_els': None,  # Unused, will be removed in a future version of Caiman
-            'num_splits_to_process_rig': None,  # DO NOT MODIFY
-            'overlaps': (32, 32),               # overlap between patches in pw-rigid motion correction
-            'pw_rigid': False,                  # flag for performing pw-rigid motion correction
-            'shifts_interpolate': False,        # interpolate shifts based on patch locations instead of resizing
-            'shifts_opencv': True,              # flag for applying shifts using cubic interpolation (otherwise FFT)
-            'splits_els': 14,                   # number of splits across time for pw-rigid registration (usually overridden by code)
-            'splits_rig': 14,                   # number of splits across time for rigid    registration (usually overridden by code)
-            'strides': (96, 96),                # how often to start a new patch in pw-rigid registration
-            'upsample_factor_grid': 4,          # motion field upsampling factor during FFT shifts
-            'use_cuda': False,                  # flag for using a GPU
-            'indices': (slice(None), slice(None))  # part of FOV to be corrected
-        }
-
-        self.ring_CNN = {
-            'n_channels' : 2,                   # number of "ring" kernels   
-            'use_bias' : False,                 # use bias in the convolutions
-            'use_add' : False,                  # use an additive layer
-            'pct' : 0.01,                       # quantile loss specification
-            'patience' : 3,                     # patience for early stopping
-            'max_epochs': 100,                  # maximum number of epochs
-            'width': 5,                         # width of "ring" kernel
-            'loss_fn': 'pct',                   # loss function
-            'lr': 1e-3,                         # (initial) learning rate
-            'lr_scheduler': None,               # learning rate scheduler function
-            'path_to_model': None,              # path to saved weights
-            'remove_activity': False,           # remove activity of last frame prior to background extraction
-            'reuse_model': False                # reuse an already trained model
-        }
-
-        if params_from_file is not None:
-            self.change_params_from_jsonfile(params_from_file)
-        self.change_params(params_dict)
-
+        self.check_consistency()
+        return self
 
     def check_consistency(self):
         """ Populates the params object with some dataset dependent values
         and ensures that certain constraints are satisfied.
         """
         logger = logging.getLogger("caiman")
-        self.data['last_commit'] = '-'.join(caiman.utils.utils.get_caiman_version())
-        if self.data['dims'] is None and self.data['fnames'] is not None:
-            self.data['dims'] = caiman.base.movies.get_file_size(self.data['fnames'], var_name_hdf5=self.data['var_name_hdf5'])[0]
-        if self.data['fnames'] is not None:
-            # if fname was stored as string instead of list
-            if isinstance(self.data['fnames'], str):
-                self.data['fnames'] = [self.data['fnames']]
-            # convert reloaded data fnames from byte-encoded to string
-            if isinstance(self.data['fnames'][0], np.bytes_):
-                self.data['fnames'] = [fname.decode('utf-8') for fname in self.data['fnames']]
-            T = caiman.base.movies.get_file_size(self.data['fnames'], var_name_hdf5=self.data['var_name_hdf5'])[1]
-            if len(self.data['fnames']) > 1:
-                T = T[0]
-            num_splits = max(T//max(self.motion['num_frames_split'], 10), 1)
-            self.motion['splits_els'] = num_splits
-            self.motion['splits_rig'] = num_splits
-            if isinstance(self.data['fnames'][0],tuple):
-                self.online['movie_name_online'] = os.path.join(os.path.dirname(self.data['fnames'][0][0]), self.online['movie_name_online'])
-            else:
-                self.online['movie_name_online'] = os.path.join(os.path.dirname(self.data['fnames'][0]), self.online['movie_name_online'])
-        if self.online['N_samples_exceptionality'] is None:
-            self.online['N_samples_exceptionality'] = np.ceil(self.data['fr'] * self.data['decay_time']).astype('int')
-        if self.online['thresh_fitness_raw'] is None:
-            self.online['thresh_fitness_raw'] = scipy.special.log_ndtr(
-                -self.online['min_SNR']) * self.online['N_samples_exceptionality']
-        self.online['max_shifts_online'] = (np.array(self.online['max_shifts_online']) / self.online['ds_factor']).astype(int)
-        if self.init['gSig'] is None:
-            self.init['gSig'] = [-1, -1]
-        if self.init['gSiz'] is None:
-            self.init['gSiz'] = [2*gs + 1 for gs in self.init['gSig']]
-        self.init['gSiz'] = tuple([gs + 1 if gs % 2 == 0 else gs for gs in self.init['gSiz']])
-        if self.patch['rf'] is not None:
-            if np.any(np.array(self.patch['rf']) <= self.init['gSiz'][0]):
-                logger.warning(f"Changing rf from {self.patch['rf']} to {2 * self.init['gSiz'][0]} because the constraint rf > gSiz was not satisfied.")
-        if self.init['nb'] <= 0 and (self.patch['nb_patch'] != self.init['nb'] or
-                                     self.patch['low_rank_background'] is not None):
-            logger.warning(f"gnb={self.init['nb']}, hence setting keys nb_patch and low_rank_background in group patch automatically.")
-            self.set('patch', {'nb_patch': self.init['nb'], 'low_rank_background': None})
-        if self.init['nb'] == -1 and self.spatial['update_background_components']:
-            logger.warning("gnb=-1, hence setting key update_background_components " +
-                            "in group spatial automatically to False.")
-            self.set('spatial', {'update_background_components': False})
-        if self.init['method_init'] == 'corr_pnr' and self.init['ring_size_factor'] is not None \
-            and self.init['normalize_init']:
-            logger.warning("using CNMF-E's ringmodel for background hence setting key " +
-                            "normalize_init in group init automatically to False.")
-            self.set('init', {'normalize_init': False})
-        if self.motion['is3D']:
+
+        data_updates = {}
+        data_updates['last_commit'] = '-'.join(caiman.utils.utils.get_caiman_version())
+
+        if self.init.method_init == 'corr_pnr' and self.init.ring_size_factor is not None:
+            if self.init.normalize_init:
+                logger.warning("using CNMF-E's ringmodel for background hence setting key " +
+                               "normalize_init in group init automatically to False.")
+                self.set('init', {'normalize_init': False}, warn=False, verbose=False)
+
+
+        if self.init.nb <= 0 and (self.patch.nb_patch != self.init.nb or self.patch.low_rank_background is not None):
+            logger.warning(f"nb={self.init.nb}, hence setting keys nb_patch and low_rank_background in group patch automatically.")
+            self.set('patch', {'nb_patch': self.init.nb, 'low_rank_background': None}, warn=False, verbose=False)
+
+        if self.init.nb == -1 and self.spatial.update_background_components:
+            logger.warning("nb=-1, hence setting key update_background_components " +
+                           "in group spatial automatically to False.")
+            self.set('spatial', {'update_background_components': False}, warn=False, verbose=False)
+
+        if self.motion.is3D:
+            motion_updates = {}
             for a in ('indices', 'max_shifts', 'strides', 'overlaps'):
                 if len(self.motion[a]) != 3:
                     if self.motion[a][0] == self.motion[a][1]:
-                        self.motion[a] = (self.motion[a][0],) * 3
+                        motion_updates[a] = (self.motion[a][0],) * 3
                         logger.warning(f"is3D=True, hence setting key {a} to {self.motion[a]}")
                     else:
                         raise ValueError(f'{a} must be a tuple of length 3 for volumetric 3D data')
-        for key in ('max_num_added', 'min_num_trial'):
-            if (self.online[key] == 0 and self.online['update_num_comps']):
-                self.set('online', {'update_num_comps': False})
-                logger.warning(f"{key}=0, hence setting key online.update_num_comps to False.")
-        # FIXME The authoritative value is stored in the init field. This should later be refactored out
-        #     into a general section, once we're passing around the CNMFParams object rather than splatting it out
-        #     from **get_group
-        self.spatial['nb']  = self.init['nb']
-        self.temporal['nb'] = self.init['nb']
+            if motion_updates:
+                self.set('motion', motion_updates, warn=False, verbose=False)
 
-    def set(self, group:str, val_dict:dict, set_if_not_exists:bool=False, verbose=False) -> None:
+        for key in ('max_num_added', 'min_num_trial'):
+            if (self.online[key] == 0 and self.online.update_num_comps):
+                logger.warning(f"{key}=0, hence setting key online.update_num_comps to False.")
+                self.set('online', {'update_num_comps': False}, warn=False, verbose=False)
+                break
+    
+
+    def set(self, group: str, val_dict: dict, verbose=True, warn=True) -> None:
         """ Add key-value pairs to a group. Existing key-value pairs will be overwritten
             if specified in val_dict, but not deleted.
 
@@ -992,36 +1535,34 @@ class CNMFParams(object):
             group: The name of the group
             val_dict: A dictionary with key-value pairs to be set for the group
             warn_unused: 
-            set_if_not_exists: Whether to set a key-value pair in a group if the key does not currently exist in the group. (DEPRECATED)
 
         This is not intended for general use and does not run consistency checks on the CNMFParams object afterwards
         (or do any triggered actions on certain values being set like filenames). Usually the change_params() method is more appropriate.
         A future version of caiman may make this method private.
         """
-
         logger = logging.getLogger("caiman")
-        if set_if_not_exists:
-            logger.warning("The set_if_not_exists flag for CNMFParams.set() is deprecated and will be removed in a future version of Caiman")
-            # can't easily catch if it's passed but set to False, but that wouldn't do anything because of the default,
-            # and if they get that error it's at least really easy to fix - just remove the flag
-            # we don't want to support this because it makes the structure of the object unpredictable except at runtime
+        if warn:
+            # this is the only way to change a param without running consistency checks...
+            logger.warning("CNMFParams.set() is dangerous! Use CNMFParams.change_params() instead.")
 
-        if not hasattr(self, group):
-            raise KeyError(f'No group in CNMFParams named {group}')
+        d = self.get_group(group)
+        updates = {}
 
-        d = getattr(self, group)
         for k, v in val_dict.items():
-            if k not in d and not set_if_not_exists:
+            if k not in d:
                 if verbose:
                     logger.warning(
                         f"{group}/{k} not set: invalid target in CNMFParams object")
             else:
-                try:
-                    if np.any(d[k] != v):
-                        logger.info(f"Changing key {k} in group {group} from {d[k]} to {v}")
-                except ValueError: # d[k] and v also differ if above comparison fails, e.g. lists of different length
+                if verbose and not utilities.all_same(d[k], v):
                     logger.info(f"Changing key {k} in group {group} from {d[k]} to {v}")
-                d[k] = v
+                updates[k] = v
+        
+        # apply changes, bypassing frozen
+        if updates:
+            d_new = d.replace(**updates)
+            object.__setattr__(self, group, d_new)
+
 
     def get(self, group, key):
         """ Get a value for a given group and key. Raises an exception if no such group/key combination exists.
@@ -1031,101 +1572,213 @@ class CNMFParams(object):
             key: The key for the property in the group of interest.
 
         Returns: The value for the group/key combination.
-        """
-
-        if not hasattr(self, group):
-            raise KeyError(f'No group in CNMFParams named {group}')
-
-        d = getattr(self, group)
+        """  
+        d = self.get_group(group)
         if key not in d:
             raise KeyError(f'No key {key} in group {group}')
 
         return d[key]
 
-    def get_group(self, group):
+
+    def get_group(self, group: str) -> GroupParams:
         """ Get the dictionary of key-value pairs for a group.
 
         Args:
             group: The name of the group.
         """
-
-        if not hasattr(self, group):
-            raise KeyError(f'No group in CNMFParams named {group}')
-
-        return getattr(self, group)
-
-    def __eq__(self, other):
-
-        if not isinstance(other, CNMFParams):
-            return False
-
-        parent_dict1 = self.to_dict()
-        parent_dict2 = other.to_dict()
-
-        key_diff = np.setdiff1d(parent_dict1.keys(), parent_dict2.keys())
-        if len(key_diff) > 0:
-            return False
-
-        for k1, child_dict1 in parent_dict1.items():
-            child_dict2 = parent_dict2[k1]
-            added, removed, modified, same = dict_compare(child_dict1, child_dict2)
-            if len(added) != 0 or len(removed) != 0 or len(modified) != 0 or len(same) != len(child_dict1):
-                return False
-
-        return True
-
-    def to_dict(self) -> dict:
-        """Returns the params class as a dictionary with subdictionaries for each
-        category."""
-        return {
-               'data': self.data,
-               'init': self.init,
-               'merging': self.merging,
-               'motion': self.motion,
-               'online': self.online,
-               'patch': self.patch,
-               'preprocess': self.preprocess,
-               'ring_CNN': self.ring_CNN,
-               'quality': self.quality,
-               'spatial': self.spatial,
-               'temporal': self.temporal
-               }
-
-    def to_json(self) -> str:
-        """ Reversibly serialise CNMFParams to json """
-        dictdata = self.to_dict()
-        # now we need to tweak dictdata to convert ndarrays to something json can represent
-        class NumpyEncoder(json.JSONEncoder): # Custom json encoder that handles ndarrays better
-            def default(self, obj):
-                if isinstance(obj, np.ndarray):
-                    return obj.tolist()
-                elif isinstance(obj, np.integer):
-                    return int(obj)
-                elif isinstance(obj, slice):
-                    return list([obj.start, obj.stop, obj.step])
-                return json.JSONEncoder.default(self, obj)
-        return json.dumps(dictdata, cls=NumpyEncoder)
+        if group in self.groups:
+            return getattr(self, group)
+        raise KeyError(f'No group in CNMFParams named {group}')
+    
+    
+    def get_differing_params(self, other: 'CNMFParams') -> Iterator[tuple[str, Any, Any]]:
+        for groupname in self.groups:
+            this_group = self.get_group(groupname)
+            other_group = other.get_group(groupname)
+            for (name, self_val, other_val) in this_group.get_differing_params(other_group):
+                yield groupname + '.' + name, self_val, other_val
 
 
-    def to_jsonfile(self, targfn:str) -> None:
+    def to_dict(self) -> dict[str, GroupParams]:
+        """Convert to a dictionary mapping group names to objects to read params for that group."""
+        return {group: self.get_group(group) for group in self.groups}
+
+    
+    def to_dict_roundtrip(self, format: Literal['json', 'python'] = 'python') -> dict[str, dict[str, Any]]:
+        """Convert to a dict that can be used to recreate an identical object by passing as params_dict"""
+        ta = TypeAdapter(type(self))
+        return ta.dump_python(self, round_trip=True, mode=format)
+
+
+    def to_json(self, verify=True) -> bytes:
+        """ 
+        Reversibly serialise CNMFParams to json. If verify is true, test that it can be
+        deserialized correctly (meaning that all values match the original; it is
+        possible that this happens even if they don't all match the schema).
+        """
+        logger = logging.getLogger('caiman')
+        ta = TypeAdapter(type(self))
+        jsonstring = ta.dump_json(self, round_trip=True)
+
+        if verify:
+            logger.debug('Testing reconstruction from JSON')
+            recon_obj = ta.validate_json(jsonstring)
+
+            mismatched = list(self.get_differing_params(recon_obj))
+            if len(mismatched) > 0:
+                # format a table of mismatched parameters
+                headers = ('Param name', 'Current value', 'Reconstructed value', 'Expected type')
+                table_rows = []
+                for mismatch in mismatched:
+                    group, param = mismatch[0].split('.')
+                    param_type = self.get_group(group).__pydantic_fields__[param].annotation
+                    if isinstance(param_type, type):
+                        typename = param_type.__name__
+                    else:
+                        typename = str(param_type)
+                    table_rows.append(mismatch + (typename,))
+                
+                mismatch_table = tabulate(table_rows, headers=headers)
+                logger.warning(
+                    'The following parameter(s) were not reconstructed correctly from JSON. '
+                    'If this is an issue, please set each parameter to a value of the correct type.\n\n'
+                     + mismatch_table + '\n')
+            else:
+                logger.debug('Reconstruction was successful.')
+
+        return jsonstring
+
+
+    def to_jsonfile(self, targfn: Union[str, Path], verify=True) -> None:
         """ Reversibly serialise CNMFParams to a json file """
-        with open(targfn, 'w') as targfh:
-            targfh.write(self.to_json())
+        with open(targfn, 'wb') as targfh:
+            targfh.write(self.to_json(verify=verify))
 
     def __repr__(self) -> str:
         formatted_outputs = [
-            f'{group_name}:\n\n{pformat(group_dict)}'
-            for group_name, group_dict in self.to_dict().items()
+            f'{group_name}:\n\n{pformat(self.get_group(group_name))}' for group_name in self.groups
         ]
 
         return 'CNMFParams:\n\n' + '\n\n'.join(formatted_outputs)
 
-    def change_params(self, params_dict, allow_legacy:bool=True, warn_unused:bool=True, verbose:bool=False) -> None:
+
+    @classmethod
+    def _update_group(cls, nested_params: dict[str, dict], group: str, group_params: Union[dict, GroupParams],
+                      error_on_changing_override: bool):
+        """Helper to update one group of nested_params"""
+        logger = logging.getLogger('caiman')
+
+        # if a dict, check whether any params need to be set on a different group
+        if not isinstance(group_params, GroupParams) and group in cls.canonical_groups:
+            wrong_group_params = group_params.keys() & cls.canonical_groups[group].keys()
+            for param in wrong_group_params:
+                new_group = cls.canonical_groups[group][param]
+                logger.warning(f'Setting parameter {param} on group {group} is deprecated; set on {new_group} instead.')
+                cls._update_group(
+                    nested_params, new_group, {param: group_params[param]}, error_on_changing_override=error_on_changing_override)
+            
+            if len(wrong_group_params) > 0:
+                group_params = {k: v for k, v in group_params.items() if k not in wrong_group_params}
+
+        if group not in nested_params:
+            if len(group_params) > 0:  # leave missing otherwise
+                if isinstance(group_params, GroupParams):
+                    # avoid directly converting to dict which uses computed values
+                    # and can fail if _full_params is unavailable
+                    nested_params[group] = TypeAdapter(type(group_params)).dump_python(group_params, round_trip=True)
+                else:
+                    nested_params[group] = group_params
+                    
+        elif isinstance(group_params, GroupParams):
+            raise ValueError(f'Cannot override other params for the {group} group with a {type(group_params).__name__} object')
+        else: # updating existing dict with a dict
+            overridden_params = nested_params[group].keys() & group_params.keys()
+            for param in overridden_params:
+                if not utilities.all_same(old := nested_params[group][param], new := group_params[param]):
+                    if error_on_changing_override:
+                        raise RuntimeError(f'Parameter {group}/{param} received two different values.')
+                    else:
+                        logger.warning(f'Parameter {group}/{param} was overridden (old = {old}, new = {new}) - was this intended?')
+            nested_params[group].update(group_params)  # don't check every subkey here, they will be checked in GroupParams validator
+
+
+    @classmethod
+    def update_nested_params(
+        cls, nested_params: dict[str, dict], new_params: Mapping[str, Any], allow_legacy=True,
+        warn_unused=True, error_on_changing_override: Union[bool, Literal['within_new']] = 'within_new') -> dict[str, dict]:
+        """
+        Update a nested params dict with a dict potentially containing both flat and nested params.
+        Does not check nested keys for validity.
+        Keys are processed in order, later ones overriding earlier ones, but a warning is logged 
+        for each override if it changes the value of the parameter. If error_on_changing_override is true,
+        an error is raised instead. By default, an error is raised for changing overrides
+        only within new_params, not when something in new_params overrides something in nested_params. 
+
+        Pre-constructed objects of GroupParams subtypes are accepted under the group top-level keys,
+        but only if no params have previously been processed from that group (including existing keys in
+        nested_dict_in) because we don't know which params are user-specified vs. defaults.
+        """
+        if error_on_changing_override == 'within_new':
+            # implement by combining new_params first, then combining with nested_params
+            # add an empty dict for each group present in nested_params to block updating with GroupParams
+            combined_new: dict[str, Any] = {group: {} for group in nested_params}
+            cls.update_nested_params(
+                combined_new, new_params, allow_legacy=allow_legacy, warn_unused=warn_unused, error_on_changing_override=True)
+            new_params = combined_new
+            error_on_changing_override = False
+
+        logger = logging.getLogger('caiman')
+        groups = cls.get_group_types()
+
+        legacy_used = False
+        for paramkey, paramval in new_params.items():
+             # Handle proper pathed part. Latter half of the conditional is because of scoped keys with the same name as categories, because we apparently have those. ring_CNN is an example.
+            if paramkey in groups and isinstance(paramval, (dict, GroupParams)):
+                cls._update_group(nested_params, group=paramkey, group_params=paramval, error_on_changing_override=error_on_changing_override)
+            
+            # BEGIN code that we will remove in some future version of caiman
+            elif allow_legacy:
+                paramkey_orig = paramkey
+                if paramkey in cls.flat_param_renames:
+                    # search for the renamed name (luckily there are not any that use different names for different groups)
+                    paramkey = cls.flat_param_renames[paramkey]
+
+                found = False
+                for group, GroupClass in groups.items():
+                    if paramkey in GroupClass.input_params(): # Is it known?
+                        found = True
+                        if group not in nested_params:
+                            nested_params[group] = {paramkey: paramval}
+                        else:
+                            # deal with override
+                            if paramkey in nested_params[group] and not utilities.all_same(old := nested_params[group][paramkey], paramval):
+                                if error_on_changing_override:
+                                    raise RuntimeError(f'Parameter {group}/{paramkey} recevied two different values.')
+                                else:
+                                    logger.warning(f'Parameter {group}/{paramkey} was overridden (old = {old}, new = {paramval}) - was this intended?')
+
+                            nested_params[group][paramkey] = paramval                
+                if found:
+                    legacy_used = True
+                elif warn_unused:
+                    logger.warning(f"In setting CNMFParams, provided toplevel key {paramkey_orig} was not consumed. This is a bug!")
+            # END
+            else:
+                raise ValueError(f'Key {paramkey} does not match a parameter group, or the value is not a dictionary.')
+        
+        if legacy_used:
+            logger.warning("In setting CNMFParams, non-pathed parameters were used; this is deprecated. "
+                           "In some future version of Caiman, allow_legacy will default to False (and eventually will be removed).")
+
+        return nested_params
+
+
+    def change_params(self, params_dict: dict[str, Any], allow_legacy=True, warn_unused=True, verbose=False) -> None:
         """ Method for updating the params object by providing a dictionary.
 
         Args:
-            params_dict: dictionary with parameters to be changed
-            verbose: If true, will complain if the params dictionary is not complete
+            params_dict: dictionary with parameters to be changed. Values may be in raw format
+                         read directly from JSON; they will be converted based on each field's declared type.
             allow_legacy: If True, throw a deprecation warning and then attempt to
                           handle unconsumed keys using the older copy-it-everywhere logic.
                           We will eventually remove this option and the corresponding code.
@@ -1133,53 +1786,31 @@ class CNMFParams(object):
                          were never used in populating the Params object. You really should not
                          set this to False. Fix your code.
         """
-        logger = logging.getLogger("caiman")
-        # When we're ready to remove allow_legacy, this code will get a lot simpler
+        # First collect updates in the nested format (and remove those that don't match any real param)
+        # Start with an empty dict for each group, to prevent passing GroupParams objects (since that would
+        # confusingly override all params for that group)
+        nested_params = {group: {} for group in self.groups}
+        self.update_nested_params(
+            nested_params=nested_params, new_params=params_dict, allow_legacy=allow_legacy, warn_unused=warn_unused,
+            error_on_changing_override=True)
 
-        consumed = {} # Keep track of what parameters in params_dict were used to set something in params (just for legacy API)
-        nagged_once = False # So we don't nag people multiple times in the same call
-        for paramkey in params_dict:
-            if paramkey in list(self.__dict__.keys()) and isinstance(params_dict[paramkey], dict): # Handle proper pathed part. Latter half of the conditional is because of scoped keys with the same name as categories, because we apparently have those. ring_CNN is an example.
-                cat_handle = getattr(self, paramkey)
-                for k, v in params_dict[paramkey].items():
-                    if k == 'nb' and paramkey != 'init':
-                        # Special casing to handle a misdesign in CNMFParams where some keys must have the same value in different
-                        # sections.
-                        logger.warning("The 'nb' parameter can only be set in the init part of CNMFParams. Attempts to set it elsewhere are ignored")
-                        continue
-                    if k not in cat_handle and warn_unused:
-                        # For regular/pathed API, we can notice right away if the user gave us something that won't update the object
-                        logger.warning(f"In setting CNMFParams, provided key {paramkey}/{k} was not consumed. This is a bug!")
-                    else:
-                        cat_handle[k] = v 
-            # BEGIN code that we will remove in some future version of caiman
-            elif allow_legacy:
-                legacy_used = False
-                for category in list(self.__dict__.keys()):
-                    cat_handle = getattr(self, category) # Thankfully a read-write handle
-                    if paramkey in cat_handle: # Is it known?
-                        legacy_used = True
-                        consumed[paramkey] = True
-                        cat_handle[paramkey] = params_dict[paramkey] # Do the update
-                if legacy_used:
-                    if not nagged_once:
-                        logger.warning(f"In setting CNMFParams, non-pathed parameters were used; this is deprecated. In some future version of Caiman, allow_legacy will default to False (and eventually will be removed)")
-                    nagged_once = True
-        # END
-        if warn_unused:
-            for toplevel_k in params_dict:
-                if toplevel_k not in consumed and toplevel_k not in list(self.__dict__.keys()): # When we remove legacy behaviour, this logic will simplify and fold into above
-                    logger.warning(f"In setting CNMFParams, provided toplevel key {toplevel_k} was unused. This is a bug!")
+        # now update each group, attempting to convert each value
+        for group, group_updates in nested_params.items():
+            if group_updates:
+                # update group, bypassing frozen
+                group_params = self.get_group(group)
+                new_group_params = group_params.replace(warn_unused=warn_unused, **group_updates)
+                object.__setattr__(self, group, new_group_params)
+
         self.check_consistency()
 
-    def change_params_from_json(self, jsonstring:str, verbose:bool=False) -> None:
+    def change_params_from_json(self, jsonstring: str, verbose: bool = False) -> None:
         """ Same as change_params, except it takes json as input """
-        to_load = json.loads(jsonstring)
-        self.change_params(to_load, verbose=verbose)
+        input_dict = json.loads(jsonstring)
+        self.change_params(input_dict, verbose=verbose)
 
-    def change_params_from_jsonfile(self, json_fn:str, verbose:bool=False) -> None:
+    def change_params_from_jsonfile(self, json_fn: str, verbose: bool = False) -> None:
         """ Same as change_params, except it takes a json file as input; pass the filename """
         with open(json_fn, 'r') as json_fh:
-            to_load = json.load(json_fh)
-        self.change_params(to_load, verbose=verbose)
-
+            jsonstring = json_fh.read()
+        self.change_params_from_json(jsonstring, verbose=verbose)

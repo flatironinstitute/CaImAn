@@ -32,8 +32,6 @@ if [ $OS == "Linux" ]; then
 	fi
 fi
 
-# Tell matplotlib to try to plot less to begin with by specifying a postscript backend
-export MPLCONFIG=ps
 
 cd `dirname ${BASH_SOURCE[0]}`
 
