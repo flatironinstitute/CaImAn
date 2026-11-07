@@ -36,3 +36,23 @@ def test_to2D_to3D():
             npt.assert_array_equal(movie_flat, reference_to2D(movie, order))
             movie_from_flat = movie_flat.to3DFromPixelxTime(shape, order)
             npt.assert_array_equal(movie_from_flat, movie)
+
+
+def test_play_plot_text(monkeypatch):
+    # cv2.putText only draws on 8-bit images in OpenCV 5, while play() works on float frames.
+    # Record the frames instead of opening a window so this runs headless.
+    shown = []
+    monkeypatch.setattr(movies.cv2, 'imshow', lambda name, frame: shown.append(frame.copy()))
+    monkeypatch.setattr(movies.cv2, 'waitKey', lambda *args: -1)
+    monkeypatch.setattr(movies.cv2, 'destroyAllWindows', lambda: None)
+
+    rng = np.random.default_rng(0)
+    mov = movies.movie(rng.random((3, 40, 60)).astype(np.float32), fr=30)
+    mov.play(backend='opencv', plot_text=True, fr=1000, q_max=100, q_min=0)
+
+    assert len(shown) == 3
+    for frame in shown:
+        assert np.issubdtype(frame.dtype, np.floating)
+        # the frame number is burned in at full brightness, the rest stays in [0, 1]
+        assert np.any(frame == 255)
+        npt.assert_array_less(frame[frame != 255], 1 + 1e-6)

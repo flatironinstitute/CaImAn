@@ -1948,13 +1948,17 @@ def play_movie(movie,
                                                         fontFace=5,
                                                         fontScale=0.8,
                                                         thickness=1)[0]
-            cv2.putText(frame,
+            # Since OpenCV 5, cv2.putText only draws on 8-bit images and frame is floating point
+            # here, so render the text into an 8-bit mask and copy it onto the frame
+            text_mask = np.zeros(frame.shape[:2], dtype=np.uint8)
+            cv2.putText(text_mask,
                         'Frame = ' + str(iddxx),
                         ((frame.shape[1] - text_width) // 2, frame.shape[0] - (text_height + 5)),
                         fontFace=5,
                         fontScale=0.8,
-                        color=(255, 255, 255),
+                        color=255,
                         thickness=1)
+            frame[text_mask > 0] = 255
         return frame
 
     if backend == 'pyplot':
