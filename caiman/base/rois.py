@@ -171,7 +171,6 @@ def nf_match_neurons_in_binary_masks(masks_gt,
                                      labels=['Session 1', 'Session 2'],
                                      cmap='gray',
                                      D=None,
-                                     enclosed_thr=None,
                                      colors=['red', 'white']):
     """
     Match neurons expressed as binary masks. Uses Hungarian matching algorithm
@@ -198,9 +197,6 @@ def nf_match_neurons_in_binary_masks(masks_gt,
 
         D: list of ndarrays
             list of distances matrices
-
-        enclosed_thr: float
-            if not None set distance to at most the specified value when ground truth is a subset of inferred
 
     Returns:
         idx_tp_1:
@@ -238,7 +234,7 @@ def nf_match_neurons_in_binary_masks(masks_gt,
     if D is None:
         # find distances and matches
         # find the distance between each masks
-        D = distance_masks([A_ben, A_cnmf], [cm_ben, cm_cnmf], min_dist, enclosed_thr=enclosed_thr)
+        D = distance_masks([A_ben, A_cnmf], [cm_ben, cm_cnmf], min_dist)
 
     level = 0.98
 
@@ -318,7 +314,6 @@ def register_ROIs(A1,
                   use_opt_flow=True,
                   thresh_cost=.7,
                   max_dist=10,
-                  enclosed_thr=None,
                   print_assignment=False,
                   plot_results=False,
                   Cn=None,
@@ -361,10 +356,6 @@ def register_ROIs(A1,
 
         max_dist: scalar
             max distance between centroids
-
-        enclosed_thr: float
-            if not None set distance to at most the specified value when ground 
-            truth is a subset of inferred
 
         print_assignment: bool
             print pairs of matched ROIs
@@ -484,7 +475,7 @@ def register_ROIs(A1,
         cm_2 = com(A2, *dims)
         A1_tr = (A1 > 0).astype(float)
         A2_tr = (A2 > 0).astype(float)
-        D = distance_masks([A1_tr, A2_tr], [cm_1, cm_2], max_dist, enclosed_thr=enclosed_thr)
+        D = distance_masks([A1_tr, A2_tr], [cm_1, cm_2], max_dist)
 
     matches, costs = find_matches(D, print_assignment=print_assignment)
     matches = matches[0]
@@ -561,8 +552,7 @@ def register_multisession(A,
                           max_thr=0,
                           use_opt_flow=True,
                           thresh_cost=.7,
-                          max_dist=10,
-                          enclosed_thr=None):
+                          max_dist=10):
     """
     Register ROIs across multiple sessions using an intersection over union metric
     and the Hungarian algorithm for optimal matching. Registration occurs by 
@@ -593,10 +583,6 @@ def register_multisession(A,
 
         max_dist: scalar
             max distance between centroids
-
-        enclosed_thr: float
-            if not None set distance to at most the specified value when ground 
-            truth is a subset of inferred
 
     Returns:
         A_union: csc_matrix # pixels x # of total distinct components
@@ -637,8 +623,7 @@ def register_multisession(A,
                                     max_thr=max_thr,
                                     use_opt_flow=use_opt_flow,
                                     thresh_cost=thresh_cost,
-                                    max_dist=max_dist,
-                                    enclosed_thr=enclosed_thr)
+                                    max_dist=max_dist)
 
         mat_sess, mat_un, nm_sess, nm_un, _, A2 = reg_results
         logger.info(len(mat_sess))
@@ -710,7 +695,7 @@ def norm_nrg(a: np.ndarray) -> np.ndarray:
     return np.reshape(cumEn[inds_inv], a.shape)
 
 
-def distance_masks(M_s:list, cm_s: list[list], max_dist: float, enclosed_thr: Optional[float] = None) -> list:
+def distance_masks(M_s:list, cm_s: list[list], max_dist: float) -> list:
     """
     Compute distance matrix based on an intersection over union metric. Matrix are compared in order,
     with matrix i compared with matrix i+1
@@ -725,9 +710,6 @@ def distance_masks(M_s:list, cm_s: list[list], max_dist: float, enclosed_thr: Op
         max_dist: float
             maximum distance among centroids allowed between components. This corresponds to a distance
             at which two components are surely disjoined
-
-        enclosed_thr: float
-            if not None set distance to at most the specified value when ground truth is a subset of inferred
 
     Returns:
         D_s: list of matrix distances
@@ -752,8 +734,7 @@ def distance_masks(M_s:list, cm_s: list[list], max_dist: float, enclosed_thr: Op
 
         cmgt_comp = np.array(cmgt_comp)
         cmtest_comp = np.array(cmtest_comp)
-        if enclosed_thr is not None:
-            gt_val = gt_comp.T.dot(gt_comp).diagonal()
+
         for i in range(nb_gt):
             # for each components of gt
             k = gt_comp[:, np.repeat(i, nb_test)] + test_comp
@@ -776,11 +757,7 @@ def distance_masks(M_s:list, cm_s: list[list], max_dist: float, enclosed_thr: Op
 
                         # intersection is removed from union since union contains twice the overlapping area
                         # having the values in this format 0-1 is helpful for the hungarian algorithm that follows
-                        D[i, j] = 1 - 1. * intersection / \
-                            (union - intersection)
-                        if enclosed_thr is not None:
-                            if intersection == gt_val[j] or intersection == gt_val[i]:
-                                D[i, j] = min(D[i, j], 0.5)
+                        D[i, j] = 1 - 1. * intersection / (union - intersection)
                     else:
                         D[i, j] = 1.
 
