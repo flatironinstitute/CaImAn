@@ -69,15 +69,23 @@ def fn_relocated(fn:str, force_temp:bool=False) -> str:
 # In the future we may consistently store these somewhere under the caiman_datadir
 
 
-def memmap_frames_filename(basename: str, dims: tuple, frames: int, order: str = 'F') -> str:
+def memmap_frames_filename(basename: str, dims: tuple, frames: int, order: str = 'F', in_tempdir:bool=True) -> str:
     # Some functions calling this have the first part of *their* dims Tuple be the number of frames.
     # They *must* pass a slice to this so dims is only X, Y, and optionally Z. Frames is passed separately.
+    # This defaults to being in CAIMAN_TEMP (itself defaulting to $CAIMAN_DATA/temp) to avoid having files land randomly elsewhere
+    #
+    # It is strongly encouraged to use the return value from this function to find files rather than calculating where things
+    # *should* be.
     dimfield_0 = dims[0]
     dimfield_1 = dims[1]
     if len(dims) == 3:
         dimfield_2 = dims[2]
     else:
         dimfield_2 = 1
+
+    if in_tempdir:
+        basename = os.path.join(get_tempdir(), os.path.split(basename)[1]) # lop off old path if present, attach a new one in the temp dir
+
     return f"{basename}_d1_{dimfield_0}_d2_{dimfield_1}_d3_{dimfield_2}_order_{order}_frames_{frames}.mmap"
 
 def fname_derived_presuffix(basename:str, addition:str, swapsuffix:str = None) -> str:
