@@ -1,8 +1,12 @@
 #!/usr/bin/env python
 
+from datetime import datetime, timezone
 import numpy as np
 import numpy.testing as npt
 import os
+from pynwb import NWBHDF5IO
+from scipy.sparse import csc_matrix
+from caiman.source_extraction.cnmf.estimates import Estimates
 from caiman.utils import utils
 from caiman.paths import get_tempdir
 
@@ -45,6 +49,21 @@ def test_save_and_load_dict_to_hdf5():
     # test that the same data gets loaded
     loaded = utils.load_dict_from_hdf5(filename)
     _recursively_assert_array_equal(dict_to_save, loaded)
+
+
+def test_save_nwb_estimates(tmp_path):
+    traces = np.array([[1., 3., 2.]])
+    estimates = Estimates(A=csc_matrix([[1.], [0.], [0.], [0.]]), b=np.ones((4, 1)),
+                          C=traces, f=np.ones_like(traces), dims=(2, 2))
+    estimates.YrA = np.zeros_like(traces)
+    estimates.r_values = np.array([0.9])
+    estimates.SNR_comp = np.array([3.])
+    filename = tmp_path / 'estimates.nwb'
+    estimates.save_NWB(filename, session_start_time=datetime.now(timezone.utc))
+
+    with NWBHDF5IO(filename, 'r') as io:
+        fluorescence = io.read().processing['ophys']['Fluorescence']
+        npt.assert_array_equal(fluorescence.roi_response_series['RoiResponseSeries'].data[:], traces.T)
 
 
 if __name__ == '__main__':
