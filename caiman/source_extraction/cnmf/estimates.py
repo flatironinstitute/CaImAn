@@ -1602,7 +1602,7 @@ class Estimates(object):
             # Add processing results
 
             # Create the module as 'ophys' unless it is taken and append 'ophysX' instead
-            ophysmodules = [s[5:] for s in list(nwbfile.modules) if s.startswith('ophys')]
+            ophysmodules = [s[5:] for s in nwbfile.processing if s.startswith('ophys')]
             if any('' in s for s in ophysmodules):
                 if any([s for s in ophysmodules if s.isdigit()]):
                     nummodules = max([int(s) for s in ophysmodules if s.isdigit()])+1
@@ -1619,7 +1619,7 @@ class Estimates(object):
             img_seg = ImageSegmentation()
             mod.add(img_seg)
             fl = Fluorescence()
-            mod.add_data_interface(fl)
+            mod.add(fl)
 #            mot_crct = MotionCorrection()
 #            mod.add_data_interface(mot_crct)
 
